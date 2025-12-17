@@ -97,7 +97,7 @@ window.esconderPainel = function () {
     document.body.style.overflow = '';
 
     // 4. MOSTRA O BOTÃO DE REABRIR
-    if (window.innerWidth > 900 && typeof window.mostrarBotaoReabrirPainel === 'function') {
+    if (window.innerWidth >= 900 && typeof window.mostrarBotaoReabrirPainel === 'function') {
         window.mostrarBotaoReabrirPainel();
     }
 };
@@ -467,7 +467,7 @@ function mostrarModalAvisoImagens(esperados, preenchidos, onConfirm, onCancel) {
 
       <div class="modal-footer" style="display:flex; gap:10px; justify-content:flex-end;">
         <button type="button" class="btn btn--secondary" id="btnCancelImg">Voltar e Recortar</button>
-        <button type="button" class="btn btn--primary" id="btnConfirmImg" style="background: var(--color-warning); border-color: var(--color-warning); color: #000;">Continuar mesmo assim</button>
+        <button type="button" class="btn btn--primary" id="btnConfirmImg" style="background: var(--color-warning); border-color: var(--color-warning); color: var(--color-text);">Continuar mesmo assim</button>
       </div>
     </div>
   `;
@@ -646,8 +646,8 @@ function gerarVisualizadorPDF(args) {
         <!-- MODAL DE CONFIRMAÇÃO (Substitui a nova aba) -->
         <div id="cropConfirmModal" class="custom-modal-overlay">
             <div class="custom-modal-content">
-                <h3 style="margin:0; color: #fff;">Imagens Selecionadas (<span id="countImagens">0</span>)</h3>
-                <p style="color: #ccc; font-size: 0.9em;">Revise os recortes antes de enviar.</p>
+                <h3 style="margin:0; color: var(--color-text)">Imagens Selecionadas (<span id="countImagens">0</span>)</h3>
+                <p style="color: var(--color-text-secondary); font-size: 0.9em;">Revise os recortes antes de enviar.</p>
                 
                 <div id="cropPreviewGallery" class="crop-preview-gallery">
                     </div>
@@ -985,7 +985,7 @@ function gerarVisualizadorPDF(args) {
         if (cropper) return;
 
         // Auto-hide do painel ao iniciar recorte (Pedido do usuário)
-        if (window.innerWidth < 900) window.esconderPainel?.();
+        if (window.innerWidth <= 900) window.esconderPainel?.();
 
         iniciarCropper();
 
@@ -1265,6 +1265,14 @@ function gerarVisualizadorPDF(args) {
     }
 
     window.confirmarEnvioIA = async () => {
+        var styleviewerSidebar = document.createElement("style");
+        styleviewerSidebar.innerHTML = `
+        #viewerSidebar {
+            overflow-y: scroll;
+        }
+        `
+        document.body.appendChild(styleviewerSidebar);
+
         if (window.__isProcessing) return;
         window.__isProcessing = true;
         window.__userInterruptedScroll = false; // Reset smart scroll flag
@@ -2199,6 +2207,7 @@ function gerarVisualizadorPDF(args) {
 
                 customAlert("✅ Gabarito identificado e anexado!", 3000);
                 renderizarQuestaoFinal(resposta);
+                styleviewerSidebar.remove();
             } else {
                 resposta.imagens_suporte = window.__imagensLimpas.questao_suporte || [];
 
@@ -2220,6 +2229,7 @@ function gerarVisualizadorPDF(args) {
 
                 customAlert("✅ Questão processada com sucesso!", 3000);
                 renderizarQuestaoFinal(resposta);
+                styleviewerSidebar.remove();
             }
 
             // Limpa a lista após o sucesso
@@ -3433,7 +3443,7 @@ window.renderizarQuestaoFinal = function (dados, elementoAlvo = null) {
                 <span style="font-weight:900; font-size:14px; color:${nivel.cor};">${nivel.texto} (${pct}%)</span>
             </div>
 
-            <div style="height:8px; width:100%; background:rgba(0,0,0,0.05); border-radius:99px; overflow:hidden; margin-bottom:15px;">
+            <div style="height:8px; width:100%; background:var(--color-background-progress-bar); border-radius:99px; overflow:hidden; margin-bottom:15px;">
                 <div style="height:100%; width:${pct}%; background:${nivel.cor}; border-radius:99px; transition:width 1s ease;"></div>
             </div>
 
@@ -4810,7 +4820,7 @@ window.renderizarQuestaoFinal = function (dados, elementoAlvo = null) {
             const urls = window.__pdfUrls || window.pdfUrls;
             if (urls?.gabarito) window.__preferirPdfGabarito = true;
             await window.trocarModo("gabarito");
-            if (window.modo == "gabarito") window.esconderPainel?.();
+            if (window.modo == "gabarito" && window.innerWidth <= 900) window.esconderPainel?.();
         };
     }
 
@@ -5228,13 +5238,13 @@ window.renderizarTelaFinal = function () {
                 </div>
                 <div class="json-debug-area" style="margin-top: 30px; background: #0f172a; border-radius: 8px; overflow: hidden; border: 1px solid var(--color-border);">
                     <details>
-                        <summary class="json-debug-header" style="padding: 15px; background: rgba(0,0,0,0.3); color: var(--color-primary); cursor: pointer; font-family: monospace; font-weight: bold; display:flex; justify-content:space-between;">
+                        <summary class="json-debug-header">
                             <span>📦 JSON Payload Final (Clique para expandir)</span>
                             <span>📋</span>
                         </summary>
                         <div style="position:relative;">
                              <button class="btn btn--sm btn--primary" style="position:absolute; top:10px; right:10px;" onclick="navigator.clipboard.writeText(document.getElementById('finalJsonOutput').innerText); this.innerText='Copiado!'; setTimeout(()=>this.innerText='Copiar JSON', 1500);">Copiar JSON</button>
-                             <pre class="json-dump" id="finalJsonOutput" style="padding: 20px; color: #a5b4fc; margin: 0; max-height: 300px; overflow: auto; font-size: 11px; line-height: 1.4;">${jsonString}</pre>
+                             <pre class="json-dump" id="finalJsonOutput" style="padding: 20px; margin: 0; max-height: 300px; overflow: auto; font-size: 11px; line-height: 1.4;">${jsonString}</pre>
                         </div>
                     </details>
                 </div>
@@ -5633,7 +5643,7 @@ window.iniciarModoEstudante = async function () {
                     <h3 style="margin:0; color:var(--color-text);">Scan Original</h3>
                     <button onclick="document.getElementById('modalScanOriginal').style.display='none'" style="border:none; background:transparent; font-size:16px; cursor:pointer; color:var(--color-text);">✕</button>
                 </div>
-                <div id="modalScanContent" style="overflow-y:auto; flex:1; text-align:center; padding:10px; background:#000;"></div>
+                <div id="modalScanContent"></div>
              </div>
         </div>
     </div>

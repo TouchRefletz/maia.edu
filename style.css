@@ -23,6 +23,13 @@
   --color-orange-400: rgba(230, 129, 97, 1);
   --color-orange-500: rgba(168, 75, 47, 1);
 
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-border-button: rgba(0, 0, 0, 0.2);
+  --icon-filter: none;
+  --color-background-progress-bar: rgba(0, 0, 0, 0.05);
+  --color-background-0-8: rgba(255, 255, 255, 0.8);
+  --color-background-json: #f0f0f0;
+
   /* RGB versions for opacity control */
   --color-brown-600-rgb: 94, 82, 64;
   --color-teal-500-rgb: 33, 128, 141;
@@ -56,7 +63,7 @@
   --color-surface: var(--color-cream-100);
   --color-text: var(--color-slate-900);
   --color-text-secondary: var(--color-slate-500);
-  --color-text-shine: rgb(201, 219, 223);
+  --color-text-shine: rgb(22, 23, 24);
   --color-primary: var(--color-teal-500);
   --color-primary-hover: var(--color-teal-600);
   --color-primary-active: var(--color-teal-700);
@@ -156,6 +163,13 @@
 /* Dark mode colors */
 @media (prefers-color-scheme: dark) {
   :root {
+    --icon-filter: brightness(0) invert(1);
+    --color-shadow: rgba(255, 255, 255, 0.5);
+    --color-border-button: rgba(255, 255, 255, 0.2);
+    --color-text-shine: rgb(201, 219, 223);
+    --color-background-progress-bar: rgba(255, 255, 255, 0.05);
+    --color-background-0-8: rgba(0, 0, 0, 0.8);
+    --color-background-json: #1e1e1e;
     /* RGB versions for opacity control (Dark Mode) */
     --color-gray-400-rgb: 119, 124, 124;
     --color-teal-300-rgb: 50, 184, 198;
@@ -224,6 +238,13 @@
 
 /* Data attribute for manual theme switching */
 [data-color-scheme="dark"] {
+  --icon-filter: brightness(0) invert(1);
+  --color-border-button: rgba(255, 255, 255, 0.2);
+  --color-shadow: rgba(255, 255, 255, 0.5);
+  --color-text-shine: rgb(201, 219, 223);
+  --color-background-progress-bar: rgba(255, 255, 255, 0.05);
+  --color-background-0-8: rgba(0, 0, 0, 0.8);
+  --color-background-json: #1e1e1e;
   /* RGB versions for opacity control (dark mode) */
   --color-gray-400-rgb: 119, 124, 124;
   --color-teal-300-rgb: 50, 184, 198;
@@ -289,6 +310,7 @@
 }
 
 [data-color-scheme="light"] {
+  --color-text-shine: rgb(22, 23, 24);
   /* RGB versions for opacity control (light mode) */
   --color-brown-600-rgb: 94, 82, 64;
   --color-teal-500-rgb: 33, 128, 141;
@@ -2409,7 +2431,7 @@ h4 {
   /* Extra bold para ficar "gordo" como na ref */
   font-style: italic;
   /* O itálico solicitado */
-  color: #ffffff;
+  color: var(--color-text);
   /* Branco (ajuste se seu fundo for claro) */
   line-height: 1;
   letter-spacing: -0.02em;
@@ -2440,12 +2462,14 @@ h4 {
   transform: translate(-50%, -50%);
   width: auto;
   height: auto;
-  
+
   /* ADICIONE ISSO AQUI: */
-  max-height: 90vh; /* Limita a altura a 90% da tela */
-  overflow-y: auto; /* Cria barra de rolagem DENTRO do container se necessário */
+  max-height: 90vh;
+  /* Limita a altura a 90% da tela */
+  overflow-y: auto;
+  /* Cria barra de rolagem DENTRO do container se necessário */
   overflow-x: hidden;
-  
+
   padding: var(--space-32);
   display: flex;
   flex-direction: column;
@@ -2839,7 +2863,7 @@ label[for="gabaritoFileInput"]:hover {
   #btnRecortarHeader img {
     width: 18px;
     height: 18px;
-    filter: brightness(0) invert(1);
+    filter: var(--icon-filter);
     /* Deixa o ícone branco */
   }
 
@@ -3102,13 +3126,13 @@ label[for="gabaritoFileInput"]:hover {
 #btnRecortarHeader>img {
   width: 16px;
   height: 16px;
-  filter: invert(1);
+  filter: var(--icon-filter);
 }
 
 #btnRecortarHeader {
   background: none;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  border: 1px solid var(--color-border-button);
+  color: var(--color-text);
   padding: 5px;
   border-radius: 4px;
   cursor: pointer;
@@ -3118,7 +3142,7 @@ label[for="gabaritoFileInput"]:hover {
 }
 
 #btnRecortarHeader:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--color-background)
 }
 
 #viewerHeader .header-actions {
@@ -3143,7 +3167,7 @@ label[for="gabaritoFileInput"]:hover {
 
 .flyingBtn {
   display: flex;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 15px var(--color-shadow);
   align-items: center;
   justify-content: center;
   padding: var(--space-8) var(--space-16);
@@ -3154,7 +3178,7 @@ label[for="gabaritoFileInput"]:hover {
   transition: all var(--duration-normal) var(--ease-standard);
   border: none;
   color: var(--color-text);
-  background-color: var(--color-charcoal-800);
+  background-color: var(--color-background);
   text-decoration: none;
   position: relative;
 }
@@ -3188,7 +3212,7 @@ label[for="gabaritoFileInput"]:hover {
 }
 
 .custom-modal-content {
-  background: #1e1e1e;
+  background: var(--color-background);
   padding: 20px;
   border-radius: 12px;
   max-width: 95%;
@@ -3197,7 +3221,7 @@ label[for="gabaritoFileInput"]:hover {
   justify-content: center;
   flex-direction: column;
   gap: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px var(--color-shadow);
   width: auto;
   height: auto;
 }
@@ -3725,10 +3749,10 @@ label[for="gabaritoFileInput"]:hover {
   max-height: 400px;
   overflow-y: auto;
   justify-content: center;
-  background: #111;
+  background: var(--color-background);
   padding: 10px;
   border-radius: 8px;
-  border: 1px dashed #444;
+  border: 1px dashed var(--color-border);
 }
 
 .gallery-item {
@@ -4360,9 +4384,9 @@ label[for="gabaritoFileInput"]:hover {
 }
 
 .json-dump {
-  background: #1e1e1e;
+  background: var(--color-background-json);
   /* Fundo escuro para código */
-  color: #a9b7c6;
+  color: #a5b4fc;
   /* Cor de código estilo IDE */
   padding: 15px;
   border-radius: var(--radius-sm);
@@ -4613,14 +4637,17 @@ label[for="gabaritoFileInput"]:hover {
 }
 
 .json-debug-header {
-  padding: 10px 15px;
-  background: var(--color-black);
-  color: var(--color-gray-300);
   font-size: 0.8rem;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 15px;
+  background: var(--color-background-0-8);
+  color: var(--color-primary);
+  font-family: monospace;
+  font-weight: bold;
+  font-weight: 700;
 }
 
 .json-dump {
@@ -5187,9 +5214,17 @@ label[for="gabaritoFileInput"]:hover {
   font-size: 0.95rem;
 }
 
+#modalScanContent {
+  overflow-y: auto;
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  background: var(--color-background)
+}
+
 /* Modal Scan Original */
 #modalScanContent img {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 20px var(--color-shadow);
 }
 
 #modalScanOriginal {
@@ -5980,8 +6015,6 @@ label[for="gabaritoFileInput"]:hover {
 }
 
 .structure-codigo {
-  background: #1e1e1e;
-  color: #d4d4d4;
   padding: 10px;
   border-radius: 6px;
   font-family: monospace;
@@ -6181,7 +6214,7 @@ label[for="gabaritoFileInput"]:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--color-background-0-8);
   z-index: 999999;
   display: flex;
   flex-direction: column;
@@ -6199,8 +6232,13 @@ label[for="gabaritoFileInput"]:hover {
 
 .img-close-btn {
   padding: 8px 16px;
-  font-size: 14px;
+  font-size: 10px;
   cursor: pointer;
+  border-radius: 10px;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-button);
+  outline: none;
 }
 
 /* Corpo do Modal (Flexbox) */
@@ -6224,23 +6262,23 @@ label[for="gabaritoFileInput"]:hover {
   align-items: center;
   overflow-y: auto;
   /* Scroll individual */
-  background: #111;
+  background: var(--color-background-0-8);
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 3px dotted var(--color-border);
 }
 
 /* Divisor visual no PC */
 .img-divider {
   width: 1px;
-  background: #555;
+  background: var(--color-primary);
 }
 
 /* Imagens */
 .img-content {
   max-width: 100%;
   margin-bottom: 10px;
-  border: 1px solid #555;
+  border: 1px dotted var(--color-border);
   display: block;
   width: auto;
   /* No PC mantém natural até bater 100% */
@@ -6251,7 +6289,7 @@ label[for="gabaritoFileInput"]:hover {
   margin-bottom: 10px;
   position: sticky;
   top: 0;
-  background: #111;
+  background: var(--color-background);
   padding: 5px;
   width: 100%;
   text-align: center;
@@ -6291,16 +6329,6 @@ label[for="gabaritoFileInput"]:hover {
     width: 100%;
     /* Força imagem a ocupar largura total pra ficar legível */
     height: auto;
-  }
-
-  .img-close-btn {
-    padding: 12px 24px;
-    font-size: 16px;
-    /* Botão maior pro dedo */
-    background: #cc3333;
-    color: white;
-    border: none;
-    border-radius: 4px;
   }
 }
 
