@@ -31,6 +31,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebas
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 
 import { getDatabase, ref, push, set, serverTimestamp, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -50,6 +51,16 @@ const analytics = getAnalytics(app);
 
 // Inicializa o Realtime Database
 const db = getDatabase(app);
+
+// Inicializa Autenticação Anônima
+const auth = getAuth(app);
+signInAnonymously(auth)
+    .then(() => {
+        console.log("Autenticado anonimamente no Firebase.");
+    })
+    .catch((error) => {
+        console.error("Erro na autenticação anônima:", error);
+    });
 
 // Configuração do ImgBB (Substitua pela sua chave)
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
