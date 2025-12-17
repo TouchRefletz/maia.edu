@@ -257,6 +257,7 @@ window.generatePDFUploadInterface = function (initialData = null) {
             </div>
         </form>
     </div>
+    <div id="pdfUploadContainerBackground"></div>
     `;
 
     // 3. Referências aos elementos

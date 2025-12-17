@@ -2438,22 +2438,27 @@ h4 {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 100%;
-  max-width: 600px;
+  width: auto;
+  height: auto;
+  
+  /* ADICIONE ISSO AQUI: */
+  max-height: 90vh; /* Limita a altura a 90% da tela */
+  overflow-y: auto; /* Cria barra de rolagem DENTRO do container se necessário */
+  overflow-x: hidden;
+  
   padding: var(--space-32);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   z-index: 10;
   transition: all 0.5s var(--ease-standard);
-  /* Mantém o fundo transparente para o brilho aparecer atrás */
   background: transparent;
 }
 
 /* --- Efeito de Brilho de Fundo (Glow) --- */
 /* Replicando o efeito que existe no promptContainer */
-#pdfUploadContainer::before {
+#pdfUploadContainerBackground {
   content: '';
   position: absolute;
   top: 50%;
@@ -2466,7 +2471,6 @@ h4 {
       rgba(var(--color-teal-500-rgb), 0.15) 0%,
       rgba(var(--color-teal-500-rgb), 0.05) 40%,
       transparent 70%);
-  z-index: -1;
   /* Garante que fique atrás de tudo */
   pointer-events: none;
   /* Não interfere nos cliques */
