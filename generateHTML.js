@@ -5526,7 +5526,7 @@ window.gerarTelaInicial = function () {
 
         <h1 style="margin-bottom: 40px;">O que vamos fazer hoje?</h1>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
+        <div class="startScreenDiv">
             <div class="card card-hover" onclick="iniciarModoEstudante()" style="cursor: pointer; padding: 40px; transition: transform 0.2s; border: 1px solid var(--color-border);">
                 <div style="font-size: 50px; margin-bottom: 20px;">📚</div>
                 <h2 style="color: var(--color-primary); margin-bottom: 15px;">Banco de Questões</h2>

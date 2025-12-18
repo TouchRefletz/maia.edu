@@ -2408,6 +2408,7 @@ h4 {
   align-items: center;
   justify-content: center;
   gap: 15px;
+  flex-wrap: wrap;
   /* Espaço entre a logo e o texto */
   margin-bottom: 40px;
   /* Espaço entre o branding e a pergunta "O que vamos..." */
@@ -6068,6 +6069,15 @@ label[for="gabaritoFileInput"]:hover {
   transition: all 0.2s ease;
 }
 
+/* Fix for long URLs in citations/references */
+.structure-block,
+.structure-fonte {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  max-width: 100%;
+}
+
 /* Ajuste opcional para a label parecer mais uma área de drop */
 .file-upload-btn {
   transition: all 0.2s ease;
@@ -6077,6 +6087,14 @@ label[for="gabaritoFileInput"]:hover {
    BOTTOM SHEET (MOBILE) - INTEGRADO AO TEMA
    ========================================= */
 @media (max-width: 900px) {
+
+  /* BUG FIX: Prevent horizontal scroll on mobile */
+  html,
+  body {
+    overflow-x: hidden !important;
+    width: 100%;
+    position: relative;
+  }
 
   /* 1. Ajuste do Container Pai */
   #viewerBody {
@@ -6399,4 +6417,16 @@ label[for="gabaritoFileInput"]:hover {
   background-color: var(--color-primary-hover);
   transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.startScreenDiv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+}
+
+@media (max-width: 900px) {
+  .startScreenDiv {
+    grid-template-columns: none !important;
+  }
 }
