@@ -16,8 +16,8 @@ function getAIClient() {
 
   // 1. Tenta Variável de Ambiente (Vercel)
   try {
-    if (import.meta.env && import.meta.env.VITE_GOOGLE_GENAI_API_KEY) {
-      apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY;
+    if (import.meta.env && (import.meta.env.VITE_GOOGLE_GENAI_API_KEY || import.meta.env.GOOGLE_GENAI_API_KEY)) {
+      apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY || import.meta.env.GOOGLE_GENAI_API_KEY;
     }
   } catch (e) { }
 

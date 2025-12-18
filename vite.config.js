@@ -4,5 +4,6 @@ export default defineConfig({
     // Basic configuration
     build: {
         target: 'esnext'
-    }
+    },
+    envPrefix: ['VITE_', 'FIREBASE_', 'IMGBB_', 'GOOGLE_']
 });
