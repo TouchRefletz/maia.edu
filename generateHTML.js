@@ -35,14 +35,14 @@ import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/1
 
 // Configuração do Firebase
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    apiKey: import.meta.env.FIREBASE_API_KEY,
+    authDomain: import.meta.env.FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.FIREBASE_PROJECT_ID,
     // storageBucket: REMOVIDO (Não vamos usar)
-    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+    databaseURL: import.meta.env.FIREBASE_DATABASE_URL,
+    messagingSenderId: import.meta.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.FIREBASE_APP_ID,
+    measurementId: import.meta.env.FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
@@ -63,7 +63,7 @@ signInAnonymously(auth)
     });
 
 // Configuração do ImgBB (Substitua pela sua chave)
-const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
+const IMGBB_API_KEY = import.meta.env.IMGBB_API_KEY;
 
 // ======================================================
 // FUNÇÕES GLOBAIS DE CONTROLE DO PAINEL
@@ -6258,7 +6258,7 @@ window.abrirScanOriginal = function (btn) {
 window.generateAPIKeyPopUp = function () {
     // [NOVO] Se a chave da Vercel existir, ignora o popup e inicia o app direto
     try {
-        if (import.meta.env && import.meta.env.VITE_GOOGLE_GENAI_API_KEY) {
+        if (import.meta.env && import.meta.env.GOOGLE_GENAI_API_KEY) {
             console.log("Chave de ambiente detectada. Ignorando popup.");
             if (typeof generatePDFUploadInterface === 'function') {
                 generatePDFUploadInterface();
