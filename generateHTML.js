@@ -1,5 +1,6 @@
-import { gerarConteudoEmJSONComImagemStream, gerarEmbedding } from "./gemini.js";
-import { Pinecone } from 'https://esm.sh/@pinecone-database/pinecone';
+
+import { gerarConteudoEmJSONComImagemStream, gerarEmbedding, uploadImagemWorker, upsertPineconeWorker } from "./gemini.js";
+// import { Pinecone } from 'https://esm.sh/@pinecone-database/pinecone'; // REMOVED: Managed by Worker
 
 let alertTimeout;
 window.__ultimaQuestaoExtraida = null;
@@ -62,9 +63,8 @@ signInAnonymously(auth)
     .catch((error) => {
         console.error("Erro na autenticação anônima:", error);
     });
-
-// Configuração do ImgBB (Substitua pela sua chave)
-const IMGBB_API_KEY = import.meta.env.IMGBB_API_KEY;
+// Configuração do ImgBB (REMOVIDO: Gerenciado pelo Worker)
+// const IMGBB_API_KEY = import.meta.env.IMGBB_API_KEY; 
 
 // ======================================================
 // FUNÇÕES GLOBAIS DE CONTROLE DO PAINEL
@@ -213,6 +213,14 @@ window.generatePDFUploadInterface = function (initialData = null) {
     document.body.innerHTML = `
     <button onclick="gerarTelaInicial()" class="btn btn--sm btn--outline" style="position:fixed; top:20px; left:20px; z-index:100; border-radius:20px; background:var(--color-surface);">
         ← Voltar
+    </button>
+
+    <!-- [NOVO] Botão Flutuante de API Key -->
+    <button onclick="generateAPIKeyPopUp()" title="Configurar API Key"
+        style="position:fixed; top:20px; right:20px; z-index:100; width:45px; height:45px; border-radius:50%; background:var(--color-surface); border:1px solid var(--color-border); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.1); transition:all 0.2s ease;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
     </button>
 
     <div id="pdfUploadContainer" class="fade-in-centralized">
@@ -5284,14 +5292,8 @@ window.enviarDadosParaFirebase = async function () {
     const btnEnviar = document.getElementById('btnConfirmarEnvioFinal');
 
     // 1. VALIDAÇÕES BÁSICAS
-    if (typeof IMGBB_API_KEY === 'undefined' || IMGBB_API_KEY === "SUA_CHAVE_API_DO_IMGBB_AQUI") {
-        customAlert("❌ Configure a API Key do ImgBB no código!");
-        return;
-    }
+    // Validação de API Keys removida (Agora no Backend)
 
-    // Validação da API Key do Pinecone (Adicione sua key aqui ou use var de ambiente)
-    const PINECONE_API_KEY = import.meta.env.PINECONE_API_KEY;
-    const PINECONE_INDEX = "questoes"; // Nome do seu índice no Pinecone
 
     const q = window.__ultimaQuestaoExtraida;
     const g = window.__ultimoGabaritoExtraido;
@@ -5487,16 +5489,9 @@ window.enviarDadosParaFirebase = async function () {
             }
         }
 
-        // --- 3. SISTEMA RECURSIVO DE UPLOAD DE IMAGENS ---
+        // --- 3. SISTEMA RECURSIVO DE UPLOAD DE IMAGENS (Via Worker) ---
         const uploadToImgBB = async (base64String) => {
-            const formData = new FormData();
-            formData.append("image", base64String.replace(/^data:image\/\w+;base64,/, ""));
-            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-                method: "POST",
-                body: formData
-            });
-            const result = await response.json();
-            return result.success ? result.data.url : null;
+            return await uploadImagemWorker(base64String);
         };
 
         let imagensConvertidas = 0;
@@ -5542,35 +5537,25 @@ window.enviarDadosParaFirebase = async function () {
 
         await processarObjetoRecursivo(payloadParaSalvar);
 
-        // --- 4. ENVIO PARA O PINECONE (SE TIVER VETOR) ---
-        if (vetorEmbedding && PINECONE_API_KEY !== "SUA_CHAVE_PINECONE_AQUI") {
+        // --- 4. ENVIO PARA O PINECONE (Via Worker) ---
+        if (vetorEmbedding) {
             if (btnEnviar) btnEnviar.innerText = "🌲 Indexando no Pinecone...";
 
             try {
-                // ✅ Verificar API Key antes de tentar
-                if (!PINECONE_API_KEY || PINECONE_API_KEY.trim() === "") {
-                    throw new Error("❌ API Key do Pinecone está vazia!");
-                }
-
-                console.log("✅ Conectando com API Key válida...");
-                // Instancia cliente Pinecone (Se estiver usando via CDN global 'Pinecone')
-                // Se for module, use 'new Pinecone({...})'
-                const pc = new Pinecone({ apiKey: PINECONE_API_KEY });
-                const index = pc.index(PINECONE_INDEX, "https://questoes-xaytcx5.svc.aped-4627-b74a.pinecone.io");
-
-                await index.upsert([{
-                    id: idPinecone, // ID único que liga ao Firebase
+                const vectorItem = {
+                    id: idPinecone,
                     values: vetorEmbedding,
                     metadata: {
                         prova: chaveProva,
-                        texto_preview: textoParaVetorizar.substring(0, 200) // Ajuda a debugar
+                        texto_preview: textoParaVetorizar.substring(0, 200)
                     }
-                }]);
-                console.log("✅ Vector salvo no Pinecone:", idPinecone);
+                };
+
+                await upsertPineconeWorker([vectorItem]);
+                console.log("✅ Vector salvo no Pinecone (Worker):", idPinecone);
             } catch (errPine) {
-                console.error("❌ Erro ao salvar no Pinecone:", errPine);
-                // Não damos throw aqui para não impedir o salvamento no Firebase
-                customAlert("⚠️ Aviso: Questão salva, mas busca inteligente falhou.");
+                console.error("❌ Erro Pinecone Worker:", errPine);
+                customAlert("⚠️ Aviso: Indexação falhou, mas questão será salva.");
             }
         }
 
@@ -5711,7 +5696,7 @@ window.gerarTelaInicial = function () {
  */
 window.iniciarFluxoExtracao = function () {
     generatePDFUploadInterface();
-    generateAPIKeyPopUp();
+    // generateAPIKeyPopUp(); // [MODIFICADO] Opcional, via botão flutuante
 };
 
 window.iniciarModoEstudante = async function () {
@@ -6410,150 +6395,225 @@ window.abrirScanOriginal = function (btn) {
     }
 };
 
-window.generateAPIKeyPopUp = function () {
-    // [NOVO] Se a chave da Vercel existir, ignora o popup e inicia o app direto
-    try {
-        if (import.meta.env && import.meta.env.GOOGLE_GENAI_API_KEY) {
-            console.log("Chave de ambiente detectada. Ignorando popup.");
-            if (typeof generatePDFUploadInterface === 'function') {
-                generatePDFUploadInterface();
-            }
-            return; // Retorna e não renderiza nada
-        }
-    } catch (e) { }
+window.generateAPIKeyPopUp = function (forceShow = true) {
+    // [MODIFICADO] A verificação de chave agora é otimista. 
+    // O modal agora só abre se o usuário clicar no botão (forceShow = true).
+    if (!forceShow) {
+        return;
+    }
+
+    // Remove anterior se existir
+    const existing = document.getElementById('apiKeyModal');
+    if (existing) existing.remove();
+
+    // Verifica status atual
+    let currentKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || "";
+    const isCustomKey = !!currentKey;
+    // const hasEnvKey = !!(import.meta.env && import.meta.env.GOOGLE_GENAI_API_KEY); // [REMOVIDO] Assumimos sempre true
 
     // -----------------------------------------------------------
     // 1. INJEÇÃO DO HTML
     // -----------------------------------------------------------
-    document.body.innerHTML += `
-    <div id="apiKeyModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="icon-wrapper">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-                    </svg>
-                </div>
-                <h2>Configuração Necessária</h2>
-            </div>
-
-            <div class="modal-body">
-                <p>Para utilizar o assistente, é necessária uma chave de API do Google Gemini. Ao inserir sua chave em nosso site, você está consciente dos possíveis riscos de vazamento dela. Para maior segurança, sugerimos que realize uma restrição nos domínios em que a chave de API pode ser utilizada.</p>
-
-                <div class="info-box">
-                    <p>Sua chave será salva apenas na memória do seu navegador.</p>
-                    <a href="https://aistudio.google.com/api-keys" target="_blank" class="link-external">
-                        Obter chave <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                    </a>
+    const htmlModal = `
+    <div id="apiKeyModal" class="modal-overlay" style="display:flex; animation: fadeIn 0.3s ease;">
+        <div class="modal-content api-modal-content">
+            
+            <!-- ESQUERDA: Formulário -->
+            <div class="modal-form-col">
+                <div class="modal-header" style="margin-bottom:20px;">
+                    <div class="icon-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 style="margin:0; font-size:1.5rem;">Configuração de Chave</h2>
+                        <p style="margin:5px 0 0; color:var(--color-text-secondary); font-size:0.9rem;">
+                            ${isCustomKey ? 'Você está usando sua própria chave.' : 'Uma chave padrão está ativa, mas você pode usar a sua.'}
+                        </p>
+                    </div>
                 </div>
 
-                <form id="apiKeyForm">
-                    <div class="form-group">
-                        <label for="apiKeyInput" class="form-label">Cole sua API Key aqui</label>
-                        <div class="input-wrapper">
-                            <input type="password" id="apiKeyInput" name="apiKey" class="form-control" placeholder="AIzaSy..." autocomplete="on">
+                <div class="modal-body" style="flex:1;">
+                   
+                   ${isCustomKey ? `
+                        <!-- ESTADO: COM CHAVE CUSTOMIZADA -->
+                        <div style="background:var(--color-success-bg); border:1px solid var(--color-success); color:var(--color-success-text); padding:15px; border-radius:8px; margin-bottom:20px;">
+                            <strong>✅ Chave Própria Ativa</strong><br>
+                            Sua chave está salva no navegador e sendo usada preferencialmente.
                         </div>
-                        <span id="apiError" class="error-message hidden"></span>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="submit" id="saveApiKeyBtn" class="btn btn--primary btn--full-width">
-                            Verificar e Continuar
+                        <button id="removeKeyBtn" class="btn btn--outline-danger btn--full-width" style="margin-top:auto;">
+                            Remover minha chave (Voltar ao Padrão)
                         </button>
-                    </div>
-                </form>
+                        <button onclick="document.getElementById('apiKeyModal').remove()" class="btn btn--ghost btn--full-width" style="margin-top:10px;">
+                            Fechar
+                        </button>
+                   ` : `
+                        <!-- ESTADO: SEM CHAVE CUSTOMIZADA -->
+                        <div class="info-box" style="margin-bottom:20px;">
+                            <p style="margin:0; font-size:0.9rem;">Sua chave será salva <strong>apenas na memória do seu navegador</strong>.</p>
+                            <a href="https://aistudio.google.com/api-keys" target="_blank" class="link-external" style="font-size:0.9rem; margin-top:5px; display:inline-block;">
+                                Gerar chave no Google AI Studio ↗
+                            </a>
+                        </div>
+
+                        <form id="apiKeyForm">
+                            <div class="form-group">
+                                <label for="apiKeyInput" class="form-label">Cole sua API Key aqui</label>
+                                <div class="input-wrapper">
+                                    <input type="password" id="apiKeyInput" name="apiKey" class="form-control" placeholder="AIzaSy..." autocomplete="on">
+                                </div>
+                                <span id="apiError" class="error-message hidden"></span>
+                            </div>
+
+                            <!-- Aviso de Segurança Detalhado -->
+                            <div style="background:var(--color-bg-2); border:1px solid rgba(var(--color-warning-rgb), 0.3); border-radius:8px; padding:15px; margin:15px 0; font-size:0.85rem; color:var(--color-text-secondary);">
+                                <h1 style="margin:0 0 10px 0; font-size:1.2rem; color:var(--color-warning); display:flex; align-items:center; gap:6px;">
+                                    ⚠️ Atenção à Segurança
+                                </h1>
+                                <ul style="margin:0; padding-left:20px; text-align:left;">
+                                    <li>Sua chave é salva apenas no <strong>Storage do navegador</strong>.</li>
+                                    <li>Extensões maliciosas ou scripts de terceiros podem ter acesso a ela.</li>
+                                    <li>Recomendamos usar uma chave exclusiva para este uso, com limites de cota definidos no Google AI Studio.</li>
+                                </ul>
+                            </div>
+
+                            <div style="margin:15px 0;">
+                                <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer;">
+                                    <input type="checkbox" id="termsCheck" style="margin-top:4px;">
+                                    <span style="font-size:0.85rem; color:var(--color-text-secondary); line-height:1.4;">
+                                        Li e compreendo os riscos de armazenar minha chave no navegador (Client-Side). Assumo a responsabilidade pela segurança da minha credencial.
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="modal-footer" style="padding:0; margin-top:20px;">
+                                <button type="submit" id="saveApiKeyBtn" class="btn btn--primary btn--full-width" disabled style="opacity:0.5; cursor:not-allowed;">
+                                    Verificar e Salvar
+                                </button>
+                                
+                                <button type="button" onclick="document.getElementById('apiKeyModal').remove()" class="btn btn--ghost btn--full-width" style="margin-top:10px;">
+                                    Cancelar e usar Padrão
+                                </button>
+                            </div>
+                        </form>
+                   `}
+
+                </div>
             </div>
+
+            <!-- DIREITA: Propaganda / Benefícios -->
+            <div class="modal-benefits-col">
+                <h3 style="color:var(--color-primary); margin-bottom:20px;">Por que usar sua chave?</h3>
+                
+                <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:20px;">
+                    <li style="display:flex; gap:10px;">
+                        <span style="font-size:1.2rem;">🔒</span>
+                        <div>
+                            <strong style="display:block; color:var(--color-text);">Privacidade</strong>
+                            <span style="font-size:0.85rem; color:var(--color-text-secondary);">Sua chave fica no seu navegador. Nunca enviamos para servidores de terceiros.</span>
+                        </div>
+                    </li>
+                    <li style="display:flex; gap:10px;">
+                        <span style="font-size:1.2rem;">🚀</span>
+                        <div>
+                            <strong style="display:block; color:var(--color-text);">Sem Limites</strong>
+                            <span style="font-size:0.85rem; color:var(--color-text-secondary);">Aproveite limites maiores de requisições e processamento mais rápido.</span>
+                        </div>
+                    </li>
+                    <li style="display:flex; gap:10px;">
+                        <span style="font-size:1.2rem;">⚡</span>
+                        <div>
+                            <strong style="display:block; color:var(--color-text);">Controle Total</strong>
+                            <span style="font-size:0.85rem; color:var(--color-text-secondary);">Evite filas compartilhadas e tenha a performance máxima do Gemini.</span>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
         </div>
     </div>
     `;
+
+    document.body.insertAdjacentHTML('beforeend', htmlModal);
 
     // -----------------------------------------------------------
     // 2. LÓGICA DO SCRIPT
     // -----------------------------------------------------------
 
     const modal = document.getElementById('apiKeyModal');
+
+    // Lógica para REMOVER chave (Se estiver no modo "Com Chave")
+    const btnRemove = document.getElementById('removeKeyBtn');
+    if (btnRemove) {
+        btnRemove.onclick = () => {
+            sessionStorage.removeItem("GOOGLE_GENAI_API_KEY");
+            modal.remove();
+            // Recarrega interface ou só fecha
+            if (typeof generatePDFUploadInterface === 'function') generatePDFUploadInterface();
+            customAlert("Chave removida! O sistema voltará a usar a chave padrão.");
+        };
+        return; // Sai da função pois não tem form de adição
+    }
+
+    // Lógica para ADICIONAR chave
     const input = document.getElementById('apiKeyInput');
     const saveBtn = document.getElementById('saveApiKeyBtn');
     const errorMsg = document.getElementById('apiError');
     const form = document.getElementById('apiKeyForm');
+    const checkTerms = document.getElementById('termsCheck');
 
-    // 1. Tenta pegar a chave do Session Storage
-    let apiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
-
-    // 2. Verifica URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlKey = urlParams.get('apiKey');
-
-    if (urlKey) {
-        apiKey = urlKey;
-        sessionStorage.setItem("GOOGLE_GENAI_API_KEY", apiKey);
-        window.history.replaceState({}, document.title, window.location.pathname);
+    // Habilita botão apenas com checkbox
+    if (checkTerms && saveBtn) {
+        checkTerms.addEventListener('change', () => {
+            saveBtn.disabled = !checkTerms.checked;
+            saveBtn.style.opacity = checkTerms.checked ? '1' : '0.5';
+            saveBtn.style.cursor = checkTerms.checked ? 'pointer' : 'not-allowed';
+        });
     }
 
-    // --- NOVA FUNÇÃO DE VALIDAÇÃO REAL ---
+    // --- Validação Real Reutilizada ---
     async function testarChaveReal(key) {
         try {
-            // Chama o endpoint de listar modelos. É rápido, leve e não gasta token de geração.
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {
-                method: 'GET'
-            });
-
-            if (response.ok) {
-                return { valido: true };
-            } else {
-                const err = await response.json();
-                return { valido: false, msg: err.error?.message || "Chave inválida ou erro na API." };
-            }
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, { method: 'GET' });
+            if (response.ok) return { valido: true };
+            const err = await response.json();
+            return { valido: false, msg: err.error?.message || "Erro na API." };
         } catch (e) {
-            return { valido: false, msg: "Erro de conexão. Verifique sua internet." };
+            return { valido: false, msg: "Erro de conexão." };
         }
     }
 
     async function saveKey() {
         const key = input.value.trim();
-
-        // Validação básica local
         if (key.length < 10) {
             mostrarErro("A chave parece muito curta.");
             return;
         }
 
-        // UX: Estado de Loading
         const btnOriginalText = saveBtn.innerText;
         saveBtn.innerText = "Verificando...";
         saveBtn.disabled = true;
-        saveBtn.style.opacity = "0.7";
-        saveBtn.style.cursor = "wait";
-        input.disabled = true;
-        errorMsg.classList.add('hidden');
 
-        // Validação Real
         const resultado = await testarChaveReal(key);
 
         if (resultado.valido) {
-            // SUCESSO
             sessionStorage.setItem("GOOGLE_GENAI_API_KEY", key);
-            apiKey = key;
-            modal.classList.add('hidden');
+            modal.remove();
 
-            // Inicia o app
-            if (typeof generatePDFUploadInterface === 'function') {
-                generatePDFUploadInterface();
-            }
+            // Toast / Feedback Rapido
+            const toast = document.createElement('div');
+            toast.innerText = "Chave salva com sucesso!";
+            toast.style.cssText = "position:fixed; bottom:20px; right:20px; background:var(--color-success); color:white; padding:10px 20px; border-radius:4px; animation:fadeIn 0.5s;";
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+
+            if (typeof generatePDFUploadInterface === 'function') generatePDFUploadInterface();
         } else {
-            // ERRO
-            var mensagem = resultado.msg;
-            if (mensagem == "") mensagem = "Erro não encontrado";
-            mostrarErro(`Essa chave não funcionou. Tente outra. (Erro: ${mensagem})`);
-
-            // Reseta UI
+            mostrarErro(`Chave inválida: ${resultado.msg}`);
             saveBtn.innerText = btnOriginalText;
             saveBtn.disabled = false;
-            saveBtn.style.opacity = "1";
-            saveBtn.style.cursor = "pointer";
-            input.disabled = false;
-            input.focus();
         }
     }
 
@@ -6563,33 +6623,13 @@ window.generateAPIKeyPopUp = function () {
         input.style.borderColor = 'var(--color-error)';
     }
 
-    // Inicialização
-    if (!apiKey || apiKey === "null") {
-        if (modal) {
-            modal.classList.remove('hidden');
-            if (input) setTimeout(() => input.focus(), 100);
-        }
-    } else {
-        if (modal) modal.classList.add('hidden');
-        if (typeof generatePDFUploadInterface === 'function') {
-            generatePDFUploadInterface();
-        }
-    }
-
-    // Listeners
     if (form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            saveKey();
-        });
-    }
-
-    if (input) {
-        input.addEventListener('input', () => {
-            errorMsg.classList.add('hidden');
-            input.style.borderColor = '';
+            if (!saveBtn.disabled) saveKey();
         });
     }
 };
 
-gerarTelaInicial();
+gerarTelaInicial(); // Chama inicial ao carregar
+window.setTimeout(() => window.generateAPIKeyPopUp(false), 500); // Tenta abrir (se não tiver chave)

@@ -1,160 +1,58 @@
-import { GoogleGenAI } from "https://cdn.jsdelivr.net/npm/@google/genai/dist/web/index.mjs";
+// --- CONFIGURAÇÃO DO WORKER ---
+// Para local: http://localhost:8787
+// Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
+const WORKER_URL = import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
+console.log("DEBUG ENV:", import.meta.env.VITE_WORKER_URL, "FINAL URL:", WORKER_URL);
 
-const models = [
-  "models/gemini-2.5-pro",
-  "models/gemini-flash-latest",
-  "models/gemini-flash-lite-latest",
-  "models/gemini-2.5-flash",
-  "models/gemini-2.5-flash-lite",
-  "models/gemini-2.0-flash",
-  "models/gemini-2.0-flash-lite",
-];
-
-
-function getAIClient() {
-  let apiKey = null;
-
-  // 1. Tenta Variável de Ambiente (Vercel)
+/**
+ * Função genérica para chamar o Worker
+ */
+async function callWorker(endpoint, body) {
   try {
-    if (import.meta.env && (import.meta.env.VITE_GOOGLE_GENAI_API_KEY || import.meta.env.GOOGLE_GENAI_API_KEY)) {
-      apiKey = import.meta.env.VITE_GOOGLE_GENAI_API_KEY || import.meta.env.GOOGLE_GENAI_API_KEY;
+    const response = await fetch(`${WORKER_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...body,
+        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Erro HTTP ${response.status}`);
     }
-  } catch (e) { }
 
-  // 2. Fallback para SessionStorage
-  if (!apiKey) {
-    apiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+    return await response.json();
+  } catch (error) {
+    console.error(`Erro ao chamar Worker (${endpoint}):`, error);
+    throw error;
   }
-
-  if (!apiKey) {
-    throw new Error("API Key não encontrada. Por favor, insira sua chave e tente novamente.");
-  }
-
-  return new GoogleGenAI({ apiKey });
 }
 
 
 export async function gerarConteudo(texto) {
-  let ultimoErro = null;
-
-  const ai = getAIClient();
-
-  // Itera sobre cada modelo da lista
-  for (const modelo of models) {
-    try {
-      // Tenta gerar com o modelo atual
-      const resultado = await ai.models.generateContent({
-        model: modelo, // Usa o modelo da iteração atual
-        contents: texto,
-      });
-
-      // Se chegou aqui, funcionou: retorna a resposta e encerra a função
-      const resposta = await resultado.text;
-      return resposta;
-
-    } catch (erro) {
-      // Se falhar, registra um aviso e o loop continua para o próximo
-      console.warn(`Erro com o modelo ${modelo}. Tentando o próximo...`, erro.message);
-      ultimoErro = erro;
-    }
-  }
-
-  // Se o loop terminar sem retornar nada, significa que todos falharam
-  throw new Error(`Todos os modelos falharam. Último erro: ${ultimoErro?.message}`);
+  // O endpoint /generate retorna JSON. Se precisar só de texto, adaptamos.
+  // Mas seu uso parece focado em JSON. Vamos manter compatibilidade básica.
+  // Se for uso legado que espera string, pegaremos o JSON e stringificaremos ou ajustaremos o worker.
+  // Por enquanto, vou supor que o uso principal é o JSON.
+  const result = await callWorker("/generate", { texto });
+  return typeof result === 'string' ? result : JSON.stringify(result);
 }
 
 export async function gerarConteudoEmJSON(texto, schema = null) {
-  let ultimoErro = null;
-
-  const ai = getAIClient();
-
-  for (const modelo of models) {
-    try {
-      const resultado = await ai.models.generateContent({
-        model: modelo,
-        contents: texto,
-        config: {
-          responseMimeType: "application/json",
-          responseJsonSchema: schema,
-        },
-      });
-
-      // Parseia e retorna se tiver sucesso
-      let textoLimpo = resultado.text.replace(/```json|```/g, '').trim();
-      const resposta = JSON.parse(textoLimpo);
-      return resposta;
-
-    } catch (erro) {
-      console.warn(`Erro JSON com o modelo ${modelo}. Tentando o próximo...`, erro.message);
-      ultimoErro = erro;
-    }
-  }
-
-  throw new Error(`Todos os modelos falharam na geração de JSON. Último erro: ${ultimoErro?.message}`);
+  return await callWorker("/generate", { texto, schema });
 }
 
-/**
- * Gera conteúdo em JSON usando texto e MULTIPLAS imagens.
- * @param {string} texto - O prompt de texto.
- * @param {object} schema - O esquema JSON desejado.
- * @param {Array<string>} listaImagensBase64 - Array de strings base64 (ex: ['data:image...', 'data:image...']).
- * @param {string} mimeType - Padrão 'image/jpeg'.
- */
 export async function gerarConteudoEmJSONComImagem(texto, schema = null, listaImagensBase64 = [], mimeType = "image/jpeg") {
-  let ultimoErro = null;
-  const ai = getAIClient();
-
-  // 1. Prepara a parte de TEXTO
-  const parts = [{ text: texto }];
-
-  // 2. Prepara as partes de IMAGEM (Itera sobre a lista)
-  if (listaImagensBase64 && Array.isArray(listaImagensBase64)) {
-    listaImagensBase64.forEach(base64Image => {
-      let imageString = base64Image;
-      let imageMime = mimeType;
-
-      // Extrai cabeçalho se existir
-      if (base64Image.includes("base64,")) {
-        const matches = base64Image.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          imageMime = matches[1];
-          imageString = matches[2];
-        }
-      }
-
-      // Adiciona cada imagem como uma "part" separada
-      parts.push({
-        inlineData: {
-          mimeType: imageMime,
-          data: imageString
-        }
-      });
-    });
-  }
-
-  // 3. Envia para o modelo
-  for (const modelo of models) {
-    try {
-      const resultado = await ai.models.generateContent({
-        model: modelo,
-        contents: [{ role: "user", parts: parts }],
-        config: {
-          responseMimeType: "application/json",
-          responseJsonSchema: schema,
-        },
-      });
-
-      let textoLimpo = resultado.text.replace(/```json|```/g, '').trim();
-      const resposta = JSON.parse(textoLimpo);
-      return resposta;
-
-    } catch (erro) {
-      console.warn(`Erro JSON com o modelo ${modelo}. Tentando o próximo...`, erro.message);
-      ultimoErro = erro;
-    }
-  }
-
-  throw new Error(`Todos os modelos falharam. Último erro: ${ultimoErro?.message}`);
+  return await callWorker("/generate", {
+    texto,
+    schema,
+    listaImagensBase64,
+    mimeType
+  });
 }
 
 export async function gerarConteudoEmJSONComImagemStream(
@@ -164,93 +62,114 @@ export async function gerarConteudoEmJSONComImagemStream(
   mimeType = "image/jpeg",
   handlers = {}
 ) {
-  let ultimoErro = null;
-  const ai = getAIClient();
-
-  // Monta parts (texto + imagens)
-  const parts = [{ text: texto }];
-  if (listaImagensBase64 && Array.isArray(listaImagensBase64)) {
-    listaImagensBase64.forEach((base64Image) => {
-      let imageString = base64Image;
-      let imageMime = mimeType;
-
-      if (base64Image.includes("base64,")) {
-        const matches = base64Image.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          imageMime = matches[1];
-          imageString = matches[2];
-        }
-      }
-
-      parts.push({
-        inlineData: { mimeType: imageMime, data: imageString },
-      });
-    });
-  }
-
-  for (const modelo of models) {
-    try {
-      handlers?.onStatus?.(`Conectando: ${modelo}...`);
-
-      const stream = await ai.models.generateContentStream({
-        model: modelo,
-        contents: [{ role: "user", parts }],
-        config: {
-          thinkingConfig: { includeThoughts: true },
-          responseMimeType: "application/json",
-          responseJsonSchema: schema,
-        },
-      });
-
-      let answerText = "";
-
-      for await (const chunk of stream) {
-        const partsResp = chunk?.candidates?.[0]?.content?.parts || [];
-        for (const part of partsResp) {
-          if (!part?.text) continue;
-
-          if (part.thought) {
-            handlers?.onThought?.(part.text);
-          } else {
-            handlers?.onAnswerDelta?.(part.text);
-            answerText += part.text;
-          }
-        }
-      }
-
-      // Só aqui (depois do stream acabar)
-      const textoLimpo = answerText.replace(/``````/g, "").trim();
-      return JSON.parse(textoLimpo);
-    } catch (erro) {
-      console.warn(`Erro JSON(stream) com o modelo ${modelo}. Tentando o próximo...`, erro?.message);
-      ultimoErro = erro;
-      continue; // tenta o próximo modelo
-    }
-  }
-
-  throw new Error(`Todos os modelos falharam no stream JSON. Último erro: ${ultimoErro?.message}`);
-}
-
-export async function gerarEmbedding(texto) {
-  const ai = getAIClient();
+  handlers?.onStatus?.("Conectando ao Worker...");
 
   try {
-    // Usar modelo atualizado e parâmetro snake_case
-    const result = await ai.models.embedContent({
-      model: "gemini-embedding-001",  // ✅ Modelo atual (GA)
-      contents: texto,
+    const response = await fetch(`${WORKER_URL}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        texto,
+        schema,
+        listaImagensBase64,
+        mimeType,
+        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined
+      }),
     });
 
-    // Retornar a estrutura correta
-    if (result.embeddings && Array.isArray(result.embeddings)) {
-      return result.embeddings[0].values;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Erro HTTP ${response.status}`);
     }
 
-    console.error("Estrutura inesperada:", result);
-    throw new Error("Formato de resposta de embedding desconhecido.");
+    if (!response.body) throw new Error("Resposta sem corpo (stream)");
 
-  } catch (erro) {
-    console.error("Erro ao gerar embedding:", erro);
-    throw new Error("Falha ao gerar embedding da questão.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let answerText = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // Decode current chunk e add to buffer
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process lines individually
+      let parts = buffer.split("\n");
+      // Last part might be incomplete, keep it in buffer
+      buffer = parts.pop() || "";
+
+      for (const line of parts) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+          if (msg.type === 'thought') {
+            handlers?.onThought?.(msg.text);
+          } else if (msg.type === 'answer') {
+            handlers?.onAnswerDelta?.(msg.text);
+            answerText += msg.text;
+          } else if (msg.type === 'debug') {
+            console.log("🛠️ WORKER DEBUG:", msg.text);
+          } else if (msg.type === 'error') {
+            console.error("Erro do worker stream:", msg.text);
+            handlers?.onStatus?.(`Erro: ${msg.text}`);
+          } else if (msg.type === 'status') {
+            handlers?.onStatus?.(msg.text);
+          }
+        } catch (e) {
+          console.warn("Erro ao parsear chunk do worker:", line, e);
+        }
+      }
+    }
+
+    // Final buffer processing
+    if (buffer.trim()) {
+      try {
+        const msg = JSON.parse(buffer);
+        if (msg.type === 'answer') answerText += msg.text;
+      } catch (e) { }
+    }
+
+    // Parse final JSON
+    const textoLimpo = answerText.replace(/``````/g, "").trim();
+    return JSON.parse(textoLimpo);
+
+  } catch (error) {
+    console.error("Erro no Worker stream:", error);
+    throw new Error(`Falha no Worker: ${error.message}`);
   }
 }
+
+
+export async function gerarEmbedding(texto) {
+  // console.log("Chamando Embedding no Worker...");
+  return await callWorker("/embed", { texto });
+}
+
+/**
+ * Faz upload de imagem via Worker (ImgBB)
+ * @param {string} imageBase64 - String Base64 completa da imagem
+ * @returns {Promise<string|null>} - URL da imagem ou null
+ */
+export async function uploadImagemWorker(imageBase64) {
+  try {
+    const result = await callWorker("/upload-image", { image: imageBase64 });
+    return result.success ? result.data.url : null;
+  } catch (error) {
+    console.error("Erro no upload de imagem via Worker:", error);
+    return null;
+  }
+}
+
+/**
+ * Envia vetores para o Pinecone via Worker
+ * @param {Array} vectors - Lista de vetores {id, values, metadata}
+ * @param {string} namespace - Namespace opcional
+ * @returns {Promise<any>}
+ */
+export async function upsertPineconeWorker(vectors, namespace = "") {
+  return await callWorker("/pinecone-upsert", { vectors, namespace });
+}
+
