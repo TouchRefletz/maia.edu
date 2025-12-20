@@ -1,13 +1,18 @@
 // --- CONFIGURAÇÃO DO WORKER ---
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
-const WORKER_URL = import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
-console.log("DEBUG ENV:", import.meta.env.VITE_WORKER_URL, "FINAL URL:", WORKER_URL);
+export const WORKER_URL = import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
+console.log(
+  "DEBUG ENV:",
+  import.meta.env.VITE_WORKER_URL,
+  "FINAL URL:",
+  WORKER_URL
+);
 
 /**
  * Função genérica para chamar o Worker
  */
-async function callWorker(endpoint, body) {
+export async function callWorker(endpoint, body) {
   try {
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
       method: "POST",
@@ -16,7 +21,7 @@ async function callWorker(endpoint, body) {
       },
       body: JSON.stringify({
         ...body,
-        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined
+        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
       }),
     });
 
@@ -32,26 +37,30 @@ async function callWorker(endpoint, body) {
   }
 }
 
-
 export async function gerarConteudo(texto) {
   // O endpoint /generate retorna JSON. Se precisar só de texto, adaptamos.
   // Mas seu uso parece focado em JSON. Vamos manter compatibilidade básica.
   // Se for uso legado que espera string, pegaremos o JSON e stringificaremos ou ajustaremos o worker.
   // Por enquanto, vou supor que o uso principal é o JSON.
   const result = await callWorker("/generate", { texto });
-  return typeof result === 'string' ? result : JSON.stringify(result);
+  return typeof result === "string" ? result : JSON.stringify(result);
 }
 
 export async function gerarConteudoEmJSON(texto, schema = null) {
   return await callWorker("/generate", { texto, schema });
 }
 
-export async function gerarConteudoEmJSONComImagem(texto, schema = null, listaImagensBase64 = [], mimeType = "image/jpeg") {
+export async function gerarConteudoEmJSONComImagem(
+  texto,
+  schema = null,
+  listaImagensBase64 = [],
+  mimeType = "image/jpeg"
+) {
   return await callWorker("/generate", {
     texto,
     schema,
     listaImagensBase64,
-    mimeType
+    mimeType,
   });
 }
 
@@ -73,7 +82,7 @@ export async function gerarConteudoEmJSONComImagemStream(
         schema,
         listaImagensBase64,
         mimeType,
-        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined
+        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
       }),
     });
 
@@ -105,17 +114,17 @@ export async function gerarConteudoEmJSONComImagemStream(
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
-          if (msg.type === 'thought') {
+          if (msg.type === "thought") {
             handlers?.onThought?.(msg.text);
-          } else if (msg.type === 'answer') {
+          } else if (msg.type === "answer") {
             handlers?.onAnswerDelta?.(msg.text);
             answerText += msg.text;
-          } else if (msg.type === 'debug') {
+          } else if (msg.type === "debug") {
             console.log("🛠️ WORKER DEBUG:", msg.text);
-          } else if (msg.type === 'error') {
+          } else if (msg.type === "error") {
             console.error("Erro do worker stream:", msg.text);
             handlers?.onStatus?.(`Erro: ${msg.text}`);
-          } else if (msg.type === 'status') {
+          } else if (msg.type === "status") {
             handlers?.onStatus?.(msg.text);
           }
         } catch (e) {
@@ -128,20 +137,18 @@ export async function gerarConteudoEmJSONComImagemStream(
     if (buffer.trim()) {
       try {
         const msg = JSON.parse(buffer);
-        if (msg.type === 'answer') answerText += msg.text;
-      } catch (e) { }
+        if (msg.type === "answer") answerText += msg.text;
+      } catch (e) {}
     }
 
     // Parse final JSON
     const textoLimpo = answerText.replace(/``````/g, "").trim();
     return JSON.parse(textoLimpo);
-
   } catch (error) {
     console.error("Erro no Worker stream:", error);
     throw new Error(`Falha no Worker: ${error.message}`);
   }
 }
-
 
 export async function gerarEmbedding(texto) {
   // console.log("Chamando Embedding no Worker...");
@@ -172,4 +179,3 @@ export async function uploadImagemWorker(imageBase64) {
 export async function upsertPineconeWorker(vectors, namespace = "") {
   return await callWorker("/pinecone-upsert", { vectors, namespace });
 }
-

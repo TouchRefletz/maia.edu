@@ -1,126 +1,122 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Maia API - Status</title>
-	<link rel="icon" href="/logo.png?v=2" type="image/png">
-	<link rel="stylesheet" href="style.css">
-	<style>
-		body {
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			height: 100vh;
-			margin: 0;
-			background-color: var(--color-background);
-			font-family: 'Inter', sans-serif;
-			overflow: hidden;
-		}
-
-		.status-card {
-			background: var(--color-surface);
-			border: 1px solid var(--color-border);
-			padding: 40px;
-			border-radius: 20px;
-			text-align: center;
-			box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-			max-width: 400px;
-			width: 90%;
-			position: relative;
-			z-index: 10;
-		}
-
-		.logo {
-			width: 80px;
-			height: 80px;
-			object-fit: contain;
-			margin-bottom: 20px;
-			border-radius: 50%;
-			/* Optional: if logo is circular */
-			background: rgba(255, 255, 255, 0.05);
-			padding: 10px;
-		}
-
-		h1 {
-			color: var(--color-text);
-			margin: 0 0 10px 0;
-			font-size: 1.8rem;
-		}
-
-		p {
-			color: var(--color-text-secondary);
-			margin-bottom: 30px;
-		}
-
-		.status-badge {
-			display: inline-flex;
-			align-items: center;
-			gap: 8px;
-			background: rgba(var(--color-success-rgb, 76, 175, 80), 0.15);
-			color: var(--color-success);
-			padding: 8px 16px;
-			border-radius: 50px;
-			font-weight: 600;
-			font-size: 0.9rem;
-		}
-
-		.pulse {
-			width: 10px;
-			height: 10px;
-			background-color: var(--color-success);
-			border-radius: 50%;
-			display: inline-block;
-			box-shadow: 0 0 0 rgba(76, 175, 80, 0.4);
-			animation: pulse 2s infinite;
-		}
-
-		@keyframes pulse {
-			0% {
-				box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Maia API - Status</title>
+		<link rel="icon" href="/logo.png?v=2" type="image/png" />
+		<link rel="stylesheet" href="style.css" />
+		<style>
+			body {
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				height: 100vh;
+				margin: 0;
+				background-color: var(--color-background);
+				font-family: 'Inter', sans-serif;
+				overflow: hidden;
 			}
 
-			70% {
-				box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+			.status-card {
+				background: var(--color-surface);
+				border: 1px solid var(--color-border);
+				padding: 40px;
+				border-radius: 20px;
+				text-align: center;
+				box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+				max-width: 400px;
+				width: 90%;
+				position: relative;
+				z-index: 10;
 			}
 
-			100% {
-				box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+			.logo {
+				width: 80px;
+				height: 80px;
+				object-fit: contain;
+				margin-bottom: 20px;
+				border-radius: 50%;
+				/* Optional: if logo is circular */
+				background: rgba(255, 255, 255, 0.05);
+				padding: 10px;
 			}
-		}
 
-		/* Subtle background animation */
-		.bg-gradient {
-			position: absolute;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background: radial-gradient(circle at 50% 50%, rgba(var(--color-primary-rgb, 33, 150, 243), 0.1), transparent 70%);
-			z-index: 1;
-			pointer-events: none;
-		}
-	</style>
-</head>
+			h1 {
+				color: var(--color-text);
+				margin: 0 0 10px 0;
+				font-size: 1.8rem;
+			}
 
-<body>
-	<div class="bg-gradient"></div>
+			p {
+				color: var(--color-text-secondary);
+				margin-bottom: 30px;
+			}
 
-	<div class="status-card">
-		<img src="logo.png" alt="Maia Logo" class="logo">
-		<h1>Maia API Worker</h1>
-		<p>Servidor de Inteligência Artificial Operacional</p>
+			.status-badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				background: rgba(var(--color-success-rgb, 76, 175, 80), 0.15);
+				color: var(--color-success);
+				padding: 8px 16px;
+				border-radius: 50px;
+				font-weight: 600;
+				font-size: 0.9rem;
+			}
 
-		<div class="status-badge">
-			<span class="pulse"></span>
-			Sistema Online e Pronto
+			.pulse {
+				width: 10px;
+				height: 10px;
+				background-color: var(--color-success);
+				border-radius: 50%;
+				display: inline-block;
+				box-shadow: 0 0 0 rgba(76, 175, 80, 0.4);
+				animation: pulse 2s infinite;
+			}
+
+			@keyframes pulse {
+				0% {
+					box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+				}
+
+				70% {
+					box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+				}
+
+				100% {
+					box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+				}
+			}
+
+			/* Subtle background animation */
+			.bg-gradient {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: radial-gradient(circle at 50% 50%, rgba(var(--color-primary-rgb, 33, 150, 243), 0.1), transparent 70%);
+				z-index: 1;
+				pointer-events: none;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="bg-gradient"></div>
+
+		<div class="status-card">
+			<img src="logo.png" alt="Maia Logo" class="logo" />
+			<h1>Maia API Worker</h1>
+			<p>Servidor de Inteligência Artificial Operacional</p>
+
+			<div class="status-badge">
+				<span class="pulse"></span>
+				Sistema Online e Pronto
+			</div>
+
+			<div style="margin-top: 30px; font-size: 0.8rem; opacity: 0.5">v1.0.0 • Cloudflare Workers</div>
 		</div>
-
-		<div style="margin-top: 30px; font-size: 0.8rem; opacity: 0.5;">
-			v1.0.0 • Cloudflare Workers
-		</div>
-	</div>
-</body>
-
+	</body>
 </html>

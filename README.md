@@ -11,9 +11,10 @@ Essa ferramenta busca alimentar outros projetos como uma forma de **democratizar
 ## 🛠️ Como Funciona
 
 O projeto utiliza a inteligência do **Gemini** e uma saída estruturada em JSON para organizar todos os dados das questões e gabaritos, incluindo:
-*   Imagens e Textos
-*   Fontes e Títulos
-*   Citações e Códigos
+
+- Imagens e Textos
+- Fontes e Títulos
+- Citações e Códigos
 
 Além disso, utilizamos tecnologias de renderização em **Markdown** e **LaTeX** para garantir que a questão digital seja o mais fiel possível à prova original do vestibular.
 
@@ -87,20 +88,27 @@ Nossos dados seguem uma estrutura JSON padronizada e rica em metadados:
               "origem": "gerado_pela_ia"
             }
           ],
-          "fotos_originais": [ "URL..." ],
+          "fotos_originais": ["URL..."],
           "justificativa_curta": "Resumo TL;DR."
         },
         "dados_questao": {
           "alternativas": [
-            { "letra": "A", "estrutura": [{ "conteudo": "...", "tipo": "texto" }] }
+            {
+              "letra": "A",
+              "estrutura": [{ "conteudo": "...", "tipo": "texto" }]
+            }
           ],
           "estrutura": [
             { "conteudo": "Enunciado...", "tipo": "texto" },
-            { "conteudo": "Legenda...", "imagem_base64": "URL...", "tipo": "imagem" }
+            {
+              "conteudo": "Legenda...",
+              "imagem_base64": "URL...",
+              "tipo": "imagem"
+            }
           ],
-          "fotos_originais": [ "URL..." ],
-          "materias_possiveis": [ "Biologia" ],
-          "palavras_chave": [ "Ecologia" ]
+          "fotos_originais": ["URL..."],
+          "materias_possiveis": ["Biologia"],
+          "palavras_chave": ["Ecologia"]
         },
         "meta": {
           "timestamp": "ISO_8601"
@@ -118,7 +126,8 @@ Nosso objetivo final é **promover a democratização do acesso à educação no
 Acreditamos que a tecnologia deve quebrar barreiras, não criá-las. O banco de dados estruturado que construímos aqui é apenas o combustível para algo maior: um sistema de **Inteligência Artificial Adaptativa**.
 
 Ao transformar provas estáticas em dados vivos, permitimos que a IA:
-1.  **Ensine a pensar**: Decompondo questões complexas em passos menores (*scaffolding*) de verdadeiro ou falso, guiando o aluno pelo raciocínio lógico em vez de apenas dar a resposta.
+
+1.  **Ensine a pensar**: Decompondo questões complexas em passos menores (_scaffolding_) de verdadeiro ou falso, guiando o aluno pelo raciocínio lógico em vez de apenas dar a resposta.
 2.  **Elimine barreiras físicas**: Possibilitando o estudo em **qualquer lugar**, apenas com um celular, sem a necessidade de cadernos, canetas ou livros didáticos caros.
 3.  **Personalize o aprendizado**: Identificando lacunas de conhecimento em tempo real e sugerindo questões que desafiem o aluno na medida certa.
 
@@ -132,4 +141,4 @@ Este projeto é protegido pela licença **MIT**.
 
 Isso significa que você é livre para usar, copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender cópias do software, desde que mantenha os créditos aos criadores originais. Acreditamos que o conhecimento cresce quando é compartilhado.
 
-> *A educação não tem preço. Sua falta tem custo. - Antônio Gomes Lacerda*
+> _A educação não tem preço. Sua falta tem custo. - Antônio Gomes Lacerda_
