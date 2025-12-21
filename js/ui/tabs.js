@@ -1,24 +1,36 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import { TabsManager } from './TabsManager'; // Ajuste o caminho conforme necessário
+
 export function configurarTabs(container, gabarito) {
-  if (gabarito) {
-    const btnQ = container.querySelector('#btnTabQuestao');
-    const btnG = container.querySelector('#btnTabGabarito');
-    const qView = container.querySelector('#tabContentQuestao');
-    const gView = container.querySelector('#tabContentGabarito');
+  // Verifica segurança básica
+  if (!container) return;
 
-    const setActive = (active) => {
-      const showQ = active === 'questao';
-      if (qView) qView.style.display = showQ ? 'block' : 'none';
-      if (gView) gView.style.display = showQ ? 'none' : 'block';
+  // Precisamos de um local único para montar o React sem destruir o conteúdo existente do container.
+  // Procuramos se já existe um mount-point criado anteriormente.
+  const mountId = 'react-tabs-controller-mount';
+  let mountNode = container.querySelector(`.${mountId}`);
 
-      if (btnQ && btnG) {
-        btnQ.classList.toggle('btn--primary', showQ);
-        btnQ.classList.toggle('btn--secondary', !showQ);
-        btnG.classList.toggle('btn--primary', !showQ);
-        btnG.classList.toggle('btn--secondary', showQ);
-      }
-    };
+  // Se não existir, criamos uma div oculta e anexamos ao container.
+  if (!mountNode) {
+    mountNode = document.createElement('div');
+    mountNode.className = mountId;
+    mountNode.style.display = 'none'; // Garante que não afete o layout visual
+    container.appendChild(mountNode);
+  }
 
-    if (btnQ) btnQ.onclick = () => setActive('questao');
-    if (btnG) btnG.onclick = () => setActive('gabarito');
+  // Verificamos se já foi renderizado para evitar recriar a root múltiplas vezes
+  if (!mountNode.hasAttribute('data-react-initialized')) {
+    const root = createRoot(mountNode);
+    
+    root.render(
+      React.createElement(TabsManager, {
+        container: container,
+        hasGabarito: gabarito
+      })
+    );
+
+    // Marca como inicializado
+    mountNode.setAttribute('data-react-initialized', 'true');
   }
 }
