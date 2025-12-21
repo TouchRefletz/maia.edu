@@ -1,0 +1,39 @@
+/* --- Custom Scrollbar (Webkit) --- */
+
+/* Largura da barra de rolagem */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  /* Para scroll horizontal */
+}
+
+/* O trilho (fundo) por onde a barra corre */
+::-webkit-scrollbar-track {
+  background: transparent;
+  /* Mantém limpo, assumindo a cor de fundo do elemento */
+  border-radius: var(--radius-full);
+}
+
+/* A "pegada" (thumb) da barra */
+::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--color-brown-600-rgb), 0.2);
+  /* Usa a cor da borda sutil do seu tema */
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  /* Truque para criar um "padding" visual ao redor da barra */
+  background-clip: content-box;
+  /* Faz a cor respeitar a borda transparente */
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Quando passa o mouse em cima da barra */
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-primary);
+  /* Fica Teal (sua cor primária) ao interagir */
+}
+
+/* Ajuste específico para Firefox (que usa outra sintaxe) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--color-brown-600-rgb), 0.2) transparent;
+}
