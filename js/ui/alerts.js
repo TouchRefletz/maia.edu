@@ -1,6 +1,6 @@
 // alerts.js
 
-import { logicShowCustomAlert, logicShowUndoToast } from './Alerts.tsx';
+import { logicShowCustomAlert, logicShowUndoToast } from './GlobalAlertsLogic.tsx';
 
 /**
  * Exibe um alerta personalizado no topo da tela.
