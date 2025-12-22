@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderLatexIn } from '../../libs/loader'; // Assumindo paths relativos
 import { safe } from '../../normalize/primitives.js';
-import { customAlert } from '../../ui/alerts.js';
+import { customAlert } from '../../ui/GlobalAlertsLogic';
 
 // Declaração de tipos para globais e módulos legados
 declare global {

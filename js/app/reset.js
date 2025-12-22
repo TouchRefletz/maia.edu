@@ -1,5 +1,5 @@
 import { cancelarRecorte } from '../cropper/cropper-core.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 import { trocarModo } from '../viewer/pdf-core.js';
 import { esconderPainel } from '../viewer/sidebar.js';
 

@@ -1,15 +1,15 @@
-import { customAlert } from '../../ui/alerts.js';
+import { customAlert } from '../../ui/GlobalAlertsLogic.tsx';
 
 // Importa helpers do TSX que retornam strings HTML
 import {
-  generateComplexidadeVisualHtml,
-  generateCreditosTableHtml,
-  generateImgsLimpasHtml,
-  generateListaAlternativasHtml,
-  generatePainelGabaritoHtml,
-  generatePainelQuestaoHtml,
-  generatePassosGabaritoHtml,
-  generateTagsHtml
+    generateComplexidadeVisualHtml,
+    generateCreditosTableHtml,
+    generateImgsLimpasHtml,
+    generateListaAlternativasHtml,
+    generatePainelGabaritoHtml,
+    generatePainelQuestaoHtml,
+    generatePassosGabaritoHtml,
+    generateTagsHtml
 } from './RenderComponents.tsx';
 
 export const renderImgsLimpas = (lista, titulo) => {

@@ -1,4 +1,4 @@
-import { showUndoToast } from '../ui/alerts.js';
+import { showUndoToast } from '../ui/GlobalAlertsLogic.tsx';
 
 export function criarHtmlBlocoEditor(tipo, conteudo) {
   const safeContent = String(conteudo ?? '').replace(/"/g, '&quot;');

@@ -1,6 +1,6 @@
 import { montarHtmlPainelGabarito, montarHtmlPainelQuestao, prepararDadosGerais } from './render-components.js';
 // Importamos a função de montagem do React (assumindo que seu build system permite isso)
-import { customAlert } from '../../ui/alerts.js';
+import { customAlert } from '../../ui/GlobalAlertsLogic.tsx';
 import { mountJsonReviewModal } from './JsonReviewModal.tsx';
 
 // --- MANTER EXPORTS DE LÓGICA AUXILIAR ---

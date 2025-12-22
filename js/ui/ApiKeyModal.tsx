@@ -1,8 +1,8 @@
 // ApiKeyModal.tsx
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-// Supondo que alerts.js esteja acessível. Se der erro de TS, crie um alerts.d.ts ou use // @ts-ignore
-import { customAlert } from './alerts.js';
+// Supondo que GlobalAlertsLogic.tsx esteja acessível. Se der erro de TS, crie um alerts.d.ts ou use // @ts-ignore
+import { customAlert } from './GlobalAlertsLogic';
 
 // --- Tipagem para funções globais do sistema legado ---
 declare global {

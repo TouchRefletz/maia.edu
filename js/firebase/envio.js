@@ -5,7 +5,7 @@ import { construirDadosParaEnvio, gerarIdentificadoresEnvio } from '../ia/envio-
 import { prepararPayloadComImagens } from '../ia/payload-imagens.js';
 import { db } from '../main.js';
 import { iniciarPreparacaoEnvio } from '../render/final/json-e-modal.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 export async function finalizarEnvioFirebase(
   btnEnviar,

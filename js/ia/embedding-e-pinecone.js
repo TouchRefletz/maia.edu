@@ -1,5 +1,5 @@
 import { gerarEmbedding, upsertPineconeWorker } from '../api/worker.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 import { construirTextoSemantico } from './envio-textos.js';
 
 export async function processarEmbeddingSemantico(

@@ -2,7 +2,7 @@ import { gerarConteudoEmJSONComImagemStream } from '../api/worker.js';
 import { obterConfiguracaoIA } from '../ia/config.js';
 import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
 import { prepararAreaDeResposta, pushThought } from '../sidebar/thoughts-scroll.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 import { coletarESalvarImagensParaEnvio, prepararImagensParaEnvio } from './imagens.js';
 
 export function iniciarEstadoProcessamento() {

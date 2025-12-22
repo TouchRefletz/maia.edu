@@ -37,7 +37,6 @@ const AlertsContainer: React.FC = () => {
     }, []);
 
     // Lógica de Renderização do Custom Alert
-    // Nota: Mantemos os IDs originais para garantir que o CSS legado funcione
     const renderAlert = () => {
         if (!alertState.message && !alertState.visible) return null;
 
@@ -45,7 +44,6 @@ const AlertsContainer: React.FC = () => {
             <div
                 id="customAlert"
                 className={alertState.visible ? 'visible' : ''}
-            // Force reflow logic simulation: React handles DOM updates, but CSS transitions need the class toggle
             >
                 <div id="alertMessage">{alertState.message}</div>
             </div>
@@ -105,9 +103,15 @@ function ensureMounted() {
     isMounted = true;
 }
 
-// --- Funções Públicas (Lógica) ---
+// --- Funções Públicas (Antigo GlobalAlertsLogic.tsx + Lógica) ---
 
-export function logicShowCustomAlert(message: string, duration: number) {
+/**
+ * Exibe um alerta personalizado no topo da tela.
+ * Substitui a antiga função 'logicShowCustomAlert' e o wrapper do JS.
+ * * @param {string} message - A mensagem a ser exibida.
+ * @param {number} duration - Duração em ms (padrão 5000 do antigo JS).
+ */
+export function customAlert(message: string, duration: number = 5000) {
     ensureMounted();
 
     // Pequeno delay para garantir que o componente montou e vinculou os setters
@@ -126,7 +130,7 @@ export function logicShowCustomAlert(message: string, duration: number) {
                 // Passo C: Adiciona a classe para ativar a animação CSS
                 setAlertStateGlobal({ message, visible: true });
             }
-        }, 50); // 50ms é suficiente pro olho humano não perceber o delay, mas o navegador pegar a animação
+        }, 50);
 
         // 3. Define função de remoção
         const removeAlert = () => {
@@ -136,9 +140,6 @@ export function logicShowCustomAlert(message: string, duration: number) {
 
                 // Passo 2: Remove do DOM após o tempo da animação
                 setTimeout(() => {
-                    // A CORREÇÃO ESTÁ AQUI:
-                    // 1. Use o '?.' antes dos parênteses para corrigir o erro vermelho (Optional Chaining).
-                    // 2. Passe message: '' (vazio) para o React remover a DIV do HTML.
                     setAlertStateGlobal?.({ message: '', visible: false });
                 }, 500);
             }
@@ -149,25 +150,31 @@ export function logicShowCustomAlert(message: string, duration: number) {
             alertTimerGlobal = setTimeout(removeAlert, duration);
         }
 
-        // Retornamos os métodos de controle para o arquivo JS
-        // (Isso será retornado pelo alerts.js)
+        // Retornamos os métodos de controle (mantendo compatibilidade com o retorno antigo)
         return {
             close: removeAlert,
-            // O update chama a função principal recursivamente
-            update: (newMsg: string) => logicShowCustomAlert(newMsg, duration)
+            update: (newMsg: string) => customAlert(newMsg, duration)
         };
     }, 0);
 
-    // Retorno imediato síncrono para manter compatibilidade, 
-    // embora a ação real ocorra no next tick.
-    // Criamos um wrapper "fake" inicial que será substituído ou funcionará.
+    // Retorno imediato síncrono para manter compatibilidade com chamadas que esperam o objeto de controle
     return {
-        close: () => { if (alertTimerGlobal) clearTimeout(alertTimerGlobal); if (setAlertStateGlobal) setAlertStateGlobal({ message, visible: false }); },
-        update: (newMsg: string) => logicShowCustomAlert(newMsg, duration)
+        close: () => { 
+            if (alertTimerGlobal) clearTimeout(alertTimerGlobal); 
+            if (setAlertStateGlobal) setAlertStateGlobal({ message, visible: false }); 
+        },
+        update: (newMsg: string) => customAlert(newMsg, duration)
     };
 }
 
-export function logicShowUndoToast(message: string, onUndo: () => void, duration: number) {
+/**
+ * Exibe um toast com botão de desfazer.
+ * Substitui a antiga função 'logicShowUndoToast' e o wrapper do JS.
+ * * @param {string} message - Mensagem do toast.
+ * @param {function} onUndo - Callback ao clicar em Desfazer.
+ * @param {number} duration - Duração em ms (padrão 6000 do antigo JS).
+ */
+export function showUndoToast(message: string, onUndo: () => void, duration: number = 6000) {
     ensureMounted();
 
     setTimeout(() => {

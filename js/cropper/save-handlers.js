@@ -1,9 +1,8 @@
-import { cancelarRecorte } from './cropper-core.js';
-import { customAlert } from '../ui/alerts.js';
-import { mostrarPainel } from '../viewer/sidebar.js';
-import { obterImagemDoCropper } from './cropper-core.js';
-import { renderizarGaleriaModal } from './gallery.js';
 import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { mostrarPainel } from '../viewer/sidebar.js';
+import { cancelarRecorte, obterImagemDoCropper } from './cropper-core.js';
+import { renderizarGaleriaModal } from './gallery.js';
 
 // --- CENÁRIO 0: Imagem em Alternativa ---
 export function tratarSalvarAlternativa(base64Image) {

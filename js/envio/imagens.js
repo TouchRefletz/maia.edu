@@ -1,4 +1,4 @@
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 export async function carimbarBase64(base64, label) {
   return new Promise((resolve, reject) => {

@@ -1,6 +1,6 @@
 import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
 import { normalizarEstrutura } from '../render/structure.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 import { trocarModo } from '../viewer/pdf-core.js';
 import { esconderPainel } from '../viewer/sidebar.js';
 import { criarEAnexarAlternativa } from './alternativas.js';

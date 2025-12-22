@@ -1,5 +1,5 @@
 import { viewerState } from '../main.js';
-import { customAlert } from '../ui/alerts.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 import { validarProgressoImagens } from '../validation/metricas-imagens.js';
 import { atualizarUIViewerModo } from './viewer-template.js';
 
