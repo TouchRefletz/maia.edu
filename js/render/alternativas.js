@@ -1,26 +1,16 @@
-import { renderizar_estrutura_alternativa } from './structure.js';
+// --- START OF FILE alternativas.js ---
+
+import React from 'react';
+import ReactDOMServer from 'react-dom/server';
+// Nota: Dependendo da configuração do seu bundler (Vite/Webpack), 
+// talvez você precise remover a extensão .tsx do import abaixo (ex: './Alternativas')
+import { Alternativas } from './Alternativas.tsx';
 
 export const renderAlternativas = (alts) => {
-  if (!alts || alts.length === 0)
-    return `<div class="data-box">Sem alternativas</div>`;
+  // Como estamos em um arquivo .js puro, não podemos usar <Alternativas />.
+  // Usamos React.createElement(Componente, Props) para fazer a mesma coisa.
+  const elementoReact = React.createElement(Alternativas, { alts: alts });
 
-  return alts
-    .map((a) => {
-      const letra = String(a?.letra ?? '')
-        .trim()
-        .toUpperCase();
-      const estrutura = Array.isArray(a?.estrutura)
-        ? a.estrutura
-        : [{ tipo: 'texto', conteudo: String(a?.texto ?? '') }];
-
-      // Ela sabe buscar as imagens salvas em window.__imagensLimpas.alternativas.questao[letra]
-      // e gera os botões com o onclick correto (iniciar_captura_para_slot_alternativa)
-      const htmlEstr = renderizar_estrutura_alternativa(estrutura, letra);
-
-      return `<div class="alt-row">
-      <span class="alt-letter">${letra}</span>
-      <div class="alt-content">${htmlEstr}</div>
-    </div>`;
-    })
-    .join('');
+  // Renderiza para string HTML estática
+  return ReactDOMServer.renderToStaticMarkup(elementoReact);
 };
