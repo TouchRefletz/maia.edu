@@ -6,6 +6,8 @@ import ReactDOMServer from 'react-dom/server';
 declare global {
   interface Window {
     __imagensLimpas?: {
+      questao_original?: string[];
+      gabarito_original?: string[];
       alternativas?: {
         questao?: Record<string, string[]>;
       };

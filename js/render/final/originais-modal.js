@@ -1,19 +1,18 @@
-// 1. Recupera os dados das variáveis globais
+// --- START OF FILE originais-modal.js ---
+import {
+  exibirModalOriginais,
+  obterImagensBackup as obterImagensBackupTS
+} from './OriginaisModal'; // Importando do novo arquivo TSX
+
+// 1. Recupera os dados (Redireciona para a lógica centralizada no TSX)
 export function obterImagensBackup() {
-  const imgsQ =
-    window.__BACKUP_IMGS_Q && window.__BACKUP_IMGS_Q.length > 0
-      ? window.__BACKUP_IMGS_Q
-      : window.__imagensLimpas?.questao_original || [];
-
-  const imgsG =
-    window.__BACKUP_IMGS_G && window.__BACKUP_IMGS_G.length > 0
-      ? window.__BACKUP_IMGS_G
-      : window.__imagensLimpas?.gabarito_original || [];
-
-  return { imgsQ, imgsG };
+  return obterImagensBackupTS();
 }
 
-// 2. Gera o HTML de uma lista de imagens (o antigo renderLista)
+/**
+ * @deprecated Esta função retorna strings HTML. A renderização agora é feita via React no arquivo .tsx.
+ * Mantida apenas para evitar quebras se algum outro script a chama diretamente.
+ */
 export function gerarHtmlListaImagens(lista) {
   if (lista.length === 0)
     return `<div style="color:gray; padding:10px;">Sem imagens</div>`;
@@ -26,7 +25,10 @@ export function gerarHtmlListaImagens(lista) {
     .join('');
 }
 
-// 3. Monta o HTML completo do Modal
+/**
+ * @deprecated A estrutura do modal agora é um componente React.
+ * Mantida para retrocompatibilidade de assinaturas.
+ */
 export function construirHtmlModalOriginais(imgsQ, imgsG) {
   return `
         <div class="img-close-container">
@@ -53,16 +55,9 @@ export function construirHtmlModalOriginais(imgsQ, imgsG) {
     `;
 }
 
-// 4. Função Principal (A que será chamada no Listener Global)
+// 4. Função Principal (Agora chama o renderizador React)
 export function verImagensOriginais() {
-  const { imgsQ, imgsG } = obterImagensBackup();
-
-  // Check if modal already exists
-  if (document.querySelector('.img-overlay')) return;
-
-  const overlay = document.createElement('div');
-  overlay.className = 'img-overlay';
-  overlay.innerHTML = construirHtmlModalOriginais(imgsQ, imgsG);
-
-  document.body.appendChild(overlay);
+  // A lógica de verificação de duplicidade e criação do DOM 
+  // agora está encapsulada dentro de exibirModalOriginais()
+  exibirModalOriginais();
 }
