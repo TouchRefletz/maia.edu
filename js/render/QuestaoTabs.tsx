@@ -7,7 +7,7 @@ import { initBotaoAdicionarPasso, setupImageToggle } from '../editor/passos.js';
 import { processarSalvamentoQuestao } from '../editor/questao-save.js';
 import { initStepEditors } from '../editor/steps-ui.js';
 import { configurarDelecao, configurarDragAndDrop, criarHtmlBlocoEditor, iniciarEditorEstrutura } from '../editor/structure-editor.js';
-import { renderLatexIn } from '../libs/loader.js';
+import { renderLatexIn } from '../libs/loader';
 import { joinLines } from '../normalize/primitives.js';
 // ... (imports)
 import { validarProgressoImagens } from '../validation/metricas-imagens.js';

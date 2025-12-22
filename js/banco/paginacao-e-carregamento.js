@@ -6,7 +6,7 @@ import {
   query,
   ref,
 } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
-import { ensureLibsLoaded, renderLatexIn } from '../libs/loader.js';
+import { ensureLibsLoaded, renderLatexIn } from '../libs/loader.tsx';
 import { TAMANHO_PAGINA, bancoState, db } from '../main.js';
 import { criarCardTecnico } from './card-template.js';
 import { popularFiltrosDinamicos } from './filtros-dinamicos.js';
