@@ -100,14 +100,23 @@ export async function iniciarCropper() {
   }
 }
 
-export function obterImagemDoCropper() {
+import { canvasToBlob } from '../services/image-utils.js';
+
+export async function obterImagemDoCropper() {
   // Verifica se cropper existe (variável global)
   if (typeof viewerState.cropper === 'undefined' || !viewerState.cropper) return null;
 
   const canvas = viewerState.cropper.getCroppedCanvas();
   if (!canvas) return null;
 
-  return canvas.toDataURL('image/png', 1.0);
+  try {
+    const blob = await canvasToBlob(canvas, 'image/png', 1.0);
+    const url = URL.createObjectURL(blob);
+    return url; // Retorna URL ("blob:...") que é leve e renderizável
+  } catch (error) {
+    console.error('Erro ao gerar blob do cropper:', error);
+    return null;
+  }
 }
 
 export async function restaurarVisualizacaoOriginal() {

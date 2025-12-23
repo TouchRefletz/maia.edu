@@ -45,7 +45,7 @@ export function coletarESalvarImagensParaEnvio() {
       document.querySelectorAll('#cropPreviewGallery img')
     )
       .map((img) => img?.src)
-      .filter((src) => typeof src === 'string' && src.startsWith('data:image'));
+      .filter((src) => typeof src === 'string' && (src.startsWith('data:image') || src.startsWith('blob:')));
 
     if (imgsNoModal.length > 0) {
       imagensAtuais = imgsNoModal;
@@ -132,7 +132,22 @@ export async function prepararImagensParaEnvio(imagensAtuais, imagensSuporteQues
       return null;
     }
 
-    // 2. Retorno Direto (Sem carimbo)
-    return imagensAtuais;
+    // 2. Garante Conversão para Base64 (Gêmeos exige b64 real, não Blob URL)
+    const imagensBase64 = await Promise.all(
+      imagensAtuais.map(async (img) => {
+        if (typeof img === 'string' && img.startsWith('blob:')) {
+          try {
+            return await import('../services/image-utils.js').then(m => m.urlToBase64(img));
+          } catch (e) {
+            console.error("Falha ao converter blob para envio:", e);
+            return img;
+          }
+        }
+        return img; // Já é base64
+      })
+    );
+
+    // 3. Retorno Direto (Sem carimbo)
+    return imagensBase64;
   }
 }

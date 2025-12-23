@@ -8,6 +8,10 @@ export function limparElementosVisuais() {
   const finalModal = document.getElementById('finalModal');
   if (finalModal) finalModal.remove();
 
+  // Remove também o container do modal React (Novo)
+  const finalModalReact = document.getElementById('finalModalReactContainer');
+  if (finalModalReact) finalModalReact.remove();
+
   // 2. Limpa a UI da Sidebar (Onde ficava o texto extraído)
   const resultContainer = document.getElementById('extractionResult');
   if (resultContainer) resultContainer.remove();

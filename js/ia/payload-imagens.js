@@ -1,5 +1,6 @@
 import { uploadImagemWorker } from '../api/worker.js';
 import { uploadState } from '../main.js';
+import { urlToBase64 } from '../services/image-utils.js';
 
 export const uploadToImgBB = async (base64String) => {
   return await uploadImagemWorker(base64String);
@@ -11,10 +12,22 @@ export const processarObjetoRecursivo = async (obj, btnEnviar) => {
   if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
       const val = obj[i];
-      if (typeof val === 'string' && val.startsWith('data:image')) {
+      if (typeof val === 'string' && (val.startsWith('data:image') || val.startsWith('blob:'))) {
         if (btnEnviar)
           btnEnviar.innerText = `⏳ Subindo img ${++uploadState.imagensConvertidas}...`;
-        const url = await uploadToImgBB(val);
+
+        let finalBase64 = val;
+        // Se for Blob URL, converte para Base64 sob demanda
+        if (val.startsWith('blob:')) {
+          try {
+            finalBase64 = await urlToBase64(val);
+          } catch (err) {
+            console.error("Erro ao converter blob para base64:", err);
+            continue; // Pula se falhar
+          }
+        }
+
+        const url = await uploadToImgBB(finalBase64);
         if (url) obj[i] = url;
       } else if (typeof val === 'object') {
         await processarObjetoRecursivo(val, btnEnviar);
@@ -25,10 +38,21 @@ export const processarObjetoRecursivo = async (obj, btnEnviar) => {
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
       const val = obj[key];
-      if (typeof val === 'string' && val.startsWith('data:image')) {
+      if (typeof val === 'string' && (val.startsWith('data:image') || val.startsWith('blob:'))) {
         if (btnEnviar)
           btnEnviar.innerText = `⏳ Subindo img ${++uploadState.imagensConvertidas}...`;
-        const url = await uploadToImgBB(val);
+
+        let finalBase64 = val;
+        if (val.startsWith('blob:')) {
+          try {
+            finalBase64 = await urlToBase64(val);
+          } catch (err) {
+            console.error("Erro ao converter blob para base64:", err);
+            continue;
+          }
+        }
+
+        const url = await uploadToImgBB(finalBase64);
         if (url) obj[key] = url;
       } else if (typeof val === 'object') {
         await processarObjetoRecursivo(val, btnEnviar);

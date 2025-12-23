@@ -5,7 +5,8 @@ import { cancelarRecorte, obterImagemDoCropper } from './cropper-core.js';
 import { renderizarGaleriaModal } from './gallery.js';
 
 // --- CENÁRIO 0: Imagem em Alternativa ---
-export function tratarSalvarAlternativa(base64Image) {
+// --- CENÁRIO 0: Imagem em Alternativa ---
+export function tratarSalvarAlternativa(imgSrc) {
   const letra = window.__target_alt_letra;
   const idx = window.__target_alt_index;
 
@@ -17,8 +18,8 @@ export function tratarSalvarAlternativa(base64Image) {
     window.__imagensLimpas.alternativas.questao[letra] = [];
   }
 
-  // Salva
-  window.__imagensLimpas.alternativas.questao[letra][idx] = base64Image;
+  // Salva (agora é Blob URL)
+  window.__imagensLimpas.alternativas.questao[letra][idx] = imgSrc;
 
   // Atualiza Render
   const questaoAtiva =
@@ -33,7 +34,7 @@ export function tratarSalvarAlternativa(base64Image) {
 }
 
 // --- CENÁRIO: Gabarito Passos (Dinâmico) ---
-export function tratarSalvarPassoGabarito(base64Image) {
+export function tratarSalvarPassoGabarito(imgSrc) {
   const parts = window.__targetSlotContext.split('_');
   const passoIdx = parseInt(parts[2]);
   const imgIdx = window.__targetSlotIndex;
@@ -43,7 +44,7 @@ export function tratarSalvarPassoGabarito(base64Image) {
   if (!window.__imagensLimpas.gabarito_passos[passoIdx])
     window.__imagensLimpas.gabarito_passos[passoIdx] = [];
 
-  window.__imagensLimpas.gabarito_passos[passoIdx][imgIdx] = base64Image;
+  window.__imagensLimpas.gabarito_passos[passoIdx][imgIdx] = imgSrc;
 
   if (window.__ultimoGabaritoExtraido) {
     renderizarQuestaoFinal(window.__ultimoGabaritoExtraido);
@@ -57,17 +58,17 @@ export function tratarSalvarPassoGabarito(base64Image) {
 }
 
 // --- CENÁRIO 1: Slots de Estrutura (Questão ou Gabarito) ---
-export function tratarSalvarSlotEstrutura(base64Image) {
+export function tratarSalvarSlotEstrutura(imgSrc) {
   const ctx = window.__targetSlotContext;
   const idx = window.__targetSlotIndex;
 
   if (ctx === 'gabarito') {
-    window.__imagensLimpas.gabarito_original[idx] = base64Image;
+    window.__imagensLimpas.gabarito_original[idx] = imgSrc;
     if (window.__ultimoGabaritoExtraido) {
       renderizarQuestaoFinal(window.__ultimoGabaritoExtraido);
     }
   } else {
-    window.__imagensLimpas.questao_original[idx] = base64Image;
+    window.__imagensLimpas.questao_original[idx] = imgSrc;
     if (window.__ultimaQuestaoExtraida) {
       renderizarQuestaoFinal(window.__ultimaQuestaoExtraida);
     }
@@ -81,14 +82,14 @@ export function tratarSalvarSlotEstrutura(base64Image) {
 }
 
 // --- CENÁRIO 2: Imagem de Suporte (Manual) ---
-export function tratarSalvarSuporte(base64Image) {
+export function tratarSalvarSuporte(imgSrc) {
   if (window.modo === 'gabarito') {
     if (!window.__ultimoGabaritoExtraido) window.__ultimoGabaritoExtraido = {};
     if (!window.__ultimoGabaritoExtraido.imagens_suporte)
       window.__ultimoGabaritoExtraido.imagens_suporte = [];
 
-    window.__ultimoGabaritoExtraido.imagens_suporte.push(base64Image);
-    window.__imagensLimpas.gabarito_suporte.push(base64Image);
+    window.__ultimoGabaritoExtraido.imagens_suporte.push(imgSrc);
+    window.__imagensLimpas.gabarito_suporte.push(imgSrc);
 
     customAlert('📸 Imagem de suporte adicionada ao GABARITO!', 2000);
     renderizarQuestaoFinal(window.__ultimoGabaritoExtraido);
@@ -97,8 +98,8 @@ export function tratarSalvarSuporte(base64Image) {
     if (!window.__ultimaQuestaoExtraida.imagens_suporte)
       window.__ultimaQuestaoExtraida.imagens_suporte = [];
 
-    window.__ultimaQuestaoExtraida.imagens_suporte.push(base64Image);
-    window.__imagensLimpas.questao_suporte.push(base64Image);
+    window.__ultimaQuestaoExtraida.imagens_suporte.push(imgSrc);
+    window.__imagensLimpas.questao_suporte.push(imgSrc);
 
     customAlert('📸 Imagem de suporte adicionada à QUESTÃO!', 2000);
     renderizarQuestaoFinal(window.__ultimaQuestaoExtraida);
@@ -110,10 +111,10 @@ export function tratarSalvarSuporte(base64Image) {
   window.__capturandoImagemFinal = false;
 }
 
-export function salvarQuestao() {
-  // 1. Obtém a imagem
-  const base64Image = obterImagemDoCropper();
-  if (!base64Image) return;
+export async function salvarQuestao() {
+  // 1. Obtém a imagem (agora async e retorna blob URL)
+  const imgSrc = await obterImagemDoCropper();
+  if (!imgSrc) return;
 
   // --- ROTEAMENTO DOS CENÁRIOS ---
 
@@ -122,7 +123,7 @@ export function salvarQuestao() {
     window.__target_alt_letra !== null &&
     window.__target_alt_index !== null
   ) {
-    tratarSalvarAlternativa(base64Image);
+    tratarSalvarAlternativa(imgSrc);
     cancelarRecorte();
     return;
   }
@@ -132,7 +133,7 @@ export function salvarQuestao() {
     window.__targetSlotContext &&
     window.__targetSlotContext.startsWith('gabarito_passo_')
   ) {
-    tratarSalvarPassoGabarito(base64Image);
+    tratarSalvarPassoGabarito(imgSrc);
     cancelarRecorte();
     return;
   }
@@ -142,20 +143,20 @@ export function salvarQuestao() {
     window.__targetSlotIndex !== null &&
     window.__targetSlotContext !== null
   ) {
-    tratarSalvarSlotEstrutura(base64Image);
+    tratarSalvarSlotEstrutura(imgSrc);
     cancelarRecorte();
     return;
   }
 
   // Cenário 2: Suporte
   if (window.__capturandoImagemFinal === true) {
-    tratarSalvarSuporte(base64Image);
+    tratarSalvarSuporte(imgSrc);
     cancelarRecorte();
     return;
   }
 
   // --- CENÁRIO 3: FLUXO IA (PADRÃO) ---
-  window.__recortesAcumulados.push(base64Image);
+  window.__recortesAcumulados.push(imgSrc);
 
   cancelarRecorte();
 
