@@ -19,6 +19,7 @@ import { Alternativas } from './AlternativasRender';
 import { renderizarTelaFinal } from './final/json-e-modal.js';
 import { renderTags } from './final/render-components.js';
 import { AcoesGabaritoView, GabaritoCardView, GabaritoEditorView, prepararDadosGabarito } from './GabaritoCard.js';
+import { MobileInteractableHeader } from './MobileLayout';
 import { MainStructure } from './StructureRender';
 
 // Interfaces básicas para Tipagem (adaptar conforme seus objetos reais)
@@ -215,6 +216,9 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef }) => {
 
   return (
     <div className="questao-tabs-react-root">
+
+      {/* HEADER MOBILE (Drag Handle) - Só aparece via CSS no mobile */}
+      <MobileInteractableHeader />
 
       {/* TABS HEADER */}
       {/* ... (Header mantido igual, não precisa alterar aqui, apenas no final) ... */}
