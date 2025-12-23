@@ -68,25 +68,22 @@ export default {
  * 1. SERVICE: GEMINI GENERATION
  */
 async function handleGeminiGenerate(request, env) {
-	// START FIX
 	const body = await request.json();
-	const {
-		texto,
-		schema,
-		listaImagensBase64 = [],
-		mimeType = 'image/jpeg',
-		model,
-		apiKey: userApiKey, // Recebe do front
-	} = body;
-	// END FIX
+	const { texto, schema, listaImagensBase64 = [], mimeType = 'image/jpeg', model, apiKey: userApiKey } = body;
 
-	// Prioriza a chave do usuário se existir, senão usa a do ambiente
 	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
 
 	const client = new GoogleGenAI({ apiKey: finalApiKey });
 
-	const modelsToTry = model ? [model] : DEFAULT_MODELS;
+	// Modelos iniciais (se vier "model", tenta só ele; senão usa DEFAULT_MODELS)
+	const initialModels = model ? [model] : DEFAULT_MODELS;
+
+	// Fallbacks específicos pra RECITATION
+	const RECITATION_FALLBACKS = [
+		'models/gemini-flash-latest',
+		'models/gemini-flash-lite-latest',];
+
 	const encoder = new TextEncoder();
 
 	// Prepare parts
@@ -95,6 +92,7 @@ async function handleGeminiGenerate(request, env) {
 		listaImagensBase64.forEach((base64Image) => {
 			let imageString = base64Image;
 			let imageMime = mimeType;
+
 			if (typeof base64Image === 'string' && base64Image.includes('base64,')) {
 				const matches = base64Image.match(/^data:(.+);base64,(.+)$/);
 				if (matches) {
@@ -102,18 +100,45 @@ async function handleGeminiGenerate(request, env) {
 					imageString = matches[2];
 				}
 			}
+
 			parts.push({ inlineData: { mimeType: imageMime, data: imageString } });
 		});
 	}
 
-	let { readable, writable } = new TransformStream();
+	const { readable, writable } = new TransformStream();
 	const writer = writable.getWriter();
+
+	// Helpers
+	const writeNdjson = async (obj) => {
+		await writer.write(encoder.encode(JSON.stringify(obj) + '\n'));
+	};
+
+	const isRecitation = (finishReason) => String(finishReason || '').toUpperCase() === 'RECITATION';
 
 	(async () => {
 		let lastError = null;
 		let success = false;
 
-		for (const modelo of modelsToTry) {
+		// Controla quantas vezes RECITATION aconteceu
+		let recitationCount = 0;
+
+		// Histórico pro front (útil no erro final)
+		const attemptHistory = [];
+
+		// Fila de tentativas (começa com os modelos normais)
+		const queue = [...initialModels];
+
+		// Para evitar loop infinito se initialModels já contém flash/flash-lite,
+		// a lógica de RECITATION força o próximo modelo via unshift().
+		let attempt = 0;
+
+		while (queue.length > 0) {
+			const modelo = queue.shift();
+			attempt += 1;
+
+			attemptHistory.push({ attempt, model: modelo, status: 'started' });
+			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo });
+
 			try {
 				const stream = await client.models.generateContentStream({
 					model: modelo,
@@ -125,34 +150,103 @@ async function handleGeminiGenerate(request, env) {
 					},
 				});
 
+				let wroteSomethingThisAttempt = false;
+
 				for await (const chunk of stream) {
 					const cand = chunk?.candidates?.[0];
 					const partsResp = cand?.content?.parts || [];
 
-					// 1) Sempre escreva os parts (não depende do finishReason)
+					// Sempre escreva os parts (streaming incremental)
 					for (const part of partsResp) {
 						if (!part?.text) continue;
+						wroteSomethingThisAttempt = true;
+
 						const type = part.thought ? 'thought' : 'answer';
-						await writer.write(encoder.encode(JSON.stringify({ type, text: part.text }) + '\n'));
+						await writeNdjson({ type, attempt, model: modelo, text: part.text });
 					}
 
-					// 2) Só finalize quando o modelo terminar
 					const finishReason = cand?.finishReason;
 					if (finishReason) {
-						await writer.write(encoder.encode(JSON.stringify({ type: 'debug', text: `Finish Reason: ${finishReason}` }) + '\n'));
+						await writeNdjson({
+							type: 'debug',
+							attempt,
+							model: modelo,
+							text: `Finish Reason: ${finishReason}`,
+						});
 
 						if (finishReason === 'STOP') {
+							attemptHistory[attemptHistory.length - 1].status = 'success';
 							success = true;
 							break;
 						}
 
-						// opcional, mas recomendado: não deixa o front tentar parsear JSON truncado
+						// RECITATION: manda reset pro front e tenta novamente com flash -> flash-lite
+						if (isRecitation(finishReason)) {
+							recitationCount += 1;
+							attemptHistory[attemptHistory.length - 1].status = 'recitation';
+
+							// Pede pro front limpar o que foi renderizado desta tentativa
+							// (faz isso mesmo se não escreveu nada; é idempotente)
+							await writeNdjson({
+								type: 'reset',
+								attempt,
+								model: modelo,
+								reason: 'RECITATION',
+								clear: wroteSomethingThisAttempt ? 'attempt' : 'noop',
+							});
+
+							// Decide próximo fallback
+							const nextFallback = RECITATION_FALLBACKS[recitationCount - 1];
+
+							if (nextFallback) {
+								await writeNdjson({
+									type: 'meta',
+									event: 'retrying_after_recitation',
+									attempt,
+									fromModel: modelo,
+									toModel: nextFallback,
+									recitationCount,
+								});
+
+								// Força o próximo modelo (prioridade total)
+								queue.unshift(nextFallback);
+								// Sai do loop deste stream e vai pra próxima iteração do while(queue)
+								throw new Error('__RECITATION_RETRY__');
+							}
+
+							// 3ª RECITATION (ou mais): devolve algo manipulável no front e encerra
+							await writeNdjson({
+								type: 'error',
+								code: 'RECITATION',
+								retryable: false,
+								message: 'Falhou 3x com RECITATION (original + flash + flash-lite).',
+								attempts: attemptHistory,
+							});
+
+							success = false;
+							await writer.close();
+							return;
+						}
+
+						// Outros finishReason: encerra a tentativa e tenta próximo modelo da fila
 						throw new Error(`Stream finalizado com finishReason=${finishReason}`);
 					}
 				}
-				success = true;
-				break;
+
+				if (success) break;
+
+				// Se o stream acabar sem finishReason explícito, trata como erro de protocolo
+				attemptHistory[attemptHistory.length - 1].status = 'unknown_end';
+				throw new Error('Stream terminou sem finishReason');
 			} catch (erro) {
+				if (erro?.message === '__RECITATION_RETRY__') {
+					// Só continua o while (já enfileirou o fallback)
+					continue;
+				}
+
+				attemptHistory[attemptHistory.length - 1].status =
+					attemptHistory[attemptHistory.length - 1].status === 'started' ? 'failed' : attemptHistory[attemptHistory.length - 1].status;
+
 				console.warn(`Erro model ${modelo}`, erro);
 				lastError = erro;
 				continue;
@@ -160,8 +254,13 @@ async function handleGeminiGenerate(request, env) {
 		}
 
 		if (!success) {
-			const errData = JSON.stringify({ type: 'error', text: `Todos falharam: ${lastError?.message}` });
-			await writer.write(encoder.encode(errData + '\n'));
+			await writeNdjson({
+				type: 'error',
+				code: 'ALL_MODELS_FAILED',
+				retryable: true,
+				message: `Todos falharam: ${lastError?.message || 'erro desconhecido'}`,
+				attempts: attemptHistory,
+			});
 		}
 
 		await writer.close();

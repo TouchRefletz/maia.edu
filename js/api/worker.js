@@ -1,7 +1,8 @@
 // --- CONFIGURAÇÃO DO WORKER ---
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
-export const WORKER_URL = import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
+export const WORKER_URL =
+  import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
 console.log(
   "DEBUG ENV:",
   import.meta.env.VITE_WORKER_URL,
@@ -114,6 +115,7 @@ export async function gerarConteudoEmJSONComImagemStream(
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
+          console.log(msg);
           if (msg.type === "thought") {
             handlers?.onThought?.(msg.text);
           } else if (msg.type === "answer") {
@@ -126,6 +128,10 @@ export async function gerarConteudoEmJSONComImagemStream(
             handlers?.onStatus?.(`Erro: ${msg.text}`);
           } else if (msg.type === "status") {
             handlers?.onStatus?.(msg.text);
+          } else if (msg.type === "reset") {
+            console.log("♻️ Tentativa falhou com RECITATION. Reiniciando buffer...");
+            answerText = "";
+            handlers?.onStatus?.("Recitation detectado. Tentando novamente...");
           }
         } catch (e) {
           console.warn("Erro ao parsear chunk do worker:", line, e);
@@ -138,7 +144,7 @@ export async function gerarConteudoEmJSONComImagemStream(
       try {
         const msg = JSON.parse(buffer);
         if (msg.type === "answer") answerText += msg.text;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Apenas garantimos que não está vazio antes de parsear
@@ -150,30 +156,7 @@ export async function gerarConteudoEmJSONComImagemStream(
 
     console.log(answerText);
 
-    // Clean up potential Markdown code blocks
-    let finalJson = answerText.trim();
-    if (finalJson.startsWith("```json")) {
-      finalJson = finalJson
-        .replace(/^```json/, "")
-        .replace(/```$/, "")
-        .trim();
-    } else if (finalJson.startsWith("```")) {
-      finalJson = finalJson.replace(/^```/, "").replace(/```$/, "").trim();
-    }
-
-    try {
-      return JSON.parse(finalJson);
-    } catch (e) {
-      console.error(
-        "Erro ao parsear JSON final. Conteúdo recebido (início):",
-        finalJson.substring(0, 200)
-      );
-      console.error(
-        "Conteúdo recebido (fim):",
-        finalJson.substring(finalJson.length - 200)
-      );
-      throw e;
-    }
+    return JSON.parse(answerText);
   } catch (error) {
     console.error("Erro no Worker stream:", error);
     throw new Error(`Falha no Worker: ${error.message}`);
