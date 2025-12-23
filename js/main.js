@@ -303,6 +303,15 @@ window.iniciar_captura_para_slot_alternativa = function (letra, index) {
   ativarModoRecorte(); // jÃ¡ existe e liga o cropper + botÃµes flutuantes [file:2]
 };
 
+window.iniciar_ocr_campo = function (elementId) {
+  // Define o contexto global para o salvar lidar depois
+  window.__targetSlotContext = 'ocr_field_' + elementId;
+  window.__targetSlotIndex = null; // não usamos index numérico aqui, o ID já basta
+
+  // Inicia o modo de recorte (mesma UI de sempre)
+  ativarModoRecorte();
+};
+
 // --- NOVO SISTEMA DE ZOOM DE IMAGEM (MODAL) ---
 window.expandirImagem = function (src) {
   // Remove modal anterior se existir

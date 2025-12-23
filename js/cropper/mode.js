@@ -48,6 +48,11 @@ export function iniciarCapturaParaSlot(index, contexto) {
 
 export function iniciarCapturaImagemQuestao() {
   window.__capturandoImagemFinal = true;
+
+  // Limpa targets de slot/OCR para garantir que não salvamos no lugar errado
+  window.__targetSlotIndex = null;
+  window.__targetSlotContext = null;
+
   ativarModoRecorte();
 
   // Feedback visual no botão flutuante

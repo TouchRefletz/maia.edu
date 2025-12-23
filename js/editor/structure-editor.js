@@ -69,13 +69,15 @@ export function criarHtmlBlocoEditor(tipo, conteudo) {
 
   const cfg = CFG[t] ?? CFG.texto;
 
+  const uniqueId = 'struct_field_' + Math.random().toString(36).substr(2, 9);
+
   let inputHtml = '';
   if (cfg.kind === 'input') {
-    inputHtml = `<input type="text" class="form-control item-content" value="${safeContent}" placeholder="${cfg.placeholder}">`;
+    inputHtml = `<input type="text" id="${uniqueId}" class="form-control item-content" value="${safeContent}" placeholder="${cfg.placeholder}">`;
   } else if (cfg.kind === 'textarea') {
-    inputHtml = `<textarea class="form-control item-content" rows="${cfg.rows}" placeholder="${cfg.placeholder}">${safeContent}</textarea>`;
+    inputHtml = `<textarea id="${uniqueId}" class="item-content form-control structure-textarea-auto" rows="${cfg.rows}" placeholder="${cfg.placeholder}" style="overflow:hidden; resize:none;">${safeContent}</textarea>`;
   } else if (cfg.kind === 'separador') {
-    // mantém item-content para o salvamento ser consistente
+    // mantÃ©m item-content para o salvamento ser consistente
     inputHtml = `
       <input type="hidden" class="item-content" value="">
       <div style="font-size:11px;color:var(--color-text-secondary);font-family:var(--font-family-mono);">
@@ -85,13 +87,19 @@ export function criarHtmlBlocoEditor(tipo, conteudo) {
   }
 
   const label = cfg.label;
+  const ocrButton = cfg.kind !== 'separador' && cfg.kind !== 'imagem'
+    ? `<button type="button" class="btn-ocr-invoke" style="background:none; border:none; cursor:pointer; font-size:14px; margin-right:5px; color:#666;" onclick="window.iniciar_ocr_campo('${uniqueId}')" title="Usar OCR">🔍</button>`
+    : '';
 
   return `
     <div class="structure-item" draggable="true" data-type="${t}">
       <div class="drag-handle">⋮⋮</div>
       <div class="structure-item-content">
         <div class="structure-item-header">
-          <span class="structure-type-badge ${t}">${label}</span>
+          <div style="display:flex; align-items:center;">
+             ${ocrButton}
+             <span class="structure-type-badge ${t}">${label}</span>
+          </div>
           <button type="button" class="btn-delete-block" title="Remover bloco">×</button>
         </div>
         ${inputHtml}

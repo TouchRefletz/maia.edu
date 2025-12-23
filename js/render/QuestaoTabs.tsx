@@ -84,6 +84,34 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef }) => {
     }
   }, [activeTab, isEditing]);
 
+  // --- EFEITO: Auto-Resize para Textarea (Robustez) ---
+  useEffect(() => {
+    if (isEditing) {
+      const resizeAll = () => {
+        document.querySelectorAll('textarea.form-control').forEach((el: any) => {
+          el.style.height = 'auto';
+          el.style.height = el.scrollHeight + 'px';
+          // Adiciona listener se ainda não tiver
+          if (!el._autoResizeAttached) {
+            el.addEventListener('input', (e: Event) => {
+              const target = e.currentTarget as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = target.scrollHeight + 'px';
+            });
+            el._autoResizeAttached = true;
+          }
+        });
+      };
+
+      // Roda imediatamente 
+      resizeAll();
+
+      // E roda a cada 500ms para pegar novos elementos adicionados dinamicamente (fallback simples)
+      const interval = setInterval(resizeAll, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isEditing, questao.estrutura]); // Re-roda se a estrutura mudar
+
   // --- EFEITO: Inicializar Scripts Legados do Gabarito ---
   useLayoutEffect(() => {
     if (activeTab === 'gabarito' && gabarito && isGabaritoEditing) {
@@ -317,7 +345,10 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef }) => {
           <form id="questaoEdit">
             <div className="field-group">
               <span className="field-label">Identificação</span>
-              <input id="edit_identificacao" className="form-control" type="text" defaultValue={questao.identificacao} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input id="edit_identificacao" className="form-control" type="text" defaultValue={questao.identificacao} style={{ flex: 1 }} />
+                <button type="button" className="btn btn--sm btn--outline" onClick={() => window.iniciar_ocr_campo?.('edit_identificacao')} title="Usar OCR">🔍</button>
+              </div>
             </div>
 
             <div className="field-group">
@@ -346,12 +377,28 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef }) => {
 
             <div className="field-group">
               <span className="field-label">Matérias (1/linha)</span>
-              <textarea id="edit_materias" className="form-control" rows={2} defaultValue={joinLines(questao.materias_possiveis)} />
+              <textarea
+                id="edit_materias"
+                className="form-control"
+                rows={2}
+                defaultValue={joinLines(questao.materias_possiveis)}
+                style={{ overflow: 'hidden', resize: 'none' }}
+                onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; }}
+                ref={(ref) => { if (ref) { ref.style.height = 'auto'; ref.style.height = ref.scrollHeight + 'px'; } }}
+              />
             </div>
 
             <div className="field-group">
               <span className="field-label">Palavras-chave (1/linha)</span>
-              <textarea id="edit_palavras" className="form-control" rows={2} defaultValue={joinLines(questao.palavras_chave)} />
+              <textarea
+                id="edit_palavras"
+                className="form-control"
+                rows={2}
+                defaultValue={joinLines(questao.palavras_chave)}
+                style={{ overflow: 'hidden', resize: 'none' }}
+                onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; }}
+                ref={(ref) => { if (ref) { ref.style.height = 'auto'; ref.style.height = ref.scrollHeight + 'px'; } }}
+              />
             </div>
 
             <div className="field-group">

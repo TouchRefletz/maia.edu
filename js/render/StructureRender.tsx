@@ -12,6 +12,7 @@ declare global {
         questao?: Record<string, string[]>;
       };
     };
+    iniciar_ocr_campo?: (elementId: string) => void;
     expandirImagem?: (src: string) => void;
     iniciar_captura_para_slot_alternativa?: (letra: string, idx: number) => void;
   }

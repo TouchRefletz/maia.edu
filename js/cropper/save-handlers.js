@@ -138,6 +138,24 @@ export async function salvarQuestao() {
     return;
   }
 
+  // Cenário: OCR Field (NOVO)
+  if (
+    window.__targetSlotContext &&
+    window.__targetSlotContext.startsWith('ocr_field_')
+  ) {
+    const elementId = window.__targetSlotContext.replace('ocr_field_', '');
+    import('../services/OcrQueueService.ts').then(({ ocrService }) => {
+      ocrService.addToQueue(imgSrc, elementId);
+    });
+
+    // Limpa Flags para evitar conflito com próximas capturas
+    window.__targetSlotContext = null;
+    window.__targetSlotIndex = null;
+
+    cancelarRecorte();
+    return;
+  }
+
   // Cenário 1: Slots Genéricos
   if (
     window.__targetSlotIndex !== null &&
