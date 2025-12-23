@@ -279,7 +279,7 @@ export function handleRecitationError(uiState, modo, refsLoader, styleviewerSide
     identificacao: "⚠️ Questão não extraída",
     conteudo: "", // Deixa vazio para não aparecer texto feio no card
     estrutura: [
-      { tipo: 'texto', conteudo: '⚠️ HOUVE UM ERRO DE RECITAÇÃo. Clique em "Editar Conteúdo" para transcrever a questão manualmente.' }
+      { tipo: 'texto', conteudo: '⚠️ HOUVE UM ERRO DE RECITAÇÃO. Clique em "Editar Conteúdo" para transcrever a questão manualmente.' }
     ],
     alternativas: [],
     materias_possiveis: [],

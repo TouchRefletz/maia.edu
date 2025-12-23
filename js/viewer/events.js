@@ -52,7 +52,7 @@ export function configurarEventosViewer() {
   aoClicar('btnModalCancelarTudo', fecharModalConfirmacao);
 }
 
-export function realizarlimpezaCompleta() {
+export function realizarLimpezaCompleta() {
   // 1. Encerra cropper com segurança (Se houver resquício)
   try {
     import('../cropper/selection-overlay.js').then(module => {
