@@ -1,10 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 
 const DEFAULT_MODELS = [
+	'models/gemini-3-flash-preview',
+	'models/gemini-2.5-flash',
 	'models/gemini-2.5-pro',
 	'models/gemini-flash-latest',
 	'models/gemini-flash-lite-latest',
-	'models/gemini-2.5-flash',
 	'models/gemini-2.5-flash-lite',
 	'models/gemini-2.0-flash',
 	'models/gemini-2.0-flash-lite',
