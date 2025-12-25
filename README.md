@@ -2,23 +2,42 @@
 
 **Tornando a educação mais acessível no Brasil.**
 
-Essa ferramenta foi criada para documentar questões reais de vestibulares brasileiros, com o objetivo de tornar a educação mais acessível no país. Através do nosso site, qualquer estudante pode treinar para uma prova utilizando as questões coletadas ou contribuir coletando novas questões, tudo pelo celular e em cerca de, no máximo, **5 minutos**.
+Esta ferramenta é uma plataforma _open-source_ de alto desempenho projetada para documentar e estruturar questões reais de vestibulares brasileiros. Nosso objetivo é democratizar o acesso à educação através de tecnologia de ponta.
+
+Por meio de uma interface web otimizada (construída com **Vite** para máxima velocidade) e uma arquitetura _serverless_ distribuída, qualquer estudante pode treinar para provas ou contribuir para o banco de dados diretamente pelo celular. O processo de contribuição é simplificado e leva no máximo **5 minutos**, alimentando um ecossistema educacional livre e colaborativo.
 
 ## 🎯 Nossa Missão
 
-Essa ferramenta busca alimentar outros projetos como uma forma de **democratizar o acesso à educação no Brasil**, fornecendo o primeiro grande **banco de dados público de questões de vestibulares brasileiros** para uso pessoal e não comercial.
+O núcleo desta ferramenta não é apenas armazenar dados, mas servir como infraestrutura crítica para alimentar outros projetos educacionais. Buscamos fornecer o primeiro grande **banco de dados público e estruturado de questões de vestibulares brasileiros** para uso pessoal e não comercial, garantindo que a informação seja acessível, interoperável e preservada digitalmente.
 
-## 🛠️ Como Funciona
+## 🛠️ Como Funciona (Arquitetura e Processamento)
 
-O projeto utiliza a inteligência do **Gemini** e uma saída estruturada em JSON para organizar todos os dados das questões e gabaritos, incluindo:
+O projeto opera sobre uma arquitetura moderna e escalável, dividida em microsserviços na borda (_Edge Computing_), garantindo baixa latência e alta disponibilidade.
 
-- Imagens e Textos
-- Fontes e Títulos
-- Citações e Códigos
+### 1. Núcleo de Processamento (API & IA)
 
-Além disso, utilizamos tecnologias de renderização em **Markdown** e **LaTeX** para garantir que a questão digital seja o mais fiel possível à prova original do vestibular.
+O backend é sustentado por **Cloudflare Workers**, executando código diretamente na borda da rede. Quando uma questão é enviada:
 
-A plataforma também oferece **captura manual de imagens** de forma prática e eficiente. E, para garantir a confiabilidade, caso ocorra algum erro na extração automática, as **fotos originais** (da questão e do gabarito) permanecem sempre disponíveis para o usuário consultar durante a resolução.
+- **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Google Gemini** (modelos multimodais) para realizar a inferência semântica da prova.
+- **Estruturação de Dados:** Diferente de OCRs tradicionais, nossa API força uma **saída estruturada em JSON**, categorizando rigorosamente:
+  - Enunciados e alternativas;
+  - Imagens, gráficos e legendas associadas;
+  - Fontes, títulos e metadados contextuais;
+  - Citações e trechos de código.
+
+### 2. Renderização de Alta Fidelidade
+
+Para garantir que a experiência digital seja indistinguível da prova física:
+
+- Utilizamos _parsers_ avançados para converter o conteúdo extraído em **Markdown** (para formatação rica) e **LaTeX** (para equações matemáticas complexas e fórmulas químicas).
+- O frontend, otimizado via **Vite**, renderiza esses componentes instantaneamente, preservando a diagramação original.
+
+### 3. Redundância e Confiabilidade
+
+A plataforma implementa um sistema de **captura híbrida**:
+
+- **Automático:** Extração via IA.
+- **Manual/Verificação:** As **fotos originais** (raw images) da questão e do gabarito são armazenadas permanentemente e vinculadas ao objeto JSON da questão. Isso cria uma camada de segurança ("fallback"), permitindo que o usuário consulte a fonte primária caso haja qualquer alucinação ou erro na extração automática da IA.
 
 ## 🧬 Estrutura do Banco de Dados
 
@@ -30,7 +49,7 @@ Nossos dados seguem uma estrutura JSON padronizada e rica em metadados:
     "NOME_DO_EXAME_OU_BANCA": {
       "IDENTIFICADOR_UNICO_DA_QUESTAO": {
         "dados_gabarito": {
-          "alternativa_correta": "LETRA_DA_ALTERNATIVA (EX: A)",
+          "alternativa_correta": "LETRA (EX: A)",
           "alternativas_analisadas": [
             {
               "correta": true,
@@ -41,21 +60,6 @@ Nossos dados seguem uma estrutura JSON padronizada e rica em metadados:
               "correta": false,
               "letra": "B",
               "motivo": "Explicação do erro (distrator)."
-            },
-            {
-              "correta": false,
-              "letra": "C",
-              "motivo": "Explicação do erro."
-            },
-            {
-              "correta": false,
-              "letra": "D",
-              "motivo": "Explicação do erro."
-            },
-            {
-              "correta": false,
-              "letra": "E",
-              "motivo": "Explicação do erro."
             }
           ],
           "analise_complexidade": {
@@ -64,51 +68,77 @@ Nossos dados seguem uma estrutura JSON padronizada e rica em metadados:
               "analise_nuance_julgamento": false,
               "contexto_abstrato": false,
               "deducao_logica": true,
-              "dependencia_conteudo_externo": true
+              "dependencia_conteudo_externo": true,
+              "distratores_semanticos": false,
+              "interdisciplinaridade": false,
+              "interpretacao_visual": false,
+              "multiplas_fontes_leitura": false,
+              "raciocinio_contra_intuitivo": false,
+              "resolucao_multiplas_etapas": false,
+              "texto_extenso": false,
+              "transformacao_informacao": false,
+              "vocabulario_complexo": false
             },
             "justificativa_dificuldade": "Classificação pedagógica."
           },
           "coerencia": {
             "alternativa_correta_existe": true,
-            "tem_analise_para_todas": true
+            "tem_analise_para_todas": true,
+            "observacoes": ["Observação/validação de coerência (opcional)."]
           },
           "confianca": 1,
           "creditos": {
             "ano": "ANO_DA_PROVA",
             "autorouinstituicao": "NOME_DA_INSTITUICAO",
             "material": "NOME_DO_CADERNO_OU_PROVA",
-            "origemresolucao": "gerado_pela_ia_ou_humano"
+
+            "confiancaidentificacao": 1,
+            "materialidentificado": true,
+            "origemresolucao": "extraido_do_material | gerado_pela_ia"
           },
           "explicacao": [
             {
               "estrutura": [
-                { "conteudo": "Título do Passo", "tipo": "titulo" },
+                { "conteudo": "Título do passo", "tipo": "titulo" },
                 { "conteudo": "Explicação detalhada...", "tipo": "texto" }
               ],
-              "origem": "gerado_pela_ia"
+              "evidencia": "Texto curto de evidência/validação (opcional).",
+              "fontematerial": "Referência interna (opcional).",
+              "origem": "extraido_do_material | gerado_pela_ia"
             }
           ],
-          "fotos_originais": ["URL..."],
-          "justificativa_curta": "Resumo TL;DR."
+          "fontes_externas": [
+            {
+              "title": "Título da fonte",
+              "uri": "https://..."
+            }
+          ],
+          "fotos_originais": ["https://..."],
+          "justificativa_curta": "Resumo TL;DR.",
+          "texto_referencia": "Texto/relatório longo (opcional)."
         },
         "dados_questao": {
           "alternativas": [
             {
               "letra": "A",
-              "estrutura": [{ "conteudo": "...", "tipo": "texto" }]
+              "estrutura": [
+                { "conteudo": "Texto da alternativa A", "tipo": "texto" }
+              ]
             }
           ],
           "estrutura": [
-            { "conteudo": "Enunciado...", "tipo": "texto" },
+            { "conteudo": "Enunciado / trecho / comando...", "tipo": "texto" },
+            { "conteudo": "Citação...", "tipo": "citacao" },
+            { "conteudo": "Fonte/Créditos do texto-base...", "tipo": "fonte" },
             {
-              "conteudo": "Legenda...",
-              "imagem_base64": "URL...",
-              "tipo": "imagem"
+              "tipo": "imagem",
+              "conteudo": "Legenda (opcional)",
+              "imagem_base64": "BASE64_OU_URL (se aplicável)"
             }
           ],
-          "fotos_originais": ["URL..."],
-          "materias_possiveis": ["Biologia"],
-          "palavras_chave": ["Ecologia"]
+          "fotos_originais": ["https://..."],
+          "materias_possiveis": ["História"],
+          "palavras_chave": ["Tema 1", "Tema 2"]
         },
         "meta": {
           "timestamp": "ISO_8601"
@@ -137,8 +167,10 @@ Estamos construindo a infraestrutura para que o futuro da educação seja livre,
 
 ## 📄 Licença
 
-Este projeto é protegido pela licença **MIT**.
+Este projeto é protegido pela licença **GNU General Public License v3.0 (GPL-3.0)**.
 
-Isso significa que você é livre para usar, copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender cópias do software, desde que mantenha os créditos aos criadores originais. Acreditamos que o conhecimento cresce quando é compartilhado.
+Isso significa que você é livre para usar, estudar, copiar, modificar e distribuir este software, inclusive para fins comerciais, **desde que** qualquer redistribuição (do projeto original ou de versões modificadas) mantenha os avisos de direitos autorais e a própria licença, e que o código-fonte (ou um meio válido de obtê-lo) seja disponibilizado junto da distribuição.
+
+Em outras palavras: se você publicar uma versão modificada ou incorporar este projeto em um trabalho derivado e distribuí-lo, você também deve licenciar esse trabalho sob a **GPL-3.0**, garantindo as mesmas liberdades para as próximas pessoas. Acreditamos que o conhecimento cresce quando é compartilhado — e que essas liberdades devem permanecer protegidas para todos.
 
 > _A educação não tem preço. Sua falta tem custo. - Antônio Gomes Lacerda_
