@@ -71,6 +71,10 @@
   font-size: var(--font-size-md);
 }
 
-#brandName > strong {
+#brandName>strong {
+  color: var(--color-primary);
+}
+
+#searchTitle>strong {
   color: var(--color-primary);
 }

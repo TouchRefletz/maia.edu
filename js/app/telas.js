@@ -26,16 +26,16 @@ export function gerarTelaInicial() {
                 <div style="font-size: 50px; margin-bottom: 20px;">📚</div>
                 <h2 style="color: var(--color-primary); margin-bottom: 15px;">Banco de Questões</h2>
                 <p style="color: var(--color-text-secondary);">
-                    Acesse o repertório completo com filtros por banca, matéria e assunto.
+                    Acesse o repertório completo de questões utilizado pela nossa inteligência artificial.
                 </p>
                 <button class="btn btn--primary btn--full-width" style="margin-top: 20px;">Acessar Banco</button>
             </div>
 
             <div class="card card-hover js-iniciar-extracao" style="cursor: pointer; padding: 40px; transition: transform 0.2s; border: 1px solid var(--color-border);">
                 <div style="font-size: 50px; margin-bottom: 20px;">🛠️</div>
-                <h2 style="color: var(--color-warning); margin-bottom: 15px;">Extrair do PDF</h2>
+                <h2 style="color: var(--color-warning); margin-bottom: 15px;">Extrair Questões</h2>
                 <p style="color: var(--color-text-secondary);">
-                    Painel administrativo para extrair questões de PDFs e alimentar o banco.
+                    Extraia questões ausentes em nosso banco e ajude a nossa IA para ser mais inteligente.
                 </p>
                 <button class="btn btn--secondary btn--full-width" style="margin-top: 20px;">Abrir Extrator</button>
             </div>

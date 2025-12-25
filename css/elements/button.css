@@ -61,6 +61,21 @@
   border-radius: var(--radius-sm);
 }
 
+.btn--text {
+  background: transparent;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  height: auto;
+  border-radius: 0;
+}
+
+.btn--text:hover {
+  color: var(--color-text);
+  background: transparent;
+  text-decoration: underline;
+}
+
 .btn--full-width {
   width: 100%;
 }

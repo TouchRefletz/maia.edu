@@ -325,38 +325,46 @@ export function renderPage(num) {
  * FUNÇÕES PÚBLICAS DE CONTROLE
  */
 
-export function carregarDocumentoPDF(url) {
-  const loadingTask = pdfjsLib.getDocument(url);
-  loadingTask.promise.then(function (pdf) {
+/**
+ * Carrega o documento PDF com suporte a Smart Recovery (proteção contra links quebrados)
+ */
+export async function carregarDocumentoPDF(url) {
+  // Configuração do Worker (Fix)
+  if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  try {
+    console.log("PDF-Core: Loading:", url);
+    const loadingTask = pdfjsLib.getDocument(url);
+    const pdf = await loadingTask.promise;
     viewerState.pdfDoc = pdf;
 
     // Auto-Fit Zoom Implementation
-    pdf.getPage(1).then(page => {
-      // Lógica de Zoom:
-      // Se for MOBILE (<= 900px), ajusta para caber na tela.
-      // Se for DESKTOP (> 900px), mantém 100% (1.0).
-      if (window.innerWidth <= 900) {
-        const container = document.getElementById('canvasContainer');
-        if (container) {
-          const viewport = page.getViewport({ scale: 1.0 });
-          // Get container width minus some padding (e.g. 24px total)
-          const availableWidth = container.clientWidth - 24;
-          const scale = availableWidth / viewport.width;
+    const page = await pdf.getPage(1);
 
-          // Set scale but constrain it to reasonable limits
-          viewerState.pdfScale = Math.max(0.5, Math.min(scale, 3.0));
-        } else {
-          viewerState.pdfScale = 1.0;
-        }
+    if (window.innerWidth <= 900) {
+      const container = document.getElementById('canvasContainer');
+      if (container) {
+        const viewport = page.getViewport({ scale: 1.0 });
+        const availableWidth = container.clientWidth - 24;
+        const scale = availableWidth / viewport.width;
+        viewerState.pdfScale = Math.max(0.5, Math.min(scale, 3.0));
       } else {
-        // Desktop: Default 100%
         viewerState.pdfScale = 1.0;
       }
+    } else {
+      viewerState.pdfScale = 1.0;
+    }
 
-      viewerState.pageNum = 1;
-      renderAllPages();
-    });
-  });
+    viewerState.pageNum = 1;
+    await renderAllPages();
+    return true;
+  } catch (err) {
+    console.error("PDF-Core: Load Error:", err);
+    customAlert('Erro ao carregar PDF. O arquivo pode estar indisponível.', 3000);
+    return false;
+  }
 }
 
 export function mudarZoom(delta) {

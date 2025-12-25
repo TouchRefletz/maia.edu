@@ -21,7 +21,7 @@ const safetySettings = [
 // Helper to get CORS headers
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Methods': 'POST, OPTIONS',
+	'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 	'Access-Control-Allow-Headers': 'Content-Type',
 	// Streaming headers
 	'Cache-Control': 'no-cache',
@@ -40,7 +40,7 @@ export default {
 			return new Response(null, { headers: corsHeaders });
 		}
 
-		if (request.method !== 'POST') {
+		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf') {
 			return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 		}
 
@@ -60,8 +60,12 @@ export default {
 				case '/pinecone-upsert':
 					return handlePineconeUpsert(request, env);
 
+
 				case '/search':
 					return handleGeminiSearch(request, env);
+
+				case '/proxy-pdf':
+					return handleProxyPdf(request, env);
 
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
@@ -391,6 +395,57 @@ async function handlePineconeUpsert(request, env) {
 }
 
 /**
+ * 6. SERVICE: PROXY PDF
+ * Just proxies the GET request to avoid CORS/Mixed Content
+ */
+async function handleProxyPdf(request, env) {
+	const urlObj = new URL(request.url);
+	let targetUrl = urlObj.searchParams.get('url');
+
+	if (!targetUrl) {
+		return new Response('URL parameter is required', { status: 400, headers: corsHeaders });
+	}
+
+	// SAFETY: Ensure URL is decoded (handling potential double-encoding from frontend)
+	try {
+		let iterations = 0;
+		while (targetUrl.includes('%') && iterations < 5) {
+			const decoded = decodeURIComponent(targetUrl);
+			if (decoded === targetUrl) break;
+			targetUrl = decoded;
+			iterations++;
+		}
+	} catch (e) {
+		console.warn("Proxy: Failed to decode URL:", targetUrl);
+	}
+
+	try {
+		const response = await fetch(targetUrl, {
+			method: 'GET',
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+			}
+		});
+
+		if (!response.ok) {
+			return new Response(`Failed to fetch PDF: ${response.status}`, { status: response.status, headers: corsHeaders });
+		}
+
+		const pdfBlob = await response.blob();
+
+		return new Response(pdfBlob, {
+			headers: {
+				...corsHeaders,
+				'Content-Type': 'application/pdf',
+				'Cache-Control': 'public, max-age=3600'
+			}
+		});
+	} catch (e) {
+		return new Response(`Proxy Error: ${e.message}`, { status: 500, headers: corsHeaders });
+	}
+}
+
+/**
  * 5. SERVICE: GEMINI SEARCH (Grounding with Google Search)
  */
 /**
@@ -399,7 +454,7 @@ async function handlePineconeUpsert(request, env) {
  */
 async function handleGeminiSearch(request, env) {
 	const body = await request.json();
-	const { texto, listaImagensBase64 = [], model, apiKey: userApiKey } = body;
+	const { texto, schema, listaImagensBase64 = [], model, apiKey: userApiKey } = body;
 
 	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
@@ -454,14 +509,21 @@ async function handleGeminiSearch(request, env) {
 			try {
 				await writeNdjson({ type: 'meta', event: 'attempt_start', model: modelo });
 
+				const generationConfig = {
+					tools: [{ googleSearch: {} }],
+					safetySettings,
+					thinkingConfig: { includeThoughts: true }, // Enable thoughts
+				};
+
+				if (schema) {
+					generationConfig.responseMimeType = 'application/json';
+					generationConfig.responseJsonSchema = schema;
+				}
+
 				const stream = await client.models.generateContentStream({
 					model: modelo,
 					contents: [{ role: 'user', parts }],
-					config: {
-						tools: [{ googleSearch: {} }],
-						safetySettings,
-						thinkingConfig: { includeThoughts: true }, // Enable thoughts
-					},
+					config: generationConfig,
 				});
 
 				for await (const chunk of stream) {

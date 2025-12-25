@@ -15,14 +15,12 @@
 @keyframes fadeInCentralized {
   from {
     opacity: 0;
-    transform: translate(-50%, -25%);
-    transition: all 1s ease-in-out;
+    transform: translateY(20px);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, -50%);
-    transition: all 1s ease-in-out;
+    transform: translateY(0);
   }
 }
 
@@ -40,6 +38,7 @@
 
 /* Animação para o erro (tremida negativa) */
 @keyframes shakeError {
+
   0%,
   100% {
     transform: translateX(0);

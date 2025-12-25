@@ -13,6 +13,7 @@ import { exibirModalOriginais } from './render/final/OriginaisModal.tsx';
 import { mountApiKeyModal } from './ui/ApiKeyModal.tsx';
 import { setupDragAndDrop } from './upload/drag-drop.js';
 import { setupFormLogic } from './upload/form-logic.js';
+import { setupSearchLogic } from './upload/search-logic.js';
 import { getUploadInterfaceHTML } from './upload/upload-template.js';
 
 export const TIPOS_ESTRUTURA_VALIDOS = new Set([
@@ -291,6 +292,9 @@ window.generatePDFUploadInterface = function (initialData = null) {
 
   // 4. Iniciar LÃ³gica do FormulÃ¡rio
   setupFormLogic(elements, initialData);
+
+  // 5. Iniciar Lógica de Pesquisa (Nova Feature)
+  setupSearchLogic();
 };
 
 window.iniciar_captura_para_slot_alternativa = function (letra, index) {

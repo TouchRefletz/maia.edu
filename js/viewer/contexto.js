@@ -24,10 +24,15 @@ export function inicializarContextoViewer(args) {
   if (window.__pdfUrls.prova) URL.revokeObjectURL(window.__pdfUrls.prova);
   if (window.__pdfUrls.gabarito) URL.revokeObjectURL(window.__pdfUrls.gabarito);
 
-  window.__pdfUrls.prova = URL.createObjectURL(args.fileProva);
-  window.__pdfUrls.gabarito = args.fileGabarito
-    ? URL.createObjectURL(args.fileGabarito)
-    : null;
+  // Helper simples para lidar com File/Blob vs String URL
+  const getUrl = (fileOrUrl) => {
+    if (!fileOrUrl) return null;
+    if (typeof fileOrUrl === 'string') return fileOrUrl;
+    return URL.createObjectURL(fileOrUrl);
+  };
+
+  window.__pdfUrls.prova = getUrl(args.fileProva);
+  window.__pdfUrls.gabarito = getUrl(args.fileGabarito);
 
   // Retorna a URL inicial para quem chamou usar
   return window.__pdfUrls.prova;

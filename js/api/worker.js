@@ -2,13 +2,37 @@
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
 export const WORKER_URL =
-  import.meta.env.VITE_WORKER_URL || "http://localhost:8787";
+  import.meta.env?.VITE_WORKER_URL || "http://localhost:8787";
 console.log(
   "DEBUG ENV:",
-  import.meta.env.VITE_WORKER_URL,
+  import.meta.env?.VITE_WORKER_URL,
   "FINAL URL:",
   WORKER_URL
 );
+
+/**
+ * Helper to construct the Proxy URL with robust decoding/encoding of the target URL.
+ * Solves issues with double/triple encoded URLs from various sources.
+ */
+export function getProxyPdfUrl(rawUrl) {
+  if (!rawUrl) return null;
+
+  // Robust Decoding Initial
+  let cleanUrl = rawUrl;
+  try {
+    let iterations = 0;
+    while (cleanUrl.includes('%') && iterations < 5) {
+      const decoded = decodeURIComponent(cleanUrl);
+      if (decoded === cleanUrl) break;
+      cleanUrl = decoded;
+      iterations++;
+    }
+  } catch (e) { }
+
+  if (cleanUrl.startsWith('blob:') || cleanUrl.includes('localhost') || cleanUrl.includes('127.0.0.1')) return cleanUrl;
+
+  return `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(cleanUrl)}`;
+}
 
 /**
  * Função genérica para chamar o Worker
@@ -204,7 +228,7 @@ export async function upsertPineconeWorker(vectors, namespace = "") {
  * Suporta STREAMING para exibir Thoughts.
  * @returns {Promise<any>} - Retorna objecto { report: string, sources: Array }
  */
-export async function realizarPesquisa(texto, listaImagensBase64 = [], handlers = {}) {
+export async function realizarPesquisa(texto, listaImagensBase64 = [], handlers = {}, schema = null) {
   handlers?.onStatus?.("Conectando ao Researcher...");
 
   try {
@@ -214,7 +238,11 @@ export async function realizarPesquisa(texto, listaImagensBase64 = [], handlers 
       body: JSON.stringify({
         texto,
         listaImagensBase64,
-        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
+        schema,
+        apiKey:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+            : undefined,
       }),
     });
 

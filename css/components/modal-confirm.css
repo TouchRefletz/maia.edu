@@ -1,0 +1,18 @@
+/* Custom Confirm Modal specific styles */
+/* Inherits most styles from components/modal.css via classes .modal-overlay and .modal-content */
+
+.custom-confirm-content {
+    max-width: 500px;
+    /* Slightly wider than default if needed, or stick to base */
+}
+
+.custom-confirm-content .form-control {
+    font-size: 1rem;
+    padding: 12px 16px;
+}
+
+.custom-confirm-content .modal-footer {
+    border-top: 1px solid var(--color-border);
+    /* Optional separator */
+    padding-top: 20px;
+}
