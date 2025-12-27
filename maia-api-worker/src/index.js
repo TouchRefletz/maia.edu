@@ -40,8 +40,7 @@ export default {
 			return new Response(null, { headers: corsHeaders });
 		}
 
-		// Allow GET for proxy-pdf and openhands-status
-		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf' && url.pathname !== '/openhands-status') {
+		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf') {
 			return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 		}
 
@@ -61,24 +60,18 @@ export default {
 				case '/pinecone-upsert':
 					return handlePineconeUpsert(request, env);
 
+
 				case '/search':
 					return handleGeminiSearch(request, env);
 
 				case '/proxy-pdf':
 					return handleProxyPdf(request, env);
 
-				case '/openhands-trigger':
-					return handleOpenHandsTrigger(request, env);
-
-				case '/openhands-status':
-					return handleOpenHandsStatus(request, env);
-
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
 		} catch (error) {
-			console.error('Critical Worker Error:', error);
-			return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
+			return new Response(JSON.stringify({ error: error.message }), {
 				status: 500,
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 			});
@@ -102,7 +95,9 @@ async function handleGeminiGenerate(request, env) {
 	const initialModels = model ? [model] : DEFAULT_MODELS;
 
 	// Fallbacks específicos pra RECITATION
-	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
+	const RECITATION_FALLBACKS = [
+		'models/gemini-flash-latest',
+		'models/gemini-flash-lite-latest',];
 
 	const encoder = new TextEncoder();
 
@@ -421,15 +416,15 @@ async function handleProxyPdf(request, env) {
 			iterations++;
 		}
 	} catch (e) {
-		console.warn('Proxy: Failed to decode URL:', targetUrl);
+		console.warn("Proxy: Failed to decode URL:", targetUrl);
 	}
 
 	try {
 		const response = await fetch(targetUrl, {
 			method: 'GET',
 			headers: {
-				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-			},
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+			}
 		});
 
 		if (!response.ok) {
@@ -442,8 +437,8 @@ async function handleProxyPdf(request, env) {
 			headers: {
 				...corsHeaders,
 				'Content-Type': 'application/pdf',
-				'Cache-Control': 'public, max-age=3600',
-			},
+				'Cache-Control': 'public, max-age=3600'
+			}
 		});
 	} catch (e) {
 		return new Response(`Proxy Error: ${e.message}`, { status: 500, headers: corsHeaders });
@@ -470,7 +465,10 @@ async function handleGeminiSearch(request, env) {
 	const initialModels = model ? [model] : DEFAULT_MODELS;
 
 	// Fallbacks
-	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
+	const RECITATION_FALLBACKS = [
+		'models/gemini-flash-latest',
+		'models/gemini-flash-lite-latest',
+	];
 
 	const encoder = new TextEncoder();
 
@@ -532,8 +530,7 @@ async function handleGeminiSearch(request, env) {
 					const cand = chunk?.candidates?.[0];
 					const partsResp = cand?.content?.parts || [];
 					// FIX: Check both cand and chunk for groundingMetadata (camel and snake case)
-					const groundingMetadata =
-						cand?.groundingMetadata || chunk?.groundingMetadata || cand?.grounding_metadata || chunk?.grounding_metadata;
+					const groundingMetadata = cand?.groundingMetadata || chunk?.groundingMetadata || cand?.grounding_metadata || chunk?.grounding_metadata;
 
 					// DEBUG: Check what is inside
 					if (chunk) {
@@ -585,6 +582,7 @@ async function handleGeminiSearch(request, env) {
 				}
 
 				if (success) break; // Sai do loop da fila de modelos
+
 			} catch (error) {
 				if (error.message === '__RECITATION_RETRY__') continue;
 				console.warn(`Erro search model ${modelo}`, error);
@@ -612,82 +610,3 @@ async function handleGeminiSearch(request, env) {
 	});
 }
 
-/**
- * 7. SERVICE: OPENHANDS DEEP SEARCH TRIGGER
- */
-async function handleOpenHandsTrigger(request, env) {
-	const body = await request.json();
-	const { query } = body;
-	const token = env.GITHUB_PAT;
-	// Hardcoded for now based on user context, ideally env vars
-	const repoOwner = 'TouchRefletz';
-	const repoName = 'maia.api';
-
-	if (!token) throw new Error('GITHUB_PAT not configured');
-
-	const response = await fetch(
-		`https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/openhands-deep-search.yml/dispatches`,
-		{
-			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${token}`,
-				Accept: 'application/vnd.github.v3+json',
-				'User-Agent': 'Maia-Worker',
-			},
-			body: JSON.stringify({
-				ref: 'main',
-				inputs: { query },
-			}),
-		},
-	);
-
-	if (!response.ok) {
-		const err = await response.text();
-		throw new Error(`GitHub Error: ${err}`);
-	}
-
-	return new Response(JSON.stringify({ success: true, message: 'Workflow triggered' }), {
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-	});
-}
-
-/**
- * 8. SERVICE: OPENHANDS STATUS & LOGS
- */
-async function handleOpenHandsStatus(request, env) {
-	const url = new URL(request.url);
-	const runId = url.searchParams.get('runId');
-	const token = env.GITHUB_PAT;
-	const repoOwner = 'TouchRefletz';
-	const repoName = 'maia.api';
-
-	if (!token) throw new Error('GITHUB_PAT not configured');
-
-	let endpoint = '';
-	if (runId) {
-		endpoint = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/runs/${runId}`;
-	} else {
-		// Get latest run
-		endpoint = `https://api.github.com/repos/${repoOwner}/${repoName}/actions/runs?event=workflow_dispatch&per_page=1`;
-	}
-
-	const response = await fetch(endpoint, {
-		headers: {
-			Authorization: `Bearer ${token}`,
-			Accept: 'application/vnd.github.v3+json',
-			'User-Agent': 'Maia-Worker',
-		},
-	});
-
-	if (!response.ok) throw new Error('Failed to fetch GitHub status');
-	const data = await response.json();
-
-	// If listing runs, get the first one
-	let run = runId ? data : data.workflow_runs?.[0];
-	if (!run) return new Response(JSON.stringify({ status: 'not_found' }), { headers: corsHeaders });
-
-	// Helper to get job logs URL if needed (omitted for brevity, just returning run status)
-	return new Response(JSON.stringify(run), {
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-	});
-}

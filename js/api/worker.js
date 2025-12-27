@@ -21,20 +21,15 @@ export function getProxyPdfUrl(rawUrl) {
   let cleanUrl = rawUrl;
   try {
     let iterations = 0;
-    while (cleanUrl.includes("%") && iterations < 5) {
+    while (cleanUrl.includes('%') && iterations < 5) {
       const decoded = decodeURIComponent(cleanUrl);
       if (decoded === cleanUrl) break;
       cleanUrl = decoded;
       iterations++;
     }
-  } catch (e) {}
+  } catch (e) { }
 
-  if (
-    cleanUrl.startsWith("blob:") ||
-    cleanUrl.includes("localhost") ||
-    cleanUrl.includes("127.0.0.1")
-  )
-    return cleanUrl;
+  if (cleanUrl.startsWith('blob:') || cleanUrl.includes('localhost') || cleanUrl.includes('127.0.0.1')) return cleanUrl;
 
   return `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(cleanUrl)}`;
 }
@@ -153,25 +148,21 @@ export async function gerarConteudoEmJSONComImagemStream(
           } else if (msg.type === "debug") {
             console.log("🛠️ WORKER DEBUG:", msg.text);
           } else if (msg.type === "error") {
-            if (msg.code === "RECITATION") {
-              console.warn(
-                "⚠️ Não foi possível responder por conta de recitação."
-              );
-              throw new Error("RECITATION_ERROR");
+            if (msg.code === 'RECITATION') {
+              console.warn("⚠️ Não foi possível responder por conta de recitação.");
+              throw new Error('RECITATION_ERROR');
             }
             console.error("Erro do worker stream:", msg.text);
             handlers?.onStatus?.(`Erro: ${msg.text}`);
           } else if (msg.type === "status") {
             handlers?.onStatus?.(msg.text);
           } else if (msg.type === "reset") {
-            console.log(
-              "♻️ Tentativa falhou com RECITATION. Reiniciando buffer..."
-            );
+            console.log("♻️ Tentativa falhou com RECITATION. Reiniciando buffer...");
             answerText = "";
             handlers?.onStatus?.("Recitation detectado. Tentando novamente...");
           }
         } catch (e) {
-          if (e.message === "RECITATION_ERROR") throw e;
+          if (e.message === 'RECITATION_ERROR') throw e;
           console.warn("Erro ao parsear chunk do worker:", line, e);
         }
       }
@@ -182,7 +173,7 @@ export async function gerarConteudoEmJSONComImagemStream(
       try {
         const msg = JSON.parse(buffer);
         if (msg.type === "answer") answerText += msg.text;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Apenas garantimos que não está vazio antes de parsear
@@ -196,7 +187,7 @@ export async function gerarConteudoEmJSONComImagemStream(
 
     return JSON.parse(answerText);
   } catch (error) {
-    if (error.message === "RECITATION_ERROR") throw error;
+    if (error.message === 'RECITATION_ERROR') throw error;
     console.error("Erro no Worker stream:", error);
     throw new Error(`Falha no Worker: ${error.message}`);
   }
@@ -237,12 +228,7 @@ export async function upsertPineconeWorker(vectors, namespace = "") {
  * Suporta STREAMING para exibir Thoughts.
  * @returns {Promise<any>} - Retorna objecto { report: string, sources: Array }
  */
-export async function realizarPesquisa(
-  texto,
-  listaImagensBase64 = [],
-  handlers = {},
-  schema = null
-) {
+export async function realizarPesquisa(texto, listaImagensBase64 = [], handlers = {}, schema = null) {
   handlers?.onStatus?.("Conectando ao Researcher...");
 
   try {
@@ -299,9 +285,7 @@ export async function realizarPesquisa(
           } else if (msg.type === "reset") {
             // Limpa relatório se houver reset (recitation)
             reportText = "";
-            handlers?.onStatus?.(
-              "Recitation detectado na pesquisa. Tentando novo modelo..."
-            );
+            handlers?.onStatus?.("Recitation detectado na pesquisa. Tentando novo modelo...");
           }
         } catch (e) {
           console.warn("Erro parse stream pesquisa:", e);
@@ -312,17 +296,17 @@ export async function realizarPesquisa(
     // Processa metadados
     console.log("DEBUG: Raw Grounding Metadata:", groundingMetadata);
 
-    const chunks =
-      groundingMetadata?.groundingChunks ||
-      groundingMetadata?.grounding_chunks ||
-      [];
-    const sources = chunks.map((c) => c.web).filter((w) => w && w.uri); // Relaxado: exige apenas URI, título opcional
+    const chunks = groundingMetadata?.groundingChunks || groundingMetadata?.grounding_chunks || [];
+    const sources = chunks
+      .map(c => c.web)
+      .filter(w => w && w.uri); // Relaxado: exige apenas URI, título opcional
 
     return {
       report: reportText,
       sources: sources,
-      rawMetadata: groundingMetadata,
+      rawMetadata: groundingMetadata
     };
+
   } catch (error) {
     console.error("Erro na pesquisa streaming:", error);
     throw error;
@@ -354,22 +338,19 @@ export async function gerarGabaritoComPesquisa(
   mimeType,
   handlers,
   imagensPesquisa = [], // Argumento opcional para imagens limpas/originais
-  textoQuestao = "" // Contexto específico da questão (JSON/Texto) para a pesquisa
+  textoQuestao = ""      // Contexto específico da questão (JSON/Texto) para a pesquisa
 ) {
   // 1. Etapa de Pesquisa
-  handlers?.onStatus?.(
-    "🕵️ Analisando imagem e pesquisando resoluções (Step 1/2)..."
-  );
+  handlers?.onStatus?.("🕵️ Analisando imagem e pesquisando resoluções (Step 1/2)...");
 
   let relatorioPesquisa = "";
   let fontesEncontradas = [];
 
-  // Decide quais imagens usar na pesquisa:
+  // Decide quais imagens usar na pesquisa: 
   // Se tiver imagens de pesquisa específicas (limpas), usa elas. Senão, usa as da lista (carimbadas/misturadas).
-  const imagensParaBusca =
-    imagensPesquisa && imagensPesquisa.length > 0
-      ? imagensPesquisa
-      : listaImagens;
+  const imagensParaBusca = (imagensPesquisa && imagensPesquisa.length > 0)
+    ? imagensPesquisa
+    : listaImagens;
 
   try {
     // Adiciona o contexto da questão (SE FORNECIDO) ao prompt do pesquisador
@@ -381,34 +362,24 @@ export async function gerarGabaritoComPesquisa(
     }
 
     // Passamos os handlers para ver thoughts também nesta etapa
-    const searchResult = await realizarPesquisa(
-      promptPesquisaComContexto,
-      imagensParaBusca,
-      {
-        onStatus: handlers?.onStatus,
-        onThought: handlers?.onThought, // Thoughts do pesquisador!
-      }
-    );
+    const searchResult = await realizarPesquisa(promptPesquisaComContexto, imagensParaBusca, {
+      onStatus: handlers?.onStatus,
+      onThought: handlers?.onThought // Thoughts do pesquisador!
+    });
 
     relatorioPesquisa = searchResult.report;
     fontesEncontradas = searchResult.sources || [];
 
     console.log("DEBUG: Relatório Pesquisa:", relatorioPesquisa);
     console.log("DEBUG: Fontes Encontradas:", fontesEncontradas);
+
   } catch (err) {
-    console.warn(
-      "Falha na etapa de pesquisa (prosseguindo sem contexto extra):",
-      err
-    );
-    handlers?.onStatus?.(
-      "⚠️ Pesquisa falhou, gerando com conhecimento interno..."
-    );
+    console.warn("Falha na etapa de pesquisa (prosseguindo sem contexto extra):", err);
+    handlers?.onStatus?.("⚠️ Pesquisa falhou, gerando com conhecimento interno...");
   }
 
   // 2. Etapa de Geração Final
-  handlers?.onStatus?.(
-    "✍️ Escrevendo gabarito detalhado com base na pesquisa (Step 2/2)..."
-  );
+  handlers?.onStatus?.("✍️ Escrevendo gabarito detalhado com base na pesquisa (Step 2/2)...");
 
   // Enriquece o prompt original com o relatório
   // Enriquece o prompt original com o relatório
@@ -439,26 +410,4 @@ export async function gerarGabaritoComPesquisa(
   console.log("DEBUG: JSON FINAL GABARITO:", jsonFinal);
 
   return jsonFinal;
-}
-
-/**
- * 7. DEEP SEARCH (GitHub Actions via Worker)
- */
-export async function triggerDeepSearch(query) {
-  return await callWorker("/openhands-trigger", { query });
-}
-
-export async function pollDeepSearch(runId = null) {
-  // If runId is null, worker fetches latest
-  const qs = runId ? `?runId=${runId}` : "";
-  try {
-    const response = await fetch(`${WORKER_URL}/openhands-status${qs}`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-    return await response.json();
-  } catch (e) {
-    console.error("Poll Error:", e);
-    return { status: "error" };
-  }
 }
