@@ -101,12 +101,15 @@ async function handleTriggerDeepSearch(request, env) {
 			const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
 			if (embedding) {
 				// Search for top 3 matches with a lower threshold to find relatable queries
-				const cacheResult = await executePineconeQuery(embedding, env, 3, { type: 'deep-search-result' });
+				const cacheResult = await executePineconeQuery(embedding, env, 5, { type: 'deep-search-result' }); // Top 5
 
-				if (cacheResult && cacheResult.matches && cacheResult.matches.length > 0) {
-					// Filter matches that are reasonably relevant (e.g., > 0.80)
+				if (cacheResult && cacheResult.matches) {
+					console.log(`[Cache Check] Matches found: ${cacheResult.matches.length}`);
+					cacheResult.matches.forEach((m) => console.log(` - ${m.metadata.slug} (${m.score})`));
+
+					// Filter matches that are reasonably relevant (e.g., > 0.60)
 					const candidates = cacheResult.matches
-						.filter((m) => m.score > 0.8)
+						.filter((m) => m.score > 0.6)
 						.map((m) => ({
 							slug: m.metadata.slug,
 							score: m.score,
@@ -118,19 +121,23 @@ async function handleTriggerDeepSearch(request, env) {
 						}));
 
 					if (candidates.length > 0) {
-						console.log(`[Cache Hit] Found ${candidates.length} candidates for: ${query}`);
+						console.log(`[Cache Hit] Returning ${candidates.length} candidates for: ${query}`);
 						return new Response(
 							JSON.stringify({
 								success: true,
 								cached: true,
 								message: 'Possible matches found',
 								candidates: candidates,
+								debug_matches: cacheResult.matches, // Debug Info
 							}),
 							{
 								headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 							},
 						);
 					}
+
+					// If no candidates found but we had matches, let's return them for debug purposes in the "start search" response
+					// We'll attach this to the response below if we fall through
 				}
 			}
 		} catch (e) {

@@ -298,6 +298,17 @@ export function setupSearchLogic() {
 
         const result = await response.json();
 
+        // Debug Log for Pinecone
+        if (result.debug_matches) {
+          log(`[DEBUG] Matches Pinecone encontrados (Top 5):`, "info");
+          result.debug_matches.forEach((m) => {
+            log(
+              ` - ${m.metadata.slug || "slug?"} (Score: ${m.score.toFixed(4)})`,
+              "info"
+            );
+          });
+        }
+
         if (result.candidates) {
           log("Encontradas pesquisas similares no histórico.", "success");
           showCandidatesModal(result.candidates, query, slug);
