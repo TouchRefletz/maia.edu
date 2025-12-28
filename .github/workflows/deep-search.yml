@@ -22,97 +22,24 @@ jobs:
     permissions:
       contents: write
 
+    # Global Environment Variables (Available to all steps)
+    env:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+      PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+      PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+      PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
+      NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
+      QUERY: ${{ github.event.client_payload.query || inputs.query }}
+      SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Free Disk Space
+      - name: Setup Logger
         run: |
-          echo "Disk space before cleanup:"
-          df -h
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/.ghcup
-          echo "Disk space after cleanup:"
-          df -h
-
-      - name: Create Output Directory
-        run: mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
-
-      - name: Run OpenHands Deep Search
-        id: deep_search
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-          NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
-          QUERY: ${{ github.event.client_payload.query || inputs.query }}
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
-          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
-          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
-          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
-        run: |
-          set -euo pipefail
-
-          # 1) Heredoc sem interpretação (não executa backticks)
-          PROMPT_TEMPLATE=$(cat <<'EOF'
-          Você recebeu uma consulta curta (QUERY) do tipo "nome da prova + ano", por exemplo: "ita 2022".
-
-          Objetivo: encontrar e organizar TODOS os links e arquivos (provas e gabaritos) associados a essa QUERY.
-
-          QUERY: "__QUERY__"
-
-          Regras para evitar pesquisa demais (muito importante):
-          1) Não use Google como primeira opção (CAPTCHA é comum). Prefira:
-            - Sites oficiais da banca/instituição (domínio oficial).
-            - Páginas “Provas anteriores / provas e gabaritos / exames anteriores / vestibular / arquivos”.
-          2) Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas.
-          3) Após achar o site oficial, navegue dentro dele e extraia tudo com o mínimo de novas buscas.
-          4) Só inclua links que pareçam realmente do exame/ano correspondente; quando estiver ambíguo, checar rapidamente pelo título/URL/nome do PDF.
-
-          O que coletar:
-          - Provas (todas as fases/dias/disciplinas/versões que existirem).
-          - Gabaritos correspondentes (e “soluções”, se houver).
-          - INDISPENSÁVEL: Classifique cada item no manifesto:
-            - status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
-          - Estrutura do JSON: {nome, tipo, ano, instituicao, fase, link_origem, status, filename (só se status=downloaded)}
-
-          Preferência de links:
-          - Priorize links diretos de PDF.
-          - Se for Google Drive, capture:
-            - link "view"
-            - e também um link “download direto” quando possível (uc?export=download&id=...).
-
-          Entrega (obrigatório):
-          1) Crie a pasta: /workspace/output/__SLUG__/
-          2) Baixe todos os PDFs que conseguir para: /workspace/output/__SLUG__/files/.
-            CRITICO:
-            - USE 'wget' ou 'curl' com verificação de header.
-            - VERIFIQUE SE O HEADER 'Content-Type' É 'application/pdf'.
-            - SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
-            - SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
-            - NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
-          3) Gere /workspace/output/__SLUG__/index.md
-          4) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
-          5) Gere /workspace/output/__SLUG__/DOWNLOAD_URLS.txt
-          6) Gere /workspace/output/__SLUG__/slug.txt
-             - IMPORTANTE: Escreva neste arquivo APENAS um nome curto e limpo para a pasta final (kebab-case).
-             - Exemplo: se a query for 'provas do enem 2025', escreva 'enem-2025'.
-             - Exemplo: se for 'unicamp 2024 segunda fase', escreva 'unicamp-2024-2f'.
-             - Esse nome será usado para renomear a pasta e salvar no banco de dados.
-          7) Gere /workspace/output/__SLUG__.zip
-          8) (Opcional) Gere /workspace/output/__SLUG__/index.pdf
-
-          Ao final, responda apenas com caminhos e contagens.
-          EOF
-          )
-
-          # Replace Placeholders
-          PROMPT="${PROMPT_TEMPLATE/__QUERY__/$QUERY}"
-          PROMPT="${PROMPT//__SLUG__/$SLUG}"
-
-          # 2) Python Logger (Non-blocking)
           cat << 'EOF' > logger.py
           import sys
           import time
@@ -217,6 +144,88 @@ jobs:
           running = False
           t.join(timeout=5)
           EOF
+
+      - name: Free Disk Space
+        run: |
+          (
+            echo "Disk space before cleanup:"
+            df -h
+            sudo rm -rf /usr/local/lib/android
+            sudo rm -rf /usr/share/dotnet
+            sudo rm -rf /opt/ghc
+            sudo rm -rf /usr/local/.ghcup
+            echo "Disk space after cleanup:"
+            df -h
+          ) 2>&1 | python3 logger.py
+
+      - name: Create Output Directory
+        run: |
+          (
+             mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
+             echo "Created output directory: output/${{ github.event.client_payload.slug || inputs.slug }}"
+          ) 2>&1 | python3 logger.py
+
+      - name: Run OpenHands Deep Search
+        id: deep_search
+        run: |
+          set -euo pipefail
+
+          # 1) Heredoc sem interpretação (não executa backticks)
+          PROMPT_TEMPLATE=$(cat <<'EOF'
+          Você recebeu uma consulta curta (QUERY) do tipo "nome da prova + ano", por exemplo: "ita 2022".
+
+          Objetivo: encontrar e organizar TODOS os links e arquivos (provas e gabaritos) associados a essa QUERY.
+
+          QUERY: "__QUERY__"
+
+          Regras para evitar pesquisa demais (muito importante):
+          1) Não use Google como primeira opção (CAPTCHA é comum). Prefira:
+            - Sites oficiais da banca/instituição (domínio oficial).
+            - Páginas “Provas anteriores / provas e gabaritos / exames anteriores / vestibular / arquivos”.
+          2) Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas.
+          3) Após achar o site oficial, navegue dentro dele e extraia tudo com o mínimo de novas buscas.
+          4) Só inclua links que pareçam realmente do exame/ano correspondente; quando estiver ambíguo, checar rapidamente pelo título/URL/nome do PDF.
+
+          O que coletar:
+          - Provas (todas as fases/dias/disciplinas/versões que existirem).
+          - Gabaritos correspondentes (e “soluções”, se houver).
+          - INDISPENSÁVEL: Classifique cada item no manifesto:
+            - status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
+          - Estrutura do JSON: {nome, tipo, ano, instituicao, fase, link_origem, status, filename (só se status=downloaded)}
+
+          Preferência de links:
+          - Priorize links diretos de PDF.
+          - Se for Google Drive, capture:
+            - link "view"
+            - e também um link “download direto” quando possível (uc?export=download&id=...).
+
+          Entrega (obrigatório):
+          1) Crie a pasta: /workspace/output/__SLUG__/
+          2) Baixe todos os PDFs que conseguir para: /workspace/output/__SLUG__/files/.
+            CRITICO:
+            - USE 'wget' ou 'curl' com verificação de header.
+            - VERIFIQUE SE O HEADER 'Content-Type' É 'application/pdf'.
+            - SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
+            - SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
+            - NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
+          3) Gere /workspace/output/__SLUG__/index.md
+          4) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
+          5) Gere /workspace/output/__SLUG__/DOWNLOAD_URLS.txt
+          6) Gere /workspace/output/__SLUG__/slug.txt
+             - IMPORTANTE: Escreva neste arquivo APENAS um nome curto e limpo para a pasta final (kebab-case).
+             - Exemplo: se a query for 'provas do enem 2025', escreva 'enem-2025'.
+             - Exemplo: se for 'unicamp 2024 segunda fase', escreva 'unicamp-2024-2f'.
+             - Esse nome será usado para renomear a pasta e salvar no banco de dados.
+          7) Gere /workspace/output/__SLUG__.zip
+          8) (Opcional) Gere /workspace/output/__SLUG__/index.pdf
+
+          Ao final, responda apenas com caminhos e contagens.
+          EOF
+          )
+
+          # Replace Placeholders
+          PROMPT="${PROMPT_TEMPLATE/__QUERY__/$QUERY}"
+          PROMPT="${PROMPT//__SLUG__/$SLUG}"
 
           # 3) Setup Docker volumes and permissions
           VOL_NAME="openhands-vol-${GITHUB_RUN_ID}"
@@ -329,7 +338,7 @@ jobs:
         if: success()
         env:
           WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
-          GH_PAT: ${{ secrets.GH_PAT }} # Using GH_PAT matching the Worker's expected secret
+          GH_PAT: ${{ secrets.GH_PAT }}
           QUERY: ${{ github.event.client_payload.query || inputs.query }}
           SLUG: ${{ steps.deep_search.outputs.final_slug }}
         run: |
@@ -342,13 +351,6 @@ jobs:
           echo "Using Clean Query for Embedding: $CLEAN_QUERY"
 
           if [ -f "$MANIFEST_PATH" ]; then
-            # Extract relevant metadata (institution, year, etc) if possible, 
-            # or just send the whole manifest as 'metadata.manifest' or similar.
-            # The worker expects 'metadata' object. We can send the manifest content as part of it.
-            # Ideally we want flat metadata for filtering: institution, year. 
-            # For now, let's send the whole manifest as metadata (or a subset if it's too big).
-            # Pinecone metadata limit is 40KB. Manifest might be large.
-            # Let's just send basic info + file count.
             
             # Using jq to create a safe JSON payload
             PAYLOAD=$(jq -n \
