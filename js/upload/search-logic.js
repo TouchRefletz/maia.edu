@@ -217,7 +217,22 @@ export function setupSearchLogic() {
 
       if (result.candidates) {
         log("Encontradas pesquisas similares no histórico.", "success");
-        showCandidatesModal(result.candidates, query, slug);
+        showCandidatesModal(
+          result.candidates,
+          (candidate) => {
+            log(`Carregando cache: ${candidate.slug}...`, "success");
+            currentSlug = candidate.slug;
+            // Finish terminal as we are just loading cache
+            if (terminal) terminal.finish();
+            const hfBase =
+              "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+            loadResults(`${hfBase}/output/${candidate.slug}/manifest.json`);
+          },
+          () => {
+            log("Forçando nova pesquisa...", "warning");
+            doSearch(true);
+          }
+        );
         activePusher.unsubscribe(slug); // Stop listening to this channel for now
         return;
       }
@@ -808,7 +823,7 @@ export function setupSearchLogic() {
     return card;
   };
 
-  const showCandidatesModal = (candidates, originalQuery, currentSlug) => {
+  const showCandidatesModal = (candidates, onSelect, onForce) => {
     // Create Overlay
     const overlay = document.createElement("div");
     Object.assign(overlay.style, {
@@ -908,13 +923,7 @@ export function setupSearchLogic() {
 
       item.onclick = () => {
         document.body.removeChild(overlay);
-        const consoleDiv = document.getElementById("deep-search-console");
-        if (consoleDiv)
-          consoleDiv.innerHTML += `<div style='color:#56d364'>> Carregando cache: ${cand.slug}...</div>`;
-
-        const hfBase =
-          "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-        loadResults(`${hfBase}/output/${cand.slug}/manifest.json`);
+        if (onSelect) onSelect(cand);
       };
 
       list.appendChild(item);
@@ -923,10 +932,7 @@ export function setupSearchLogic() {
     const btnForce = modal.querySelector("#btnForceSearch");
     btnForce.onclick = () => {
       document.body.removeChild(overlay);
-      const consoleDiv = document.getElementById("deep-search-console");
-      if (consoleDiv)
-        consoleDiv.innerHTML += `<div style='color:#e3b341'>> Forçando nova pesquisa...</div>`;
-      doSearch(true); // Force API call
+      if (onForce) onForce();
     };
 
     overlay.appendChild(modal);
@@ -1203,19 +1209,6 @@ export function setupSearchLogic() {
           const resp = await fetch(gab.url);
           gabaritoBlob = await resp.blob();
           gab.rawTitle = newName;
-        }
-
-        // 2. Cleanup Backend
-        if (IS_DEV && currentSlug) {
-          status.innerText = "Limpando arquivos não usados...";
-          const keepFiles = [];
-          if (prova) keepFiles.push(prova.url); // send URL or filename? Backend checks endsWith
-          if (gab) keepFiles.push(gab.url);
-
-          await fetch(`${LOCAL_RUNNER_URL}/cleanup`, {
-            method: "POST",
-            body: JSON.stringify({ slug: currentSlug, keepFiles }),
-          });
         }
 
         // 3. Start Viewer
