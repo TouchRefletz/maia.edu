@@ -116,6 +116,31 @@ export function setupSearchLogic() {
     consoleContainer.appendChild(consoleOutput);
     searchResults.appendChild(consoleContainer);
 
+    let actionButtonCreated = false;
+    const createActionLinkButton = (url) => {
+      if (actionButtonCreated) return;
+
+      const btn = document.createElement("a");
+      btn.href = url;
+      btn.target = "_blank";
+      btn.innerText = "Ver Logs do GitHub";
+      Object.assign(btn.style, {
+        float: "right",
+        padding: "2px 10px",
+        fontSize: "0.75rem",
+        backgroundColor: "#238636",
+        color: "#ffffff",
+        borderRadius: "4px",
+        textDecoration: "none",
+        border: "1px solid rgba(240,246,252,0.1)",
+        marginTop: "-2px",
+      });
+
+      // Ensure header has flow capability or absolute positioning, but float right is simple enough for this div block
+      consoleHeader.appendChild(btn);
+      actionButtonCreated = true;
+    };
+
     const log = (text, type = "info") => {
       const line = document.createElement("div");
       line.innerText = `> ${text}`;
@@ -123,6 +148,12 @@ export function setupSearchLogic() {
       if (type === "success") line.style.color = "#56d364";
       consoleOutput.appendChild(line);
       consoleContainer.scrollTop = consoleContainer.scrollHeight;
+
+      // Check for Log URL in the text
+      const urlMatch = text.match(/Logs:\s*(https?:\/\/[^\s]+)/);
+      if (urlMatch && urlMatch[1]) {
+        createActionLinkButton(urlMatch[1]);
+      }
     };
 
     log("Iniciando Deep Search...", "info");

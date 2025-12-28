@@ -99,17 +99,27 @@ jobs:
           # Function to log to ntfy.sh
           log_to_ntfy() {
             if [ -n "$NTFY_TOPIC" ]; then
+              LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              QUOTA_EXCEEDED="false"
               # Send line by line
               while IFS= read -r line; do
                 echo "$line"
-                curl -s -d "$line" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true
+                if [ "$QUOTA_EXCEEDED" = "false" ]; then
+                  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -d "$line" "https://ntfy.sh/$NTFY_TOPIC")
+                  if [ "$HTTP_CODE" -eq 429 ] || [ "$HTTP_CODE" -eq 402 ] || [ "$HTTP_CODE" -eq 507 ]; then
+                    echo "NTFY QUOTA EXCEEDED. Full logs: $LOG_URL"
+                    # Attempt to send one last warning if possible, otherwise just stop sending
+                    curl -s -d "NTFY QUOTA EXCEEDED. Full logs: $LOG_URL" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true
+                    QUOTA_EXCEEDED="true"
+                  fi
+                fi
               done
             else
               cat # Just pass through
             fi
           }
 
-          echo "Starting OpenHands Docker Container..." | log_to_ntfy
+          echo "Starting OpenHands Docker Container... Logs: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | log_to_ntfy
 
           VOL_NAME="openhands-vol-${{ github.run_id }}"
           docker volume create "$VOL_NAME"
@@ -134,7 +144,7 @@ jobs:
             -e PROMPT="$PROMPT" \
             --name openhands-app \
             docker.openhands.dev/openhands/openhands:1.0 \
-            bash -c 'rm -rf config.toml && printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > config.toml && python -m openhands.core.main -t "$PROMPT"' 2>&1 | log_to_ntfy
+            bash -c 'sudo chown -R $(id -u) /workspace 2>/dev/null || chmod 777 /workspace 2>/dev/null || true; rm -rf config.toml && printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > config.toml && python -m openhands.core.main -t "$PROMPT"' 2>&1 | log_to_ntfy
             
           EXIT_CODE=$?
           echo "Docker run finished with exit code $EXIT_CODE"
@@ -161,5 +171,6 @@ jobs:
           NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
         run: |
           if [ -n "$NTFY_TOPIC" ]; then
-              curl -d "COMPLETED" "https://ntfy.sh/$NTFY_TOPIC"
+              LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              curl -d "COMPLETED. Logs: $LOG_URL" "https://ntfy.sh/$NTFY_TOPIC"
           fi
