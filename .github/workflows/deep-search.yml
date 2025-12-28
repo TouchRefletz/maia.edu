@@ -41,6 +41,7 @@ jobs:
         run: mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
 
       - name: Run OpenHands Deep Search
+        id: deep_search
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
@@ -95,8 +96,13 @@ jobs:
           3) Gere /workspace/output/__SLUG__/index.md
           4) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
           5) Gere /workspace/output/__SLUG__/DOWNLOAD_URLS.txt
-          6) Gere /workspace/output/__SLUG__.zip
-          7) (Opcional) Gere /workspace/output/__SLUG__/index.pdf
+          6) Gere /workspace/output/__SLUG__/slug.txt
+             - IMPORTANTE: Escreva neste arquivo APENAS um nome curto e limpo para a pasta final (kebab-case).
+             - Exemplo: se a query for 'provas do enem 2025', escreva 'enem-2025'.
+             - Exemplo: se for 'unicamp 2024 segunda fase', escreva 'unicamp-2024-2f'.
+             - Esse nome será usado para renomear a pasta e salvar no banco de dados.
+          7) Gere /workspace/output/__SLUG__.zip
+          8) (Opcional) Gere /workspace/output/__SLUG__/index.pdf
 
           Ao final, responda apenas com caminhos e contagens.
           EOF
@@ -145,10 +151,6 @@ jobs:
               
               timestamp = str(int(time.time()))
               # Join lines reliably
-              # Note: Javascript expects a single "message" string usually, but we want to stream lines.
-              # To allow the frontend to process line-by-line easily, we can send them joined by newlines 
-              # or send individual events. Sending deeply nested JSON in a single event is better for rate limits.
-              # Let's send the raw chunk.
               text_chunk = "".join(lines)
               
               # Construct Body
@@ -195,8 +197,6 @@ jobs:
                       send_batch(batch)
                   
                   # Sleep/Tick
-                  # If we just sent data, maybe sleep less. If empty, sleep 1s.
-                  # For responsiveness, 1s is fine.
                   time.sleep(1.0)
 
           # Start Consumer
@@ -230,19 +230,9 @@ jobs:
             -e TAVILY_API_KEY="$TAVILY_API_KEY" \
             alpine sh -c '
               set -eux
-              
-              # 1. Garante que os diretórios existem
               mkdir -p /workspace/.openhands
-
-              # 2. Cria o config.toml
               printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > /workspace/config.toml
-
-              # 3. Limpeza preventiva
               rm -f /workspace/.openhands/.jwt_secret || true
-
-              # 4. A CORREÇÃO: Permissão total recursiva
-              # Em vez de chown 1001:1001 (que pode estar errado), liberamos tudo.
-              # Isso permite que o container OpenHands leia/escreva independentemente do usuário que ele usa.
               chmod -R 777 /workspace
             '
           docker rm -f openhands-app 2>/dev/null || true
@@ -280,6 +270,19 @@ jobs:
           echo "Copying artifacts from container to host..."
           docker cp openhands-app:/workspace/output/${SLUG}/. "output/${SLUG}/" || echo "Failed to copy artifacts or directory empty"
 
+          # --- DYNAMIC RENAMING LOGIC ---
+          FINAL_SLUG="$SLUG"
+          if [ -f "output/${SLUG}/slug.txt" ]; then
+             CANDIDATE_SLUG=$(cat "output/${SLUG}/slug.txt" | tr -cd '[:alnum:]-')
+             if [ -n "$CANDIDATE_SLUG" ] && [ "$CANDIDATE_SLUG" != "$SLUG" ]; then
+                 echo "Renaming artifact from $SLUG to $CANDIDATE_SLUG..."
+                 mv "output/${SLUG}" "output/${CANDIDATE_SLUG}"
+                 FINAL_SLUG="$CANDIDATE_SLUG"
+             fi
+          fi
+          echo "final_slug=$FINAL_SLUG" >> $GITHUB_OUTPUT
+          # ------------------------------
+
           docker rm -f openhands-app || true
           docker volume rm "$VOL_NAME" || true
           docker volume rm "$STATE_VOL_NAME" || true
@@ -290,7 +293,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: deep-search-artifact
-          path: output/${{ github.event.client_payload.slug || inputs.slug }}
+          path: output/${{ steps.deep_search.outputs.final_slug }}
 
       - name: Push to Hugging Face Dataset
         env:
@@ -304,7 +307,7 @@ jobs:
           git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
 
           # Prepare Directories
-          slug="${{ github.event.client_payload.slug || inputs.slug }}"
+          slug="${{ steps.deep_search.outputs.final_slug }}"
           mkdir -p hf_repo/output/$slug
 
           # Copy Artifacts
@@ -328,7 +331,7 @@ jobs:
           WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
           GH_PAT: ${{ secrets.GH_PAT }} # Using GH_PAT matching the Worker's expected secret
           QUERY: ${{ github.event.client_payload.query || inputs.query }}
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+          SLUG: ${{ steps.deep_search.outputs.final_slug }}
         run: |
           echo "Updating Semantic Cache at $WORKER_URL..."
 
@@ -388,13 +391,27 @@ jobs:
           PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
           PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+          FINAL_SLUG: ${{ steps.deep_search.outputs.final_slug }}
         run: |
           LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           MESSAGE="COMPLETED. Logs: $LOG_URL"
 
           # Simple Pusher Trigger for Completion
           TS=$(date +%s)
-          BODY="{\"name\":\"log\",\"channels\":[\"$SLUG\"],\"data\":\"{\\\"message\\\":\\\"$MESSAGE\\\"}\"}"
+
+          # Include new_slug in data
+          DATA_JSON=$(jq -n \
+                  --arg msg "$MESSAGE" \
+                  --arg final_slug "$FINAL_SLUG" \
+                  '{message: $msg, new_slug: $final_slug}')
+
+          # Send to ORIGINAL slug channel so frontend hears it
+          BODY=$(jq -n \
+                  --arg name "log" \
+                  --arg channel "$SLUG" \
+                  --arg data "$DATA_JSON" \
+                  '{name: $name, channels: [$channel], data: $data}')
+
           BODY_MD5=$(echo -n "$BODY" | md5sum | awk '{print $1}')
           SIGN_STRING="POST\n/apps/$PUSHER_APP_ID/events\nauth_key=$PUSHER_KEY&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5"
           AUTH_SIGNATURE=$(echo -n -e "$SIGN_STRING" | openssl dgst -sha256 -hmac "$PUSHER_SECRET" | sed 's/^.* //')

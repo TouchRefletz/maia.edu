@@ -14,6 +14,10 @@ let selectedItems = {
   prova: null, // { name, url, file (blob) }
   gabarito: null,
 };
+// Connection State
+let activePusher = null;
+let activeChannel = null;
+let activeWebSocket = null;
 
 export function setupSearchLogic() {
   const btnSearch = document.getElementById("btnSearch");
@@ -73,6 +77,22 @@ export function setupSearchLogic() {
   const doSearch = async (force = false) => {
     const query = searchInput.value.trim();
     if (!query) return;
+
+    // Reset Connections
+    if (activeWebSocket) {
+      activeWebSocket.close();
+      activeWebSocket = null;
+    }
+    if (activeChannel) {
+      activeChannel.unbind_all();
+      // Unsubscribe using the previous slug if possible, or just disconnect pusher entirely
+      if (activePusher && currentSlug) activePusher.unsubscribe(currentSlug);
+      activeChannel = null;
+    }
+    if (activePusher) {
+      activePusher.disconnect();
+      activePusher = null;
+    }
 
     // Limpa UI e Estado
     searchResults.innerHTML = "";
@@ -194,9 +214,9 @@ export function setupSearchLogic() {
     try {
       if (IS_DEV) {
         log(`Modo Local detectado. Conectando ao Local Runner...`);
-        const ws = new WebSocket("ws://localhost:3001");
+        activeWebSocket = new WebSocket("ws://localhost:3001");
 
-        ws.onopen = async () => {
+        activeWebSocket.onopen = async () => {
           log("WebSocket Conectado.", "success");
           try {
             const resp = await fetch(
@@ -224,7 +244,7 @@ export function setupSearchLogic() {
           }
         };
 
-        ws.onmessage = (event) => {
+        activeWebSocket.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === "log") log(msg.text);
@@ -232,8 +252,14 @@ export function setupSearchLogic() {
             if (msg.type === "error") log(msg.text, "error");
             if (msg.type === "complete") {
               log("Processo concluído! Carregando resultados...", "success");
-              ws.close();
-              loadResults(`${LOCAL_RUNNER_URL}/output/${slug}/manifest.json`);
+              activeWebSocket.close();
+              activeWebSocket = null;
+
+              const finalSlug = msg.new_slug || slug;
+              currentSlug = finalSlug;
+              loadResults(
+                `${LOCAL_RUNNER_URL}/output/${finalSlug}/manifest.json`
+              );
             }
           } catch (e) {
             log(event.data);
@@ -256,13 +282,13 @@ export function setupSearchLogic() {
           PusherClass = module.default;
         }
 
-        const pusher = new PusherClass(pusherKey, {
+        activePusher = new PusherClass(pusherKey, {
           cluster: pusherCluster,
         });
 
-        const channel = pusher.subscribe(slug);
+        activeChannel = activePusher.subscribe(slug);
 
-        channel.bind("log", function (data) {
+        activeChannel.bind("log", function (data) {
           if (!data) return;
           // data.message is the string from bash usually, but let's be safe
           const text =
@@ -272,12 +298,16 @@ export function setupSearchLogic() {
 
           if (text.includes("COMPLETED")) {
             log("Workflow Concluído! Aguardando propagação (5s)...", "success");
-            pusher.unsubscribe(slug);
+            activePusher.unsubscribe(slug);
+
+            const finalSlug = data.new_slug || slug;
+            currentSlug = finalSlug;
+
             setTimeout(() => {
               // Fetch from HUGGING FACE now
               const hfBase =
                 "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-              loadResults(`${hfBase}/output/${slug}/manifest.json`);
+              loadResults(`${hfBase}/output/${finalSlug}/manifest.json`);
             }, 5000);
           } else {
             log(text);
@@ -312,7 +342,7 @@ export function setupSearchLogic() {
         if (result.candidates) {
           log("Encontradas pesquisas similares no histórico.", "success");
           showCandidatesModal(result.candidates, query, slug);
-          pusher.unsubscribe(slug); // Stop listening to this channel for now
+          activePusher.unsubscribe(slug); // Stop listening to this channel for now
           return;
         }
 
@@ -321,7 +351,7 @@ export function setupSearchLogic() {
             "Resultado idêntico encontrado em cache! Carregando...",
             "success"
           );
-          pusher.unsubscribe(slug);
+          activePusher.unsubscribe(slug);
           loadResults(
             `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${result.slug}/manifest.json`
           );
