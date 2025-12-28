@@ -116,29 +116,47 @@ export function setupSearchLogic() {
     consoleContainer.appendChild(consoleOutput);
     searchResults.appendChild(consoleContainer);
 
-    let actionButtonCreated = false;
-    const createActionLinkButton = (url) => {
-      if (actionButtonCreated) return;
+    let actionButton = null;
+
+    // Create button immediately but in "waiting" state if possible, or just link to generic actions
+    const setupActionButton = () => {
+      if (actionButton) return;
+
+      // Defaults to generic Actions tab for the repo
+      const defaultUrl = "https://github.com/TouchRefletz/maia.api/actions";
 
       const btn = document.createElement("a");
-      btn.href = url;
+      btn.href = defaultUrl;
       btn.target = "_blank";
-      btn.innerText = "Ver Logs do GitHub";
+      btn.innerText = "Ver GitHub Actions"; // Initial Text
       Object.assign(btn.style, {
         float: "right",
-        padding: "2px 10px",
+        padding: "4px 12px",
         fontSize: "0.75rem",
-        backgroundColor: "#238636",
-        color: "#ffffff",
+        backgroundColor: "#21262d", // Darker default
+        color: "#c9d1d9",
         borderRadius: "4px",
         textDecoration: "none",
         border: "1px solid rgba(240,246,252,0.1)",
         marginTop: "-2px",
+        transition: "all 0.2s",
       });
 
-      // Ensure header has flow capability or absolute positioning, but float right is simple enough for this div block
       consoleHeader.appendChild(btn);
-      actionButtonCreated = true;
+      actionButton = btn;
+    };
+
+    // Initialize button immediately
+    if (!IS_DEV) setupActionButton();
+
+    const updateActionButton = (url) => {
+      if (!actionButton) setupActionButton();
+      if (actionButton) {
+        actionButton.href = url;
+        actionButton.innerText = "Ver Logs da Execução";
+        actionButton.style.backgroundColor = "#238636"; // Green
+        actionButton.style.color = "#ffffff";
+      }
     };
 
     const log = (text, type = "info") => {
@@ -149,10 +167,14 @@ export function setupSearchLogic() {
       consoleOutput.appendChild(line);
       consoleContainer.scrollTop = consoleContainer.scrollHeight;
 
-      // Check for Log URL in the text
-      const urlMatch = text.match(/Logs:\s*(https?:\/\/[^\s]+)/);
-      if (urlMatch && urlMatch[1]) {
-        createActionLinkButton(urlMatch[1]);
+      // Check for Log URL with explicit tag
+      const tagMatch = text.match(/\[GITHUB_LOGS\]\s*(https?:\/\/[^\s]+)/);
+      if (tagMatch && tagMatch[1]) {
+        updateActionButton(tagMatch[1]);
+      } else {
+        // Fallback for older format or if tag missing
+        const urlMatch = text.match(/Logs:\s*(https?:\/\/[^\s]+)/);
+        if (urlMatch && urlMatch[1]) updateActionButton(urlMatch[1]);
       }
     };
 
