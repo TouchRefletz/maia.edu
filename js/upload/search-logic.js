@@ -1040,18 +1040,30 @@ export function setupSearchLogic() {
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
 
-      // --- CÁLCULO DE ESCALA OTIMIZADO (RETINA) ---
+      // --- CÁLCULO DE ESCALA OTIMIZADO (COVER + RETINA) ---
       const initialViewport = page.getViewport({ scale: 1 });
-      const scale = (TARGET_HEIGHT * PIXEL_RATIO) / initialViewport.height;
+
+      // Dimensões do container (ou fallback)
+      const container = canvas.parentElement;
+      const containerWidth = container ? container.clientWidth : 300;
+      const containerHeight = container ? container.clientHeight : 220;
+
+      // Calcula scale para cobrir (Math.max) ambas as dimensões
+      const scaleW = containerWidth / initialViewport.width;
+      const scaleH = containerHeight / initialViewport.height;
+      const scale = Math.max(scaleW, scaleH) * PIXEL_RATIO;
+
       const viewport = page.getViewport({ scale });
 
       // Tamanho físico (alta resolução)
       canvas.width = viewport.width;
       canvas.height = viewport.height;
 
-      // Tamanho visual (CSS) para manter layout
-      canvas.style.width = `${viewport.width / PIXEL_RATIO}px`;
-      canvas.style.height = `${TARGET_HEIGHT}px`;
+      // Tamanho visual (CSS) para preencher container com crop
+      canvas.style.width = "100%";
+      canvas.style.height = "100%";
+      canvas.style.objectFit = "cover";
+      canvas.style.objectPosition = "top center"; // Mostra o topo do documento
 
       const ctx = canvas.getContext("2d", { alpha: false });
       ctx.fillStyle = "white";
