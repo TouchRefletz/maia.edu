@@ -1028,16 +1028,38 @@ export function setupSearchLogic() {
     }
   };
 
-  const generatePdfThumbnail = async (url, canvas) => {
+  // --- PDF Thumbnail Queue System ---
+  const MAX_CONCURRENT_THUMBNAILS = 2;
+  const thumbnailQueue = [];
+  let activeThumbnailCount = 0;
+
+  const processThumbnailQueue = async () => {
+    if (
+      activeThumbnailCount >= MAX_CONCURRENT_THUMBNAILS ||
+      thumbnailQueue.length === 0
+    )
+      return;
+
+    activeThumbnailCount++;
+    const { url, canvas } = thumbnailQueue.shift();
+
     try {
       if (!window.pdfjsLib) return;
+
       if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
         pdfjsLib.GlobalWorkerOptions.workerSrc =
           "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
       }
+
       const pdf = await pdfjsLib.getDocument(url).promise;
       const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1 }); // Melhor qualidade
+
+      // Otimização: Calcular escala baseada na altura desejada (aprox 300px para qualidade retina em container de 220px)
+      // Scale 1.0 gera imagens muito grandes (~800px+ altura) que causam lag
+      const TARGET_HEIGHT = 300;
+      const initialViewport = page.getViewport({ scale: 1 });
+      const scale = TARGET_HEIGHT / initialViewport.height;
+      const viewport = page.getViewport({ scale });
 
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -1054,12 +1076,28 @@ export function setupSearchLogic() {
     } catch (e) {
       console.warn("Falha na thumbnail", e);
       const ctx = canvas.getContext("2d");
+      // Se falhar antes de definir tamanho
+      if (canvas.width === 0 || canvas.width === 300) {
+        canvas.width = 210;
+        canvas.height = 297;
+      }
       ctx.fillStyle = "#f5f5f5";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = "#999";
       ctx.font = "bold 20px sans-serif";
-      ctx.fillText("PDF", 20, 50);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("PDF", canvas.width / 2, canvas.height / 2);
+    } finally {
+      activeThumbnailCount--;
+      // Processa o próximo da fila com pequeno delay para liberar main thread
+      setTimeout(processThumbnailQueue, 50);
     }
+  };
+
+  const generatePdfThumbnail = (url, canvas) => {
+    thumbnailQueue.push({ url, canvas });
+    processThumbnailQueue();
   };
 
   const openPreviewModal = (url, title) => {
