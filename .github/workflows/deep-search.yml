@@ -167,7 +167,7 @@ jobs:
             -e "FILE_STORE_PATH=/workspace/.openhands"
             --name openhands-app
             docker.openhands.dev/openhands/openhands:1.0
-            bash -lc 'python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv && PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"'
+            bash -lc 'python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core playwright && PYTHONPATH=/tmp/pydeps:$PYTHONPATH playwright install chromium && PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"'
           )
 
           docker "${docker_args[@]}" 2>&1 | log_to_ntfy
