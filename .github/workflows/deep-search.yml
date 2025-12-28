@@ -144,8 +144,8 @@ jobs:
             done
           }
 
-          echo "Starting OpenHands Docker Container..." | log_to_ntfy
-          echo "[GITHUB_LOGS] ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | log_to_ntfy
+          echo "Starting OpenHands Docker Container..." | log_to_pusher
+          echo "[GITHUB_LOGS] ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | log_to_pusher
 
           VOL_NAME="openhands-vol-${GITHUB_RUN_ID}"
           STATE_VOL_NAME="openhands-state-${GITHUB_RUN_ID}"
@@ -198,7 +198,7 @@ jobs:
             docker.openhands.dev/openhands/openhands:1.0
             python -m openhands.core.main -t "$PROMPT"
           )
-          docker "${docker_args[@]}" 2>&1 | log_to_ntfy
+          docker "${docker_args[@]}" 2>&1 | log_to_pusher
 
           EXIT_CODE=${PIPESTATUS[0]}
           echo "Docker run finished with exit code $EXIT_CODE"
@@ -297,9 +297,22 @@ jobs:
       - name: Notify Completion
         if: ${{ always() }}
         env:
-          NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
+          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
         run: |
-          if [ -n "$NTFY_TOPIC" ]; then
-              LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-              curl -d "COMPLETED. Logs: $LOG_URL" "https://ntfy.sh/$NTFY_TOPIC"
-          fi
+            LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            MESSAGE="COMPLETED. Logs: $LOG_URL"
+            
+            # Simple Pusher Trigger for Completion
+            TS=$(date +%s)
+            BODY="{\"name\":\"log\",\"channels\":[\"$SLUG\"],\"data\":\"{\\\"message\\\":\\\"$MESSAGE\\\"}\"}"
+            BODY_MD5=$(echo -n "$BODY" | md5sum | awk '{print $1}')
+            SIGN_STRING="POST\n/apps/$PUSHER_APP_ID/events\nauth_key=$PUSHER_KEY&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5"
+            AUTH_SIGNATURE=$(echo -n -e "$SIGN_STRING" | openssl dgst -sha256 -hmac "$PUSHER_SECRET" | sed 's/^.* //')
+            
+            curl -s -X POST "https://api-$PUSHER_CLUSTER.pusher.com/apps/$PUSHER_APP_ID/events?auth_key=$PUSHER_KEY&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5&auth_signature=$AUTH_SIGNATURE" \
+                   -H "Content-Type: application/json" \
+                   -d "$BODY"
