@@ -166,10 +166,13 @@ jobs:
             -e "FILE_STORE=local"
             -e "FILE_STORE_PATH=/workspace/.openhands"
             --name openhands-app
-            docker.openhands.dev/openhands/openhands:1.0
-            bash -lc 'apt-get update && apt-get install -y g++ build-essential && python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core && PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"'
-          )
 
+            --user 0:0
+            --entrypoint bash
+
+            docker.openhands.dev/openhands/openhands:1.0
+            -lc 'apt-get update && apt-get install -y g++ build-essential && python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core && PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"'
+          )
           docker "${docker_args[@]}" 2>&1 | log_to_ntfy
 
           EXIT_CODE=${PIPESTATUS[0]}
