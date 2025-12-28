@@ -18,12 +18,24 @@ on:
 jobs:
   search:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: write
 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/.ghcup
+          echo "Disk space after cleanup:"
+          df -h
 
       - name: Create Output Directory
         run: mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
