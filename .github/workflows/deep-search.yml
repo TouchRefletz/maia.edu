@@ -134,16 +134,21 @@ jobs:
             -e TAVILY_API_KEY="$TAVILY_API_KEY" \
             alpine sh -c '
               set -eux
-              printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > /workspace/config.toml
-              chown -R 1001:1001 /workspace
-              chmod 777 /workspace
-              chmod 666 /workspace/config.toml
+              
+              # 1. Garante que os diretórios existem
               mkdir -p /workspace/.openhands
-              rm -f /workspace/.openhands/.jwt_secret || true
-              chown -R 1001:1001 /workspace/.openhands
-              chmod 700 /workspace/.openhands
-            '
 
+              # 2. Cria o config.toml
+              printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > /workspace/config.toml
+
+              # 3. Limpeza preventiva
+              rm -f /workspace/.openhands/.jwt_secret || true
+
+              # 4. A CORREÇÃO: Permissão total recursiva
+              # Em vez de chown 1001:1001 (que pode estar errado), liberamos tudo.
+              # Isso permite que o container OpenHands leia/escreva independentemente do usuário que ele usa.
+              chmod -R 777 /workspace
+            '
           docker rm -f openhands-app 2>/dev/null || true
 
           # 2) Chamada robusta: sem "\" com risco de whitespace no fim
@@ -166,30 +171,8 @@ jobs:
             -e "FILE_STORE=local"
             -e "FILE_STORE_PATH=/workspace/.openhands"
             --name openhands-app
-            --user 0:0
-            --entrypoint bash
             docker.openhands.dev/openhands/openhands:1.0
-            -lc '
-            set -euo pipefail
-            
-            # 1. Instala compiladores (pra garantir) e o dotenv
-            apt-get update -qq && apt-get install -y -qq --no-install-recommends g++ build-essential python3-dev
-            python -m pip install --no-cache-dir python-dotenv
-
-            # 2. HACK: Instala versões compatíveis com Python 3.13 PRIMEIRO
-            # (Greenlet 3.1.1+ e Playwright 1.48+ suportam Py3.13)
-            python -m pip install "greenlet>=3.1.1" "playwright>=1.48.0"
-
-            # 3. Instala browsergym-core ignorando que ele pede playwright antigo
-            python -m pip install --no-deps browsergym-core
-
-            # 4. Instala o resto das dependências do browsergym manualmente
-            # (pra não quebrar por falta de numpy, lxml, etc)
-            python -m pip install "beautifulsoup4" "gymnasium" "lxml" "numpy" "pillow" "pyparsing" "pyee" "typing-extensions"
-
-            # Roda o OpenHands
             python -m openhands.core.main -t "$PROMPT"
-            '
           )
           docker "${docker_args[@]}" 2>&1 | log_to_ntfy
 
