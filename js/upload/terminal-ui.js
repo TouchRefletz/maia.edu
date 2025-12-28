@@ -71,8 +71,8 @@ export class TerminalUI {
       </div>
 
       <div class="term-log-header" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
-        <span class="term-label">LOGS EM TEMPO REAL</span>
-        <a href="#" target="_blank" id="term-btn-logs" class="term-btn disabled" style="font-size: 0.75rem; text-decoration: none; padding: 2px 8px; border: 1px solid #444; border-radius: 4px; color: #666; pointer-events: none; transition: all 0.2s;">
+        <span class="term-label" style="margin: 0px 0px 0px 8px;">LOGS EM TEMPO REAL</span>
+        <a href="#" target="_blank" id="term-btn-logs" class="term-btn disabled" style="font-size: 0.75rem; text-decoration: none; padding: 2px 8px; border: 1px solid #444; border-radius: 4px; color: #666; pointer-events: none; transition: all 0.2s; margin: 0px 8px 4px 0px;">
             Ver Logs no GitHub ↗
         </a>
       </div>
