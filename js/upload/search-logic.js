@@ -1015,7 +1015,15 @@ export function setupSearchLogic() {
       item.onmouseout = () =>
         (item.style.backgroundColor = "var(--color-bg-sub)");
 
-      const title = cand.query || cand.slug;
+      const formatSlug = (str) => {
+        if (!str) return null;
+        return str
+          .split("-")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      };
+
+      const title = formatSlug(cand.slug) || cand.query;
       const info =
         [cand.institution, cand.year].filter(Boolean).join(" • ") ||
         "Processado recentemente";
