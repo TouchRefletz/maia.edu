@@ -171,7 +171,22 @@ jobs:
             --entrypoint bash
 
             docker.openhands.dev/openhands/openhands:1.0
-            -lc 'apt-get update && apt-get install -y g++ build-essential && python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core && PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"'
+            -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends g++ build-essential
+
+            python -m pip install -q --upgrade pip setuptools wheel
+
+            # greenlet compatível com Python 3.13 (evita build quebrado)
+            python -m pip install --no-cache-dir -q --only-binary=greenlet --target /tmp/pydeps "greenlet>=3.1.0"
+
+            python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core
+
+            PYTHONPATH=/tmp/pydeps:$PYTHONPATH python -m openhands.core.main -t "$PROMPT"
+            '
           )
           docker "${docker_args[@]}" 2>&1 | log_to_ntfy
 
