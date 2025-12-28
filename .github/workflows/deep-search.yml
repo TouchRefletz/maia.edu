@@ -179,9 +179,7 @@ jobs:
             apt-get install -y -qq --no-install-recommends g++ build-essential
 
             python -m pip install -q --upgrade pip setuptools wheel
-
-            # greenlet compatível com Python 3.13 (evita build quebrado)
-            python -m pip install --no-cache-dir -q --only-binary=greenlet --target /tmp/pydeps "greenlet>=3.1.0"
+            python -m pip install --no-cache-dir -q --only-binary=greenlet --target tmppydeps greenlet==3.1.0
 
             python -m pip install --no-cache-dir -q --target /tmp/pydeps python-dotenv browsergym-core
 
