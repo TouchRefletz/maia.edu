@@ -400,22 +400,33 @@ jobs:
           PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
           FINAL_SLUG: ${{ steps.deep_search.outputs.final_slug }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          MESSAGE="COMPLETED. Logs: $LOG_URL"
 
-          # Simple Pusher Trigger for Completion
+          if [ "$JOB_STATUS" == "success" ]; then
+             MESSAGE="COMPLETED. Logs: $LOG_URL"
+             EVENT_NAME="log"
+          else
+             MESSAGE="FAILED. Something went wrong. Logs: $LOG_URL"
+             EVENT_NAME="log"
+             # Important: The frontend expects "Job failed" or similar to trigger fail state
+             # We can send a specific log line that triggers it
+          fi
+
+          # Simple Pusher Trigger
           TS=$(date +%s)
 
           # Include new_slug in data
           DATA_JSON=$(jq -n \
                   --arg msg "$MESSAGE" \
                   --arg final_slug "$FINAL_SLUG" \
-                  '{message: $msg, new_slug: $final_slug}')
+                  --arg status "$JOB_STATUS" \
+                  '{message: $msg, new_slug: $final_slug, status: $status}')
 
           # Send to ORIGINAL slug channel so frontend hears it
           BODY=$(jq -n \
-                  --arg name "log" \
+                  --arg name "$EVENT_NAME" \
                   --arg channel "$SLUG" \
                   --arg data "$DATA_JSON" \
                   '{name: $name, channels: [$channel], data: $data}')

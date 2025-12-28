@@ -220,7 +220,11 @@ export class TerminalUI {
             text.includes("completed")))
       ) {
         this.finish();
-      } else if (text.includes("Job failed") || text.includes("Job failed")) {
+      } else if (
+        text.includes("Job failed") ||
+        text.includes("Job failed") ||
+        text.includes("FAILED")
+      ) {
         this.fail("Job marcado como falho nos logs.");
       }
     } catch (err) {
