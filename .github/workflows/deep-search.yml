@@ -47,6 +47,10 @@ jobs:
           NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
           QUERY: ${{ github.event.client_payload.query || inputs.query }}
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
         run: |
           set -euo pipefail
 
@@ -265,13 +269,8 @@ jobs:
             python -m openhands.core.main -t "$PROMPT"
           )
 
-          # Pipe to python script, passing secrets implicitly via env of the step
-          env PUSHER_APP_ID="${{ secrets.PUSHER_APP_ID }}" \
-              PUSHER_KEY="${{ secrets.PUSHER_KEY }}" \
-              PUSHER_SECRET="${{ secrets.PUSHER_SECRET }}" \
-              PUSHER_CLUSTER="${{ secrets.PUSHER_CLUSTER }}" \
-              SLUG="${{ github.event.client_payload.slug || inputs.slug }}" \
-              docker "${docker_args[@]}" 2>&1 | python3 logger.py
+          # Pipe to python script. Secrets are now in the step env.
+          docker "${docker_args[@]}" 2>&1 | python3 logger.py
 
           EXIT_CODE=${PIPESTATUS[0]}
           echo "Docker run finished with exit code $EXIT_CODE"
@@ -358,15 +357,26 @@ jobs:
                       }
                     }')
             
-            # Curl Request
-            curl -X POST "$WORKER_URL/update-deep-search-cache" \
+            
+            # Curl Request with -f (fail on error) and capturing output
+            RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$WORKER_URL/update-deep-search-cache" \
                  -H "Content-Type: application/json" \
                  -H "Authorization: Bearer $GH_PAT" \
-                 -d "$PAYLOAD"
+                 -d "$PAYLOAD")
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | cut -d: -f2)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            echo "Worker Response Body: $BODY"
+            echo "Worker HTTP Code: $HTTP_CODE"
+
+            if [ "$HTTP_CODE" -ne 200 ]; then
+              echo "::error::Failed to update cache. HTTP $HTTP_CODE"
+              exit 1
+            fi
           else
             echo "Manifest not found at $MANIFEST_PATH. Skipping cache update."
           fi
-        continue-on-error: true
 
       - name: Notify Completion
         if: ${{ always() }}

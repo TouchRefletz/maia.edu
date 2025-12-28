@@ -244,12 +244,22 @@ async function generateEmbedding(text, apiKey, model = 'models/gemini-embedding-
  * HELPER: Shared Pinecone Query
  */
 async function executePineconeQuery(vector, env, topK = 1, filter = {}) {
-	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH || env.PINECONE_HOST;
+	// Strict check for Deep Search Host to avoid polluting the main index
+	// If the user intends to use the main index, they must explicitly set PINECONE_HOST_DEEP_SEARCH to the same value.
+	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH;
 	const apiKey = env.PINECONE_API_KEY;
 
-	if (!pineconeHost || !apiKey) return null;
+	if (filter.type === 'deep-search-result' && !pineconeHost) {
+		console.error('[Pinecone Query] PINECONE_HOST_DEEP_SEARCH is required for deep-search queries but not set.');
+		return null; // Or throw, but for query we can just return null/empty
+	}
 
-	const endpoint = `${pineconeHost}/query`;
+	// Fallback only if NOT deep search (though this helper is shared, so be careful)
+	const effectiveHost = pineconeHost || env.PINECONE_HOST;
+
+	if (!effectiveHost || !apiKey) return null;
+
+	const endpoint = `${effectiveHost}/query`;
 
 	const response = await fetch(endpoint, {
 		method: 'POST',
@@ -278,7 +288,22 @@ async function executePineconeQuery(vector, env, topK = 1, filter = {}) {
  * HELPER: Shared Pinecone Upsert
  */
 async function executePineconeUpsert(vectors, env, namespace = '') {
-	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH || env.PINECONE_HOST;
+	// Checks if any vector is a deep search result
+	const isDeepSearch = vectors.some((v) => v.metadata && v.metadata.type === 'deep-search-result');
+
+	let pineconeHost = env.PINECONE_HOST;
+
+	if (isDeepSearch) {
+		if (!env.PINECONE_HOST_DEEP_SEARCH) {
+			throw new Error('PINECONE_HOST_DEEP_SEARCH is not configured! Cannot save deep search results to default index.');
+		}
+		pineconeHost = env.PINECONE_HOST_DEEP_SEARCH;
+		console.log(`[Pinecone Upsert] Using DEEP_SEARCH host: ${pineconeHost}`);
+	} else {
+		// Optional: Warn if main host is used?
+		pineconeHost = env.PINECONE_HOST || env.PINECONE_HOST_DEEP_SEARCH;
+	}
+
 	const apiKey = env.PINECONE_API_KEY;
 
 	if (!pineconeHost || !apiKey) throw new Error('PINECONE_API_KEY or PINECONE_HOST not configured');
