@@ -95,6 +95,7 @@ async function handleTriggerDeepSearch(request, env) {
 	}
 
 	// 1. Check Cache (Pinecone)
+	// 1. Check Cache (Pinecone)
 	try {
 		const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
 		if (embedding) {
@@ -103,6 +104,7 @@ async function handleTriggerDeepSearch(request, env) {
 				const bestMatch = cacheResult.matches[0];
 				// Strict semantic deduplication
 				if (bestMatch.score > 0.92) {
+					console.log(`[Cache Hit] Slug: ${bestMatch.metadata.slug} Score: ${bestMatch.score}`);
 					return new Response(
 						JSON.stringify({
 							success: true,
@@ -194,7 +196,11 @@ async function handleDeepSearchUpdate(request, env) {
 			},
 		};
 
+		// Upsert to Pinecone
 		await executePineconeUpsert([vector], env);
+
+		// Log success
+		console.log(`[Cache Update] Success for slug: ${slug}`);
 
 		return new Response(JSON.stringify({ success: true, message: 'Cache updated' }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -185,10 +185,12 @@ export function setupSearchLogic() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
     currentSlug = slug;
-    const randomId = Math.random().toString(36).substring(7);
-    const ntfyTopic = `maia-${slug}-${randomId}`;
 
-    // --- EXECUÇÃO (MANTIDA) ---
+    // Pusher Config
+    const pusherKey = "6c9754ef715796096116"; // Public Key
+    const pusherCluster = "sa1";
+
+    // --- EXECUÇÃO ---
     try {
       if (IS_DEV) {
         log(`Modo Local detectado. Conectando ao Local Runner...`);
@@ -227,34 +229,53 @@ export function setupSearchLogic() {
           }
         };
       } else {
-        // PROD LOGIC (MANTIDA)
-        // ... (código existente de prod omitido por brevidade, mas mantendo compatibilidade) ...
-        // Para garantir que não quebre, vou apenas colar a lógica de prod simplificada ou manter se não for foco.
-        // Como estou substituindo o arquivo todo, preciso recolocar.
-        log(`Modo Produção. Conectando via ntfy.sh (${ntfyTopic})...`);
-        const eventSource = new EventSource(`https://ntfy.sh/${ntfyTopic}/sse`);
-        eventSource.onopen = () => log("Conectado ao ntfy.sh stream.");
-        eventSource.onmessage = (event) => {
-          const text = event.data;
-          if (text === "COMPLETED") {
-            log("Concluído! Aguardando propagação (5s)...", "success");
-            eventSource.close();
+        // PROD LOGIC (PUSHER)
+        log(`Modo Produção. Conectando via Pusher (Channel: ${slug})...`);
+
+        // Import Pusher dynamically or assume it's loaded via <script> or import
+        // For module compatibility, let's try to use the imported one if available,
+        // or rely on window.Pusher if strictly vanilla.
+        // Assuming 'import Pusher from "pusher-js"' logic at top or setup via npm.
+        // If imports fail, we might need to add it to package.json.
+
+        // Import it dynamically if not globally available
+        let PusherClass = window.Pusher;
+        if (!PusherClass) {
+          const module = await import("pusher-js");
+          PusherClass = module.default;
+        }
+
+        const pusher = new PusherClass(pusherKey, {
+          cluster: pusherCluster,
+        });
+
+        const channel = pusher.subscribe(slug);
+
+        channel.bind("log", function (data) {
+          // data.message is the string from bash
+          const text = data.message;
+
+          if (text.includes("COMPLETED")) {
+            log("Workflow Concluído! Aguardando propagação (5s)...", "success");
+            pusher.unsubscribe(slug);
             setTimeout(() => {
-              const repoBase =
-                "https://raw.githubusercontent.com/TouchRefletz/maia.api/main";
-              loadResults(`${repoBase}/output/${slug}/manifest.json`);
+              // Fetch from HUGGING FACE now
+              const hfBase =
+                "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+              loadResults(`${hfBase}/output/${slug}/manifest.json`);
             }, 5000);
           } else {
             log(text);
           }
-        };
+        });
+
         await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             query,
             slug,
-            ntfy_topic: ntfyTopic,
+            ntfy_topic: "deprecated", // Legacy param
             apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
           }),
         });
@@ -269,7 +290,8 @@ export function setupSearchLogic() {
     try {
       let loadingAttempts = 0;
       let manifest = null;
-      while (loadingAttempts < 5 && !manifest) {
+      while (loadingAttempts < 10 && !manifest) {
+        // 10 attempts (20s) for HF caching/propagation
         try {
           console.log(
             `[SearchLogic] Tentando carregar manifesto: ${manifestUrl} (Tentativa ${loadingAttempts + 1})`
@@ -290,12 +312,16 @@ export function setupSearchLogic() {
         loadingAttempts++;
         await new Promise((res) => setTimeout(res, 2000));
       }
-      if (!manifest) throw new Error("Manifesto não encontrado.");
+      if (!manifest)
+        throw new Error(
+          "Manifesto não encontrado no Hugging Face. Verifique os logs do GitHub Actions para erros de upload."
+        );
       currentManifest = manifest; // Save for later usage
       renderResultsNewUI(manifest);
     } catch (e) {
       const c = document.getElementById("deep-search-console");
-      if (c) c.innerHTML += `<div style='color:red'>Erro: ${e.message}</div>`;
+      if (c)
+        c.innerHTML += `<div style='color:red'>Erro no carregamento: ${e.message}</div>`;
     }
   };
 
@@ -386,7 +412,7 @@ export function setupSearchLogic() {
         const prefix = `output/${currentSlug}`; // Uses globally captured currentSlug
         if (IS_DEV) finalUrl = `${LOCAL_RUNNER_URL}/${prefix}/${cleanPath}`;
         else
-          finalUrl = `https://raw.githubusercontent.com/TouchRefletz/maia.api/main/${prefix}/${cleanPath}`;
+          finalUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/${prefix}/${cleanPath}`;
       }
       return finalUrl;
     };
@@ -613,7 +639,7 @@ export function setupSearchLogic() {
 
       if (IS_DEV) finalUrl = `${LOCAL_RUNNER_URL}/${prefix}/${cleanPath}`;
       else
-        finalUrl = `https://raw.githubusercontent.com/TouchRefletz/maia.api/main/${prefix}/${cleanPath}`;
+        finalUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/${prefix}/${cleanPath}`;
     }
 
     // --- Title Fallback Logic ---

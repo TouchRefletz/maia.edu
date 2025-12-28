@@ -24,6 +24,7 @@
     "ws": "^8.18.0"
   },
   "dependencies": {
+    "pusher-js": "^8.4.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tesseract.js": "^7.0.0"

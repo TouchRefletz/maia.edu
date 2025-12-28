@@ -100,24 +100,48 @@ jobs:
 
           PROMPT="${PROMPT_TEMPLATE/__QUERY__/$QUERY}"
 
-          log_to_ntfy() {
-            if [ -n "${NTFY_TOPIC:-}" ]; then
-              LOG_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-              QUOTA_EXCEEDED="false"
-              while IFS= read -r line; do
-                echo "$line"
-                if [ "$QUOTA_EXCEEDED" = "false" ]; then
-                  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -d "$line" "https://ntfy.sh/$NTFY_TOPIC")
-                  if [ "$HTTP_CODE" -eq 429 ] || [ "$HTTP_CODE" -eq 402 ] || [ "$HTTP_CODE" -eq 507 ]; then
-                    echo "NTFY QUOTA EXCEEDED. Full logs: $LOG_URL"
-                    curl -s -d "NTFY QUOTA EXCEEDED. Full logs: $LOG_URL" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true
-                    QUOTA_EXCEEDED="true"
-                  fi
-                fi
-              done
-            else
+          log_to_pusher() {
+            local app_id="${{ secrets.PUSHER_APP_ID }}"
+            local key="${{ secrets.PUSHER_KEY }}"
+            local secret="${{ secrets.PUSHER_SECRET }}"
+            local cluster="${{ secrets.PUSHER_CLUSTER }}"
+            local channel="${{ github.event.client_payload.slug || inputs.slug }}" # Channel is the SLUG
+            local event="log"
+
+            # Check if secrets are present
+            if [ -z "$app_id" ] || [ -z "$key" ] || [ -z "$secret" ] || [ -z "$cluster" ]; then
+              # If secrets missing, just cat to console
               cat
+              return
             fi
+
+            while IFS= read -r line; do
+              echo "$line"
+              
+              # Escape JSON content properly
+              # Using python for reliable JSON escaping since jq might not be available or fail on some chars
+              # If python is available in alpine:
+              ESCAPED_LINE=$(echo "$line" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+              
+              # Timestamp
+              TS=$(date +%s)
+              
+              # Construct body
+              BODY="{\"name\":\"$event\",\"channels\":[\"$channel\"],\"data\":\"{\\\"message\\\":\\\"$ESCAPED_LINE\\\"}\"}"
+              
+              # MD5 of body
+              BODY_MD5=$(echo -n "$BODY" | md5sum | awk '{print $1}')
+              
+              # Auth Signature
+              # POST\n/apps/$app_id/events\nauth_key=$key&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5
+              SIGN_STRING="POST\n/apps/$app_id/events\nauth_key=$key&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5"
+              AUTH_SIGNATURE=$(echo -n -e "$SIGN_STRING" | openssl dgst -sha256 -hmac "$secret" | sed 's/^.* //')
+              
+              # Send to Pusher
+              curl -s -X POST "https://api-$cluster.pusher.com/apps/$app_id/events?auth_key=$key&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5&auth_signature=$AUTH_SIGNATURE" \
+                   -H "Content-Type: application/json" \
+                   -d "$BODY" > /dev/null || true
+            done
           }
 
           echo "Starting OpenHands Docker Container..." | log_to_ntfy
