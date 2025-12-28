@@ -36,8 +36,45 @@ Para garantir que a experiência digital seja indistinguível da prova física:
 
 A plataforma implementa um sistema de **captura híbrida**:
 
-- **Automático:** Extração via IA.
 - **Manual/Verificação:** As **fotos originais** (raw images) da questão e do gabarito são armazenadas permanentemente e vinculadas ao objeto JSON da questão. Isso cria uma camada de segurança ("fallback"), permitindo que o usuário consulte a fonte primária caso haja qualquer alucinação ou erro na extração automática da IA.
+
+## 🔎 Deep Search (Busca Profunda de Provas)
+
+Para escalar a captura de provas, implementamos um agente autônomo de busca profunda.
+
+### Como Funciona
+
+1.  **Solicitação:** O usuário insere uma query simples (ex: "ITA 2022").
+2.  **Agente AI (OpenHands):** Um container Docker isolado roda um agente inteligente que navega na web.
+3.  **Busca & Decisão:** O agente usa ferramentas de busca (como Tavily ou Google) para encontrar _links oficiais_ de provas e gabaritos, ignorando sites genéricos ou de baixa qualidade.
+4.  **Extração & Validação:** O sistema baixa os PDFs, valida se são arquivos legítimos (checa headers, tamanho, conteúdo) e os organiza.
+5.  **Manifesto:** Gera um arquivo `manifest.json` padronizado, listando tudo o que foi encontrado (arquivos baixados e links de referência).
+
+### Testando Localmente
+
+Você pode rodar o fluxo completo de Deep Search na sua máquina:
+
+**Pré-requisitos:**
+
+- [Docker](https://www.docker.com/) rodando.
+- [Act](https://github.com/nektos/act) instalado (para simular o GitHub Actions localmente).
+- Arquivo `.secrets` na raiz com suas chaves (`LLM_API_KEY`, `TAVILY_API_KEY`, etc).
+
+**Como rodar:**
+
+1.  Inicie o "Local Runner" (servidor auxiliar):
+    ```bash
+    npm run local-runner
+    ```
+2.  Acesse a interface de debug (se houver) ou envie uma requisição POST para `http://localhost:3001/trigger-deep-search` com o corpo:
+    ```json
+    {
+      "query": "fuvest 2024",
+      "slug": "fuvest-2024"
+    }
+    ```
+3.  O `act` será iniciado e você verá o progresso no terminal do Local Runner.
+4.  Ao final, os arquivos estarão na pasta `output/fuvest-2024`.
 
 ## 🧬 Estrutura do Banco de Dados
 

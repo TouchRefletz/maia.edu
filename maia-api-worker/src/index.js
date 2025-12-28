@@ -60,12 +60,14 @@ export default {
 				case '/pinecone-upsert':
 					return handlePineconeUpsert(request, env);
 
-
 				case '/search':
 					return handleGeminiSearch(request, env);
 
 				case '/proxy-pdf':
 					return handleProxyPdf(request, env);
+
+				case '/trigger-deep-search':
+					return handleTriggerDeepSearch(request, env);
 
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
@@ -78,6 +80,53 @@ export default {
 		}
 	},
 };
+
+/**
+ * SERVICE: TRIGGER DEEP SEARCH (GITHUB ACTIONS)
+ */
+async function handleTriggerDeepSearch(request, env) {
+	const { query, slug, ntfy_topic } = await request.json();
+
+	if (!query || !slug) {
+		return new Response(JSON.stringify({ error: 'Query and Slug are required' }), { status: 400, headers: corsHeaders });
+	}
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz'; // Default or Env
+	const githubRepo = env.GITHUB_REPO || 'maia.api'; // Default or Env
+
+	if (!githubPat) {
+		throw new Error('GITHUB_PAT not configured on Worker');
+	}
+
+	const url = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${githubPat}`,
+			Accept: 'application/vnd.github.v3+json',
+			'User-Agent': 'Cloudflare-Worker',
+		},
+		body: JSON.stringify({
+			event_type: 'deep-search',
+			client_payload: {
+				query,
+				slug,
+				ntfy_topic,
+			},
+		}),
+	});
+
+	if (!response.ok) {
+		const errText = await response.text();
+		throw new Error(`GitHub API Error: ${response.status} - ${errText}`);
+	}
+
+	return new Response(JSON.stringify({ success: true, message: 'Deep Search Triggered on GitHub' }), {
+		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+	});
+}
 
 /**
  * 1. SERVICE: GEMINI GENERATION
@@ -95,9 +144,7 @@ async function handleGeminiGenerate(request, env) {
 	const initialModels = model ? [model] : DEFAULT_MODELS;
 
 	// Fallbacks específicos pra RECITATION
-	const RECITATION_FALLBACKS = [
-		'models/gemini-flash-latest',
-		'models/gemini-flash-lite-latest',];
+	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
 
 	const encoder = new TextEncoder();
 
@@ -416,15 +463,15 @@ async function handleProxyPdf(request, env) {
 			iterations++;
 		}
 	} catch (e) {
-		console.warn("Proxy: Failed to decode URL:", targetUrl);
+		console.warn('Proxy: Failed to decode URL:', targetUrl);
 	}
 
 	try {
 		const response = await fetch(targetUrl, {
 			method: 'GET',
 			headers: {
-				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-			}
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+			},
 		});
 
 		if (!response.ok) {
@@ -437,8 +484,8 @@ async function handleProxyPdf(request, env) {
 			headers: {
 				...corsHeaders,
 				'Content-Type': 'application/pdf',
-				'Cache-Control': 'public, max-age=3600'
-			}
+				'Cache-Control': 'public, max-age=3600',
+			},
 		});
 	} catch (e) {
 		return new Response(`Proxy Error: ${e.message}`, { status: 500, headers: corsHeaders });
@@ -465,10 +512,7 @@ async function handleGeminiSearch(request, env) {
 	const initialModels = model ? [model] : DEFAULT_MODELS;
 
 	// Fallbacks
-	const RECITATION_FALLBACKS = [
-		'models/gemini-flash-latest',
-		'models/gemini-flash-lite-latest',
-	];
+	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
 
 	const encoder = new TextEncoder();
 
@@ -530,7 +574,8 @@ async function handleGeminiSearch(request, env) {
 					const cand = chunk?.candidates?.[0];
 					const partsResp = cand?.content?.parts || [];
 					// FIX: Check both cand and chunk for groundingMetadata (camel and snake case)
-					const groundingMetadata = cand?.groundingMetadata || chunk?.groundingMetadata || cand?.grounding_metadata || chunk?.grounding_metadata;
+					const groundingMetadata =
+						cand?.groundingMetadata || chunk?.groundingMetadata || cand?.grounding_metadata || chunk?.grounding_metadata;
 
 					// DEBUG: Check what is inside
 					if (chunk) {
@@ -582,7 +627,6 @@ async function handleGeminiSearch(request, env) {
 				}
 
 				if (success) break; // Sai do loop da fila de modelos
-
 			} catch (error) {
 				if (error.message === '__RECITATION_RETRY__') continue;
 				console.warn(`Erro search model ${modelo}`, error);
@@ -609,4 +653,3 @@ async function handleGeminiSearch(request, env) {
 		},
 	});
 }
-

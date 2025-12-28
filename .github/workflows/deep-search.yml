@@ -1,0 +1,153 @@
+name: Deep Search (OpenHands)
+
+on:
+  repository_dispatch:
+    types: [deep-search]
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Search Query (e.g. "ita 2022")'
+        required: true
+      slug:
+        description: 'Slug for folder name (e.g. "ita-2022")'
+        required: true
+      ntfy_topic:
+        description: "ntfy.sh topic for log streaming"
+        required: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Create Output Directory
+        run: mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
+
+      - name: Run OpenHands Deep Search
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
+          QUERY: ${{ github.event.client_payload.query || inputs.query }}
+          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+        run: |
+          set -o pipefail
+          # Define the PROMPT variable inside the shell
+          PROMPT=$(cat <<EOF
+          Você recebeu uma consulta curta (QUERY) do tipo "nome da prova + ano", por exemplo: "ita 2022".
+          Objetivo: encontrar e organizar TODOS os links e arquivos (provas e gabaritos) associados a essa QUERY.
+
+          QUERY: "$QUERY"
+
+          Regras para evitar pesquisa demais (muito importante):
+          1) Não use Google como primeira opção (CAPTCHA é comum). Prefira:
+             - Sites oficiais da banca/instituição (domínio oficial).
+             - Páginas “Provas anteriores / provas e gabaritos / exames anteriores / vestibular / arquivos”.
+          2) Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas.
+          3) Após achar o site oficial, navegue dentro dele e extraia tudo com o mínimo de novas buscas.
+          4) Só inclua links que pareçam realmente do exame/ano correspondente; quando estiver ambíguo, checar rapidamente pelo título/URL/nome do PDF.
+
+          O que coletar:
+          - Provas (todas as fases/dias/disciplinas/versões que existirem).
+          - Gabaritos correspondentes (e “soluções”, se houver).
+          - INDISPENSÁVEL: Classifique cada item no manifesto:
+            - `status`: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
+          - Estrutura do JSON: {nome, tipo, ano, fase, link_origem, status, filename (só se status=downloaded)}
+
+          Preferência de links:
+          - Priorize links diretos de PDF.
+          - Se for Google Drive, capture:
+            - link "view"
+            - e também um link “download direto” quando possível (uc?export=download&id=...).
+
+          Entrega (obrigatório):
+          1) Crie a pasta: /workspace/output/${SLUG}/
+          2) Baixe todos os PDFs que conseguir para: /workspace/output/${SLUG}/files/. 
+             CRITICO: 
+             - USE 'wget' ou 'curl' com verificação de header.
+             - VERIFIQUE SE O HEADER 'Content-Type' É 'application/pdf'. 
+             - SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
+             - SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
+             - NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
+          3) Gere /workspace/output/${SLUG}/index.md
+          4) Gere /workspace/output/${SLUG}/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
+          5) Gere /workspace/output/${SLUG}/DOWNLOAD_URLS.txt
+          6) Gere /workspace/output/${SLUG}.zip
+          7) (Opcional) Gere /workspace/output/${SLUG}/index.pdf
+
+          Ao final, responda apenas com caminhos e contagens.
+          EOF
+          )
+
+          # Function to log to ntfy.sh
+          log_to_ntfy() {
+            if [ -n "$NTFY_TOPIC" ]; then
+              # Send line by line
+              while IFS= read -r line; do
+                echo "$line"
+                curl -s -d "$line" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null || true
+              done
+            else
+              cat # Just pass through
+            fi
+          }
+
+          echo "Starting OpenHands Docker Container..." | log_to_ntfy
+
+          VOL_NAME="openhands-vol-${{ github.run_id }}"
+          docker volume create "$VOL_NAME"
+
+          docker rm -f openhands-app 2>/dev/null || true
+
+          # Run Docker Command and Pipe Output to ntfy
+          # Using named volume to ensure persistence across DinD (Act/Windows)
+          docker run --pull=always \
+            -w /workspace \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$VOL_NAME:/workspace:rw" \
+            --add-host host.docker.internal:host-gateway \
+            -e SANDBOX_USER_ID="$(id -u)" \
+            -e SANDBOX_VOLUMES="$VOL_NAME:/workspace:rw" \
+            -e SANDBOX_RUNTIME_CONTAINER_IMAGE="docker.openhands.dev/openhands/runtime:1.0-nikolaik" \
+            -e LOG_ALL_EVENTS=true \
+            -e LLM_API_KEY="$LLM_API_KEY" \
+            -e LLM_MODEL="gemini/gemini-3-flash-preview" \
+            -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+            -e PYTHONUNBUFFERED=1 \
+            -e PROMPT="$PROMPT" \
+            --name openhands-app \
+            docker.openhands.dev/openhands/openhands:1.0 \
+            bash -c 'rm -rf config.toml && printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > config.toml && python -m openhands.core.main -t "$PROMPT"' 2>&1 | log_to_ntfy
+            
+          EXIT_CODE=$?
+          echo "Docker run finished with exit code $EXIT_CODE"
+
+          # Extract artifacts from the volume (via the container)
+          echo "Copying artifacts from container to host..."
+          docker cp openhands-app:/workspace/output/${SLUG}/. output/${SLUG}/ || echo "Failed to copy artifacts or directory empty"
+
+          # Cleanup
+          docker rm -f openhands-app
+          docker volume rm "$VOL_NAME" || true
+
+          exit $EXIT_CODE
+
+      - name: Upload Search Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-search-artifact
+          path: output/${{ github.event.client_payload.slug || inputs.slug }}
+
+      - name: Notify Completion
+        if: ${{ always() }}
+        env:
+          NTFY_TOPIC: ${{ github.event.client_payload.ntfy_topic || inputs.ntfy_topic }}
+        run: |
+          if [ -n "$NTFY_TOPIC" ]; then
+              curl -d "COMPLETED" "https://ntfy.sh/$NTFY_TOPIC"
+          fi
