@@ -1,0 +1,167 @@
+name: Delete Artifact (Cleanup)
+
+on:
+  repository_dispatch:
+    types: [delete-artifact]
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: 'Slug to delete (e.g. "enem-2022")'
+        required: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+
+    steps:
+      - name: Setup Logger
+        run: |
+          cat << 'EOF' > logger.py
+          import sys
+          import time
+          import json
+          import hashlib
+          import hmac
+          import os
+          import threading
+          import http.client
+          import urllib.parse
+          from collections import deque
+
+          # Config
+          PUSHER_APP_ID = os.environ.get("PUSHER_APP_ID")
+          PUSHER_KEY = os.environ.get("PUSHER_KEY")
+          PUSHER_SECRET = os.environ.get("PUSHER_SECRET")
+          PUSHER_CLUSTER = os.environ.get("PUSHER_CLUSTER")
+          CHANNEL = os.environ.get("SLUG")
+
+          if not all([PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET, PUSHER_CLUSTER, CHANNEL]):
+              print("Missing Pusher secrets. Logging to stdout only.")
+              for line in sys.stdin:
+                  sys.stdout.write(line)
+                  sys.stdout.flush()
+              sys.exit(0)
+
+          # Buffer
+          log_buffer = deque()
+          buffer_lock = threading.Lock()
+          running = True
+
+          def send_batch(lines):
+              if not lines:
+                  return
+              
+              timestamp = str(int(time.time()))
+              text_chunk = "".join(lines)
+              
+              body_data = json.dumps({"message": text_chunk})
+              body = json.dumps({
+                  "name": "log",
+                  "channels": [CHANNEL],
+                  "data": body_data
+              })
+              
+              body_md5 = hashlib.md5(body.encode('utf-8')).hexdigest()
+              
+              sign_string = f"POST\n/apps/{PUSHER_APP_ID}/events\nauth_key={PUSHER_KEY}&auth_timestamp={timestamp}&auth_version=1.0&body_md5={body_md5}"
+              auth_signature = hmac.new(PUSHER_SECRET.encode('utf-8'), sign_string.encode('utf-8'), hashlib.sha256).hexdigest()
+              
+              params = urllib.parse.urlencode({
+                  'auth_key': PUSHER_KEY,
+                  'auth_timestamp': timestamp,
+                  'auth_version': '1.0',
+                  'body_md5': body_md5,
+                  'auth_signature': auth_signature
+              })
+              
+              try:
+                  conn = http.client.HTTPSConnection(f"api-{PUSHER_CLUSTER}.pusher.com", timeout=3)
+                  headers = {'Content-Type': 'application/json'}
+                  conn.request("POST", f"/apps/{PUSHER_APP_ID}/events?{params}", body, headers)
+                  resp = conn.getresponse()
+                  resp.read()
+                  conn.close()
+              except Exception as e:
+                  print(f"Pusher Error: {e}")
+
+          def consumer_thread():
+              while running or log_buffer:
+                  with buffer_lock:
+                      if not log_buffer:
+                          batch = []
+                      else:
+                          batch = list(log_buffer)
+                          log_buffer.clear()
+                  
+                  if batch:
+                      send_batch(batch)
+                  time.sleep(1.0)
+
+          t = threading.Thread(target=consumer_thread)
+          t.daemon = True
+          t.start()
+
+          for line in sys.stdin:
+              sys.stdout.write(line)
+              sys.stdout.flush()
+              with buffer_lock:
+                  log_buffer.append(line)
+
+          running = False
+          t.join(timeout=5)
+          EOF
+
+      - name: Cleanup Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
+        run: |
+          (
+            echo "DELETING artifact from Hugging Face: $SLUG..."
+            
+            git config --global user.email "bot@maia.api"
+            git config --global user.name "Maia Bot"
+
+            git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_cleanup_repo
+            cd hf_cleanup_repo
+
+            if [ -d "output/$SLUG" ]; then
+                echo "Removing output/$SLUG..."
+                git rm -rf "output/$SLUG"
+                git commit -m "Manual Deletion (Corrupt) for $SLUG"
+                git push
+                echo "CONFIRMED: Deleted from Hugging Face."
+            else
+                echo "Artifact not found in Hugging Face (already deleted?)"
+            fi
+            cd ..
+            rm -rf hf_cleanup_repo
+          ) 2>&1 | python3 logger.py
+
+      - name: Cleanup Pinecone
+        env:
+          WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
+          GH_PAT: ${{ secrets.GH_PAT }}
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
+        run: |
+          (
+             echo "Requesting Pinecone deletion for $SLUG..."
+             curl -X POST "$WORKER_URL/delete-pinecone-record" \
+                  -H "Content-Type: application/json" \
+                  -H "Authorization: Bearer $GH_PAT" \
+                  -d "{\"slug\": \"$SLUG\"}" \
+             || echo "Warning: Failed to call delete endpoint"
+             
+             echo "Cleanup process finished."
+          ) 2>&1 | python3 logger.py

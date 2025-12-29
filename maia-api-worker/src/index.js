@@ -78,6 +78,9 @@ export default {
 				case '/delete-pinecone-record':
 					return handlePineconeDelete(request, env);
 
+				case '/delete-artifact':
+					return handleDeleteArtifact(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -240,6 +243,59 @@ async function handleCancelDeepSearch(request, env) {
 		}
 
 		return new Response(JSON.stringify({ success: true, message: 'Cancellation requested successfully' }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * SERVICE: DELETE ARTIFACT (Trigger Cleanup Workflow)
+ */
+async function handleDeleteArtifact(request, env) {
+	const body = await request.json();
+	const { slug } = body;
+
+	if (!slug) {
+		return new Response(JSON.stringify({ error: 'Slug is required' }), { status: 400, headers: corsHeaders });
+	}
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+	const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+	if (!githubPat) {
+		throw new Error('GITHUB_PAT not configured on Worker');
+	}
+
+	const url = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+
+	try {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${githubPat}`,
+				Accept: 'application/vnd.github.v3+json',
+				'User-Agent': 'Cloudflare-Worker',
+			},
+			body: JSON.stringify({
+				event_type: 'delete-artifact',
+				client_payload: {
+					slug,
+				},
+			}),
+		});
+
+		if (!response.ok) {
+			const errText = await response.text();
+			throw new Error(`GitHub API Error: ${response.status} - ${errText}`);
+		}
+
+		return new Response(JSON.stringify({ success: true, message: 'Deletion workflow triggered' }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	} catch (error) {

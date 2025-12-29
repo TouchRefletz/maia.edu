@@ -1127,6 +1127,77 @@ export function setupSearchLogic() {
       activeRenders.delete(canvas);
     } catch (e) {
       if (e.name === "RenderingCancelledException") return;
+
+      // Handle Corrupt PDF
+      if (
+        e.name === "InvalidPDFException" ||
+        e.message?.includes("Invalid PDF structure")
+      ) {
+        console.error(
+          "PDF Corrompido detectado! Iniciando protocolo de limpeza...",
+          e
+        );
+
+        // Feedback Visual
+        const resultsContainer = document.querySelector(".results-container");
+        if (resultsContainer && currentSlug) {
+          resultsContainer.innerHTML = `
+             <div style="
+                color: var(--color-warning); 
+                padding: 40px; 
+                text-align: center; 
+                background: var(--color-surface); 
+                border-radius: var(--radius-lg); 
+                border: 1px solid var(--color-warning);
+                margin-top: 20px;
+                animation: fadeIn 0.5s ease;
+             ">
+                <h2 style="margin-bottom: 16px;">⚠️ Arquivo Corrompido Detectado</h2>
+                <p style="font-size: 1.1rem; color: var(--color-text-secondary); margin-bottom: 24px;">
+                    O PDF solicitado ("${url.split("/").pop()}") apresenta falhas estruturais graves.
+                </p>
+                <div style="
+                    background: rgba(255, 0, 0, 0.1); 
+                    padding: 16px; 
+                    border-radius: 8px; 
+                    display: inline-block;
+                    border: 1px solid rgba(255, 0, 0, 0.2);
+                ">
+                    <p style="margin: 0; font-weight: 500; color: var(--color-error);">
+                        🗑️ Iniciando processo de limpeza automática no servidor...
+                    </p>
+                    <p style="margin: 8px 0 0 0; font-size: 0.9rem; opacity: 0.8;">
+                       O registro será removido do banco de dados e do Hugging Face.
+                    </p>
+                </div>
+             </div>
+           `;
+
+          // Trigger Deletion
+          fetch(`${PROD_WORKER_URL}/delete-artifact`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ slug: currentSlug }),
+          })
+            .then((r) => r.json())
+            .then((d) => {
+              console.log("Resultado da limpeza:", d);
+              // Opcional: Recarregar ou voltar ao estado inicial após alguns segundos
+              setTimeout(() => {
+                if (
+                  confirm("Limpeza solicitada. Deseja voltar para a pesquisa?")
+                ) {
+                  const btnBack = document.getElementById("btnBackToSearch");
+                  if (btnBack) btnBack.click();
+                }
+              }, 2000);
+            })
+            .catch((err) => console.error("Erro ao solicitar limpeza:", err));
+        }
+
+        return; // Stop further processing
+      }
+
       console.warn("Erro no thumbnail:", e);
       renderFallback(canvas);
     }
