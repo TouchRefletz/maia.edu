@@ -168,6 +168,9 @@ jobs:
                               # 3. Hash Check
                               current_hash = hashlib.md5(content.encode()).hexdigest()
                               if current_hash != last_known_tasks_hash:
+                                  # Debug: Print RAW content (User Request)
+                                  print(f"[DEBUG RAW TASKS.md]\n{content}\n[END RAW]", flush=True)
+
                                   # It changed! Parse it.
                                   parsed_tasks = parse_tasks_md(content)
                                   
@@ -180,7 +183,10 @@ jobs:
                                           status_icon = "[ ]"
                                           if t['status'] == "completed": status_icon = "[x]"
                                           elif t['status'] == "in_progress": status_icon = "[/]"
-                                          print(f"{status_icon} {t['title']}", flush=True)
+                                          
+                                          # Format: [ ] Title | Notes: Description...
+                                          note_str = f" | Notes: {t['notes']}" if t.get('notes') else ""
+                                          print(f"{status_icon} {t['title']}{note_str}", flush=True)
                                       print("---------------------", flush=True)
                                       
                                       send_to_pusher("task_update", parsed_tasks)
@@ -194,47 +200,67 @@ jobs:
                       print(f"[Logger] Task watcher error: {e}", flush=True)
                       pass
 
-          # Helper: Parse TASKS.md content (Supports Markdown Checklists & OpenHands Emojis)
+          # Helper: Parse TASKS.md content (Supports Markdown Checklists & OpenHands Emojis & Notes)
           def parse_tasks_md(content):
               tasks = []
-              # Format 1: - [ ] Task Name
-              # Format 2: 1. ⏳ Task Name
               lines = content.split('\n')
-              for i, line in enumerate(lines):
+              
+              current_task = None
+              
+              for line in lines:
                   line = line.strip()
-                  
-                  # 1. Try Markdown Checklist
+                  if not line: continue
+
+                  # 1. Try Markdown Checklist: - [ ] Task Name
                   match_md = re.match(r'- \[([ xX/])\] (.*)', line)
+                  
+                  # 2. Try Numbered List with Emojis: 1. ⏳ Task Name
+                  match_num = re.match(r'\d+\.\s+(?:([^\w\s]+)\s+)?(.*)', line)
+                  
                   if match_md:
+                      if current_task: tasks.append(current_task)
+                      
                       status_char = match_md.group(1).lower()
-                      title_raw = match_md.group(2)
-                      title = re.sub(r'<!--.*-->', '', title_raw).strip()
+                      title = re.sub(r'<!--.*-->', '', match_md.group(2)).strip()
                       
                       status = "todo"
                       if status_char == 'x': status = "completed"
                       elif status_char == '/': status = "in_progress"
                       
-                      tasks.append({"id": i, "title": title, "status": status})
-                      continue
-
-                  # 2. Try Numbered List with Emojis (OpenHands style)
-                  # Matches: "1. ⏳ Task Title" or "1. Task Title"
-                  match_num = re.match(r'\d+\.\s+(?:([^\w\s]+)\s+)?(.*)', line)
-                  if match_num:
+                      current_task = {"id": len(tasks), "title": title, "status": status, "notes": ""}
+                  
+                  elif match_num:
+                      if current_task: tasks.append(current_task)
+                      
                       icon = match_num.group(1) or ""
-                      title_raw = match_num.group(2)
-                      title = re.sub(r'<!--.*-->', '', title_raw).strip()
+                      title = re.sub(r'<!--.*-->', '', match_num.group(2)).strip()
                       
                       status = "todo"
                       if icon:
                           if any(c in icon for c in ['✅', '✔', '☑']): status = "completed"
                           elif any(c in icon for c in ['⏳', '▶', '🏃', '🚧']): status = "in_progress"
+                          # ⏳ usually means "planned/waiting", so keeping it as 'todo' unless explicitly active?
+                          # User requested: "indicar / como todo".
+                          # Let's map ⏳ to "todo" if that's the intention, OR "in_progress".
+                          # OpenHands standard: ⏳ = In Progress / Working on it.
+                          # But user asked: "indicar / como todo".
+                          # If I output "[ ]" for ⏳, frontend shows [ ] (Todo).
+                          if any(c in icon for c in ['⏳']): status = "todo" # Explicit User Request override?
+                          elif any(c in icon for c in ['▶', '🏃']): status = "in_progress"
                           elif any(c in icon for c in ['❌', '🚫']): status = "failed"
                       
-                      # Avoid Description lines (heuristic: usually short titles)
-                      if len(title) < 200: 
-                         tasks.append({"id": f"num_{i}", "title": title, "status": status})
-
+                      current_task = {"id": len(tasks), "title": title, "status": status, "notes": ""}
+                  
+                  else:
+                      # It's a note line if we have a current task
+                      if current_task:
+                           # Append to notes
+                           if current_task["notes"]:
+                               current_task["notes"] += " " + line
+                           else:
+                               current_task["notes"] = line
+              
+              if current_task: tasks.append(current_task)
               return tasks
 
           # --- MAIN THREADS ---

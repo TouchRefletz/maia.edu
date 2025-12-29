@@ -324,18 +324,25 @@ export class TerminalUI {
     }
   }
 
-  updateTaskStateByName(title, newStatus) {
+  updateTaskStateByName(title, newStatus, notes = null) {
     // Fuzzy match title
     const task = this.tasks.find((t) => t.title.trim() === title.trim());
     if (task) {
+      let changed = false;
       if (task.status !== newStatus) {
-        // Only update if changed
         task.status = newStatus;
+        changed = true;
+      }
+      if (notes && task.notes !== notes) {
+        task.notes = notes;
+        changed = true;
+      }
+
+      if (changed) {
         this.updatePlan(this.tasks); // Trigger Re-render
       }
     } else {
       // Optional: Add new task if not exists?
-      // For now, let's stick to updating existing ones to avoid duplicates from partial logs
     }
   }
 
@@ -344,7 +351,7 @@ export class TerminalUI {
 
     // 1. HYBRID STRATEGY: Server Event + Log Parsing Fallback
     // We try to detect standard task formats:
-    // Format A: "- [x] Title"
+    // Format A: "- [x] Title | Notes: ..."
     // Format B: "1. ⏳ Title"
 
     let foundTask = false;
@@ -352,8 +359,10 @@ export class TerminalUI {
     // Cleaning: Remove common prefixes like "> ", "- ", "* "
     const cleanLine = text.trim().replace(/^[\-\*\>]\s+/, "");
 
-    // Regex A: [x] Title
-    const matchA = cleanLine.match(/^\[([ xX/])\]\s+(.*)/);
+    // Regex A: [x] Title | Notes: ...
+    const matchA = cleanLine.match(
+      /^\[([ xX/])\]\s+([^|]+)(?:\|\s*Notes:\s*(.*))?/i
+    );
     // Regex B: 1. ⏳ Title
     const matchB = cleanLine.match(/^\d+\.\s+(?:([^\w\s]+)\s+)?(.*)/);
 
@@ -361,12 +370,13 @@ export class TerminalUI {
       foundTask = true;
       const statusChar = matchA[1].toLowerCase();
       const taskTitle = matchA[2].trim();
+      const notes = matchA[3] ? matchA[3].trim() : "";
 
       let status = "todo";
       if (statusChar === "x") status = "completed";
       if (statusChar === "/") status = "in_progress";
 
-      this.updateTaskStateByName(taskTitle, status);
+      this.updateTaskStateByName(taskTitle, status, notes);
     } else if (matchB) {
       foundTask = true;
       const icon = matchB[1] || "";
@@ -376,7 +386,9 @@ export class TerminalUI {
       if (icon) {
         if (["✅", "✔", "☑", "☑️"].some((c) => icon.includes(c)))
           status = "completed";
-        else if (["⏳", "▶", "🏃", "🚧"].some((c) => icon.includes(c)))
+        else if (["⏳"].some((c) => icon.includes(c)))
+          status = "todo"; // User requested override
+        else if (["▶", "🏃", "🚧"].some((c) => icon.includes(c)))
           status = "in_progress";
         else if (["❌", "🚫"].some((c) => icon.includes(c))) status = "failed";
       }
@@ -615,10 +627,18 @@ export class TerminalUI {
         } else {
           icon = "·";
         }
+
+        const noteHtml = t.notes
+          ? `<div style="font-size: 0.8rem; opacity: 0.7; margin-left: 24px;">${t.notes}</div>`
+          : "";
+
         return `
         <div class="term-task-item ${cls}">
-          <span class="term-icon">${icon}</span> 
-          <span>${t.title}</span>
+          <div style="display:flex; align-items:center;">
+              <span class="term-icon">${icon}</span> 
+              <span>${t.title}</span>
+          </div>
+          ${noteHtml}
         </div>
       `;
       })
