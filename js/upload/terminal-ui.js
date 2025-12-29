@@ -157,7 +157,7 @@ export class TerminalUI {
     // --- Visual Drift ---
     this.bumpProgress(true);
 
-    // --- Time-to-Progress P-Controller ---
+    // --- Time-to-Progress P-Controller (Breathing Logic) ---
     const now = Date.now();
     const idleSeconds = (now - this.lastLogTime) / 1000;
 
@@ -166,34 +166,35 @@ export class TerminalUI {
     const pct = Math.max(0, Math.min(100, this.currentVirtualProgress));
     const targetRemaining = this.initialEstimatedDuration * (1 - pct / 100);
 
-    // 2. Calculate Error (Positive = We are "Slow/Lagging", Negative = We are "Fast/Ahead")
-    const error = this.estimatedRemainingTime - targetRemaining;
+    // 2. Determine State based on Error
+    // "ahead" means Estimated < Target (e.g. 7m vs 7m10s).
+    // "behind" means Estimated > Target (e.g. 7m20s vs 7m10s).
+    const isAheadOrAtTarget =
+      this.estimatedRemainingTime <= targetRemaining + 2; // 2s buffer
 
-    // 3. Determine Base Change (P-Control)
-    let change = -1.0; // Default beat
+    let change = 0;
 
-    if (error < -10) {
-      // We are WAY ahead (Time is 200s, Target is 250s). "Mentindo".
-      // Force Rise to realign.
-      change = +0.5;
-    } else if (error < 0) {
-      // Slightly ahead. Slow down the drop.
-      change = -0.2;
-    } else if (error > 20) {
-      // We are lagging behind (Time is 400s, Target is 300s).
-      // Drop faster to catch up?
-      // Or just let log activity handle it. Staying standard -1 is safer to avoid jumps.
+    if (isAheadOrAtTarget) {
+      // We are at the limit (stuck).
+      // "Tu faz ele aumentar lentamente"
+      change = +0.3; // Base rising speed when stuck
+    } else {
+      // We are behind the target (have room to drop).
+      // Drop normally (-1s/s)
       change = -1.0;
     }
 
-    // 4. Activity Bonus (Logs make time fly)
-    if (idleSeconds < 5) {
-      // Active! Boost the drop ONLY if we aren't trying to rise
-      if (change < 0) {
-        change -= 1.0; // effectively -2.0 or -1.2
-      }
+    // 3. Log Activity Factor ("Não retira o de log não, faz ele coexistir")
+    const isActive = idleSeconds < 5;
+    if (isActive) {
+      // If logs are flowing, we pull the time down harder.
+      // - If we were rising (+0.3), this acts as net drop (-0.7).
+      //   "Mensagens vão chegando e fazendo ele cair" -> 07:20 -> 07:15
+      // - If we were dropping (-1.0), this acts as turbo (-2.0).
+      change -= 1.0;
     }
 
+    // Apply
     this.estimatedRemainingTime += change;
     this.estimatedRemainingTime = Math.max(
       0,
