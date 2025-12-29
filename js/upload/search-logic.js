@@ -1193,15 +1193,19 @@ export function setupSearchLogic() {
     // 1. Create Floating Terminal
     const terminalId = `term-del-${Date.now()}`;
     const overlay = document.createElement("div");
+    // Top Notification Style
     Object.assign(overlay.style, {
       position: "fixed",
-      top: "0",
-      left: "0",
-      width: "100%",
-      height: "45vh",
+      top: "24px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "75%",
+      height: "auto",
+      minHeight: "150px",
       background: "#0d1117",
-      borderBottom: "1px solid #30363d",
-      boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+      borderRadius: "16px",
+      border: "1px solid #30363d",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
       zIndex: 99999,
       display: "flex",
       flexDirection: "column",
@@ -1282,15 +1286,21 @@ export function setupSearchLogic() {
           term.finish();
           term.el.status.innerText = "LIMPEZA_CONCLUÍDA";
           setTimeout(() => {
-            overlay.style.transition = "transform 0.5s ease";
-            overlay.style.transform = "translateY(-100%)";
+            overlay.style.transition = "transform 0.5s ease, opacity 0.5s ease";
+            overlay.style.transform = "translateX(-50%) translateY(-100%)";
+            overlay.style.opacity = "0";
             setTimeout(() => overlay.remove(), 500);
+
+            // Reload Results (Clean & Fix Duplicates)
             if (cardElement) cardElement.remove();
+
+            const container = document.querySelector(".results-container");
+            if (container) container.innerHTML = "";
 
             const hfBase =
               "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
             loadResults(`${hfBase}/output/${slug}/manifest.json`);
-          }, 3500);
+          }, 2000);
         }
       });
     }

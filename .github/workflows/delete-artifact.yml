@@ -176,10 +176,10 @@ jobs:
 
               # Normalize filename for comparison
               target = "$FILENAME"
-              if target.startswith("files/"):
-                  target_base = target.replace("files/", "")
-              else:
-                  target_base = target
+              # Handle "files/" prefix if present in target but not in manifest or vice-versa
+              target_base = target.replace("files/", "") if target.startswith("files/") else target
+              
+              print(f"Alvo para remoção (Strict): {target} (Base: {target_base})")
 
               # Helper to calculate new list
               new_data = []
@@ -208,15 +208,21 @@ jobs:
                   fname = item.get("filename", "")
                   path = item.get("path", "")
                   
-                  # If exact match or basename match
-                  if fname == target or fname == target_base or path == target or path == target_base:
-                      print(f"REMOVENDO entrada do manifesto para: {fname}")
-                      continue # Skip (Delete)
+                  # Strict Equality Checks
+                  # We check both full path and basename to be safe, but NO wildcards/endswith
+                  is_match = (
+                      fname == target or 
+                      fname == target_base or 
+                      path == target or 
+                      path == target_base or
+                      # Handle case where manifest has "files/foo.pdf" and target is "foo.pdf"
+                      (fname == "files/" + target_base) or
+                      (path == "files/" + target_base)
+                  )
                   
-                  # Check deeply if needed (e.g. if it's 'files/foo.pdf' vs 'foo.pdf')
-                  if fname.endswith(target_base) or path.endswith(target_base):
-                       print(f"REMOVENDO entrada do manifesto para: {fname} (Match parcial)")
-                       continue
+                  if is_match:
+                      print(f"REMOVENDO entrada do manifesto: {fname} (Match Exato)")
+                      continue # Skip (Delete)
 
                   filtered_items.append(item)
               

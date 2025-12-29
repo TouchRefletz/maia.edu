@@ -197,22 +197,30 @@ export class TerminalUI {
 
     if (isAheadOrAtTarget) {
       // We are at the limit (stuck).
-      // "Tu faz ele aumentar lentamente"
       change = +0.3; // Base rising speed when stuck
     } else {
       // We are behind the target (have room to drop).
-      // Drop normally (-1s/s)
-      change = -1.0;
+      // NORMAL MODE: -1.0
+      // FAST MODE (Duration < 60s): Drop much faster to catch up
+      if (this.initialEstimatedDuration < 60) {
+        // Logic: Drop 1s per second normally.
+        change = -1.0;
+      } else {
+        change = -1.0;
+      }
     }
 
     // 3. Log Activity Factor ("Não retira o de log não, faz ele coexistir")
     const isActive = idleSeconds < 5;
     if (isActive) {
-      // If logs are flowing, we pull the time down harder.
-      // - If we were rising (+0.3), this acts as net drop (-0.7).
-      //   "Mensagens vão chegando e fazendo ele cair" -> 07:20 -> 07:15
-      // - If we were dropping (-1.0), this acts as turbo (-2.0).
-      change -= 1.0;
+      if (this.initialEstimatedDuration < 60) {
+        // TURBO MODE for short tasks
+        // e.g. -5s per tick?
+        change -= 5.0;
+      } else {
+        // Standard Turbo
+        change -= 1.0;
+      }
     }
 
     // Apply
