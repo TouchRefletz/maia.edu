@@ -72,6 +72,9 @@ export default {
 				case '/update-deep-search-cache':
 					return handleDeepSearchUpdate(request, env);
 
+				case '/cancel-deep-search':
+					return handleCancelDeepSearch(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -181,6 +184,59 @@ async function handleTriggerDeepSearch(request, env) {
 	return new Response(JSON.stringify({ success: true, cached: false, message: 'Deep Search Triggered on GitHub' }), {
 		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 	});
+}
+
+/**
+ * SERVICE: CANCEL DEEP SEARCH
+ * Cancels a running GitHub Actions workflow
+ */
+async function handleCancelDeepSearch(request, env) {
+	const body = await request.json();
+	const { runId } = body;
+
+	if (!runId) {
+		return new Response(JSON.stringify({ error: 'Run ID is required' }), { status: 400, headers: corsHeaders });
+	}
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+	const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+	if (!githubPat) {
+		throw new Error('GITHUB_PAT not configured on Worker');
+	}
+
+	const url = `https://api.github.com/repos/${githubOwner}/${githubRepo}/actions/runs/${runId}/cancel`;
+
+	try {
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${githubPat}`,
+				Accept: 'application/vnd.github.v3+json',
+				'User-Agent': 'Cloudflare-Worker',
+			},
+		});
+
+		if (!response.ok) {
+			// 409 Conflict often means "Workflow is not running" or "Already finished", which we can treat as a success or soft-error.
+			// But strictly speaking, it failed to cancel.
+			const errText = await response.text();
+			return new Response(JSON.stringify({ success: false, error: `GitHub API Error: ${response.status} - ${errText}` }), {
+				status: response.status,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			});
+		}
+
+		return new Response(JSON.stringify({ success: true, message: 'Cancellation requested successfully' }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
 }
 
 /**

@@ -28,6 +28,10 @@ export class TerminalUI {
     this.currentEstimatedDuration = this.initialEstimatedDuration;
     this.lastEtaUpdate = 0;
 
+    // Cancellation State
+    this.runId = null;
+    this.isCancelling = false;
+
     // UI Elements Reference
     this.el = {
       fill: null,
@@ -36,6 +40,7 @@ export class TerminalUI {
       taskList: null,
       logStream: null,
       stepText: null,
+      cancelBtn: null,
     };
 
     this.renderInitialStructure();
@@ -72,9 +77,14 @@ export class TerminalUI {
 
       <div class="term-log-header" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
         <span class="term-label" style="margin: 0px 0px 0px 8px;">LOGS EM TEMPO REAL</span>
-        <a href="#" target="_blank" id="term-btn-logs" class="term-btn disabled" style="font-size: 0.75rem; text-decoration: none; padding: 2px 8px; border: 1px solid #444; border-radius: 4px; color: #666; pointer-events: none; transition: all 0.2s; margin: 0px 8px 4px 0px;">
-            Ver Logs no GitHub ↗
-        </a>
+        <div style="display: flex; align-items: center;">
+            <button id="term-btn-cancel" class="term-btn" style="font-size: 0.75rem; background: transparent; border: 1px solid #d32f2f; color: #d32f2f; padding: 2px 8px; border-radius: 4px; cursor: pointer; margin: 0px 8px 4px 0px; display: none; transition: all 0.2s;">
+                Cancelar
+            </button>
+            <a href="#" target="_blank" id="term-btn-logs" class="term-btn disabled" style="font-size: 0.75rem; text-decoration: none; padding: 2px 8px; border: 1px solid #444; border-radius: 4px; color: #666; pointer-events: none; transition: all 0.2s; margin: 0px 8px 4px 0px;">
+                Ver Logs no GitHub ↗
+            </a>
+        </div>
       </div>
       <div class="term-logs" id="term-logs-stream"></div>
     `;
@@ -86,6 +96,12 @@ export class TerminalUI {
     this.el.taskList = this.container.querySelector(".term-tasks");
     this.el.logStream = this.container.querySelector("#term-logs-stream");
     this.el.logBtn = this.container.querySelector("#term-btn-logs");
+    this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
+
+    // Bind Cancel Button
+    if (this.el.cancelBtn) {
+      this.el.cancelBtn.addEventListener("click", () => this.cancelJob());
+    }
 
     // Boot Animator REMOVED (User request: No time-based progress)
     // Progress will only move when logs or plan updates arrive.
@@ -175,12 +191,29 @@ export class TerminalUI {
     // 1. Detect Job URL System Message
     if (text.includes("[SYSTEM_INFO] JOB_URL=")) {
       const url = text.split("JOB_URL=")[1].trim();
-      if (url && this.el.logBtn) {
-        this.el.logBtn.href = url;
-        this.el.logBtn.classList.remove("disabled");
-        this.el.logBtn.style.color = "var(--color-primary)"; // Green to show active
-        this.el.logBtn.style.borderColor = "var(--color-primary)";
-        this.el.logBtn.style.pointerEvents = "auto";
+      if (url) {
+        // Extract Run ID from URL (last segment)
+        try {
+          const parts = url.split("/");
+          const runId = parts[parts.length - 1];
+          if (runId && !isNaN(runId)) {
+            this.runId = runId;
+            // Enable Cancel Button if we have a Run ID and not done
+            if (this.el.cancelBtn && this.state !== this.MODES.DONE) {
+              this.el.cancelBtn.style.display = "inline-block";
+            }
+          }
+        } catch (e) {
+          console.warn("Could not parse Run ID from URL:", url);
+        }
+
+        if (this.el.logBtn) {
+          this.el.logBtn.href = url;
+          this.el.logBtn.classList.remove("disabled");
+          this.el.logBtn.style.color = "var(--color-primary)"; // Green to show active
+          this.el.logBtn.style.borderColor = "var(--color-primary)";
+          this.el.logBtn.style.pointerEvents = "auto";
+        }
         return;
       }
     }
@@ -353,13 +386,16 @@ export class TerminalUI {
       .replace(/\[[0-9;]*m/g, "");
     line.innerText = `> ${cleanText}`;
 
+    // Auto-scroll logic improvement
+    const isScrolledToBottom =
+      this.el.logStream.scrollHeight - this.el.logStream.clientHeight <=
+      this.el.logStream.scrollTop + 10;
+
     this.el.logStream.appendChild(line);
 
-    // Keep DOM light
-    if (this.el.logStream.children.length > 500) {
-      this.el.logStream.removeChild(this.el.logStream.firstChild);
+    if (isScrolledToBottom) {
+      this.el.logStream.scrollTop = this.el.logStream.scrollHeight;
     }
-    this.el.logStream.scrollTop = this.el.logStream.scrollHeight;
   }
 
   finish() {
@@ -373,6 +409,10 @@ export class TerminalUI {
     this.el.eta.innerText = "TEMPO: FINALIZADO";
     this.el.stepText.innerText =
       "Todas as tarefas foram concluídas com sucesso.";
+
+    if (this.el.cancelBtn) {
+      this.el.cancelBtn.style.display = "none";
+    }
   }
 
   fail(reason = "Erro desconhecido") {
@@ -392,5 +432,59 @@ export class TerminalUI {
     this.el.stepText.style.color = "var(--color-error)";
 
     this.appendLog(`[ERRO CRÍTICO] ${reason}`, "error");
+
+    if (this.el.cancelBtn) {
+      this.el.cancelBtn.style.display = "none";
+    }
+  }
+
+  async cancelJob() {
+    if (!this.runId || this.isCancelling) return;
+
+    if (!confirm("Tem certeza que deseja cancelar esta pesquisa?")) return;
+
+    this.isCancelling = true;
+    this.el.cancelBtn.innerText = "Cancelando...";
+    this.el.cancelBtn.disabled = true;
+    this.el.cancelBtn.style.opacity = "0.7";
+
+    this.appendLog("Solicitando cancelamento do job...", "warning");
+
+    try {
+      // PROD_WORKER_URL is not available here directly, so we need to pass it or rely on a global config
+      // Assuming global variable or import (which we imported in search-logic.js but not here)
+      // Let's rely on the module import context or similar way.
+      // Actually, PROD_WORKER_URL is defined in search-logic.js scope, not here.
+      // We can use relative path if on same domain or hardcoded for now, BUT
+      // better approach: pass PROD_WORKER_URL to constructor or use import.meta.env
+
+      const workerUrl =
+        import.meta.env.VITE_WORKER_URL ||
+        "https://maia-api-worker.touchreflexo.workers.dev"; // Fallback safe
+
+      const response = await fetch(`${workerUrl}/cancel-deep-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: this.runId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        this.appendLog(
+          "Cancelamento enviado com sucesso. Aguardando finalização...",
+          "success"
+        );
+        this.el.status.innerText = "CANCELAMENTO_SOLICITADO";
+      } else {
+        throw new Error(result.error || "Falha ao solicitar cancelamento");
+      }
+    } catch (e) {
+      this.appendLog(`Erro ao cancelar: ${e.message}`, "error");
+      this.isCancelling = false;
+      this.el.cancelBtn.innerText = "Cancelar";
+      this.el.cancelBtn.disabled = false;
+      this.el.cancelBtn.style.opacity = "1";
+    }
   }
 }
