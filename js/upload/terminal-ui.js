@@ -21,6 +21,10 @@ export class TerminalUI {
     this.completedTasks = 0;
     this.totalTasks = 1;
 
+    // Log Batching State
+    this.logQueue = [];
+    this.isRendering = false;
+
     // Progress Logic 2.0 State
     this.currentVirtualProgress = 0;
     this.lastLogTime = Date.now();
@@ -48,6 +52,9 @@ export class TerminalUI {
 
     // Global Ticker (1Hz)
     this.tickerInterval = setInterval(() => this.tick(), 1000);
+
+    // Start Rendering Loop
+    this.renderLoop();
   }
 
   renderInitialStructure() {
@@ -101,8 +108,6 @@ export class TerminalUI {
     this.el.logStream = this.container.querySelector("#term-logs-stream");
     this.el.logBtn = this.container.querySelector("#term-btn-logs");
     this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
-
-    this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
     this.el.retryBtn = this.container.querySelector("#term-btn-retry");
 
     // Bind Cancel Button
@@ -117,14 +122,6 @@ export class TerminalUI {
       });
     }
 
-    // Boot Animator REMOVED (User request: No time-based progress)
-    // Progress will only move when logs or plan updates arrive.
-
-    // Force "Infos" state initially or "Cancelar" disabled?
-    // User requested "sempre esteja lá, mas desabilitado no começo... mas aí ao invés de aparecer ele fica ativado"
-    // AND "botão de cancelar funcione igual ao de log" (Log button is "Ver Logs no GitHub")
-    // Wait, the user said "mas desabilitado no começo... quando eu clico nele e finalmente dá certo ele fica de novo inativo mas agora com a mensagem de cancelado"
-    // So distinct texts: "Cancelar" (disabled start) -> "Cancelar" (active) -> "Cancelado" (disabled end)
     if (this.el.cancelBtn) {
       this.el.cancelBtn.innerText = "Cancelar";
     }
@@ -199,38 +196,38 @@ export class TerminalUI {
   processLogLine(text, type = "info") {
     if (!text) return;
 
-    // 0. Handle Batched Logs (Split newlines)
-    if (text.includes("\n")) {
-      const lines = text.split("\n");
-      lines.forEach((line) => {
-        const trimmed = line.trim();
-        if (trimmed) {
-          this.processLogLine(trimmed, type);
-        }
-      });
-      return;
+    // 1. PRIORITY: Control Messages Parsing (Before Split)
+    // Handle multiple task lists (Standard Global Regex Loop)
+    // Use [\s\S] for dotAll to capture multi-line JSONs
+    const taskListRegex = /task_list=(\[[\s\S]*?\])(?=\s|$|task_list)/g;
+    let match;
+    let foundTask = false;
+
+    // Iterate all matches of task_list=[...]
+    // We treat the text as potentially containing multiple distinct updates.
+    while ((match = taskListRegex.exec(text)) !== null) {
+      if (match[1]) {
+        foundTask = true;
+        this.parseTaskPlan(match[1]); // Parse the JSON part
+      }
     }
 
-    // 1. Detect Job URL System Message
+    // 2. Check for Job URL
     if (text.includes("[SYSTEM_INFO] JOB_URL=")) {
-      const url = text.split("JOB_URL=")[1].trim();
+      const urlPart = text.split("JOB_URL=")[1];
+      const url = urlPart ? urlPart.split(/\s/)[0] : null; // Take until whitespace
+
       if (url) {
         // Extract Run ID using Regex to be safe against /job/ segments
         try {
-          // Matches .../actions/runs/12345... or .../actions/runs/12345/job/6789...
-          // We want the 12345 part.
-          const match = url.match(/actions\/runs\/(\d+)/);
-          if (match && match[1]) {
-            const runId = match[1];
-            this.runId = runId;
-            // Enable Cancel Button if we have a Run ID and not done
+          const matchId = url.match(/actions\/runs\/(\d+)/);
+          if (matchId && matchId[1]) {
+            this.runId = matchId[1];
             if (this.el.cancelBtn && this.state !== this.MODES.DONE) {
               this.el.cancelBtn.classList.remove("disabled");
               this.el.cancelBtn.disabled = false;
-              this.el.cancelBtn.innerText = "Cancelar"; // Ensure text is correct
+              this.el.cancelBtn.innerText = "Cancelar";
             }
-          } else {
-            console.warn("Could not match Run ID in URL:", url);
           }
         } catch (e) {
           console.warn("Error parsing Run ID from URL:", url, e);
@@ -239,19 +236,46 @@ export class TerminalUI {
         if (this.el.logBtn) {
           this.el.logBtn.href = url;
           this.el.logBtn.classList.remove("disabled");
-          this.el.logBtn.style.color = "var(--color-primary)"; // Green to show active
+          this.el.logBtn.style.color = "var(--color-primary)";
           this.el.logBtn.style.borderColor = "var(--color-primary)";
           this.el.logBtn.style.pointerEvents = "auto";
         }
-        return;
+        // Don't discard the line, let it log as info
       }
     }
 
-    // Update Activity
+    // 3. Prepare Display Text
+    // If we found tasks, we strip them from the log to avoid giant JSON dumps
+    let displayText = text;
+    if (foundTask) {
+      displayText = text
+        .replace(taskListRegex, "[PLAN UPDATE RECEIVED]")
+        .replace(/\n\s*\n/g, "\n"); // Clean up empty lines left behind
+    }
+
+    // 4. Update Activity
     this.lastLogTime = Date.now();
-    this.appendLog(text, type);
+
+    // 5. Completion/Failure Checks
+    this.checkStateTransitions(displayText);
+
+    // 6. Log Batching (Split & Queue)
+    if (displayText.includes("\n")) {
+      const lines = displayText.split("\n");
+      lines.forEach((line) => {
+        const trimmed = line.trimEnd();
+        if (trimmed) this.queueLog(trimmed, type);
+      });
+    } else {
+      if (displayText.trim()) this.queueLog(displayText, type);
+    }
 
     // --- Micro-Growth Logic ---
+    this.updateVirtualProgress();
+  }
+
+  // New helper to handle progress ticks separately from log structure
+  updateVirtualProgress() {
     // BOOT MODE: 0 -> 10%
     if (this.state === this.MODES.BOOT) {
       if (this.currentVirtualProgress < 10) {
@@ -279,12 +303,11 @@ export class TerminalUI {
         this.updateProgressBar();
       }
     }
+  }
 
-    // Parsing Logic
+  checkStateTransitions(text) {
     try {
-      if (text.includes("task_list=[")) {
-        this.parseTaskPlan(text);
-      } else if (text.includes("AgentAction") || text.includes("Observation")) {
+      if (text.includes("AgentAction") || text.includes("Observation")) {
         this.forceExecStart();
       } else if (
         text.includes("AgentFinishAction") ||
@@ -298,11 +321,7 @@ export class TerminalUI {
         this.finish();
       } else if (text.includes("CANCELLED")) {
         this.cancelFinished();
-      } else if (
-        text.includes("Job failed") ||
-        text.includes("Job failed") ||
-        text.includes("FAILED")
-      ) {
+      } else if (text.includes("Job failed") || text.includes("FAILED")) {
         this.fail("Job marcado como falho nos logs.");
       }
     } catch (err) {
@@ -310,21 +329,18 @@ export class TerminalUI {
     }
   }
 
-  parseTaskPlan(text) {
-    // Regex improved to capture list content more reliably
-    const jsonMatch = text.match(/task_list=(\[.*\])/);
-    if (jsonMatch && jsonMatch[1]) {
-      let jsonStr = jsonMatch[1]
-        .replace(/'/g, '"')
-        .replace(/None/g, "null")
-        .replace(/True/g, "true")
-        .replace(/False/g, "false");
-      try {
-        const plan = JSON.parse(jsonStr);
-        this.updatePlan(plan);
-      } catch (e) {
-        // partial json or parse error
-      }
+  parseTaskPlan(jsonStr) {
+    // Clean up Pythonisms if needed
+    let cleanJson = jsonStr
+      .replace(/'/g, '"')
+      .replace(/None/g, "null")
+      .replace(/True/g, "true")
+      .replace(/False/g, "false");
+    try {
+      const plan = JSON.parse(cleanJson);
+      this.updatePlan(plan);
+    } catch (e) {
+      // partial json or parse error
     }
   }
 
@@ -359,7 +375,7 @@ export class TerminalUI {
         this.currentVirtualProgress = newBaseline;
         this.updateProgressBar();
         // Visual feedback for jump
-        this.appendLog(
+        this.queueLog(
           `[PROGRESSO] Tarefa concluída! Avançando para ${newBaseline.toFixed(1)}%`,
           "success"
         );
@@ -408,26 +424,49 @@ export class TerminalUI {
     this.el.taskList.scrollTop = this.el.taskList.scrollHeight;
   }
 
-  appendLog(text, type) {
-    const line = document.createElement("div");
-    line.className = `term-log-line ${type}`;
-    // eslint-disable-next-line
+  queueLog(text, type) {
+    // Clean text once
     const cleanText = text
       .replace(/\x1B\[[0-9;]*[mK]/g, "")
       .replace(/\[[0-9;]*m/g, "");
-    line.innerText = `> ${cleanText}`;
 
-    // Auto-scroll logic improvement
-    const isScrolledToBottom =
-      this.el.logStream.scrollHeight - this.el.logStream.clientHeight <=
-      this.el.logStream.scrollTop + 10;
-
-    this.el.logStream.appendChild(line);
-
-    if (isScrolledToBottom) {
-      this.el.logStream.scrollTop = this.el.logStream.scrollHeight;
-    }
+    this.logQueue.push({ text: cleanText, type });
   }
+
+  renderLoop() {
+    const render = () => {
+      if (this.logQueue.length > 0) {
+        // Render batch (up to 50 items to avoid blocking)
+        const batchSize = Math.min(this.logQueue.length, 50);
+        const fragment = document.createDocumentFragment();
+
+        // Auto-scroll logic pre-check
+        const isScrolledToBottom =
+          this.el.logStream.scrollHeight - this.el.logStream.clientHeight <=
+          this.el.logStream.scrollTop + 20; // 20px buffer
+
+        for (let i = 0; i < batchSize; i++) {
+          const item = this.logQueue.shift();
+          const line = document.createElement("div");
+          line.className = `term-log-line ${item.type}`;
+          line.innerText = `> ${item.text}`;
+          fragment.appendChild(line);
+        }
+
+        this.el.logStream.appendChild(fragment);
+
+        if (isScrolledToBottom) {
+          this.el.logStream.scrollTop = this.el.logStream.scrollHeight;
+        }
+      }
+
+      requestAnimationFrame(render);
+    };
+
+    requestAnimationFrame(render);
+  }
+
+  // NOTE: removed direct 'appendLog' in favor of queueLog used internally
 
   finish() {
     this.state = this.MODES.DONE;
@@ -470,7 +509,7 @@ export class TerminalUI {
     this.el.stepText.innerText = `Processo falhou: ${reason}`;
     this.el.stepText.style.color = "var(--color-error)";
 
-    this.appendLog(`[ERRO CRÍTICO] ${reason}`, "error");
+    this.queueLog(`[ERRO CRÍTICO] ${reason}`, "error");
 
     if (this.el.cancelBtn) {
       this.el.cancelBtn.classList.add("disabled");
@@ -501,7 +540,7 @@ export class TerminalUI {
     if (this.el.fill)
       this.el.fill.style.backgroundColor = "var(--color-warning)";
 
-    this.appendLog(`[SISTEMA] Processo cancelado e encerrado.`, "warning");
+    this.queueLog(`[SISTEMA] Processo cancelado e encerrado.`, "warning");
 
     if (this.el.cancelBtn) {
       this.el.cancelBtn.innerText = "Cancelado";
@@ -527,16 +566,9 @@ export class TerminalUI {
     this.el.cancelBtn.disabled = true;
     this.el.cancelBtn.style.opacity = "0.7";
 
-    this.appendLog("Solicitando cancelamento do job...", "warning");
+    this.queueLog("Solicitando cancelamento do job...", "warning");
 
     try {
-      // PROD_WORKER_URL is not available here directly, so we need to pass it or rely on a global config
-      // Assuming global variable or import (which we imported in search-logic.js but not here)
-      // Let's rely on the module import context or similar way.
-      // Actually, PROD_WORKER_URL is defined in search-logic.js scope, not here.
-      // We can use relative path if on same domain or hardcoded for now, BUT
-      // better approach: pass PROD_WORKER_URL to constructor or use import.meta.env
-
       const workerUrl =
         import.meta.env.VITE_WORKER_URL ||
         "https://maia-api-worker.touchreflexo.workers.dev"; // Fallback safe
@@ -550,7 +582,7 @@ export class TerminalUI {
       const result = await response.json();
 
       if (result.success) {
-        this.appendLog(
+        this.queueLog(
           "Cancelamento enviado com sucesso. Aguardando finalização...",
           "success"
         );
@@ -559,7 +591,7 @@ export class TerminalUI {
         throw new Error(result.error || "Falha ao solicitar cancelamento");
       }
     } catch (e) {
-      this.appendLog(`Erro ao cancelar: ${e.message}`, "error");
+      this.queueLog(`Erro ao cancelar: ${e.message}`, "error");
       this.isCancelling = false;
       this.el.cancelBtn.innerText = "Cancelar";
       this.el.cancelBtn.disabled = false;
