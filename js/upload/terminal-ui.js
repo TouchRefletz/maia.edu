@@ -192,19 +192,23 @@ export class TerminalUI {
     if (text.includes("[SYSTEM_INFO] JOB_URL=")) {
       const url = text.split("JOB_URL=")[1].trim();
       if (url) {
-        // Extract Run ID from URL (last segment)
+        // Extract Run ID using Regex to be safe against /job/ segments
         try {
-          const parts = url.split("/");
-          const runId = parts[parts.length - 1];
-          if (runId && !isNaN(runId)) {
+          // Matches .../actions/runs/12345... or .../actions/runs/12345/job/6789...
+          // We want the 12345 part.
+          const match = url.match(/actions\/runs\/(\d+)/);
+          if (match && match[1]) {
+            const runId = match[1];
             this.runId = runId;
             // Enable Cancel Button if we have a Run ID and not done
             if (this.el.cancelBtn && this.state !== this.MODES.DONE) {
               this.el.cancelBtn.style.display = "inline-block";
             }
+          } else {
+            console.warn("Could not match Run ID in URL:", url);
           }
         } catch (e) {
-          console.warn("Could not parse Run ID from URL:", url);
+          console.warn("Error parsing Run ID from URL:", url, e);
         }
 
         if (this.el.logBtn) {
