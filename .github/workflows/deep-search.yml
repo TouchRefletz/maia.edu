@@ -192,6 +192,37 @@ jobs:
              echo "Created output directory: output/${{ github.event.client_payload.slug || inputs.slug }}"
           ) 2>&1 | python3 logger.py
 
+      - name: Pre-execution Cleanup (HF)
+        if: ${{ github.event.client_payload.cleanup == true }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+        run: |
+          (
+            echo "Cleanup requested. Removing existing Hugging Face data for $SLUG..."
+            
+            # Configure Git
+            git config --global user.email "bot@maia.api"
+            git config --global user.name "Maia Bot"
+
+            # Clone Repo
+            git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_cleanup_repo
+            cd hf_cleanup_repo
+
+            # Check and delete
+            if [ -d "output/$SLUG" ]; then
+                echo "Removing output/$SLUG..."
+                git rm -rf "output/$SLUG"
+                git commit -m "Cleanup (Retry) for $SLUG"
+                git push
+                echo "Cleanup committed."
+            else
+                echo "No existing data found at output/$SLUG."
+            fi
+            cd ..
+            rm -rf hf_cleanup_repo
+          ) 2>&1 | python3 logger.py
+
       - name: Run OpenHands Deep Search
         id: deep_search
         run: |

@@ -73,7 +73,7 @@ export function setupSearchLogic() {
   }
 
   // --- Deep Search Lógica ---
-  const doSearch = async (force = false) => {
+  const doSearch = async (force = false, cleanup = false) => {
     const query = searchInput.value.trim();
     if (!query) return;
 
@@ -97,6 +97,7 @@ export function setupSearchLogic() {
     searchResults.innerHTML = "";
     selectedItems = { prova: null, gabarito: null };
     currentSlug = null;
+    let isSuccess = false; // Track success for retry warning
 
     // 1. Cria Console UI (Terminal Style)
     const consoleContainer = document.createElement("div");
@@ -105,6 +106,33 @@ export function setupSearchLogic() {
 
     // Instantiate State Machine UI
     const terminal = new TerminalUI("deep-search-terminal");
+
+    // Retry Handler
+    terminal.onRetry = () => {
+      const proceed = () => {
+        log("Reiniciando processo...", "warning");
+        doSearch(true, true); // Force + Cleanup
+      };
+
+      if (isSuccess) {
+        // Modal Warning
+        // We can use a custom modal or standard confirm for simplicity as per request "aviso num modal"
+        // Since we don't have a custom modal ready for this generic content, confirm is safest
+        // or we build a small overlay? User said "modal".
+        // Let's use confirm() which is a "modal dialog" in browser terms, or create a quick custom one?
+        // "modal dizendo que ao tentar novamente tudo vai ser excluído"
+        if (
+          confirm(
+            "ATENÇÃO: A pesquisa anterior foi concluída com sucesso.\n\nAo tentar novamente, os resultados salvos (Hugging Face e Pinecone) serão EXCLUÍDOS PERMANENTEMENTE para permitir uma nova busca limpa.\n\nDeseja continuar?"
+          )
+        ) {
+          proceed();
+        }
+      } else {
+        // Failed/Cancelled -> No warning needed
+        proceed();
+      }
+    };
 
     // Helper for action button (legacy support or extra feature)
     const updateActionButton = (url) => {
@@ -169,6 +197,7 @@ export function setupSearchLogic() {
         if (text.includes("COMPLETED")) {
           // Explicitly tell terminal to finish
           if (terminal) terminal.finish();
+          isSuccess = true; // Mark as success for retry logic
 
           log(
             "Fluxo de Trabalho Concluído! Aguardando propagação (5s)...",
@@ -197,6 +226,7 @@ export function setupSearchLogic() {
           query,
           slug,
           force,
+          cleanup, // Pass cleanup flag
           ntfy_topic: "deprecated", // Legacy param
           apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
         }),
@@ -223,6 +253,7 @@ export function setupSearchLogic() {
           (candidate) => {
             log(`Carregando cache: ${candidate.slug}...`, "success");
             currentSlug = candidate.slug;
+            isSuccess = true; // Cache hit is also a success
 
             // Visual feedback: Update task list to show we are loading cache
             if (terminal) {
@@ -251,6 +282,7 @@ export function setupSearchLogic() {
       if (result.cached && result.slug) {
         log("Resultado idêntico encontrado em cache! Carregando...", "success");
         activePusher.unsubscribe(slug);
+        isSuccess = true; // Cache hit
         loadResults(
           `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${result.slug}/manifest.json`
         );

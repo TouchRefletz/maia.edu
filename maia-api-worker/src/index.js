@@ -92,10 +92,22 @@ export default {
  */
 async function handleTriggerDeepSearch(request, env) {
 	const body = await request.json();
-	const { query, slug, ntfy_topic, force } = body;
+	const { query, slug, ntfy_topic, force, cleanup } = body;
 
 	if (!query || !slug) {
 		return new Response(JSON.stringify({ error: 'Query and Slug are required' }), { status: 400, headers: corsHeaders });
+	}
+
+	// 0. Handle Cleanup (Destructive Retry)
+	if (cleanup) {
+		console.log(`[Deep Search] Cleanup requested for slug: ${slug}`);
+		try {
+			await executePineconeDelete(slug, env);
+			console.log(`[Deep Search] Pinecone Cleanup Successful: ${slug}`);
+		} catch (e) {
+			console.error(`[Deep Search] Pinecone Cleanup Failed: ${e.message}`);
+			// We proceed anyway, as the search might still work
+		}
 	}
 
 	// 1. Check Cache (Pinecone) - Skip if forced
@@ -172,6 +184,7 @@ async function handleTriggerDeepSearch(request, env) {
 				query,
 				slug,
 				ntfy_topic,
+				cleanup: cleanup || false, // Pass cleanup flag to GitHub Action
 			},
 		}),
 	});
@@ -889,4 +902,39 @@ async function handleGeminiSearch(request, env) {
 			'X-Content-Type-Options': 'nosniff',
 		},
 	});
+}
+
+/**
+ * HELPER: Shared Pinecone Delete
+ */
+async function executePineconeDelete(slug, env) {
+	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH;
+	const apiKey = env.PINECONE_API_KEY;
+
+	if (!pineconeHost || !apiKey) {
+		console.warn('PINECONE_HOST_DEEP_SEARCH or PINECONE_API_KEY missing, skipping delete.');
+		return;
+	}
+
+	const endpoint = `${pineconeHost}/vectors/delete`;
+
+	const response = await fetch(endpoint, {
+		method: 'POST',
+		headers: {
+			'Api-Key': apiKey,
+			'Content-Type': 'application/json',
+			'X-Pinecone-API-Version': '2024-07',
+		},
+		body: JSON.stringify({
+			ids: [slug],
+			// namespace: '', // Default namespace
+		}),
+	});
+
+	if (!response.ok) {
+		const txt = await response.text();
+		throw new Error(`Pinecone Delete Error: ${txt}`);
+	}
+
+	return await response.json();
 }

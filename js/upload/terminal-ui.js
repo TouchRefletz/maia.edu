@@ -31,6 +31,7 @@ export class TerminalUI {
     // Cancellation State
     this.runId = null;
     this.isCancelling = false;
+    this.onRetry = null; // Callback for retry
 
     // UI Elements Reference
     this.el = {
@@ -77,7 +78,10 @@ export class TerminalUI {
 
       <div class="term-log-header" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">
         <span class="term-label" style="margin: 0px 0px 0px 8px;">LOGS EM TEMPO REAL</span>
-        <div style="display: flex; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="term-btn-retry" class="term-btn retry" style="display:none; background-color: var(--color-primary); color: #fff; border: none;">
+                Tentar Novamente ↻
+            </button>
             <button id="term-btn-cancel" class="term-btn cancel disabled" disabled>
                 Cancelar
             </button>
@@ -98,9 +102,19 @@ export class TerminalUI {
     this.el.logBtn = this.container.querySelector("#term-btn-logs");
     this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
 
+    this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
+    this.el.retryBtn = this.container.querySelector("#term-btn-retry");
+
     // Bind Cancel Button
     if (this.el.cancelBtn) {
       this.el.cancelBtn.addEventListener("click", () => this.cancelJob());
+    }
+
+    // Bind Retry Button
+    if (this.el.retryBtn) {
+      this.el.retryBtn.addEventListener("click", () => {
+        if (this.onRetry) this.onRetry();
+      });
     }
 
     // Boot Animator REMOVED (User request: No time-based progress)
@@ -430,7 +444,11 @@ export class TerminalUI {
     if (this.el.cancelBtn) {
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
-      // If we finished normally, we can keep it as "Cancelar" (disabled) or "Finalizado"
+      this.el.cancelBtn.style.display = "none";
+    }
+
+    if (this.el.retryBtn) {
+      this.el.retryBtn.style.display = "inline-flex";
     }
   }
 
@@ -455,6 +473,11 @@ export class TerminalUI {
     if (this.el.cancelBtn) {
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
+      this.el.cancelBtn.style.display = "none";
+    }
+
+    if (this.el.retryBtn) {
+      this.el.retryBtn.style.display = "inline-flex";
     }
   }
 
@@ -480,6 +503,11 @@ export class TerminalUI {
       this.el.cancelBtn.innerText = "Cancelado";
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
+      this.el.cancelBtn.style.display = "none";
+    }
+
+    if (this.el.retryBtn) {
+      this.el.retryBtn.style.display = "inline-flex";
     }
   }
 
