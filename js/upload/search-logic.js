@@ -381,7 +381,7 @@ export function setupSearchLogic() {
     const total = downloadableItems.length;
 
     const checkTask = async (item) => {
-      const isValid = await quickVerifyPdf(item.url, log);
+      const isValid = await robustVerifyPdf(item.url, log);
       if (isValid) {
         validItems.push(item);
       } else {
@@ -394,67 +394,6 @@ export function setupSearchLogic() {
     await queue.drain();
 
     return { validItems, corruptedItems };
-  };
-
-  const quickVerifyPdf = async (url, log) => {
-    // Helper helper for dual logging
-    const logError = (msg) => {
-      if (log) log(msg, "warning");
-      console.warn(msg);
-    };
-
-    try {
-      const fetchUrl = url.startsWith("http")
-        ? url
-        : `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${currentSlug}/${url}`;
-
-      // 1. Try HEAD first
-      const headResp = await fetch(fetchUrl, { method: "HEAD" });
-      if (!headResp.ok) {
-        logError(
-          `[VERIFICAÇÃO] Arquivo inacessível: ${url} (Status: ${headResp.status})`
-        );
-        return false;
-      }
-
-      const type = headResp.headers.get("Content-Type");
-      const len = headResp.headers.get("Content-Length");
-
-      if (type && !type.includes("pdf") && !type.includes("octet-stream")) {
-        logError(`[VERIFICAÇÃO] Tipo de arquivo inválido: ${type}`);
-        return false;
-      }
-      if (len && parseInt(len) < 500) {
-        logError(
-          `[VERIFICAÇÃO] Arquivo muito pequeno (Corrompido): ${len} bytes`
-        );
-        return false;
-      }
-
-      // 2. Try Range Request (First 1024 bytes) to check signature
-      const rangeResp = await fetch(fetchUrl, {
-        headers: { Range: "bytes=0-1023" },
-      });
-
-      if (!rangeResp.ok && rangeResp.status !== 206) {
-        logError(`[VERIFICAÇÃO] Falha ao ler bytes iniciais: ${url}`);
-        return false;
-      }
-
-      // If server ignores Range (returns 200), we just read the first chunk of body stream
-      const buffer = await rangeResp.arrayBuffer();
-      const headerStr = new TextDecoder().decode(buffer.slice(0, 10)); // "%PDF-..."
-
-      if (!headerStr.includes("%PDF-")) {
-        logError(`[VERIFICAÇÃO] Assinatura PDF inválida.`);
-        return false;
-      }
-
-      return true;
-    } catch (e) {
-      logError(`[VERIFICAÇÃO] Erro de rede ao verificar: ${e.message}`);
-      return false;
-    }
   };
 
   const performBatchCleanup = async (corruptedItems, log) => {
@@ -479,6 +418,104 @@ export function setupSearchLogic() {
     });
 
     await queue.drain();
+  };
+
+  // --- ROBUST 3-LAYER VERIFICATION ---
+  const robustVerifyPdf = async (url, log) => {
+    // Helper helper for dual logging
+    const logError = (msg) => {
+      if (log) log(msg, "warning");
+      console.warn(msg);
+    };
+
+    /**
+     * Resolves the correct Fetch URL.
+     */
+    const getFetchUrl = (relativeUrl) => {
+      if (relativeUrl.startsWith("http")) return relativeUrl;
+      return `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${currentSlug}/${relativeUrl}`;
+    };
+
+    const targetUrl = getFetchUrl(url);
+
+    try {
+      // --- LAYER 1: NETWORK & METADATA (HEAD) ---
+      // Low cost, checks existence and basic type.
+      const headResp = await fetch(targetUrl, { method: "HEAD" });
+
+      if (!headResp.ok) {
+        logError(
+          `[VERIFICAÇÃO L1] Arquivo inacessível: ${url} (Status: ${headResp.status})`
+        );
+        return false;
+      }
+
+      const type = headResp.headers.get("Content-Type");
+      const len = headResp.headers.get("Content-Length");
+
+      if (type && !type.includes("pdf") && !type.includes("octet-stream")) {
+        logError(`[VERIFICAÇÃO L1] Tipo inválido: ${type}`);
+        return false;
+      }
+      if (len && parseInt(len) < 500) {
+        logError(`[VERIFICAÇÃO L1] Arquivo muito pequeno: ${len} bytes`);
+        return false;
+      }
+
+      // --- LAYER 2: SIGNATURE CHECK (MAGIC BYTES) ---
+      // Medium cost, checks if it's actually a PDF binary.
+      const rangeResp = await fetch(targetUrl, {
+        headers: { Range: "bytes=0-1023" },
+      });
+
+      if (!rangeResp.ok && rangeResp.status !== 206) {
+        logError(`[VERIFICAÇÃO L2] Falha ao ler bytes iniciais.`);
+        return false;
+      }
+
+      const buffer = await rangeResp.arrayBuffer();
+      // Use slice(0, 50) to catch header even if lots of comments
+      const headerStr = new TextDecoder().decode(buffer.slice(0, 50));
+
+      // Strict PDF Regex: %PDF-1.x
+      const pdfRegex = /%PDF-1\.[0-7]/;
+      if (!pdfRegex.test(headerStr)) {
+        logError(
+          `[VERIFICAÇÃO L2] Assinatura PDF inválida: ${headerStr.substring(0, 15)}...`
+        );
+        return false;
+      }
+
+      // --- LAYER 3: STRUCTURAL INTEGRITY (PDF.js) ---
+      // High cost, checks if the PDF structure is parsable.
+      if (!window.pdfjsLib) {
+        console.warn("PDF.js not loaded, skipping Layer 3 check.");
+        return true;
+      }
+
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      try {
+        const loadingTask = pdfjsLib.getDocument({
+          url: targetUrl,
+          disableAutoFetch: true,
+          rangeChunkSize: 65536,
+        });
+
+        const pdf = await loadingTask.promise;
+        await pdf.getPage(1); // Try to decode page 1
+        return true;
+      } catch (pdfErr) {
+        logError(`[VERIFICAÇÃO L3] Estrutura corrompida: ${pdfErr.message}`);
+        return false;
+      }
+    } catch (e) {
+      logError(`[VERIFICAÇÃO] Erro sistêmico: ${e.message}`);
+      return false;
+    }
   };
 
   const normalizeItem = (item) => {
