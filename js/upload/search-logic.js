@@ -302,21 +302,23 @@ export function setupSearchLogic() {
       while (loadingAttempts < 10 && !manifest) {
         // 10 attempts (20s) for HF caching/propagation
         try {
-          console.log(
-            `[SearchLogic] Tentando carregar manifesto: ${manifestUrl} (Tentativa ${loadingAttempts + 1})`
+          log(
+            `[SearchLogic] Tentando carregar manifesto: ${manifestUrl} (Tentativa ${loadingAttempts + 1})`,
+            "info"
           );
           const r = await fetch(manifestUrl);
           if (r.ok) {
             manifest = await r.json();
-            console.log("[SearchLogic] Manifesto carregado com sucesso.");
+            log("[SearchLogic] Manifesto carregado com sucesso.", "success");
             break;
           } else {
-            console.warn(
-              `[SearchLogic] Falha ao carregar manifesto. Status: ${r.status} ${r.statusText}`
+            log(
+              `[SearchLogic] Falha ao carregar manifesto. Status: ${r.status} ${r.statusText}`,
+              "warning"
             );
           }
         } catch (e) {
-          console.error(`[SearchLogic] Erro ao carregar manifesto:`, e);
+          log(`[SearchLogic] Erro ao carregar manifesto: ${e}`, "error");
         }
         loadingAttempts++;
         await new Promise((res) => setTimeout(res, 2000));
