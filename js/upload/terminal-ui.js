@@ -139,19 +139,30 @@ export class TerminalUI {
     // --- Visual Drift ---
     this.bumpProgress(true);
 
-    // --- Elastic ETA Logic ---
-    // 1. Natural Decay (Time passes)
-    this.estimatedRemainingTime -= 1;
+    // --- Smoother Elastic ETA Logic ---
+    const now = Date.now();
+    const idleSeconds = (now - this.lastLogTime) / 1000;
 
-    // 2. Idle Penalty ("Se não tiver log ele cresce")
-    // If > 4s since last log, start adding penalty
-    const idleSeconds = (Date.now() - this.lastLogTime) / 1000;
-    if (idleSeconds > 4) {
-      // Add 2s per tick -> Net change = +1s (grows)
-      // If it's been a LONG time, grow faster to show uncertainty
-      const penalty = idleSeconds > 10 ? 3 : 2;
-      this.estimatedRemainingTime += penalty;
+    let change = -1; // Default: drop 1 second per real second
+
+    if (idleSeconds > 60) {
+      // "Demorar MUITO tipo 1 minuto... subir lentamente"
+      // "2 segundos pra subir 1" => +0.5 per sec
+      change = 0.5;
+    } else if (idleSeconds > 10) {
+      // "Vai desacelerando o tempo de descida"
+      // Linear scale from -1 (at 10s) to 0 (at 60s)
+      const range = 50; // 60 - 10
+      const progress = idleSeconds - 10;
+      const ratio = Math.min(1, progress / range); // 0 to 1
+
+      // We want factor to go from 1.0 (at 10s) to 0.0 (at 60s)
+      const factor = 1.0 - ratio;
+
+      change = -1 * factor;
     }
+
+    this.estimatedRemainingTime += change;
 
     // Clamp to reasonable bounds (0 to 2x initial)
     this.estimatedRemainingTime = Math.max(
