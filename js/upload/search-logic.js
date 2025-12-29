@@ -160,6 +160,12 @@ export function setupSearchLogic() {
 
       activeChannel = activePusher.subscribe(slug);
 
+      activeChannel.bind("task_update", function (data) {
+        if (terminal && data) {
+          terminal.updateTaskFromEvent(data);
+        }
+      });
+
       activeChannel.bind("log", function (data) {
         if (!data) return;
         const text =
@@ -987,7 +993,7 @@ export function setupSearchLogic() {
 
     // Atualiza estado do botão de extração
     const btn = document.getElementById("btnExtractSelection");
-    const hasSelection = selectedItems.prova || selectedItems.gabarito;
+    const hasSelection = selectedItems.prova && selectedItems.gabarito;
 
     if (hasSelection) {
       btn.disabled = false;

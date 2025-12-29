@@ -302,19 +302,46 @@ export class TerminalUI {
     this.el.eta.innerText = `TEMPO ESTIMADO: ${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   }
 
+  updateStepText(text) {
+    if (this.el.stepText) {
+      this.el.stepText.innerText = text;
+      // Reset color to default or based on context if needed
+      // this.el.stepText.style.color = "var(--color-text)";
+    }
+  }
+
+  /**
+   * Called by external event listener when a structured task update is received.
+   * @param {Array} tasks - Array of task objects {id, title, status}
+   */
+  updateTaskFromEvent(tasks) {
+    if (Array.isArray(tasks)) {
+      this.updatePlan(tasks);
+      this.queueLog(
+        `[SYSTEM] Lista de tarefas sincronizada (${tasks.length} itens)`,
+        "success"
+      );
+    }
+  }
+
   processLogLine(text, type = "info") {
     if (!text) return;
 
-    // 1. PRIORITY: Control Messages Parsing (Before Split)
-    const taskListRegex = /task_list=(\[[\s\S]*?\])/g;
-    let match;
+    // 1. PRIORITY: Legacy Regex Parsing Removed
+    // We now rely on server-side broadcasting of TASKS.md via 'task_update' event.
     let foundTask = false;
 
-    while ((match = taskListRegex.exec(text)) !== null) {
-      if (match[1]) {
-        foundTask = true;
-        this.parseTaskPlan(match[1]); // Parse the JSON part
-      }
+    if (text.includes("IPythonRunCellAction")) {
+      this.el.stepText.innerText = "Executando script de automação Python...";
+      this.el.stepText.style.color = "var(--color-primary)";
+    } else if (text.includes("CmdRunAction")) {
+      this.el.stepText.innerText = "Executando comando no sistema...";
+      this.el.stepText.style.color = "var(--color-text)";
+    } else if (text.includes("MCPAction") || text.includes("tavily")) {
+      this.el.stepText.innerText = "Consultando fontes externas...";
+      this.el.stepText.style.color = "var(--color-warning)";
+    } else if (text.includes("Browser")) {
+      this.el.stepText.innerText = "Navegando na web...";
     }
 
     // 2. Check for Job URL

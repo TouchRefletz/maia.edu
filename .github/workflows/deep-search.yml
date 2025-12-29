@@ -50,6 +50,8 @@ jobs:
           import threading
           import http.client
           import urllib.parse
+          import subprocess
+          import re
           from collections import deque
 
           # Config
@@ -72,18 +74,11 @@ jobs:
           buffer_lock = threading.Lock()
           running = True
 
-          def send_batch(lines):
-              if not lines:
-                  return
-              
+          def send_to_pusher(event_name, data_payload):
               timestamp = str(int(time.time()))
-              # Join lines reliably
-              text_chunk = "".join(lines)
-              
-              # Construct Body
-              body_data = json.dumps({"message": text_chunk})
+              body_data = json.dumps(data_payload)
               body = json.dumps({
-                  "name": "log",
+                  "name": event_name,
                   "channels": [CHANNEL],
                   "data": body_data
               })
@@ -111,6 +106,13 @@ jobs:
               except Exception as e:
                   print(f"Pusher Error: {e}")
 
+          def send_batch(lines):
+              if not lines:
+                  return
+              # Join lines reliably
+              text_chunk = "".join(lines)
+              send_to_pusher("log", {"message": text_chunk})
+
           def consumer_thread():
               while running or log_buffer:
                   with buffer_lock:
@@ -131,12 +133,66 @@ jobs:
           t.daemon = True
           t.start()
 
+          # Helper: Parse TASKS.md
+          def parse_tasks_md(content):
+              tasks = []
+              # Expected format: - [ ] Task Name or - [x] Task Name or - [/] Task Name
+              # id is implicit index or we can try to find <!-- id: X -->
+              lines = content.split('\n')
+              for i, line in enumerate(lines):
+                  line = line.strip()
+                  match = re.match(r'- \[(.| )\] (.*)', line)
+                  if match:
+                      status_char = match.group(1)
+                      title_raw = match.group(2)
+                      
+                      # Clean comments from title if any (e.g. <!-- id: 0 -->)
+                      title = re.sub(r'<!--.*-->', '', title_raw).strip()
+                      
+                      status = "todo"
+                      if status_char.lower() == 'x':
+                          status = "completed"
+                      elif status_char == '/':
+                          status = "in_progress"
+                      
+                      tasks.append({"id": i, "title": title, "status": status})
+              return tasks
+
           # Main Producer Loop
+          task_regex = re.compile(r"TaskTrackingObservation.*Stored in session directory: (.*TASKS\.md)")
+
           for line in sys.stdin:
               # Always print to stdout for GitHub logs
               sys.stdout.write(line)
               sys.stdout.flush()
               
+              # Intercept Tasks
+              match = task_regex.search(line)
+              if match:
+                  tasks_path = match.group(1).strip()
+                  print(f"[Logger] Detected Task Update at: {tasks_path}")
+                  try:
+                      # 1. Copy from container
+                      # We assume container name is 'openhands-app' as set in the workflow
+                      subprocess.run(
+                          ["docker", "cp", f"openhands-app:/workspace/{tasks_path}", "tasks_temp.md"],
+                          check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                      )
+                      
+                      # 2. Read and Parse
+                      with open("tasks_temp.md", "r") as f:
+                          content = f.read()
+                      
+                      parsed_tasks = parse_tasks_md(content)
+                      
+                      # 3. Broadcast
+                      if parsed_tasks:
+                          print(f"[Logger] Broadcasting {len(parsed_tasks)} tasks")
+                          send_to_pusher("task_update", parsed_tasks)
+                          
+                  except Exception as e:
+                      print(f"[Logger] Failed to intercept tasks: {e}")
+
               with buffer_lock:
                   log_buffer.append(line)
 
