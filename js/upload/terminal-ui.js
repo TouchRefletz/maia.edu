@@ -318,7 +318,7 @@ export class TerminalUI {
             text.includes("finished") ||
             text.includes("completed")))
       ) {
-        this.finish();
+        this.finish(true);
       } else if (text.includes("CANCELLED")) {
         this.cancelFinished();
       } else if (text.includes("Job failed") || text.includes("FAILED")) {

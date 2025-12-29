@@ -281,6 +281,7 @@ export function setupSearchLogic() {
 
       if (result.cached && result.slug) {
         log("Resultado idêntico encontrado em cache! Carregando...", "success");
+        if (terminal) terminal.finish(false);
         activePusher.unsubscribe(slug);
         isSuccess = true; // Cache hit
         loadResults(
