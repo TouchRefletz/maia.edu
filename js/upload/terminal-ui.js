@@ -339,6 +339,12 @@ export class TerminalUI {
         this.cancelFinished();
       } else if (text.includes("Job failed") || text.includes("FAILED")) {
         this.fail("Job marcado como falho nos logs.");
+      } else if (
+        text.includes("Copying artifacts from container to host") ||
+        text.includes("Starting upload to Hugging Face") ||
+        text.includes("Updating Semantic Cache")
+      ) {
+        this.lockForSaving();
       }
     } catch (err) {
       // ignore parse errors
@@ -587,6 +593,29 @@ export class TerminalUI {
       this.el.retryBtn.style.alignItems = "center";
       this.el.retryBtn.style.height = "22px";
     }
+  }
+
+  lockForSaving() {
+    if (this.state === this.MODES.DONE) return;
+
+    // Visual feedback
+    if (this.el.cancelBtn) {
+      this.el.cancelBtn.innerText = "Salvando...";
+      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.disabled = true;
+      this.el.cancelBtn.style.cursor = "not-allowed";
+      this.el.cancelBtn.title =
+        "Não é possível cancelar durante o salvamento de dados";
+    }
+
+    this.queueLog(
+      "[SISTEMA] Iniciando preservação de dados. Cancelamento desativado.",
+      "system" // Using 'system' or 'info' depending on CSS. Let's stick to info or just standard queueLog default.
+    );
+
+    // Create 'system' class if not exists, or just use info.
+    // Actually, queueLog takes (text, type). Existing types: 'info', 'error', 'warning', 'success'.
+    // Let's use 'warning' to make it visible or 'info'.
   }
 
   async cancelJob() {

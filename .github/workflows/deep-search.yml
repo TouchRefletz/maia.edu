@@ -377,31 +377,35 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Configure Git
-          git config --global user.email "bot@maia.api"
-          git config --global user.name "Maia Bot"
+          (
+            echo "Starting upload to Hugging Face..."
+            # Configure Git
+            git config --global user.email "bot@maia.api"
+            git config --global user.name "Maia Bot"
 
-          # Clone HF Repo (using depth 1 for speed)
-          git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
+            # Clone HF Repo (using depth 1 for speed)
+            git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
 
-          # Prepare Directories
-          slug="${{ steps.deep_search.outputs.final_slug }}"
-          mkdir -p hf_repo/output/$slug
+            # Prepare Directories
+            slug="${{ steps.deep_search.outputs.final_slug }}"
+            mkdir -p hf_repo/output/$slug
 
-          # Copy Artifacts
-          cp -r output/$slug/* hf_repo/output/$slug/
+            # Copy Artifacts
+            cp -r output/$slug/* hf_repo/output/$slug/
 
-          # Commit and Push
-          cd hf_repo
+            # Commit and Push
+            cd hf_repo
 
-          # Setup LFS for binaries
-          git lfs install
-          git lfs track "*.pdf" "*.zip" "*.rar" "*.doc" "*.docx"
-          git add .gitattributes
+            # Setup LFS for binaries
+            git lfs install
+            git lfs track "*.pdf" "*.zip" "*.rar" "*.doc" "*.docx"
+            git add .gitattributes
 
-          git add .
-          git commit -m "Add deep search results for $slug" || echo "No changes to commit"
-          git push
+            git add .
+            git commit -m "Add deep search results for $slug" || echo "No changes to commit"
+            git push
+            echo "Upload to Hugging Face completed."
+          ) 2>&1 | python3 logger.py
 
       - name: Update Semantic Cache
         if: success()
@@ -411,54 +415,56 @@ jobs:
           QUERY: ${{ github.event.client_payload.query || inputs.query }}
           SLUG: ${{ steps.deep_search.outputs.final_slug }}
         run: |
-          echo "Updating Semantic Cache at $WORKER_URL..."
+          (
+            echo "Updating Semantic Cache at $WORKER_URL..."
 
-          MANIFEST_PATH="output/$SLUG/manifest.json"
+            MANIFEST_PATH="output/$SLUG/manifest.json"
 
-          # Generate Clean Query from Slug (replace dashes with spaces)
-          CLEAN_QUERY="${SLUG//-/ }"
-          echo "Using Clean Query for Embedding: $CLEAN_QUERY"
+            # Generate Clean Query from Slug (replace dashes with spaces)
+            CLEAN_QUERY="${SLUG//-/ }"
+            echo "Using Clean Query for Embedding: $CLEAN_QUERY"
 
-          if [ -f "$MANIFEST_PATH" ]; then
-            
-            # Using jq to create a safe JSON payload
-            PAYLOAD=$(jq -n \
-                    --arg query "$CLEAN_QUERY" \
-                    --arg original_query "$QUERY" \
-                    --arg slug "$SLUG" \
-                    --slurpfile manifest "$MANIFEST_PATH" \
-                    '{
-                      query: $query, 
-                      slug: $slug, 
-                      metadata: {
-                        source: "deep-search",
-                        original_query: $original_query,
-                        file_count: ($manifest[0] | length),
-                        institution: ($manifest[0][0].instituicao // $manifest[0][0].institution // "unknown"),
-                        year: ($manifest[0][0].ano // $manifest[0][0].year // "unknown")
-                      }
-                    }')
-            
-            
-            # Curl Request with -f (fail on error) and capturing output
-            RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$WORKER_URL/update-deep-search-cache" \
-                 -H "Content-Type: application/json" \
-                 -H "Authorization: Bearer $GH_PAT" \
-                 -d "$PAYLOAD")
-            
-            HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | cut -d: -f2)
-            BODY=$(echo "$RESPONSE" | sed '$d')
+            if [ -f "$MANIFEST_PATH" ]; then
+              
+              # Using jq to create a safe JSON payload
+              PAYLOAD=$(jq -n \
+                      --arg query "$CLEAN_QUERY" \
+                      --arg original_query "$QUERY" \
+                      --arg slug "$SLUG" \
+                      --slurpfile manifest "$MANIFEST_PATH" \
+                      '{
+                        query: $query, 
+                        slug: $slug, 
+                        metadata: {
+                          source: "deep-search",
+                          original_query: $original_query,
+                          file_count: ($manifest[0] | length),
+                          institution: ($manifest[0][0].instituicao // $manifest[0][0].institution // "unknown"),
+                          year: ($manifest[0][0].ano // $manifest[0][0].year // "unknown")
+                        }
+                      }')
+              
+              
+              # Curl Request with -f (fail on error) and capturing output
+              RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$WORKER_URL/update-deep-search-cache" \
+                   -H "Content-Type: application/json" \
+                   -H "Authorization: Bearer $GH_PAT" \
+                   -d "$PAYLOAD")
+              
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1 | cut -d: -f2)
+              BODY=$(echo "$RESPONSE" | sed '$d')
 
-            echo "Worker Response Body: $BODY"
-            echo "Worker HTTP Code: $HTTP_CODE"
+              echo "Worker Response Body: $BODY"
+              echo "Worker HTTP Code: $HTTP_CODE"
 
-            if [ "$HTTP_CODE" -ne 200 ]; then
-              echo "::error::Failed to update cache. HTTP $HTTP_CODE"
-              exit 1
+              if [ "$HTTP_CODE" -ne 200 ]; then
+                echo "::error::Failed to update cache. HTTP $HTTP_CODE"
+                exit 1
+              fi
+            else
+              echo "Manifest not found at $MANIFEST_PATH. Skipping cache update."
             fi
-          else
-            echo "Manifest not found at $MANIFEST_PATH. Skipping cache update."
-          fi
+          ) 2>&1 | python3 logger.py
 
       - name: Notify Completion
         if: ${{ always() }}
