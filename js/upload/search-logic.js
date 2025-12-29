@@ -212,7 +212,7 @@ export function setupSearchLogic() {
             // Fetch from HUGGING FACE now
             const hfBase =
               "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-            loadResults(`${hfBase}/output/${finalSlug}/manifest.json`);
+            loadResults(`${hfBase}/output/${finalSlug}/manifest.json`, log);
           }, 5000);
         } else {
           log(text);
@@ -268,7 +268,10 @@ export function setupSearchLogic() {
 
             const hfBase =
               "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-            loadResults(`${hfBase}/output/${candidate.slug}/manifest.json`);
+            loadResults(
+              `${hfBase}/output/${candidate.slug}/manifest.json`,
+              log
+            );
           },
           () => {
             log("Forçando nova pesquisa...", "warning");
@@ -285,7 +288,8 @@ export function setupSearchLogic() {
         activePusher.unsubscribe(slug);
         isSuccess = true; // Cache hit
         loadResults(
-          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${result.slug}/manifest.json`
+          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${result.slug}/manifest.json`,
+          log
         );
         return;
       }
@@ -295,7 +299,12 @@ export function setupSearchLogic() {
   };
 
   // --- UI RENDER ---
-  const loadResults = async (manifestUrl) => {
+  const loadResults = async (manifestUrl, logFn) => {
+    // Fallback logger if not provided
+    const log =
+      logFn ||
+      ((msg, type) => console.log(`[${type?.toUpperCase() || "INFO"}] ${msg}`));
+
     try {
       let loadingAttempts = 0;
       let manifest = null;
