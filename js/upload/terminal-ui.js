@@ -79,7 +79,7 @@ export class TerminalUI {
         <span class="term-label" style="margin: 0px 0px 0px 8px;">LOGS EM TEMPO REAL</span>
         <div style="display: flex; align-items: center;">
             <button id="term-btn-cancel" class="term-btn cancel disabled" disabled>
-                Infos
+                Cancelar
             </button>
             <a href="#" target="_blank" id="term-btn-logs" class="term-btn disabled">
                 Ver Logs no GitHub ↗
