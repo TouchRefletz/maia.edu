@@ -381,7 +381,7 @@ export function setupSearchLogic() {
     const total = downloadableItems.length;
 
     const checkTask = async (item) => {
-      const isValid = await quickVerifyPdf(item.url);
+      const isValid = await quickVerifyPdf(item.url, log);
       if (isValid) {
         validItems.push(item);
       } else {
@@ -396,7 +396,13 @@ export function setupSearchLogic() {
     return { validItems, corruptedItems };
   };
 
-  const quickVerifyPdf = async (url) => {
+  const quickVerifyPdf = async (url, log) => {
+    // Helper helper for dual logging
+    const logError = (msg) => {
+      if (log) log(msg, "warning");
+      console.warn(msg);
+    };
+
     try {
       const fetchUrl = url.startsWith("http")
         ? url
@@ -404,32 +410,49 @@ export function setupSearchLogic() {
 
       // 1. Try HEAD first
       const headResp = await fetch(fetchUrl, { method: "HEAD" });
-      if (!headResp.ok) return false;
+      if (!headResp.ok) {
+        logError(
+          `[VERIFICAÇÃO] Arquivo inacessível: ${url} (Status: ${headResp.status})`
+        );
+        return false;
+      }
 
       const type = headResp.headers.get("Content-Type");
       const len = headResp.headers.get("Content-Length");
 
-      if (type && !type.includes("pdf") && !type.includes("octet-stream"))
+      if (type && !type.includes("pdf") && !type.includes("octet-stream")) {
+        logError(`[VERIFICAÇÃO] Tipo de arquivo inválido: ${type}`);
         return false;
-      if (len && parseInt(len) < 500) return false;
+      }
+      if (len && parseInt(len) < 500) {
+        logError(
+          `[VERIFICAÇÃO] Arquivo muito pequeno (Corrompido): ${len} bytes`
+        );
+        return false;
+      }
 
       // 2. Try Range Request (First 1024 bytes) to check signature
-      // Some hosts don't support range, so fallback to GET if needed, but for HF/Storage usually ok
       const rangeResp = await fetch(fetchUrl, {
         headers: { Range: "bytes=0-1023" },
       });
 
-      if (!rangeResp.ok && rangeResp.status !== 206) return false; // If Range fails hard
+      if (!rangeResp.ok && rangeResp.status !== 206) {
+        logError(`[VERIFICAÇÃO] Falha ao ler bytes iniciais: ${url}`);
+        return false;
+      }
 
       // If server ignores Range (returns 200), we just read the first chunk of body stream
       const buffer = await rangeResp.arrayBuffer();
       const headerStr = new TextDecoder().decode(buffer.slice(0, 10)); // "%PDF-..."
 
-      if (!headerStr.includes("%PDF-")) return false;
+      if (!headerStr.includes("%PDF-")) {
+        logError(`[VERIFICAÇÃO] Assinatura PDF inválida.`);
+        return false;
+      }
 
       return true;
     } catch (e) {
-      console.warn("Verify check failed:", url, e);
+      logError(`[VERIFICAÇÃO] Erro de rede ao verificar: ${e.message}`);
       return false;
     }
   };
