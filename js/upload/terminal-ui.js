@@ -92,15 +92,50 @@ export class TerminalUI {
     const simpleClass =
       this.options.mode === "simple" ? "term-mode-simple" : "";
 
+    const styles = `
+      <style>
+        @keyframes term-pulse-gold {
+          0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255, 193, 7, 0)); }
+          50% { transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(255, 193, 7, 0.6)); }
+          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255, 193, 7, 0)); }
+        }
+        .term-btn-notify {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          padding: 8px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-text);
+        }
+        .term-btn-notify.active {
+          color: #ffc107;
+          animation: term-pulse-gold 2s infinite ease-in-out;
+        }
+        .term-btn-notify.inactive {
+          opacity: 0.4;
+          filter: grayscale(100%);
+          color: #666;
+        }
+        .term-btn-notify:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+      </style>
+    `;
+
     this.container.innerHTML = `
+      ${styles}
       <div class="term-header ${simpleClass}">
         <div class="term-title">
           <span>>_</span> ${this.options.mode === "simple" ? "SISTEMA_LIMPEZA" : "PESQUISA_AVANÇADA"}
         </div>
         <div class="term-status-group" style="display:flex; align-items:center; gap:12px;">
             <div class="term-status active">INICIANDO_SISTEMA...</div>
-             <button id="term-btn-notify" class="term-btn-icon" title="Notificar ao concluir" style="background:transparent; border:none; cursor:pointer; opacity:0.5; color:var(--color-text);">
-                <span class="icon">🔔</span>
+             <button id="term-btn-notify" class="term-btn-notify inactive" title="Notificar ao concluir">
+                <span class="icon">�</span>
             </button>
         </div>
       </div>
@@ -563,12 +598,6 @@ export class TerminalUI {
     if (Notification.permission === "granted") {
       this.notifyEnabled = !this.notifyEnabled;
       this.updateNotifyUI();
-      // Test sound on enable
-      if (this.notifyEnabled) {
-        const audio = new Audio(this.config.sounds.success);
-        audio.volume = 0.5;
-        audio.play().catch((e) => console.warn("Audio play blocked", e));
-      }
     } else if (Notification.permission !== "denied") {
       Notification.requestPermission().then((permission) => {
         if (permission === "granted") {
@@ -585,15 +614,11 @@ export class TerminalUI {
   updateNotifyUI() {
     if (!this.el.notifyBtn) return;
     if (this.notifyEnabled) {
-      this.el.notifyBtn.style.opacity = "1";
-      this.el.notifyBtn.style.color = "var(--color-primary)";
-      // Replace only inner HTML to keep button structure if needed, or fully replace content
-      this.el.notifyBtn.innerHTML =
-        '<span class="icon">🔔</span> <span style="font-size:0.7em; font-weight:bold;">ON</span>';
-    } else {
-      this.el.notifyBtn.style.opacity = "0.5";
-      this.el.notifyBtn.style.color = "var(--color-text)";
+      this.el.notifyBtn.className = "term-btn-notify active";
       this.el.notifyBtn.innerHTML = '<span class="icon">🔔</span>';
+    } else {
+      this.el.notifyBtn.className = "term-btn-notify inactive";
+      this.el.notifyBtn.innerHTML = '<span class="icon">�</span>';
     }
   }
 
