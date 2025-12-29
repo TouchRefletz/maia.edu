@@ -72,6 +72,8 @@ jobs:
           buffer_lock = threading.Lock()
           running = True
 
+          print("[Logger] Script initialized.", flush=True)
+
           # --- PUSHER HELPER ---
           def send_to_pusher(event_name, data_payload):
               if not PUSHER_ENABLED:
@@ -129,13 +131,13 @@ jobs:
           # This thread actively asks Docker for the TASKS.md file
           # It is much more robust than parsing log lines.
           def task_watcher_worker():
-              print("[Logger] Task watcher thread started.", flush=True)
+              print("[Logger] Task watcher thread started. Polling for TASKS.md...", flush=True)
               last_known_tasks_hash = ""
               container_name = "openhands-app"
               tasks_path = None # Will find dynamically
               
-              # Wait for container startup
-              time.sleep(5)
+              # Wait slightly for container, but don't block visibility
+              time.sleep(2)
 
               while running:
                   time.sleep(2.0) # Poll every 2s
@@ -239,14 +241,14 @@ jobs:
             sudo rm -rf /usr/local/.ghcup
             echo "Disk space after cleanup:"
             df -h
-          ) 2>&1 | python3 logger.py
+          ) 2>&1 | python3 -u logger.py
 
       - name: Create Output Directory
         run: |
           (
              mkdir -p output/${{ github.event.client_payload.slug || inputs.slug }}
              echo "Created output directory: output/${{ github.event.client_payload.slug || inputs.slug }}"
-          ) 2>&1 | python3 logger.py
+          ) 2>&1 | python3 -u logger.py
 
       - name: Pre-execution Cleanup (HF)
         if: ${{ github.event.client_payload.cleanup == true }}
@@ -277,7 +279,7 @@ jobs:
             fi
             cd ..
             rm -rf hf_cleanup_repo
-          ) 2>&1 | python3 logger.py
+          ) 2>&1 | python3 -u logger.py
 
       - name: Pre-execution Cleanup (Pinecone)
         if: ${{ github.event.client_payload.cleanup == true }}
@@ -293,7 +295,7 @@ jobs:
                   -H "Authorization: Bearer $GH_PAT" \
                   -d "{\"slug\": \"$SLUG\"}" \
              || echo "Warning: Failed to call delete endpoint"
-          ) 2>&1 | python3 logger.py
+          ) 2>&1 | python3 -u logger.py
 
       - name: Announce Job URL
         env:
@@ -315,7 +317,7 @@ jobs:
             fi
 
             echo "[SYSTEM_INFO] JOB_URL=$JOB_URL"
-          ) 2>&1 | python3 logger.py
+          ) 2>&1 | python3 -u logger.py
 
       - name: Run OpenHands Deep Search
         id: deep_search
