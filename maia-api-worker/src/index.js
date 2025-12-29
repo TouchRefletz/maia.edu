@@ -75,6 +75,9 @@ export default {
 				case '/cancel-deep-search':
 					return handleCancelDeepSearch(request, env);
 
+				case '/delete-pinecone-record':
+					return handlePineconeDelete(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -99,15 +102,10 @@ async function handleTriggerDeepSearch(request, env) {
 	}
 
 	// 0. Handle Cleanup (Destructive Retry)
+	// 0. Handle Cleanup (Destructive Retry)
+	// REMOVED: Cleanup is now handled by the GitHub Action via /delete-pinecone-record
 	if (cleanup) {
-		console.log(`[Deep Search] Cleanup requested for slug: ${slug}`);
-		try {
-			await executePineconeDelete(slug, env);
-			console.log(`[Deep Search] Pinecone Cleanup Successful: ${slug}`);
-		} catch (e) {
-			console.error(`[Deep Search] Pinecone Cleanup Failed: ${e.message}`);
-			// We proceed anyway, as the search might still work
-		}
+		console.log(`[Deep Search] Cleanup flag received for: ${slug}. Expecting GH Action to handle deletion.`);
 	}
 
 	// 1. Check Cache (Pinecone) - Skip if forced
@@ -293,6 +291,37 @@ async function handleDeepSearchUpdate(request, env) {
 		console.log(`[Cache Update] Success for slug: ${slug}`);
 
 		return new Response(JSON.stringify({ success: true, message: 'Cache updated' }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * SERVICE: DELETE PINECONE RECORD
+ * Called by GitHub Actions during cleanup phase
+ */
+async function handlePineconeDelete(request, env) {
+	// Simple auth check similar to update-deep-search-cache
+	const authHeader = request.headers.get('Authorization');
+	if (authHeader !== `Bearer ${env.GITHUB_PAT}`) {
+		return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+	}
+
+	const body = await request.json();
+	const { slug } = body;
+
+	if (!slug) {
+		return new Response(JSON.stringify({ error: 'Slug is required' }), { status: 400, headers: corsHeaders });
+	}
+
+	try {
+		await executePineconeDelete(slug, env);
+		return new Response(JSON.stringify({ success: true, message: `Deleted ${slug} from Pinecone` }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	} catch (error) {

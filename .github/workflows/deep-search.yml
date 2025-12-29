@@ -145,33 +145,6 @@ jobs:
           t.join(timeout=5)
           EOF
 
-      - name: Announce Job URL
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-          REPO: ${{ github.repository }}
-        run: |
-          (
-            # Fetch the Jobs for this Run
-            JOBS_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
-                        "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs")
-            
-            # Extract the HTML URL of the current job (assuming the first one or matching 'search')
-            # Since this workflow has one main job 'search', taking the first one is usually safe, 
-            # but we can try to filter by name 'search' just in case.
-            # However, the API 'name' might be the display name. 
-            # Let's just grab the first one that matches the run_id context implicitly or simply the first one in list.
-            
-            JOB_URL=$(echo "$JOBS_JSON" | jq -r '.jobs[0].html_url')
-            
-            if [ "$JOB_URL" == "null" ] || [ -z "$JOB_URL" ]; then
-                # Fallback to Run URL if API fails
-                JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            fi
-
-            echo "[SYSTEM_INFO] JOB_URL=$JOB_URL"
-          ) 2>&1 | python3 logger.py
-
       - name: Free Disk Space
         run: |
           (
@@ -221,6 +194,44 @@ jobs:
             fi
             cd ..
             rm -rf hf_cleanup_repo
+          ) 2>&1 | python3 logger.py
+
+      - name: Pre-execution Cleanup (Pinecone)
+        if: ${{ github.event.client_payload.cleanup == true }}
+        env:
+          WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
+          GH_PAT: ${{ secrets.GH_PAT }}
+          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+        run: |
+          (
+             echo "Requesting Pinecone deletion for $SLUG..."
+             curl -X POST "$WORKER_URL/delete-pinecone-record" \
+                  -H "Content-Type: application/json" \
+                  -H "Authorization: Bearer $GH_PAT" \
+                  -d "{\"slug\": \"$SLUG\"}" \
+             || echo "Warning: Failed to call delete endpoint"
+          ) 2>&1 | python3 logger.py
+
+      - name: Announce Job URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          (
+            # Fetch the Jobs for this Run
+            JOBS_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+                        "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs")
+            
+            # Extract the HTML URL of the current job
+            JOB_URL=$(echo "$JOBS_JSON" | jq -r '.jobs[0].html_url')
+            
+            if [ "$JOB_URL" == "null" ] || [ -z "$JOB_URL" ]; then
+                # Fallback to Run URL if API fails
+                JOB_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            fi
+
+            echo "[SYSTEM_INFO] JOB_URL=$JOB_URL"
           ) 2>&1 | python3 logger.py
 
       - name: Run OpenHands Deep Search
