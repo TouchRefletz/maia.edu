@@ -171,7 +171,7 @@ export function setupSearchLogic() {
           // Changed: Do NOT finish yet. Transition to verification phase.
           isSuccess = true;
           log(
-            "Fluxo de Trabalho Concluído. Iniciando verificação de integridade...",
+            "Busca base finalizada. Iniciando verificação de integridade...",
             "success"
           );
           activePusher.unsubscribe(slug);
@@ -361,11 +361,13 @@ export function setupSearchLogic() {
   // Headless Verification using Range Headers
   const verifyManifestIntegrity = async (manifest, log, terminal) => {
     // Normalization logic
-    const items = (
+    const rawItems =
       manifest.results ||
       manifest.files ||
-      (Array.isArray(manifest) ? manifest : [])
-    ).map((item) => normalizeItem(item));
+      (Array.isArray(manifest) ? manifest : []);
+    const items = rawItems
+      .map((item) => normalizeItem(item))
+      .filter((item) => item && item.url && !item.url.includes("/undefined"));
 
     // Split references vs downloads
     const downloadableItems = items.filter((i) => i.status !== "reference");
@@ -542,6 +544,8 @@ export function setupSearchLogic() {
     // Fallback if url is somehow missing but path exists
     // (Normalized by verify strategy but just in case)
     if (!finalUrl && item.path) finalUrl = item.path;
+
+    if (!finalUrl) return document.createElement("div"); // Skip invalid cards
 
     // --- Title Fallback Logic ---
     let displayTitle =
