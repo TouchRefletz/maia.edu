@@ -159,7 +159,7 @@ jobs:
               return tasks
 
           # Main Producer Loop
-          task_regex = re.compile(r"TaskTrackingObservation.*Stored in session directory: (.*TASKS\.md)")
+          # We don't pre-compile a complex regex, we do a simple check first
 
           for line in sys.stdin:
               # Always print to stdout for GitHub logs
@@ -167,31 +167,40 @@ jobs:
               sys.stdout.flush()
               
               # Intercept Tasks
-              match = task_regex.search(line)
-              if match:
-                  tasks_path = match.group(1).strip()
-                  print(f"[Logger] Detected Task Update at: {tasks_path}")
-                  try:
-                      # 1. Copy from container
-                      # We assume container name is 'openhands-app' as set in the workflow
-                      subprocess.run(
-                          ["docker", "cp", f"openhands-app:/workspace/{tasks_path}", "tasks_temp.md"],
-                          check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                      )
-                      
-                      # 2. Read and Parse
-                      with open("tasks_temp.md", "r") as f:
-                          content = f.read()
-                      
-                      parsed_tasks = parse_tasks_md(content)
-                      
-                      # 3. Broadcast
-                      if parsed_tasks:
-                          print(f"[Logger] Broadcasting {len(parsed_tasks)} tasks")
-                          send_to_pusher("task_update", parsed_tasks)
+              # Look for the characteristic string from the user's example
+              # "TaskTrackingObservation(content='... Stored in session directory: .../TASKS.md', ...)"
+              if "TaskTrackingObservation" in line and "TASKS.md" in line:
+                  print(f"[Logger] DEBUG: Potential Task Update found: {line.strip()}")
+                  
+                  # Try to extract path with a more relaxed regex
+                  # Matches "session directory: " followed by path not containing spaces or quotes
+                  match = re.search(r"session directory:\s*([^\s']+/TASKS\.md)", line)
+                  
+                  if match:
+                      tasks_path = match.group(1).strip()
+                      print(f"[Logger] Detected Task Path: {tasks_path}")
+                      try:
+                          # 1. Copy from container
+                          subprocess.run(
+                              ["docker", "cp", f"openhands-app:/workspace/{tasks_path}", "tasks_temp.md"],
+                              check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                          )
                           
-                  except Exception as e:
-                      print(f"[Logger] Failed to intercept tasks: {e}")
+                          # 2. Read and Parse
+                          with open("tasks_temp.md", "r") as f:
+                              content = f.read()
+                          
+                          parsed_tasks = parse_tasks_md(content)
+                          
+                          # 3. Broadcast
+                          if parsed_tasks:
+                              print(f"[Logger] Broadcasting {len(parsed_tasks)} tasks")
+                              send_to_pusher("task_update", parsed_tasks)
+                              
+                      except Exception as e:
+                          print(f"[Logger] Failed to intercept tasks: {e}")
+                  else:
+                      print("[Logger] DEBUG: Could not extract TASKS.md path from line.")
 
               with buffer_lock:
                   log_buffer.append(line)
