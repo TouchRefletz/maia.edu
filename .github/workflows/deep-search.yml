@@ -522,6 +522,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           MODE: ${{ github.event.client_payload.mode }}
         run: |
+          pip install pypdf
           # --- GENERATE DEDUPLICATION SCRIPT ---
           cat << 'EOF' > deduplicate.py
           import os
@@ -531,45 +532,81 @@ jobs:
           import shutil
           import time
           from datetime import datetime
+          # Import pypdf for semantic deduplication
+          try:
+              from pypdf import PdfReader
+          except ImportError:
+              print("WARNING: pypdf not found. Falling back to strict binary deduplication.")
+              PdfReader = None
 
           def get_file_info(filepath):
               try:
                   timestamp = os.path.getmtime(filepath)
                   size = os.path.getsize(filepath)
                   
-                  # Check if it's an LFS pointer first
-                  # LFS pointers are small text files.
-                  if size < 200: 
+                  # 1. Check LFS Pointer
+                  if size < 500: 
                       try:
                           with open(filepath, 'r', encoding='utf-8') as f:
-                              header = f.readline()
-                              if header.startswith('version https://git-lfs.github.com/spec/v1'):
-                                  # It's a pointer!
-                                  # Format:
-                                  # version ...
-                                  # oid sha256:HASH
-                                  # size SIZE
-                                  for line in f:
+                              content = f.read()
+                              if 'oid sha256:' in content:
+                                  for line in content.splitlines():
                                       if line.startswith('oid sha256:'):
                                           lfs_hash = line.strip().split(':')[1]
-                                          # Return the LFS hash as the "file hash"
-                                          return (lfs_hash, timestamp, size, True) # True = Is Pointer
+                                          # LFS pointers have NO content hash (cannot read text from pointer)
+                                          # So we return (BinaryHash, ContentHash=None, ...)
+                                          return (lfs_hash, None, timestamp, size, True)
                       except Exception:
-                          pass # Not a pointer or read error, proceed to standard hash
+                          pass 
 
-                  # Standard SHA256 Hash for real files
+                  # 2. Binary Hash
                   h = hashlib.sha256()
                   with open(filepath, 'rb') as f:
                       while chunk := f.read(8192):
                           h.update(chunk)
-                  return (h.hexdigest(), timestamp, size, False) # False = Not Pointer
+                  binary_hash = h.hexdigest()
+
+                  # 3. Content Hash (Text Extraction)
+                  content_hash = None
+                  if PdfReader and filepath.lower().endswith('.pdf'):
+                      try:
+                          reader = PdfReader(filepath)
+                          text_content = ""
+                          # Read optimization: First 5 pages + Last 5 pages
+                          pages = reader.pages
+                          count = len(pages)
+                          
+                          indices = []
+                          if count <= 10:
+                              indices = range(count)
+                          else:
+                              indices = list(range(5)) + list(range(count - 5, count))
+                          
+                          for i in indices:
+                              page_text = pages[i].extract_text()
+                              if page_text:
+                                  text_content += page_text
+                          
+                          # Normalize: Remove all whitespace/newlines
+                          clean_text = "".join(text_content.split())
+                          if len(clean_text) > 50: # Only hash if we got meaningful text
+                              content_hash = hashlib.sha256(clean_text.encode('utf-8')).hexdigest()
+                          else:
+                              # If no text (scanned/raster), use binary hash as fallback
+                              content_hash = binary_hash 
+                              
+                      except Exception as e:
+                          print(f"DEBUG: Failed to extract text from {os.path.basename(filepath)}: {e}")
+                          content_hash = binary_hash # Fallback
+
+                  return (binary_hash, content_hash, timestamp, size, False)
+
               except Exception as e:
-                  print(f"Error hashing {filepath}: {e}")
-                  return (None, 0, 0, False)
+                  print(f"Error processing {filepath}: {e}")
+                  return (None, None, 0, 0, False)
 
           def load_manifest(manifest_path):
-              if not os.path.exists(manifest_path):
-                  return []
+              if not os.path.exists(manifest_path): return []
               try:
                   with open(manifest_path, 'r', encoding='utf-8') as f:
                       data = json.load(f)
@@ -578,77 +615,22 @@ jobs:
                       if 'results' in data: return data['results']
                       if 'files' in data: return data['files']
                   return []
-              except Exception as e:
-                  print(f"Error loading manifest {manifest_path}: {e}")
-                  return []
+              except Exception: return []
 
           def save_manifest(manifest_path, entries):
               try:
                   with open(manifest_path, 'w', encoding='utf-8') as f:
                       json.dump(entries, f, indent=2, ensure_ascii=False)
                   print(f"Manifest saved to {manifest_path} with {len(entries)} entries.")
-              except Exception as e:
-                  print(f"Error saving manifest: {e}")
+              except Exception as e: print(f"Error saving manifest: {e}")
 
-          # --- STAGE 1: LOCAL DEDUPLICATION ---
           def stage_1_local_cleanup(local_dir):
-              print(f"\n--- Stage 1: Local Cleanup ({local_dir}) ---")
-              manifest_path = os.path.join(local_dir, "manifest.json")
-              entries = load_manifest(manifest_path)
-              
-              files_dir = os.path.join(local_dir, "files")
-              
-              if not os.path.exists(files_dir):
-                  print(f"Local files dir {files_dir} does not exist!")
-                  return
+              # Skip strictly local cleanup for now, we rely on Stage 2 to merge against repo
+              pass
 
-              files_by_hash = {}
-              all_files = [f for f in os.listdir(files_dir) if os.path.isfile(os.path.join(files_dir, f))]
-              
-              print(f"Scanning {len(all_files)} generated files...")
-
-              for f in all_files:
-                  if f.startswith("."): continue
-                  path = os.path.join(files_dir, f)
-                  fhash, mtime, size, is_ptr = get_file_info(path)
-                  
-                  if fhash:
-                      if fhash not in files_by_hash: files_by_hash[fhash] = []
-                      files_by_hash[fhash].append({'name': f, 'path': path, 'mtime': mtime, 'size': size})
-
-              files_removed = []
-              for fhash, items in files_by_hash.items():
-                  if len(items) > 1:
-                      # STRICT BINARY DEDUPLICATION
-                      # If 2+ local files have same hash, keep one.
-                      # Priority: Oldest (time) > Shortest Name
-                      
-                      items.sort(key=lambda x: (x['mtime'], len(x['name']), x['name']))
-                      
-                      keeper = items[0]
-                      duplicates = items[1:]
-                      
-                      print(f"Local Duplicate Found ({fhash[:8]}):")
-                      print(f"  KEEPING: {keeper['name']}")
-                      
-                      for dup in duplicates:
-                          print(f"  DELETING: {dup['name']}")
-                          try:
-                              os.remove(dup['path'])
-                              files_removed.append(dup['name'])
-                          except Exception as e:
-                              print(f"    Failed to remove {dup['name']}: {e}")
-
-              if files_removed:
-                  print(f"Removing {len(files_removed)} duplicate entries from manifest...")
-                  new_entries = [e for e in entries if e.get('filename') not in files_removed]
-                  save_manifest(manifest_path, new_entries)
-              else:
-                  print("No local duplicates found.")
-
-          # --- STAGE 2: SMART COPY (LFS AWARE) ---
+          # --- STAGE 2: CONTENT-AWARE SMART COPY ---
           def stage_2_smart_copy(local_dir, repo_dir):
-              print(f"\n--- Stage 2: Smart Copy (LFS Aware) ---")
+              print(f"\n--- Stage 2: Content-Aware Smart Copy ---")
               
               # A. Copy Root Artifacts
               print("Copying Root Artifacts...")
@@ -665,47 +647,94 @@ jobs:
               if not os.path.exists(local_files_dir): return
               if not os.path.exists(repo_files_dir): os.makedirs(repo_files_dir)
               
-              # 1. Scan Repo Files (Build Hash Map of EXISTING content)
-              repo_hashes = {}
-              print(f"Scanning Repo Pointers in {repo_files_dir}...")
+              # 1. Scan Repo Files
+              # We map: { ContentHash: Filename }
+              # Special Note: LFS Pointers don't have text content.
+              # So we verify against LFS Binary Hash OR we need to accept that 
+              # we can't do semantic dedupe against a pointer unless we download it.
+              # WAIT: If the repo file is a pointer, we can ONLY match by Binary Hash.
+              # We cannot know if "D1_CD1" (13MB) is the same text as "Caderno_Azul" (7MB) 
+              # if "Caderno_Azul" is just a pointer. We'd need to download "Caderno_Azul".
               
+              # CRITICAL DECISION:
+              # Since we cannot download all files, we rely on "File Name Heuristics" for pointers?
+              # NO, user said "Standardized".
+              #
+              # However, for this run, the new files (13MB) are LOCAL.
+              # The existing files (7MB) might be LOCAL on the repo if we just cleaned it?
+              # No, they are LFS.
+              #
+              # Actually, if we want to dedupe against LFS, we MUST download the file to read its text.
+              # BUT that is slow.
+              #
+              # Alternative: We trust the user that "D1_CD1" is the canonical name.
+              # If we upload "D1_CD1" (13MB) and "Caderno_Azul" (7MB) is there...
+              #
+              # Wait, the user said "Run standard compile".
+              # If we cannot read the repo file's text, we cannot technically dedupe by text.
+              #
+              # BUT: Maybe the user's issue is that the 13MB file IS generated locally, 
+              # and the 7MB file Is generated locally too (in previous runs)?
+              # 
+              # Let's assume we checking against files WE HAVE locally first?
+              #
+              # REVISED STRATEGY for Repo Scan:
+              # We will download the file if it's small? No 7MB is big.
+              # 
+              # Let's implement the text hashing for LOCAL files. 
+              # If we find "D1_CD1" and "Caderno_Azul" locally, we dedupe them.
+              # If "Caderno_Azul" is only remote... we might miss it if it's a pointer.
+              #
+              # Taking a risk: We will try to read text from repo files. 
+              # If it's a pointer, we skip text check and use binary hash only.
+              
+              repo_map = {} # { ContentHash: Filename, BinaryHash: Filename }
+              
+              print(f"Scanning Repo Pointers/Files...")
               for f in os.listdir(repo_files_dir):
                   path = os.path.join(repo_files_dir, f)
                   if not os.path.isfile(path) or f.startswith("."): continue
                   
-                  # This will get the OID from the LFS pointer (fast)
-                  # or the hash of the real file if downloaded.
-                  fhash, _, _, is_ptr = get_file_info(path)
+                  b_hash, c_hash, _, _, is_ptr = get_file_info(path)
                   
-                  if fhash:
-                      # Map Hash -> Filename
-                      repo_hashes[fhash] = f
+                  if b_hash: repo_map[f"BIN:{b_hash}"] = f
+                  if c_hash: repo_map[f"TXT:{c_hash}"] = f # Only exists if real file
 
               # 2. Process Local Files
               local_files = [f for f in os.listdir(local_files_dir) if os.path.isfile(os.path.join(local_files_dir, f))]
               
               for f in local_files:
                   local_path = os.path.join(local_files_dir, f)
-                  fhash, _, _, _ = get_file_info(local_path)
+                  b_hash, c_hash, mtime, size, _ = get_file_info(local_path)
                   
-                  if fhash in repo_hashes:
-                      # LITERALLY EQUAL content exists in repo (maybe different name)
-                      existing_name = repo_hashes[fhash]
-                      print(f"[DUPLICATE] Local '{f}' == Repo '{existing_name}' ({fhash[:8]}).")
-                      print(f"  Action: DELETE local file (content already exists).")
-                      
-                      # We delete the local file because we don't need to re-upload it.
-                      # We don't copy it.
-                      # BUT! If the filename is different, we have a choice:
-                      # 1. Just delete it (user said "fuck the names").
-                      # 2. Rename it? No, user said "if literally equal, don't put the doc".
-                      
+                  # Check Binary Match (Fast, Perfect)
+                  if f"BIN:{b_hash}" in repo_map:
+                      existing = repo_map[f"BIN:{b_hash}"]
+                      print(f"[DUPLICATE-BIN] '{f}' == '{existing}'. Deleting local.")
                       os.remove(local_path)
-                  else:
-                      print(f"[NEW] '{f}' is unique. Copying -> {repo_files_dir}")
-                      shutil.copy2(local_path, os.path.join(repo_files_dir, f))
+                      continue
+                  
+                  # Check Content Match (Text)
+                  if c_hash and f"TXT:{c_hash}" in repo_map:
+                      existing = repo_map[f"TXT:{c_hash}"]
+                      print(f"[DUPLICATE-TXT] '{f}' content matches '{existing}'.")
+                      # CONTENT MATCH FOUND!
+                      # Decision: Keep OLDER or SHORTER name?
+                      # Since we can't check repo file's age easily without git log, 
+                      # we assume Repo File is "Older".
+                      # User said "Keep Oldest". So we KEEP Repo file, DELETE Local.
+                      print(f"  Action: DELETE local '{f}' (Repo version '{existing}' preserved).")
+                      os.remove(local_path)
+                      continue
+                      
+                  # If Unique
+                  print(f"[NEW] '{f}' is unique (Content Hash: {c_hash[:8] if c_hash else 'N/A'}). Copying.")
+                  shutil.copy2(local_path, os.path.join(repo_files_dir, f))
+                  
+                  # Add to map so subsequent local files match this one
+                  if b_hash: repo_map[f"BIN:{b_hash}"] = f
+                  if c_hash: repo_map[f"TXT:{c_hash}"] = f
 
-          # --- STAGE 3: MANIFEST FINALIZATION ---
           def stage_3_finalize_manifest(local_manifest_path, repo_dir):
               print(f"\n--- Stage 3: Manifest Finalization ---")
               repo_manifest_path = os.path.join(repo_dir, "manifest.json")
@@ -714,36 +743,21 @@ jobs:
               old_entries = load_manifest(repo_manifest_path)
               new_entries = load_manifest(local_manifest_path)
               
-              # Get list of ALL files actually sitting in the repo folder now
               actual_files = set()
               if os.path.exists(repo_files_dir):
                   for f in os.listdir(repo_files_dir):
                       if not f.startswith("."): actual_files.add(f)
               
-              print(f"Actual files in repo: {len(actual_files)}")
-              
               final_entries = []
               seen_filenames = set()
-              
-              # Combine entries
               full_pool = old_entries + new_entries
               
               for entry in full_pool:
                   fname = entry.get('filename')
-                  
-                  if not fname:
-                       if entry.get('status') == 'reference':
-                           final_entries.append(entry)
-                       continue
+                  if not fname: 
+                      if entry.get('status') == 'reference': final_entries.append(entry)
+                      continue
 
-                  # Critical: Only keep entry if file ALMOST exists.
-                  # Wait, if we deleted 'foo_regular.pdf' because 'foo.pdf' exists,
-                  # we removed 'foo_regular.pdf' from disk.
-                  # The manifest entry for 'foo_regular.pdf' will effectively point to nothing.
-                  # So we drop the entry?
-                  # User: "don't put the doc".
-                  # Yes, if we deleted the file, we delete the manifest entry.
-                  
                   if fname in actual_files:
                       if fname not in seen_filenames:
                           final_entries.append(entry)
@@ -752,15 +766,10 @@ jobs:
               save_manifest(repo_manifest_path, final_entries)
 
           if __name__ == "__main__":
-              if len(sys.argv) < 3:
-                   print("Usage: deduplicate.py <local_output_dir> <repo_output_dir>")
-                   sys.exit(1)
-
+              if len(sys.argv) < 3: sys.exit(1)
               local_dir = sys.argv[1]
               repo_dir = sys.argv[2]
-              
               if os.path.exists(local_dir):
-                  stage_1_local_cleanup(local_dir)
                   stage_2_smart_copy(local_dir, repo_dir)
                   stage_3_finalize_manifest(os.path.join(local_dir, "manifest.json"), repo_dir)
               else:
@@ -778,6 +787,16 @@ jobs:
             
             slug="${{ steps.deep_search.outputs.final_slug }}"
             echo "Processing slug: $slug"
+            
+            # --- ENABLE LFS & DOWNLOAD CONTENT FOR DEDUPLICATION ---
+            # We must download the actual PDFs to compare text content.
+            # Using selective pull to avoid downloading 30GB+ of history.
+            cd hf_repo
+            git lfs install
+            echo "Pulling LFS files for output/$slug/files/..."
+            git lfs pull --include "output/$slug/files/*"
+            cd ..
+            # -------------------------------------------------------
             
             # Prepare Directories
             mkdir -p hf_repo/output/$slug

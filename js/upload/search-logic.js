@@ -462,7 +462,12 @@ export function setupSearchLogic() {
   };
 
   // --- CORE: INTEGRATED VERIFICATION & LOAD LOGIC ---
-  const loadResults = async (manifestUrl, logFn, terminal) => {
+  const loadResults = async (
+    manifestUrl,
+    logFn,
+    terminal,
+    ignoredFiles = new Set()
+  ) => {
     const log =
       logFn ||
       ((msg, type) => console.log(`[${type?.toUpperCase() || "INFO"}] ${msg}`));
@@ -508,7 +513,8 @@ export function setupSearchLogic() {
       const { validItems, corruptedItems } = await verifyManifestIntegrity(
         manifest,
         log,
-        terminal
+        terminal,
+        ignoredFiles
       );
 
       // 3. Conditional Cleanup
@@ -528,12 +534,22 @@ export function setupSearchLogic() {
 
         await performBatchCleanup(corruptedItems, log);
 
-        log("[SISTEMA] Limpeza concluída. Recarregando índice...", "success");
+        // Optimistic Update: Add these to ignoredFiles so we don't block on them
+        corruptedItems.forEach((item) => {
+          const filename = item.filename || item.path.split("/").pop();
+          ignoredFiles.add(filename);
+          // Also add the raw name/path to be safe
+          ignoredFiles.add(item.filename);
+        });
 
-        // Recursive Retry (Wait small delay for GitHub API propagation)
-        // Add minimal backoff to allow CDN propagation
-        await new Promise((r) => setTimeout(r, 4000));
-        return loadResults(manifestUrl, logFn, terminal);
+        log(
+          "[SISTEMA] Limpeza solicitada. Prosseguindo (Optimistic)...",
+          "success"
+        );
+
+        // Recursive Retry immediately (or short delay), passing ignoredFiles
+        await new Promise((r) => setTimeout(r, 1000));
+        return loadResults(manifestUrl, logFn, terminal, ignoredFiles);
       }
 
       // 4. Success -> Render
@@ -552,15 +568,35 @@ export function setupSearchLogic() {
   };
 
   // Headless Verification using Range Headers
-  const verifyManifestIntegrity = async (manifest, log, terminal) => {
+  const verifyManifestIntegrity = async (
+    manifest,
+    log,
+    terminal,
+    ignoredFiles
+  ) => {
     // Normalization logic
     const rawItems =
       manifest.results ||
       manifest.files ||
       (Array.isArray(manifest) ? manifest : []);
+
     const items = rawItems
       .map((item) => normalizeItem(item))
-      .filter((item) => item && item.url && !item.url.includes("/undefined"));
+      .filter((item) => {
+        if (!item || !item.url || item.url.includes("/undefined")) return false;
+
+        // OPTIMISTIC FILTER: If we just asked to delete this, hide it.
+        const fname = item.filename || item.path?.split("/").pop();
+        if (
+          ignoredFiles &&
+          (ignoredFiles.has(fname) || ignoredFiles.has(item.filename))
+        ) {
+          if (log)
+            log(`[SKIP] Ignorando arquivo pendente de exclusão: ${fname}`);
+          return false;
+        }
+        return true;
+      });
 
     // Split references vs downloads
     const downloadableItems = items.filter((i) => i.status !== "reference");
