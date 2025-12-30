@@ -21,20 +21,21 @@
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 800px;
-  overflow: hidden;
+  /* overflow: hidden;  REMOVED to allow growth */
   box-shadow: var(--shadow-lg);
   display: flex !important;
   flex-direction: column;
   margin-bottom: 24px;
-  height: 480px; /* Increased for better visibility */
+  min-height: 480px; /* Changed from height to min-height */
+  height: auto;      /* Allow growth */
   position: relative;
   z-index: 10;
-  backdrop-filter: blur(12px); /* Glassmorphism if supported */
+  backdrop-filter: blur(12px);
 }
 
 /* Header Section */
 .term-header {
-  background-color: var(--color-background-json); /* Slightly darker/lighter contrast */
+  background-color: var(--color-background-json);
   border-bottom: 1px solid var(--term-border);
   padding: 12px 16px;
   display: flex;
@@ -140,17 +141,18 @@
 .term-eta {
   color: var(--term-accent);
   font-weight: var(--font-weight-bold);
-  font-variant-numeric: tabular-nums; /* Monospaced numbers */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Task List Section */
 .term-tasks {
   flex-grow: 1;
-  overflow-y: auto;
+  /* overflow-y: auto; REMOVED to show full content */
   padding: 16px 20px;
   background: var(--term-bg);
   border-bottom: 1px solid var(--term-border);
   min-height: 120px;
+  height: auto; /* Ensure it grows */
 }
 
 .term-task-item {

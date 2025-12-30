@@ -483,7 +483,9 @@ export function setupSearchLogic() {
 
       while (loadingAttempts < 10 && !manifest) {
         try {
-          const r = await fetch(manifestUrl);
+          // Cache Busting: Ensure we get the latest manifest version
+          const bust = Date.now();
+          const r = await fetch(`${manifestUrl}?t=${bust}`);
           if (r.ok) {
             manifest = await r.json();
             break;
@@ -529,7 +531,8 @@ export function setupSearchLogic() {
         log("[SISTEMA] Limpeza concluída. Recarregando índice...", "success");
 
         // Recursive Retry (Wait small delay for GitHub API propagation)
-        await new Promise((r) => setTimeout(r, 2000));
+        // Add minimal backoff to allow CDN propagation
+        await new Promise((r) => setTimeout(r, 4000));
         return loadResults(manifestUrl, logFn, terminal);
       }
 
@@ -627,11 +630,13 @@ export function setupSearchLogic() {
     };
 
     const targetUrl = getFetchUrl(url);
+    // Cache Busting for Verification
+    const bustUrl = `${targetUrl}?no_cache=${Date.now()}`;
 
     try {
       // --- LAYER 1: NETWORK & METADATA (HEAD) ---
       // Low cost, checks existence and basic type.
-      const headResp = await fetch(targetUrl, { method: "HEAD" });
+      const headResp = await fetch(bustUrl, { method: "HEAD" });
 
       if (!headResp.ok) {
         logError(

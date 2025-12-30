@@ -537,15 +537,35 @@ jobs:
                   timestamp = os.path.getmtime(filepath)
                   size = os.path.getsize(filepath)
                   
-                  # SHA256 Hash
+                  # Check if it's an LFS pointer first
+                  # LFS pointers are small text files.
+                  if size < 200: 
+                      try:
+                          with open(filepath, 'r', encoding='utf-8') as f:
+                              header = f.readline()
+                              if header.startswith('version https://git-lfs.github.com/spec/v1'):
+                                  # It's a pointer!
+                                  # Format:
+                                  # version ...
+                                  # oid sha256:HASH
+                                  # size SIZE
+                                  for line in f:
+                                      if line.startswith('oid sha256:'):
+                                          lfs_hash = line.strip().split(':')[1]
+                                          # Return the LFS hash as the "file hash"
+                                          return (lfs_hash, timestamp, size, True) # True = Is Pointer
+                      except Exception:
+                          pass # Not a pointer or read error, proceed to standard hash
+
+                  # Standard SHA256 Hash for real files
                   h = hashlib.sha256()
                   with open(filepath, 'rb') as f:
                       while chunk := f.read(8192):
                           h.update(chunk)
-                  return (h.hexdigest(), timestamp, size)
+                  return (h.hexdigest(), timestamp, size, False) # False = Not Pointer
               except Exception as e:
                   print(f"Error hashing {filepath}: {e}")
-                  return (None, 0, 0)
+                  return (None, 0, 0, False)
 
           def load_manifest(manifest_path):
               if not os.path.exists(manifest_path):
@@ -576,24 +596,21 @@ jobs:
               manifest_path = os.path.join(local_dir, "manifest.json")
               entries = load_manifest(manifest_path)
               
-              # IMPORTANT: Files are in 'files/' subdirectory
               files_dir = os.path.join(local_dir, "files")
               
               if not os.path.exists(files_dir):
-                  print(f"Local files dir {files_dir} does not exist! (Might be reference-only run)")
+                  print(f"Local files dir {files_dir} does not exist!")
                   return
 
               files_by_hash = {}
               all_files = [f for f in os.listdir(files_dir) if os.path.isfile(os.path.join(files_dir, f))]
               
-              print(f"Scanning {len(all_files)} files in {files_dir}...")
+              print(f"Scanning {len(all_files)} generated files...")
 
               for f in all_files:
-                  # Ignore strict non-files if any leak in
                   if f.startswith("."): continue
-                  
                   path = os.path.join(files_dir, f)
-                  fhash, mtime, size = get_file_info(path)
+                  fhash, mtime, size, is_ptr = get_file_info(path)
                   
                   if fhash:
                       if fhash not in files_by_hash: files_by_hash[fhash] = []
@@ -602,25 +619,20 @@ jobs:
               files_removed = []
               for fhash, items in files_by_hash.items():
                   if len(items) > 1:
-                      # SORT PRIORITY:
-                      # 1. Size (Larger is better - prefer valid content over LFS pointers/empty files)
-                      # 2. Mtime (Oldest is better - stability)
-                      # 3. Name Length (Shortest is better)
+                      # STRICT BINARY DEDUPLICATION
+                      # If 2+ local files have same hash, keep one.
+                      # Priority: Oldest (time) > Shortest Name
                       
-                      # We sort DESCENDING by Size (so largest is first), then ASCENDING by Mtime.
-                      # Since python sort is stable, we can chain or use tuples.
-                      # Tuple: (-size, mtime, len(name)) -> Min of this tuple is Best.
-                      
-                      items.sort(key=lambda x: (-x['size'], x['mtime'], len(x['name']), x['name']))
+                      items.sort(key=lambda x: (x['mtime'], len(x['name']), x['name']))
                       
                       keeper = items[0]
                       duplicates = items[1:]
                       
-                      print(f"Duplicate content found ({fhash[:8]}):")
-                      print(f"  KEEPING: {keeper['name']} (Size: {keeper['size']}, Created: {datetime.fromtimestamp(keeper['mtime'])})")
+                      print(f"Local Duplicate Found ({fhash[:8]}):")
+                      print(f"  KEEPING: {keeper['name']}")
                       
                       for dup in duplicates:
-                          print(f"  DELETING: {dup['name']} (Size: {dup['size']}, Created: {datetime.fromtimestamp(dup['mtime'])})")
+                          print(f"  DELETING: {dup['name']}")
                           try:
                               os.remove(dup['path'])
                               files_removed.append(dup['name'])
@@ -634,58 +646,63 @@ jobs:
               else:
                   print("No local duplicates found.")
 
-          # --- STAGE 2: SMART COPY ---
+          # --- STAGE 2: SMART COPY (LFS AWARE) ---
           def stage_2_smart_copy(local_dir, repo_dir):
-              print(f"\n--- Stage 2: Smart Copy ---")
+              print(f"\n--- Stage 2: Smart Copy (LFS Aware) ---")
               
-              # A. Copy Root Artifacts (index.md, slug.txt, zip, etc.)
+              # A. Copy Root Artifacts
               print("Copying Root Artifacts...")
               for f in os.listdir(local_dir):
                   src_path = os.path.join(local_dir, f)
                   dst_path = os.path.join(repo_dir, f)
-                  if os.path.isfile(src_path) and f != "manifest.json":
-                      # Always copy updated root artifacts (metadata, zips)
-                      # Except manifest which is handled specially
+                  if os.path.isfile(src_path) and f != "manifest.json" and f != "files":
                       shutil.copy2(src_path, dst_path)
-                      print(f"  Copied: {f}")
 
-              # B. Smart Copy 'files/' Subdirectory
+              # B. Compare 'files/' content
               local_files_dir = os.path.join(local_dir, "files")
               repo_files_dir = os.path.join(repo_dir, "files")
               
-              if not os.path.exists(local_files_dir):
-                  print(f"Local files dir {local_files_dir} missing. Nothing to copy.")
-                  return
-
-              if not os.path.exists(repo_files_dir):
-                   os.makedirs(repo_files_dir)
+              if not os.path.exists(local_files_dir): return
+              if not os.path.exists(repo_files_dir): os.makedirs(repo_files_dir)
               
-              # 1. Scan Repo Files (in files/ subdir)
+              # 1. Scan Repo Files (Build Hash Map of EXISTING content)
               repo_hashes = {}
-              print(f"Scanning Repo: {repo_files_dir}...")
+              print(f"Scanning Repo Pointers in {repo_files_dir}...")
               
               for f in os.listdir(repo_files_dir):
                   path = os.path.join(repo_files_dir, f)
-                  if not os.path.isfile(path): continue
-                  if f.startswith("."): continue 
+                  if not os.path.isfile(path) or f.startswith("."): continue
                   
-                  fhash, _, _ = get_file_info(path)
+                  # This will get the OID from the LFS pointer (fast)
+                  # or the hash of the real file if downloaded.
+                  fhash, _, _, is_ptr = get_file_info(path)
+                  
                   if fhash:
+                      # Map Hash -> Filename
                       repo_hashes[fhash] = f
 
-              # 2. Scan Local Files
+              # 2. Process Local Files
               local_files = [f for f in os.listdir(local_files_dir) if os.path.isfile(os.path.join(local_files_dir, f))]
               
               for f in local_files:
                   local_path = os.path.join(local_files_dir, f)
-                  
-                  fhash, _, size = get_file_info(local_path)
+                  fhash, _, _, _ = get_file_info(local_path)
                   
                   if fhash in repo_hashes:
+                      # LITERALLY EQUAL content exists in repo (maybe different name)
                       existing_name = repo_hashes[fhash]
-                      print(f"[SKIP] '{f}' matches existing '{existing_name}' in repo. Keeping repo version.")
+                      print(f"[DUPLICATE] Local '{f}' == Repo '{existing_name}' ({fhash[:8]}).")
+                      print(f"  Action: DELETE local file (content already exists).")
+                      
+                      # We delete the local file because we don't need to re-upload it.
+                      # We don't copy it.
+                      # BUT! If the filename is different, we have a choice:
+                      # 1. Just delete it (user said "fuck the names").
+                      # 2. Rename it? No, user said "if literally equal, don't put the doc".
+                      
+                      os.remove(local_path)
                   else:
-                      print(f"[COPY] '{f}' is new. Copying -> {repo_files_dir}")
+                      print(f"[NEW] '{f}' is unique. Copying -> {repo_files_dir}")
                       shutil.copy2(local_path, os.path.join(repo_files_dir, f))
 
           # --- STAGE 3: MANIFEST FINALIZATION ---
@@ -697,58 +714,40 @@ jobs:
               old_entries = load_manifest(repo_manifest_path)
               new_entries = load_manifest(local_manifest_path)
               
-              print(f"Old Manifest entries: {len(old_entries)}")
-              print(f"New Manifest entries: {len(new_entries)}")
-              
-              # Scan actual files in Repo FILES SUBDIR
+              # Get list of ALL files actually sitting in the repo folder now
               actual_files = set()
               if os.path.exists(repo_files_dir):
                   for f in os.listdir(repo_files_dir):
-                      path = os.path.join(repo_files_dir, f)
-                      if os.path.isfile(path) and not f.startswith("."):
-                          actual_files.add(f)
+                      if not f.startswith("."): actual_files.add(f)
               
-              print(f"Actual files on disk ({repo_files_dir}): {len(actual_files)}")
+              print(f"Actual files in repo: {len(actual_files)}")
               
               final_entries = []
               seen_filenames = set()
               
+              # Combine entries
               full_pool = old_entries + new_entries
               
               for entry in full_pool:
                   fname = entry.get('filename')
                   
-                  # If no filename, it's a reference. Check Dedupe by URL/Link
-                  if not fname: 
-                      if entry.get('status') == 'reference':
-                           link = entry.get('link_origem') or entry.get('url')
-                           if link and link not in seen_filenames:
-                               final_entries.append(entry)
-                               seen_filenames.add(link)
-                      continue
+                  if not fname:
+                       if entry.get('status') == 'reference':
+                           final_entries.append(entry)
+                       continue
 
-                  # If it HAS a filename, it MUST exist on disk
-                  if fname not in actual_files: 
-                      # print(f"Dropping entry {fname} - not found on disk.")
-                      continue
+                  # Critical: Only keep entry if file ALMOST exists.
+                  # Wait, if we deleted 'foo_regular.pdf' because 'foo.pdf' exists,
+                  # we removed 'foo_regular.pdf' from disk.
+                  # The manifest entry for 'foo_regular.pdf' will effectively point to nothing.
+                  # So we drop the entry?
+                  # User: "don't put the doc".
+                  # Yes, if we deleted the file, we delete the manifest entry.
                   
-                  if fname in seen_filenames: continue
-                  
-                  final_entries.append(entry)
-                  seen_filenames.add(fname)
-                  
-              orphans = [f for f in actual_files if f not in seen_filenames]
-              
-              if orphans:
-                  print(f"Found {len(orphans)} orphans. Adding basic entries...")
-                  for orphan in orphans:
-                      final_entries.append({
-                          "filename": orphan,
-                          "name": os.path.splitext(orphan)[0].replace('_', ' ').replace('-', ' ').title(),
-                          "type": "recovered_orphan",
-                          "status": "downloaded",
-                          "added_at": datetime.now().isoformat()
-                      })
+                  if fname in actual_files:
+                      if fname not in seen_filenames:
+                          final_entries.append(entry)
+                          seen_filenames.add(fname)
               
               save_manifest(repo_manifest_path, final_entries)
 
