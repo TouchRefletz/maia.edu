@@ -597,30 +597,46 @@ jobs:
             import hashlib
             import json
             import re
+            import shutil
+            import subprocess
+            from datetime import datetime
 
-            def get_file_hash(filepath):
-                """Calculates SHA256. Handles Git LFS pointers by reading the oid."""
+            def get_file_info(filepath):
                 try:
-                    # Try reading as text to check for LFS pointer (first 200 bytes)
                     with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                         header = f.read(200)
-                        # LFS pointers look like: version https://git-lfs.github.com/spec/v1\noid sha256:...\nsize ...
                         match = re.search(r'oid sha256:([a-f0-9]{64})', header)
                         if match:
-                            return match.group(1)
+                            return (match.group(1), True)
                 except Exception:
                     pass
                 
-                # Fallback: full content hash (binary read)
                 h = hashlib.sha256()
                 try:
                     with open(filepath, 'rb') as f:
                         while chunk := f.read(8192):
                             h.update(chunk)
-                    return h.hexdigest()
+                    return (h.hexdigest(), False)
                 except Exception as e:
                     print(f"Error hashing {filepath}: {e}")
-                    return None
+                    return (None, False)
+
+            def is_git_tracked(filepath, cwd):
+                """Checks if a file is already tracked by git (committed)."""
+                try:
+                    dirname = os.path.dirname(filepath)
+                    basename = os.path.basename(filepath)
+                    res = subprocess.run(
+                        ['git', 'ls-files', basename], 
+                        cwd=dirname, 
+                        capture_output=True, 
+                        text=True,
+                        check=False
+                    )
+                    return bool(res.stdout.strip())
+                except Exception as e:
+                    print(f"Git check failed for {filepath}: {e}")
+                    return False
 
             def load_manifest(manifest_path):
                 if not os.path.exists(manifest_path):
@@ -628,7 +644,6 @@ jobs:
                 try:
                     with open(manifest_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
-                    
                     if isinstance(data, list): return data
                     if isinstance(data, dict):
                         if 'results' in data: return data['results']
@@ -651,82 +666,111 @@ jobs:
                 
                 manifest_path = os.path.join(target_dir, "manifest.json")
                 manifest_entries = load_manifest(manifest_path)
-                
-                # Index Manifest by Filename
-                # Map: filename -> entry object
                 entries_by_filename = {e.get('filename'): e for e in manifest_entries if e.get('filename')}
 
                 files_by_hash = {}
                 
-                # 1. Group files by hash
+                # Scan files and gather info (Hash, LFS, Git Tracked)
                 for root, _, files in os.walk(target_dir):
                     for filename in files:
-                        if filename in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]:
-                            continue
-                        if filename.endswith(".json") or filename.endswith(".txt") or filename.endswith(".md"):
-                            continue 
+                        if filename in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
+                        if filename.endswith(".json") or filename.endswith(".txt") or filename.endswith(".md"): continue 
 
                         filepath = os.path.join(root, filename)
-                        file_hash = get_file_hash(filepath)
+                        file_hash, is_lfs = get_file_info(filepath)
                         
                         if file_hash:
                             if file_hash not in files_by_hash:
                                 files_by_hash[file_hash] = []
-                            files_by_hash[file_hash].append(filename) # Store filename relative to dir (basename)
+                            files_by_hash[file_hash].append({
+                                'path': filepath,
+                                'filename': filename,
+                                'is_lfs': is_lfs,
+                                'in_manifest': filename in entries_by_filename,
+                                'is_tracked': is_git_tracked(filepath, root)
+                            })
 
-                # Track changes
                 manifest_changed = False
-                final_entries = list(manifest_entries) # Start with copy
+                files_removed_count = 0
                 
-                # 2. Identify and resolve duplicates
-                for fhash, filenames in files_by_hash.items():
-                    if len(filenames) > 1:
-                        # Sort: Prefer shortest filename length, then alphabetical
-                        filenames.sort(key=lambda n: (len(n), n))
+                # --- DEDUPLICATION ---
+                for fhash, items in files_by_hash.items():
+                    if len(items) > 1:
+                        # Priority Rules:
+                        # 1. Git Tracked (Old/Existing files) - HIGHEST PRIORITY
+                        # 2. In Manifest (Valid Metadata)
+                        # 3. Real Binary (Not LFS)
+                        # 4. Shortest Name
                         
-                        keep_filename = filenames[0]
-                        remove_filenames = filenames[1:]
+                        items.sort(key=lambda x: (
+                            not x['is_tracked'],  # False (Tracked) < True
+                            not x['in_manifest'], # False (In Manifest) < True
+                            x['is_lfs'],          # False (Binary) < True
+                            len(x['filename']),   # Shortest
+                            x['filename']         # Alphabetical tie-breaker
+                        ))
                         
-                        print(f"Duplicate group found. Keeping: {keep_filename}")
+                        keep_item = items[0]
+                        remove_items = items[1:]
                         
-                        # --- METADATA MIGRATION LOGIC ---
-                        # Check if the 'keep' file has a valid manifest entry
-                        keep_entry = entries_by_filename.get(keep_filename)
+                        print(f"Duplicate group ({fhash[:8]})...")
+                        print(f"  Keeping: {keep_item['filename']} [Tracked={keep_item['is_tracked']}, Manifest={keep_item['in_manifest']}, LFS={keep_item['is_lfs']}]")
                         
-                        if not keep_entry:
-                            print(f"  Warning: Kept file '{keep_filename}' has NO manifest entry. Searching for orphan metadata...")
-                            # Try to find an entry from the files we are about to delete
-                            adopted_entry = None
-                            for rm_name in remove_filenames:
-                                if rm_name in entries_by_filename:
-                                    print(f"  Adopting metadata from deleted file: {rm_name}")
-                                    adopted_entry = entries_by_filename[rm_name]
-                                    break # Take the first valid one
-                            
-                            if adopted_entry:
-                                # Clone and rename
-                                new_entry = adopted_entry.copy()
-                                new_entry['filename'] = keep_filename
-                                final_entries.append(new_entry)
-                                entries_by_filename[keep_filename] = new_entry # Update index
-                                manifest_changed = True
-                        # --------------------------------
+                        # LFS Repair: If keeping a pointer but deleting a binary, overwrite logic.
+                        # Only overwrite if the keeper is an LFS pointer and we have a binary source.
+                        binary_candidate = next((item for item in [keep_item] + remove_items if not item['is_lfs']), None)
                         
-                        # Delete files and remove their ORIGINAL entries
-                        for rm_name in remove_filenames:
-                            print(f"  Deleting: {rm_name}")
-                            full_path = os.path.join(target_dir, rm_name)
+                        if keep_item['is_lfs'] and binary_candidate and binary_candidate != keep_item:
+                             print(f"  [LFS Repair] Overwriting pointer '{keep_item['filename']}' with binary content from '{binary_candidate['filename']}'")
+                             try:
+                                shutil.copy2(binary_candidate['path'], keep_item['path'])
+                             except Exception as e:
+                                print(f"  Error overwriting LFS: {e}")
+                        
+                        # Delete others
+                        for rm in remove_items:
+                            print(f"  Deleting: {rm['filename']}")
                             try:
-                                if os.path.exists(full_path):
-                                    os.remove(full_path)
+                                if os.path.exists(rm['path']):
+                                    os.remove(rm['path'])
+                                    files_removed_count += 1
                             except Exception as e:
-                                print(f"  Failed to delete {rm_name}: {e}")
+                                print(f"  Failed to delete {rm['filename']}: {e}")
                             
-                            # Remove entry from final list
-                            final_entries = [e for e in final_entries if e.get('filename') != rm_name]
-                            manifest_changed = True
+                            # Clean Manifest
+                            if rm['filename'] in entries_by_filename:
+                                print(f"  Removing manifest entry for deleted file: {rm['filename']}")
+                                del entries_by_filename[rm['filename']]
+                                manifest_changed = True
 
-                if manifest_changed:
+                # --- ORPHAN DETECTION (New Files) ---
+                # Check for files on disk that are NOT in the manifest
+                # Re-scan dir to ensure we capture current state
+                final_files = []
+                for root, _, files in os.walk(target_dir):
+                     for filename in files:
+                        if filename in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
+                        if filename.endswith(".json") or filename.endswith(".txt") or filename.endswith(".md"): continue
+                        final_files.append(filename)
+                
+                orphans = [f for f in final_files if f not in entries_by_filename]
+                
+                if orphans:
+                    print(f"Found {len(orphans)} orphan files (not in manifest). Adding them...")
+                    for orphan in orphans:
+                        # Infer simple metadata for orphans
+                        new_entry = {
+                            "filename": orphan,
+                            "name": os.path.splitext(orphan)[0].replace('_', ' ').title(),
+                            "type": "recovered",
+                            "status": "downloaded",
+                            "added_at": datetime.now().isoformat()
+                        }
+                        entries_by_filename[orphan] = new_entry
+                        manifest_changed = True
+
+                if manifest_changed or files_removed_count > 0:
+                    final_entries = list(entries_by_filename.values())
                     save_manifest(manifest_path, final_entries)
                 else:
                     print("No manifest changes needed.")
