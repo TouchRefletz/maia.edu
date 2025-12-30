@@ -576,18 +576,23 @@ jobs:
               manifest_path = os.path.join(local_dir, "manifest.json")
               entries = load_manifest(manifest_path)
               
-              if not os.path.exists(local_dir):
-                  print(f"Local dir {local_dir} does not exist!")
+              # IMPORTANT: Files are in 'files/' subdirectory
+              files_dir = os.path.join(local_dir, "files")
+              
+              if not os.path.exists(files_dir):
+                  print(f"Local files dir {files_dir} does not exist! (Might be reference-only run)")
                   return
 
               files_by_hash = {}
-              all_files = [f for f in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, f))]
+              all_files = [f for f in os.listdir(files_dir) if os.path.isfile(os.path.join(files_dir, f))]
               
-              for f in all_files:
-                  if f in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
-                  if f.endswith(".json") or f.endswith(".txt") or f.endswith(".md"): continue
+              print(f"Scanning {len(all_files)} files in {files_dir}...")
 
-                  path = os.path.join(local_dir, f)
+              for f in all_files:
+                  # Ignore strict non-files if any leak in
+                  if f.startswith("."): continue
+                  
+                  path = os.path.join(files_dir, f)
                   fhash, mtime, size = get_file_info(path)
                   
                   if fhash:
@@ -614,6 +619,7 @@ jobs:
                               print(f"    Failed to remove {dup['name']}: {e}")
 
               if files_removed:
+                  print(f"Removing {len(files_removed)} duplicate entries from manifest...")
                   new_entries = [e for e in entries if e.get('filename') not in files_removed]
                   save_manifest(manifest_path, new_entries)
               else:
@@ -623,42 +629,49 @@ jobs:
           def stage_2_smart_copy(local_dir, repo_dir):
               print(f"\n--- Stage 2: Smart Copy ---")
               
-              repo_hashes = {}
-              print(f"Scanning Repo: {repo_dir}...")
+              local_files_dir = os.path.join(local_dir, "files")
+              repo_files_dir = os.path.join(repo_dir, "files")
               
-              if not os.path.exists(repo_dir):
-                   os.makedirs(repo_dir)
+              if not os.path.exists(local_files_dir):
+                  print(f"Local files dir {local_files_dir} missing. Nothing to copy.")
+                  return
 
-              for f in os.listdir(repo_dir):
-                  path = os.path.join(repo_dir, f)
+              if not os.path.exists(repo_files_dir):
+                   os.makedirs(repo_files_dir)
+              
+              # 1. Scan Repo Files (in files/ subdir)
+              repo_hashes = {}
+              print(f"Scanning Repo: {repo_files_dir}...")
+              
+              for f in os.listdir(repo_files_dir):
+                  path = os.path.join(repo_files_dir, f)
                   if not os.path.isfile(path): continue
-                  if f.endswith(".json") or f.endswith(".txt") or f.endswith(".md"): continue
+                  if f.startswith("."): continue 
                   
                   fhash, _, _ = get_file_info(path)
                   if fhash:
                       repo_hashes[fhash] = f
 
-              local_files = [f for f in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, f))]
+              # 2. Scan Local Files
+              local_files = [f for f in os.listdir(local_files_dir) if os.path.isfile(os.path.join(local_files_dir, f))]
               
               for f in local_files:
-                  if f in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
+                  local_path = os.path.join(local_files_dir, f)
                   
-                  local_path = os.path.join(local_dir, f)
-                  if not os.path.exists(local_path): continue
-
                   fhash, _, _ = get_file_info(local_path)
                   
                   if fhash in repo_hashes:
                       existing_name = repo_hashes[fhash]
                       print(f"[SKIP] '{f}' matches existing '{existing_name}' in repo. Keeping repo version.")
                   else:
-                      print(f"[COPY] '{f}' is new. Copying -> {repo_dir}")
-                      shutil.copy2(local_path, os.path.join(repo_dir, f))
+                      print(f"[COPY] '{f}' is new. Copying -> {repo_files_dir}")
+                      shutil.copy2(local_path, os.path.join(repo_files_dir, f))
 
           # --- STAGE 3: MANIFEST FINALIZATION ---
           def stage_3_finalize_manifest(local_manifest_path, repo_dir):
               print(f"\n--- Stage 3: Manifest Finalization ---")
               repo_manifest_path = os.path.join(repo_dir, "manifest.json")
+              repo_files_dir = os.path.join(repo_dir, "files")
               
               old_entries = load_manifest(repo_manifest_path)
               new_entries = load_manifest(local_manifest_path)
@@ -666,15 +679,15 @@ jobs:
               print(f"Old Manifest entries: {len(old_entries)}")
               print(f"New Manifest entries: {len(new_entries)}")
               
+              # Scan actual files in Repo FILES SUBDIR
               actual_files = set()
-              if os.path.exists(repo_dir):
-                  for f in os.listdir(repo_dir):
-                      if f in ["manifest.json", "index.md", "slug.txt"]: continue
-                      path = os.path.join(repo_dir, f)
-                      if os.path.isfile(path) and not f.endswith(".json"):
+              if os.path.exists(repo_files_dir):
+                  for f in os.listdir(repo_files_dir):
+                      path = os.path.join(repo_files_dir, f)
+                      if os.path.isfile(path) and not f.startswith("."):
                           actual_files.add(f)
               
-              print(f"Actual files on disk: {len(actual_files)}")
+              print(f"Actual files on disk ({repo_files_dir}): {len(actual_files)}")
               
               final_entries = []
               seen_filenames = set()
@@ -684,6 +697,7 @@ jobs:
               for entry in full_pool:
                   fname = entry.get('filename')
                   
+                  # If no filename, it's a reference. Check Dedupe by URL/Link
                   if not fname: 
                       if entry.get('status') == 'reference':
                            link = entry.get('link_origem') or entry.get('url')
@@ -692,7 +706,9 @@ jobs:
                                seen_filenames.add(link)
                       continue
 
+                  # If it HAS a filename, it MUST exist on disk
                   if fname not in actual_files: 
+                      # print(f"Dropping entry {fname} - not found on disk.")
                       continue
                   
                   if fname in seen_filenames: continue
@@ -745,6 +761,7 @@ jobs:
             
             # Prepare Directories
             mkdir -p hf_repo/output/$slug
+            mkdir -p hf_repo/output/$slug/files # Ensure files dir exists
 
             # Execute Python Script
             echo "Running Smart Deduplication & Merge..."
