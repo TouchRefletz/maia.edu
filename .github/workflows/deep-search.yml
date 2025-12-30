@@ -584,11 +584,7 @@ jobs:
             # Prepare Directories
             mkdir -p hf_repo/output/$slug
 
-            # Copy Artifacts
-            # We copy FROM generated output TO the cloned repo
-            # This adds new files and updates            # Copy Artifacts
-            cp -r "output/$slug"/* "hf_repo/output/$slug/"
-
+            # --- ROBUST PYTHON DEDUPLICATION & MERGE ---
             echo "Running Smart Deduplication & Merge..."
             cat << 'EOF' | sed 's/^  //' > deduplicate.py
             import os
@@ -600,19 +596,19 @@ jobs:
             from datetime import datetime
 
             def get_file_info(filepath):
-                timestamp = os.path.getmtime(filepath)
-                size = os.path.getsize(filepath)
-                
-                # SHA256 Hash
-                h = hashlib.sha256()
                 try:
+                    timestamp = os.path.getmtime(filepath)
+                    size = os.path.getsize(filepath)
+                    
+                    # SHA256 Hash
+                    h = hashlib.sha256()
                     with open(filepath, 'rb') as f:
                         while chunk := f.read(8192):
                             h.update(chunk)
                     return (h.hexdigest(), timestamp, size)
                 except Exception as e:
                     print(f"Error hashing {filepath}: {e}")
-                    return (None, timestamp, size)
+                    return (None, 0, 0)
 
             def load_manifest(manifest_path):
                 if not os.path.exists(manifest_path):
@@ -644,13 +640,18 @@ jobs:
                 manifest_path = os.path.join(local_dir, "manifest.json")
                 entries = load_manifest(manifest_path)
                 
-                # Map filename -> entry
+                # Map filename -> entry (for easy lookup)
                 entries_map = {e.get('filename'): e for e in entries if e.get('filename')}
 
                 files_by_hash = {}
                 
                 # Scan
+                if not os.path.exists(local_dir):
+                    print(f"Local dir {local_dir} does not exist!")
+                    return
+
                 all_files = [f for f in os.listdir(local_dir) if os.path.isfile(os.path.join(local_dir, f))]
+                
                 for f in all_files:
                     if f in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
                     if f.endswith(".json") or f.endswith(".txt") or f.endswith(".md"): continue
@@ -673,7 +674,7 @@ jobs:
                         keeper = items[0]
                         duplicates = items[1:]
                         
-                        print(f"Duplicate content ({fhash[:8]}):")
+                        print(f"Duplicate content found ({fhash[:8]}):")
                         print(f"  KEEPING: {keeper['name']} (created {datetime.fromtimestamp(keeper['mtime'])})")
                         
                         for dup in duplicates:
@@ -684,7 +685,7 @@ jobs:
                             except Exception as e:
                                 print(f"    Failed to remove {dup['name']}: {e}")
 
-                # Update Manifest if needed
+                # Update Manifest if needed (Remove entries for deleted files)
                 if files_removed:
                     new_entries = [e for e in entries if e.get('filename') not in files_removed]
                     save_manifest(manifest_path, new_entries)
@@ -708,8 +709,6 @@ jobs:
                     if not os.path.isfile(path): continue
                     if f.endswith(".json") or f.endswith(".txt") or f.endswith(".md"): continue
                     
-                    # Optimization: Only full hash if we really need logic? 
-                    # Yes, we need to know if content exists.
                     fhash, _, _ = get_file_info(path)
                     if fhash:
                         repo_hashes[fhash] = f
@@ -721,8 +720,7 @@ jobs:
                     if f in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]: continue
                     
                     local_path = os.path.join(local_dir, f)
-                    # We might have deleted it in Stage 1? No, we scan again or use existing list?
-                    # Safer to just check existence
+                    # Use os.path.exists to be safe
                     if not os.path.exists(local_path): continue
 
                     fhash, _, _ = get_file_info(local_path)
@@ -730,7 +728,7 @@ jobs:
                     if fhash in repo_hashes:
                         existing_name = repo_hashes[fhash]
                         print(f"[SKIP] '{f}' matches existing '{existing_name}' in repo. Keeping repo version.")
-                        # We DO NOT copy.
+                        # Do NOT copy. This preserves the "Oldest" version (since repo is by definition older or equal)
                     else:
                         print(f"[COPY] '{f}' is new. Copying -> {repo_dir}")
                         shutil.copy2(local_path, os.path.join(repo_dir, f))
@@ -738,7 +736,6 @@ jobs:
             # --- STAGE 3: MANIFEST FINALIZATION ---
             # 1. Merge Old + New Manifests
             # 2. Filter against ACTUAL files on disk
-            # 3. Clean up anomalies
             def stage_3_finalize_manifest(local_manifest_path, repo_dir):
                 print(f"\n--- Stage 3: Manifest Finalization ---")
                 repo_manifest_path = os.path.join(repo_dir, "manifest.json")
@@ -749,46 +746,57 @@ jobs:
                 print(f"Old Manifest entries: {len(old_entries)}")
                 print(f"New Manifest entries: {len(new_entries)}")
                 
-                combined = old_entries + new_entries
-                
                 # Scan actual files in Repo (Final State)
                 actual_files = set()
-                for f in os.listdir(repo_dir):
-                    if f in ["manifest.json", "index.md", "slug.txt"]: continue
-                    path = os.path.join(repo_dir, f)
-                    if os.path.isfile(path):
-                        actual_files.add(f)
+                if os.path.exists(repo_dir):
+                    for f in os.listdir(repo_dir):
+                        if f in ["manifest.json", "index.md", "slug.txt"]: continue
+                        path = os.path.join(repo_dir, f)
+                        if os.path.isfile(path) and not f.endswith(".json"):
+                            actual_files.add(f)
                 
                 print(f"Actual files on disk: {len(actual_files)}")
                 
                 # Build Final List
+                # We want to preserve metadata.
+                # If a file exists in the repo, we want its metadata.
+                # Priority: Old Manifest (Repo) Metadata > New Manifest (Local) Metadata
+                # Why? Because if we skipped copying, we kept the repo file, so we should keep the repo metadata.
+                # If we copied, it's a new file, so we rely on new metadata.
+                
                 final_entries = []
                 seen_filenames = set()
                 
-                # Priority: We want to preserve metadata.
-                # If we have duplicates in manifest (e.g. same filename in old and new), which one do we keep?
-                # Usually NEW metadata might be better? Or OLD?
-                # Let's process NEW first, then OLD. If we see filename again, we skip (or merge?).
-                # Actually, usually we append New to Old.
-                # Let's just iterate Combined.
-                
-                # REVERSE order so later entries (New) might take precedence if unique-by-filename?
-                # Actually user wants "Keep Oldest File".
-                # Metadata should match the file we kept.
-                # If we kept the OLD file (Stage 2), we should probably prefer the OLD metadata entry if it exists.
-                
-                # Let's prioritize OLD entries provided they are valid.
-                
+                # Combined pool: Old then New.
+                # If we duplicate filenames, the first one seen (Old) takes precedence.
                 full_pool = old_entries + new_entries
                 
                 for entry in full_pool:
                     fname = entry.get('filename')
                     
                     # 1. Validity Check
-                    if not fname: continue # Null filename
-                    if fname not in actual_files: continue # File not on disk (was deleted/skipped)
+                    if not fname: 
+                        # Keep entries without filename if they are references?
+                        # User said: "se for duplicado não coloca se for novo coloca"
+                        # Presumably references don't have duplicates in the same way.
+                        # For now, let's keep non-file entries (status=reference)
+                        if entry.get('status') == 'reference':
+                             # How do we deduplicate references? Link?
+                             link = entry.get('link_origem') or entry.get('url')
+                             if link and link not in seen_filenames: # Abuse seen_filenames for urls too
+                                 final_entries.append(entry)
+                                 seen_filenames.add(link)
+                        continue
+
+                    # 2. File Check
+                    # If this entry claims to correspond to 'fname', 
+                    # check if 'fname' actually exists in our finalized repo dir.
+                    if fname not in actual_files: 
+                        # File is gone (was a duplicate and deleted/skipped).
+                        # Don't add this entry.
+                        continue
                     
-                    # 2. Deduplication in Manifest
+                    # 3. Deduplication in Manifest
                     if fname in seen_filenames: continue
                     
                     final_entries.append(entry)
@@ -796,11 +804,14 @@ jobs:
                     
                 # ORPHAN CHECK
                 # If there are files on disk NOT in manifest
-                orphans = [f for f in actual_files if f not in seen_filenames if not f.endswith('.json')]
+                orphans = [f for f in actual_files if f not in seen_filenames]
                 
                 if orphans:
-                    print(f"Found {len(orphans)} orphans (files without manifest). Adding basic entries...")
+                    print(f"Found {len(orphans)} orphans (files without manifest). Adding basic entries for consistency...")
                     for orphan in orphans:
+                        # Try to find metadata from ANY entry in the pool that might have had this filename?
+                        # (Already checked above).
+                        # Just create a basic valid entry so the file isn't "lost" to the system.
                         final_entries.append({
                             "filename": orphan,
                             "name": os.path.splitext(orphan)[0].replace('_', ' ').replace('-', ' ').title(),
@@ -813,11 +824,9 @@ jobs:
 
             if __name__ == "__main__":
                 if len(sys.argv) < 3:
-                     # fallback for old signature or manual run
                      if len(sys.argv) == 2:
-                         # Just Stage 1 on a dir?
-                         target = sys.argv[1]
-                         stage_1_local_cleanup(target)
+                         # Standalone Stage 1 test
+                         stage_1_local_cleanup(sys.argv[1])
                          sys.exit(0)
                      else:
                         print("Usage: deduplicate.py <local_output_dir> <repo_output_dir>")
@@ -826,13 +835,13 @@ jobs:
                 local_dir = sys.argv[1]
                 repo_dir = sys.argv[2]
                 
-                if os.path.exists(local_dir) and os.path.exists(repo_dir):
+                if os.path.exists(local_dir):
                     stage_1_local_cleanup(local_dir)
                     stage_2_smart_copy(local_dir, repo_dir)
                     stage_3_finalize_manifest(os.path.join(local_dir, "manifest.json"), repo_dir)
                 else:
-                    print(f"Directories not found: {local_dir} {repo_dir}")
-          EOF
+                    print(f"Local directory not found: {local_dir}")
+            EOF
 
             # Execute the new script
             # We pass output/$slug (fresh) and hf_repo/output/$slug (destination)
