@@ -171,26 +171,32 @@ export function setupSearchLogic() {
           log(`Raciocínio: ${result.slug_reasoning}`, "info");
         }
 
-        // Decide what to do: Match found? Or Similar?
-        if (
-          result.exact_match ||
-          (result.similar_candidates && result.similar_candidates.length > 0)
-        ) {
-          showUnifiedDecisionModal(
-            result,
-            query,
-            log,
-            terminal,
-            force,
-            cleanup
+        // MOSTRA direto o resultado
+        if (result.exact_match) {
+          log(
+            `Banco de provas encontrado (${
+              result.exact_match.slug || result.canonical_slug
+            }). Carregando resultados...`,
+            "success"
           );
-          return; // Stop here, wait for user interact
-        } else {
-          // No match, auto-confirm
-          log("Nenhum conflito encontrado. Iniciando busca...", "info");
-          doSearch(force, cleanup, true, "overwrite");
+          const existSlug = result.exact_match.slug || result.canonical_slug;
+          currentSlug = existSlug;
+          // Load immediately
+          const hfBase =
+            "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+          loadResults(
+            `${hfBase}/output/${existSlug}/manifest.json`,
+            log,
+            terminal
+          );
           return;
         }
+
+        // Se não identificou (não exato), NÃO mostra nada e SÓ pesquisa.
+        // Ignora "similares" para simplificar fluxo.
+        log("Nenhum banco exato encontrado. Iniciando busca...", "info");
+        doSearch(force, cleanup, true, "overwrite");
+        return;
       }
 
       // --- HANDLE CONFIRMED TRIGGER ---
