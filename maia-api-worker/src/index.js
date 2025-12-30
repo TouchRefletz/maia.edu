@@ -96,79 +96,185 @@ export default {
 /**
  * SERVICE: TRIGGER DEEP SEARCH (GITHUB ACTIONS)
  */
+/**
+ * SERVICE: TRIGGER DEEP SEARCH (GITHUB ACTIONS)
+ */
 async function handleTriggerDeepSearch(request, env) {
 	const body = await request.json();
-	const { query, slug, ntfy_topic, force, cleanup } = body;
+	const { query, ntfy_topic, force, cleanup, confirm, mode } = body; // confirm & mode added
 
-	if (!query || !slug) {
-		return new Response(JSON.stringify({ error: 'Query and Slug are required' }), { status: 400, headers: corsHeaders });
+	// 1. Validate Input
+	if (!query) {
+		return new Response(JSON.stringify({ error: 'Query is required' }), { status: 400, headers: corsHeaders });
 	}
 
-	// 0. Handle Cleanup (Destructive Retry)
-	// 0. Handle Cleanup (Destructive Retry)
-	// REMOVED: Cleanup is now handled by the GitHub Action via /delete-pinecone-record
-	if (cleanup) {
-		console.log(`[Deep Search] Cleanup flag received for: ${slug}. Expecting GH Action to handle deletion.`);
+	// 2. Canonical Slug Generation (Pre-flight Phase)
+	let canonicalSlug = body.slug; // Helper or frontend provided fallback
+	let reasoning = 'Manual override';
+
+	// If no forced slug provided, generate one via Gemini
+	if (!canonicalSlug) {
+		try {
+			const currentDate = new Date().toISOString();
+			const prompt = `You are a precise naming authority for exam repositories. Your goal is to convert user queries into a standard 'canonical' kebab-case slug.
+
+Rules:
+1. Format: \`exam-name-year\` (e.g., \`enem-2024\`, \`ita-2025\`).
+2. Year Inference: If the user DOES NOT specify a year, you MUST infer the most recent *occurred* or *upcoming* edition based on the current date provided.
+    - Current Date: ${currentDate}
+    - Logic: If today is Dec 2025, 'Enem' implies 'enem-2025'. If user asks for 'Enem' in Jan 2025, it implies 'enem-2024' (last one) or 'enem-2025' (next one) based on typical exam schedule. Default to the *latest edition that likely has files available*.
+
+Query: "${query}"
+
+Output JSON ONLY.`;
+
+			const schema = {
+				type: 'OBJECT',
+				properties: {
+					slug: { type: 'STRING', description: 'The canonical kebab-case slug' },
+					reasoning: { type: 'STRING', description: 'Explanation of year inference' },
+				},
+				required: ['slug'],
+			};
+
+			// Internal Request to reuse handleGeminiGenerate
+			const internalReq = new Request('http://internal/generate', {
+				method: 'POST',
+				body: JSON.stringify({
+					texto: prompt,
+					model: 'models/gemini-3-flash-preview', // User requested model
+					schema: schema,
+				}),
+			});
+
+			// Capture the Response Stream
+			const genResponse = await handleGeminiGenerate(internalReq, env);
+
+			if (!genResponse.ok) {
+				console.warn('[Pre-flight] Gemini generation failed, falling back to simple slug.');
+				canonicalSlug = query
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-+|-+$/g, '');
+			} else {
+				// Parse NDJSON Stream to get final 'answer' or assembled text
+				const reader = genResponse.body.getReader();
+				let fullText = '';
+				const decoder = new TextDecoder();
+
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					const chunk = decoder.decode(value, { stream: true });
+					const lines = chunk.split('\n');
+					for (const line of lines) {
+						if (!line.trim()) continue;
+						try {
+							const json = JSON.parse(line);
+							if (json.type === 'answer' && json.text) {
+								fullText += json.text;
+							}
+						} catch (e) {}
+					}
+				}
+
+				try {
+					const parsed = JSON.parse(fullText);
+					canonicalSlug = parsed.slug;
+					reasoning = parsed.reasoning;
+					console.log(`[Pre-flight] Canonical Slug Generated: ${canonicalSlug} (${reasoning})`);
+				} catch (e) {
+					console.warn('[Pre-flight] Failed to parse Gemini JSON, fallback.', e);
+					canonicalSlug = query
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, '-')
+						.replace(/^-+|-+$/g, '');
+				}
+			}
+		} catch (e) {
+			console.error('[Pre-flight] Error in slug generation:', e);
+			canonicalSlug = query
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-+|-+$/g, '');
+		}
 	}
 
-	// 1. Check Cache (Pinecone) - Skip if forced
+	// 3. Check Pinecone for Duplicates
+	let exactMatch = null;
+	let similarCandidates = [];
+
 	if (!force) {
 		try {
+			// A. Exact Match Check (using ID lookup if possible, or filter)
+			// Since we use 'slug' as ID in Pinecone (usually), we can try to fetch it.
+			// Or just query with vector + metadata filter.
+			// Ideally, we fetch by ID, but our helper `executePineconeQuery` uses vector search.
+			// Let's use a dummy vector query with filter to check existence of slug.
+
+			// We need an embedding for the query anyway for similarity check
 			const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
+
 			if (embedding) {
-				// Search for top 3 matches with a lower threshold to find relatable queries
-				const cacheResult = await executePineconeQuery(embedding, env, 5, { type: 'deep-search-result' }); // Top 5
+				const cacheResult = await executePineconeQuery(embedding, env, 10, { type: 'deep-search-result' }); // Get top 10
 
 				if (cacheResult && cacheResult.matches) {
-					console.log(`[Cache Check] Matches found: ${cacheResult.matches.length}`);
-					cacheResult.matches.forEach((m) => console.log(` - ${m.metadata.slug} (${m.score})`));
+					// 1. Exact Match Check
+					exactMatch = cacheResult.matches.find((m) => m.metadata && m.metadata.slug === canonicalSlug);
 
-					// Filter matches that are reasonably relevant (e.g., > 0.60)
-					const candidates = cacheResult.matches
-						.filter((m) => m.score > 0.6)
+					// 2. Similar Candidates (high score but different slug)
+					similarCandidates = cacheResult.matches
+						.filter((m) => m.metadata && m.metadata.slug !== canonicalSlug && m.score > 0.75) // High threshold
 						.map((m) => ({
 							slug: m.metadata.slug,
 							score: m.score,
 							query: m.metadata.query,
-							year: m.metadata.year,
 							institution: m.metadata.institution,
+							year: m.metadata.year,
 							file_count: m.metadata.file_count,
 							timestamp: m.metadata.updated_at,
 						}));
-
-					if (candidates.length > 0) {
-						console.log(`[Cache Hit] Returning ${candidates.length} candidates for: ${query}`);
-						return new Response(
-							JSON.stringify({
-								success: true,
-								cached: true,
-								message: 'Possible matches found',
-								candidates: candidates,
-								debug_matches: cacheResult.matches, // Debug Info
-							}),
-							{
-								headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-							},
-						);
-					}
-
-					// If no candidates found but we had matches, let's return them for debug purposes in the "start search" response
-					// We'll attach this to the response below if we fall through
 				}
 			}
 		} catch (e) {
-			console.warn('Cache check failed:', e);
-			// Proceed to trigger search if cache check fails
+			console.warn('[Pre-flight] Cache check error:', e);
 		}
 	}
 
-	const githubPat = env.GITHUB_PAT;
-	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz'; // Default or Env
-	const githubRepo = env.GITHUB_REPO || 'maia.api'; // Default or Env
-
-	if (!githubPat) {
-		throw new Error('GITHUB_PAT not configured on Worker');
+	// 4. PRE-FLIGHT RETURN (If not confirmed)
+	// If we found duplicates OR just to show the user what will happen
+	// The plan implies we ALWAYS return pre-flight info first unless 'confirm' is true.
+	if (!confirm) {
+		console.log(`[Pre-flight] Returning findings for: ${canonicalSlug}`);
+		return new Response(
+			JSON.stringify({
+				success: true,
+				preflight: true,
+				canonical_slug: canonicalSlug,
+				slug_reasoning: reasoning,
+				exact_match: exactMatch
+					? {
+							slug: exactMatch.metadata.slug,
+							file_count: exactMatch.metadata.file_count,
+							updated_at: exactMatch.metadata.updated_at,
+						}
+					: null,
+				similar_candidates: similarCandidates,
+			}),
+			{
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			},
+		);
 	}
+
+	// 5. PROCEED TO GITHUB ACTION (Confirmed)
+	const finalSlug = canonicalSlug; // Use the one we generated/confirmed
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+	const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+	if (!githubPat) throw new Error('GITHUB_PAT not configured');
 
 	const url = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
 
@@ -183,9 +289,10 @@ async function handleTriggerDeepSearch(request, env) {
 			event_type: 'deep-search',
 			client_payload: {
 				query,
-				slug,
+				slug: finalSlug, // normalized
 				ntfy_topic,
-				cleanup: cleanup || false, // Pass cleanup flag to GitHub Action
+				cleanup: cleanup || false,
+				mode: mode || 'overwrite', // 'overwrite' or 'update'
 			},
 		}),
 	});
@@ -195,9 +302,18 @@ async function handleTriggerDeepSearch(request, env) {
 		throw new Error(`GitHub API Error: ${response.status} - ${errText}`);
 	}
 
-	return new Response(JSON.stringify({ success: true, cached: false, message: 'Deep Search Triggered on GitHub' }), {
-		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-	});
+	return new Response(
+		JSON.stringify({
+			success: true,
+			cached: false,
+			message: 'Deep Search Triggered on GitHub',
+			final_slug: finalSlug,
+			mode: mode || 'overwrite',
+		}),
+		{
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		},
+	);
 }
 
 /**

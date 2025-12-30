@@ -74,79 +74,124 @@ export function setupSearchLogic() {
   }
 
   // --- Deep Search Lógica ---
-  const doSearch = async (force = false, cleanup = false) => {
+  const doSearch = async (
+    force = false,
+    cleanup = false,
+    confirm = false,
+    mode = "overwrite"
+  ) => {
     const query = searchInput.value.trim();
     if (!query) return;
 
-    // Reset Connections
-    if (activeWebSocket) {
-      activeWebSocket.close();
-      activeWebSocket = null;
-    }
-    if (activeChannel) {
-      activeChannel.unbind_all();
-      // Unsubscribe using the previous slug if possible, or just disconnect pusher entirely
-      if (activePusher && currentSlug) activePusher.unsubscribe(currentSlug);
-      activeChannel = null;
-    }
-    if (activePusher) {
-      activePusher.disconnect();
-      activePusher = null;
-    }
-
-    // Limpa UI e Estado
-    searchResults.innerHTML = "";
-    selectedItems = { prova: null, gabarito: null };
-    currentSlug = null;
-    let isSuccess = false; // Track success for retry warning
-
-    // 1. Cria Console UI (Terminal Style)
-    const consoleContainer = document.createElement("div");
-    consoleContainer.id = "deep-search-terminal";
-    searchResults.appendChild(consoleContainer);
-
-    // Instantiate State Machine UI
-    const terminal = new TerminalUI("deep-search-terminal");
-
-    // Retry Handler
-    terminal.onRetry = () => {
-      const proceed = () => {
-        log("Reiniciando processo...", "warning");
-        doSearch(true, true); // Force + Cleanup
-      };
-
-      if (isSuccess) {
-        if (
-          confirm(
-            "ATENÇÃO: A pesquisa anterior foi concluída.\n\nAo tentar novamente, os resultados salvos serão EXCLUÍDOS para permitir uma nova busca limpa.\n\nDeseja continuar?"
-          )
-        ) {
-          proceed();
-        }
-      } else {
-        proceed();
+    // Reset Connections if starting a NEW main search (not just a verification step)
+    if (!activePusher || confirm) {
+      // Reset if we are confirming OR if it's a fresh start
+      if (activeWebSocket) {
+        activeWebSocket.close();
+        activeWebSocket = null;
       }
-    };
+      if (activeChannel) {
+        activeChannel.unbind_all();
+        if (activePusher && currentSlug) activePusher.unsubscribe(currentSlug);
+        activeChannel = null;
+      }
+      if (activePusher) {
+        activePusher.disconnect();
+        activePusher = null;
+      }
+    }
 
-    const log = (text, type = "info") => {
-      terminal.processLogLine(text, type);
-    };
+    // UI Feedback for "Update Mode"
+    if (mode === "update") {
+      const termHeader = document.querySelector(
+        "#deep-search-terminal .terminal-header span"
+      );
+      if (termHeader) {
+        termHeader.innerText = "TERMINAL - MODO ATUALIZAÇÃO";
+        termHeader.style.color = "var(--color-warning)";
+      }
+    }
 
-    log("Iniciando Pesquisa Avançada...", "info");
+    // Setup Terminal if not exists (only on fresh start)
+    let terminal = null;
+    if (!confirm) {
+      // Fresh start
+      searchResults.innerHTML = "";
+      selectedItems = { prova: null, gabarito: null };
+      currentSlug = null;
 
-    const slug = query
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    currentSlug = slug;
+      const consoleContainer = document.createElement("div");
+      consoleContainer.id = "deep-search-terminal";
+      searchResults.appendChild(consoleContainer);
+      terminal = new TerminalUI("deep-search-terminal");
+
+      const log = (text, type = "info") => terminal.processLogLine(text, type);
+      log("Iniciando Verificação Pré-Busca...", "info");
+    } else {
+      // Re-attach to existing terminal
+      terminal = new TerminalUI("deep-search-terminal");
+      // If update mode, show visual cue
+      if (mode === "update")
+        terminal.processLogLine(
+          "⚠ MODO ATUALIZAÇÃO ATIVADO: Novos arquivos serão mesclados.",
+          "warning"
+        );
+    }
+
+    // Internal Log helper
+    const log = (text, type = "info") => terminal?.processLogLine(text, type);
 
     // Pusher Config
-    const pusherKey = "6c9754ef715796096116"; // Public Key
+    const pusherKey = "6c9754ef715796096116";
     const pusherCluster = "sa1";
 
-    // --- EXECUÇÃO ---
     try {
-      log(`Modo Produção. Conectando via Pusher (Canal: ${slug})...`);
+      // Step 1 & 2: Call Worker (Pre-flight OR Trigger)
+      const response = await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          // slug: Manual slug gen removed!
+          force,
+          cleanup,
+          confirm,
+          mode,
+          apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
+        }),
+      });
+
+      const result = await response.json();
+
+      // --- HANDLE PRE-FLIGHT ---
+      if (result.preflight) {
+        log(`Slug Canônico Gerado: ${result.canonical_slug}`, "success");
+
+        if (result.slug_reasoning) {
+          log(`Raciocínio: ${result.slug_reasoning}`, "info");
+        }
+
+        // Decide what to do: Match found? Or Similar?
+        if (
+          result.exact_match ||
+          (result.similar_candidates && result.similar_candidates.length > 0)
+        ) {
+          showUnifiedDecisionModal(result, query, log, terminal);
+          return; // Stop here, wait for user interact
+        } else {
+          // No match, auto-confirm
+          log("Nenhum conflito encontrado. Iniciando busca...", "info");
+          doSearch(force, cleanup, true, "overwrite");
+          return;
+        }
+      }
+
+      // --- HANDLE CONFIRMED TRIGGER ---
+      // We now have a final_slug from the worker
+      const slug = result.final_slug;
+      currentSlug = slug;
+
+      log(`Conectando ao canal: ${slug}...`, "info");
 
       let PusherClass = window.Pusher;
       if (!PusherClass) {
@@ -162,6 +207,8 @@ export function setupSearchLogic() {
 
       activeChannel.bind("task_update", function (data) {
         if (terminal && data) {
+          // Filter out cleanup tasks if mode is update?
+          // The backend might not send them if we skip the steps in GH Action.
           terminal.updateTaskFromEvent(data);
         }
       });
@@ -174,8 +221,7 @@ export function setupSearchLogic() {
         if (!text) return;
 
         if (text.includes("COMPLETED")) {
-          // Changed: Do NOT finish yet. Transition to verification phase.
-          isSuccess = true;
+          let isSuccess = true; // Scope var
           log(
             "Busca base finalizada. Iniciando verificação de integridade...",
             "success"
@@ -185,7 +231,6 @@ export function setupSearchLogic() {
           const finalSlug = data.new_slug || slug;
           currentSlug = finalSlug;
 
-          // Artificial delay for propagation assurance then Verification
           setTimeout(() => {
             const hfBase =
               "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
@@ -199,81 +244,153 @@ export function setupSearchLogic() {
           log(text);
         }
       });
+    } catch (e) {
+      log(`Erro Fatal: ${e.message}`, "error");
+    }
+  };
 
-      const response = await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query,
-          slug,
-          force,
-          cleanup,
-          apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
-        }),
+  const showUnifiedDecisionModal = (
+    preflightData,
+    originalQuery,
+    log,
+    terminal
+  ) => {
+    // Create Modal UI dynamically
+    const modalId = "unified-decision-modal";
+    let modal = document.getElementById(modalId);
+    if (modal) modal.remove();
+
+    modal = document.createElement("div");
+    modal.id = modalId;
+    Object.assign(modal.style, {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: "rgba(0,0,0,0.8)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10000,
+      backdropFilter: "blur(4px)",
+    });
+
+    const content = document.createElement("div");
+    Object.assign(content.style, {
+      backgroundColor: "var(--color-surface)",
+      padding: "32px",
+      borderRadius: "var(--radius-xl)",
+      maxWidth: "600px",
+      width: "90%",
+      border: "1px solid var(--color-border)",
+      boxShadow: "var(--shadow-2xl)",
+      textAlign: "center",
+    });
+
+    // Content Logic
+    const exact = preflightData.exact_match;
+    const slug = preflightData.canonical_slug;
+
+    let html = "";
+
+    if (exact) {
+      html += `
+                <div style="font-size: 3rem; margin-bottom: 16px;">📂</div>
+                <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Banco de Provas Encontrado!</h2>
+                <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
+                    Já existe um repositório chamado <strong>${slug}</strong> em nosso banco de dados.
+                    <br>Contém: <strong>${exact.file_count || "?"} arquivos</strong>.
+                </p>
+                
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                    <button id="btn-view-existing" style="
+                        background: var(--color-primary); color: white; border: none; padding: 12px 24px;
+                        border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
+                    ">Visualizar Agora</button>
+                    
+                    <button id="btn-update-mode" style="
+                        background: transparent; border: 1px solid var(--color-warning); color: var(--color-warning);
+                        padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
+                    ">Atualizar / Buscar Novos</button>
+                </div>
+             `;
+    } else {
+      // Similar Items
+      html += `
+                <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
+                <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Pesquisas Semelhantes</h2>
+                <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
+                    Não encontramos exatamento "<strong>${slug}</strong>", mas talvez você queira um destes:
+                </p>
+                <div style="text-align: left; background: var(--color-bg-1); padding: 12px; border-radius: 8px; margin-bottom: 24px; max-height: 200px; overflow-y: auto;">
+             `;
+
+      preflightData.similar_candidates.forEach((cand) => {
+        html += `
+                    <div style="padding: 8px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: variable; align-items: center; cursor: pointer;"
+                         onclick="document.getElementById('${modalId}').dataset.selectedSlug = '${cand.slug}'; document.getElementById('btn-view-selected').click();">
+                        <span style="flex: 1;"><strong>${cand.slug}</strong> <span style="font-size: 0.8em; opacity: 0.7;">(${cand.file_count} arq)</span></span>
+                        <span style="color: var(--color-primary);">Ver &rarr;</span>
+                    </div>
+                 `;
       });
+      html += `</div>`;
 
-      const result = await response.json();
+      html += `
+                <button id="btn-view-selected" style="display: none;"></button>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="btn-cancel-modal" style="
+                        background: transparent; border: 1px solid var(--color-border); color: var(--color-text);
+                        padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;
+                    ">Cancelar</button>
+                    <button id="btn-force-search" style="
+                        background: var(--color-primary); color: white; border: none; padding: 12px 24px;
+                        border-radius: 8px; font-weight: 600; cursor: pointer;
+                    ">Criar Nova Pesquisa: ${slug}</button>
+                </div>
+             `;
+    }
 
-      // Debug Log for Pinecone
-      if (result.debug_matches) {
-        log(`[DEBUG] Correspondências Pinecone encontradas (Top 5):`, "info");
-        result.debug_matches.forEach((m) => {
-          log(
-            ` - ${m.metadata.slug || "slug?"} (Score: ${m.score.toFixed(4)})`,
-            "info"
-          );
-        });
-      }
+    content.innerHTML = html;
+    modal.appendChild(content);
+    document.body.appendChild(modal);
 
-      if (result.candidates) {
-        log("Encontradas pesquisas similares no histórico.", "success");
-        showCandidatesModal(
-          result.candidates,
-          query,
-          (candidate) => {
-            log(`Carregando cache: ${candidate.slug}...`, "success");
-            currentSlug = candidate.slug;
-            isSuccess = true;
-
-            if (terminal) {
-              terminal.updatePlan([
-                {
-                  title: `Recuperando dados de: ${candidate.slug}`,
-                  status: "completed",
-                },
-              ]);
-            }
-
-            const hfBase =
-              "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-            loadResults(
-              `${hfBase}/output/${candidate.slug}/manifest.json`,
-              log,
-              terminal
-            );
-          },
-          () => {
-            log("Forçando nova pesquisa...", "warning");
-            doSearch(true);
-          }
-        );
-        activePusher.unsubscribe(slug);
-        return;
-      }
-
-      if (result.cached && result.slug) {
-        log("Resultado idêntico encontrado em cache! Carregando...", "success");
-        activePusher.unsubscribe(slug);
-        isSuccess = true;
+    // Events
+    if (exact) {
+      document.getElementById("btn-view-existing").onclick = () => {
+        modal.remove();
+        log("Carregando banco existente...", "success");
         loadResults(
-          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${result.slug}/manifest.json`,
+          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`,
           log,
           terminal
         );
-        return;
-      }
-    } catch (e) {
-      log(`Erro Fatal: ${e.message}`, "error");
+      };
+      document.getElementById("btn-update-mode").onclick = () => {
+        modal.remove();
+        log("Iniciando MODO ATUALIZAÇÃO...", "warning");
+        doSearch(force, cleanup, true, "update"); // Confirm + Update Mode
+      };
+    } else {
+      document.getElementById("btn-force-search").onclick = () => {
+        modal.remove();
+        doSearch(force, cleanup, true, "overwrite");
+      };
+      document.getElementById("btn-cancel-modal").onclick = () => {
+        modal.remove();
+        log("Operação cancelada pelo usuário.", "error");
+      };
+      document.getElementById("btn-view-selected").onclick = () => {
+        const selected = modal.dataset.selectedSlug;
+        modal.remove();
+        log(`Carregando banco selecionado: ${selected}...`, "success");
+        loadResults(
+          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${selected}/manifest.json`,
+          log,
+          terminal
+        );
+      };
     }
   };
 
