@@ -286,112 +286,170 @@ export function setupSearchLogic() {
       border: "1px solid var(--color-border)",
       boxShadow: "var(--shadow-2xl)",
       textAlign: "center",
+      maxHeight: "90vh",
+      overflowY: "auto",
     });
 
     // Content Logic
     const exact = preflightData.exact_match;
-    const slug = preflightData.canonical_slug;
+    // FIX: Use exact.slug if available (truth source), fallback to canonical, fallback to query
+    const slug =
+      exact && exact.slug
+        ? exact.slug
+        : preflightData.canonical_slug ||
+          originalQuery.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
     let html = "";
 
+    // --- 1. EXACT MATCH SECTION ---
     if (exact) {
       html += `
-                <div style="font-size: 3rem; margin-bottom: 16px;">📂</div>
-                <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Banco de Provas Encontrado!</h2>
-                <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
-                    Já existe um repositório chamado <strong>${slug}</strong> em nosso banco de dados.
-                    <br>Contém: <strong>${exact.file_count || "?"} arquivos</strong>.
-                </p>
-                
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                    <button id="btn-view-existing" style="
-                        background: var(--color-primary); color: white; border: none; padding: 12px 24px;
-                        border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
-                    ">Visualizar Agora</button>
+                <div style="background: rgba(var(--color-success-rgb), 0.1); border: 1px solid var(--color-success); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">📂</div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Banco de Provas Encontrado!</h2>
+                    <p style="color: var(--color-text-secondary); margin-bottom: 12px;">
+                        Já existe um repositório chamado <strong>${slug}</strong> em nosso banco de dados.
+                    </p>
+                    <div style="font-size: 0.9rem; color: var(--color-text-dim); margin-bottom: 24px;">
+                         📁 ${exact.file_count || "?"} arquivos • 🕒 Atualizado em: ${exact.updated_at ? new Date(exact.updated_at).toLocaleDateString() : "Desconhecido"}
+                    </div>
                     
-                    <button id="btn-update-mode" style="
-                        background: transparent; border: 1px solid var(--color-warning); color: var(--color-warning);
-                        padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
-                    ">Atualizar / Buscar Novos</button>
+                    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                        <button id="btn-view-existing" style="
+                            background: var(--color-primary); color: white; border: none; padding: 12px 24px;
+                            border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
+                        ">Visualizar Agora</button>
+                        
+                        <button id="btn-update-mode" style="
+                            background: transparent; border: 1px solid var(--color-warning); color: var(--color-warning);
+                            padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
+                        ">Atualizar / Buscar Novos</button>
+                    </div>
                 </div>
              `;
     } else {
-      // Similar Items
       html += `
-                <div style="font-size: 3rem; margin-bottom: 16px;">🔍</div>
-                <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Pesquisas Semelhantes</h2>
+                <div style="font-size: 3rem; margin-bottom: 16px;">🤔</div>
+                <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Nenhum Banco Exato Encontrado</h2>
                 <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
-                    Não encontramos exatamento "<strong>${slug}</strong>", mas talvez você queira um destes:
+                    Não encontramos "<strong>${slug}</strong>" especificamente.
                 </p>
-                <div style="text-align: left; background: var(--color-bg-1); padding: 12px; border-radius: 8px; margin-bottom: 24px; max-height: 200px; overflow-y: auto;">
+             `;
+    }
+
+    // --- 2. SIMILAR CANDIDATES SECTION (ALWAYS SHOW IF EXISTS) ---
+    if (
+      preflightData.similar_candidates &&
+      preflightData.similar_candidates.length > 0
+    ) {
+      html += `
+                <div style="text-align: left; margin-top: 24px;">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
+                        ${exact ? "Outras opções que podem interessar:" : "Talvez você esteja procurando por:"}
+                    </h3>
+                    <div style="background: var(--color-bg-1); border-radius: 8px; max-height: 200px; overflow-y: auto;">
              `;
 
       preflightData.similar_candidates.forEach((cand) => {
+        // Filter out the exact match itself from the list if it accidentally appears
+        if (exact && cand.slug === exact.slug) return;
+
         html += `
-                    <div style="padding: 8px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: variable; align-items: center; cursor: pointer;"
+                    <div style="padding: 12px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; hover: background-color: var(--color-bg-2);"
                          onclick="document.getElementById('${modalId}').dataset.selectedSlug = '${cand.slug}'; document.getElementById('btn-view-selected').click();">
-                        <span style="flex: 1;"><strong>${cand.slug}</strong> <span style="font-size: 0.8em; opacity: 0.7;">(${cand.file_count} arq)</span></span>
-                        <span style="color: var(--color-primary);">Ver &rarr;</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">${cand.slug}</div>
+                            <div style="font-size: 0.8em; opacity: 0.7;">${cand.file_count || 0} arquivos • Score: ${(cand.score * 100).toFixed(0)}%</div>
+                        </div>
+                        <span style="color: var(--color-primary); font-size: 0.9rem;">Ver &rarr;</span>
                     </div>
                  `;
       });
-      html += `</div>`;
-
-      html += `
-                <button id="btn-view-selected" style="display: none;"></button>
-                <div style="display: flex; gap: 12px; justify-content: center;">
-                    <button id="btn-cancel-modal" style="
-                        background: transparent; border: 1px solid var(--color-border); color: var(--color-text);
-                        padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;
-                    ">Cancelar</button>
-                    <button id="btn-force-search" style="
-                        background: var(--color-primary); color: white; border: none; padding: 12px 24px;
-                        border-radius: 8px; font-weight: 600; cursor: pointer;
-                    ">Criar Nova Pesquisa: ${slug}</button>
-                </div>
-             `;
+      html += `</div></div>`;
     }
+
+    // --- 3. FOOTER ACTIONS (Force New Search / Cancel) ---
+    // If we found an exact match, the main actions are inside the green box.
+    // But we still might want a "Cancel" button at the bottom.
+    // If NO exact match, we need the "Create New" button.
+
+    html += `
+            <div style="margin-top: 32px; border-top: 1px solid var(--color-border); padding-top: 24px; display: flex; gap: 12px; justify-content: center;">
+                <button id="btn-cancel-modal" style="
+                    background: transparent; border: 1px solid var(--color-border); color: var(--color-text);
+                    padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;
+                ">Cancelar</button>
+        `;
+
+    if (!exact) {
+      html += `
+                <button id="btn-force-search" style="
+                    background: var(--color-primary); color: white; border: none; padding: 12px 24px;
+                    border-radius: 8px; font-weight: 600; cursor: pointer;
+                ">Criar Nova Pesquisa: ${slug}</button>
+            `;
+    }
+
+    html += `</div> <button id="btn-view-selected" style="display: none;"></button>`;
 
     content.innerHTML = html;
     modal.appendChild(content);
     document.body.appendChild(modal);
 
-    // Events
+    // --- EVENT HANDLERS ---
+
+    // Exact Match Handlers
     if (exact) {
-      document.getElementById("btn-view-existing").onclick = () => {
-        modal.remove();
-        log("Carregando banco existente...", "success");
-        loadResults(
-          `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`,
-          log,
-          terminal
-        );
-      };
-      document.getElementById("btn-update-mode").onclick = () => {
-        modal.remove();
-        log("Iniciando MODO ATUALIZAÇÃO...", "warning");
-        doSearch(force, cleanup, true, "update"); // Confirm + Update Mode
-      };
+      const btnView = document.getElementById("btn-view-existing");
+      if (btnView)
+        btnView.onclick = () => {
+          modal.remove();
+          log(`Carregando banco existente: ${slug}...`, "success");
+          currentSlug = slug; // Fix global slug
+          loadResults(
+            `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`,
+            log,
+            terminal
+          );
+        };
+
+      const btnUpdate = document.getElementById("btn-update-mode");
+      if (btnUpdate)
+        btnUpdate.onclick = () => {
+          modal.remove();
+          log("Iniciando MODO ATUALIZAÇÃO...", "warning");
+          doSearch(force, cleanup, true, "update"); // Confirm + Update Mode
+        };
     } else {
-      document.getElementById("btn-force-search").onclick = () => {
-        modal.remove();
-        doSearch(force, cleanup, true, "overwrite");
-      };
-      document.getElementById("btn-cancel-modal").onclick = () => {
-        modal.remove();
-        log("Operação cancelada pelo usuário.", "error");
-      };
-      document.getElementById("btn-view-selected").onclick = () => {
-        const selected = modal.dataset.selectedSlug;
-        modal.remove();
+      const btnForce = document.getElementById("btn-force-search");
+      if (btnForce)
+        btnForce.onclick = () => {
+          modal.remove();
+          doSearch(force, cleanup, true, "overwrite");
+        };
+    }
+
+    // Common Handlers
+    document.getElementById("btn-cancel-modal").onclick = () => {
+      modal.remove();
+      log("Operação cancelada pelo usuário.", "error");
+    };
+
+    document.getElementById("btn-view-selected").onclick = () => {
+      const selected = modal.dataset.selectedSlug;
+      modal.remove();
+      if (selected && selected !== "undefined") {
         log(`Carregando banco selecionado: ${selected}...`, "success");
+        currentSlug = selected;
         loadResults(
           `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${selected}/manifest.json`,
           log,
           terminal
         );
-      };
-    }
+      } else {
+        log("Erro ao selecionar item.", "error");
+      }
+    };
   };
 
   // --- CORE: INTEGRATED VERIFICATION & LOAD LOGIC ---
