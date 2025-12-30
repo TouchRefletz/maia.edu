@@ -586,8 +586,148 @@ jobs:
 
             # Copy Artifacts
             # We copy FROM generated output TO the cloned repo
-            # This adds new files and updates changed ones
+            # This adds new files and updates            # Copy Artifacts
             cp -r "output/$slug"/* "hf_repo/output/$slug/"
+
+            # --- DEDUPLICATION LOGIC ---
+            echo "Running Deduplication on hf_repo/output/$slug..."
+            cat << 'EOF' > deduplicate.py
+            import os
+            import sys
+            import hashlib
+            import json
+            import re
+
+            def get_file_hash(filepath):
+                """Calculates SHA256. Handles Git LFS pointers by reading the oid."""
+                try:
+                    # Try reading as text to check for LFS pointer (first 200 bytes)
+                    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+                        header = f.read(200)
+                        # LFS pointers look like: version https://git-lfs.github.com/spec/v1\noid sha256:...\nsize ...
+                        match = re.search(r'oid sha256:([a-f0-9]{64})', header)
+                        if match:
+                            return match.group(1)
+                except Exception:
+                    pass
+                
+                # Fallback: full content hash (binary read)
+                h = hashlib.sha256()
+                try:
+                    with open(filepath, 'rb') as f:
+                        while chunk := f.read(8192):
+                            h.update(chunk)
+                    return h.hexdigest()
+                except Exception as e:
+                    print(f"Error hashing {filepath}: {e}")
+                    return None
+
+            def deduplicate(target_dir):
+                print(f"Scanning {target_dir}...")
+                files_by_hash = {}
+                
+                # 1. Group files by hash
+                for root, _, files in os.walk(target_dir):
+                    for filename in files:
+                        if filename in ["manifest.json", "index.md", "slug.txt", "DOWNLOAD_URLS.txt"]:
+                            continue
+                        if filename.endswith(".json") or filename.endswith(".txt") or filename.endswith(".md"):
+                            continue # Focus on binaries/PDFs primarily, but safety checks good.
+
+                        filepath = os.path.join(root, filename)
+                        file_hash = get_file_hash(filepath)
+                        
+                        if file_hash:
+                            if file_hash not in files_by_hash:
+                                files_by_hash[file_hash] = []
+                            files_by_hash[file_hash].append(filepath)
+
+                deleted_filenames = set()
+
+                # 2. Identify and delete duplicates
+                for fhash, paths in files_by_hash.items():
+                    if len(paths) > 1:
+                        # Sort: Prefer shortest filename length, then alphabetical
+                        paths.sort(key=lambda p: (len(os.path.basename(p)), os.path.basename(p)))
+                        
+                        keep = paths[0]
+                        remove = paths[1:]
+                        
+                        # Tie-breaker safety: if filenames are same length/similar, ensure we are consistent.
+                        print(f"Duplicate found! Keeping: {os.path.basename(keep)}")
+                        for rm in remove:
+                            print(f"  Deleting: {os.path.basename(rm)}")
+                            try:
+                                os.remove(rm)
+                                deleted_filenames.add(os.path.basename(rm))
+                            except Exception as e:
+                                print(f"  Failed to delete {rm}: {e}")
+
+                return deleted_filenames
+
+            def clean_manifest(manifest_path, deleted_filenames):
+                if not os.path.exists(manifest_path):
+                    return
+
+                try:
+                    with open(manifest_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    entries = []
+                    is_dict = False
+                    if isinstance(data, list):
+                        entries = data
+                        final_data = [] # Placeholder
+                    elif isinstance(data, dict):
+                        is_dict = True
+                        if 'results' in data: entries = data['results']
+                        elif 'files' in data: entries = data['files']
+                    
+                    if not entries and not is_dict and not isinstance(data, list):
+                        print("Manifest format unrecognized.")
+                        return
+
+                    original_count = len(entries)
+                    # Filter out entries where filename Matches a deleted file
+                    new_entries = [e for e in entries if e.get('filename') not in deleted_filenames]
+                    
+                    if len(new_entries) < original_count:
+                        print(f"Removed {original_count - len(new_entries)} entries from manifest.")
+                        
+                        if is_dict:
+                            if 'results' in data: data['results'] = new_entries
+                            elif 'files' in data: data['files'] = new_entries
+                            final_data = data
+                        else:
+                            final_data = new_entries
+                            
+                        with open(manifest_path, 'w', encoding='utf-8') as f:
+                            json.dump(final_data, f, indent=2, ensure_ascii=False)
+                        print("Manifest updated.")
+                    else:
+                        print("No manifest entries matched deleted files.")
+                except Exception as e:
+                    print(f"Error cleaning manifest: {e}")
+
+            if __name__ == "__main__":
+                if len(sys.argv) < 2:
+                    print("Usage: deduplicate.py <directory>")
+                    sys.exit(1)
+                
+                target_dir = sys.argv[1]
+                if os.path.exists(target_dir):
+                    deleted = deduplicate(target_dir)
+                    
+                    if deleted:
+                        manifest_path = os.path.join(target_dir, "manifest.json")
+                        clean_manifest(manifest_path, deleted)
+                else:
+                    print(f"Target directory {target_dir} not found.")
+            EOF
+
+            python3 deduplicate.py "hf_repo/output/$slug"
+            rm deduplicate.py
+            # ---------------------------
 
             # Commit and Push
             cd hf_repo
