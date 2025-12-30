@@ -83,8 +83,10 @@ export class TerminalUI {
         : `
       <div class="term-tasks">
         <div class="term-task-item current">
-          <span class="term-icon">⚡</span> 
-          <span>Iniciando Executor OpenHands Cloud...</span>
+          <div style="display:flex; align-items:center;">
+              <span class="term-icon">⚡</span> 
+              <span>Iniciando Executor OpenHands Cloud...</span>
+          </div>
         </div>
       </div>
     `;
