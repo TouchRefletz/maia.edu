@@ -524,7 +524,7 @@ jobs:
           (
             echo "Installing dependencies for hashing..."
             sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev
-            npm install pdfjs-dist canvas
+            npm install pdfjs-dist@3.11.174 canvas
             
             echo "Computing visual hashes..."
             node scripts/compute-hash.js "output/$SLUG"
