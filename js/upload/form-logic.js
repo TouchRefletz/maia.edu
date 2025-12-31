@@ -136,7 +136,13 @@ export function setupFormLogic(elements, initialData) {
             progress.update("Concluído! Abrindo visualizador...");
 
             setTimeout(() => {
-              progress.close();
+              try {
+                const modalEl = document.getElementById(
+                  "upload-progress-modal"
+                );
+                if (modalEl) modalEl.remove();
+              } catch (e) {}
+
               // USE PROXY
               const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
               gerarVisualizadorPDF({
@@ -241,16 +247,15 @@ export function setupFormLogic(elements, initialData) {
                   // Actually, 'showProgressModal' creates a singleton DOM element.
                   // So we can just update it.
 
-                  // Call the reusable function (defined below/above - we need to ensure scope availability)
-                  // Since we are inside a callback, we might not see 'startPollingAndOpenViewer' if it's defined later in the main function.
-                  // Correction: We must define 'startPollingAndOpenViewer' BEFORE this block or hoist it.
-                  // Javascript 'const' is not hoisted.
-
-                  // Quick fix: Just copy polling logic OR move the definition up.
-                  // I will move the definition UP in the next replacement chunk or rely on function hoisting if I use 'function' keyword.
-                  // But I'm using const.
-
-                  // Actually, let's just use the progress modal we made and Manual Polling here to be safe and simple.
+                  // FIX: Use explicit ID removal safely
+                  try {
+                    const modalEl = document.getElementById(
+                      "upload-progress-modal"
+                    );
+                    if (modalEl) modalEl.remove();
+                  } catch (e) {
+                    // Ignore
+                  }
 
                   startPollingAndOpenViewer(
                     d.hf_url_preview,

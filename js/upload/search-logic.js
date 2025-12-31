@@ -122,12 +122,18 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
     conflictData;
 
   // 1. Prepare Items for Cards
-  // Remote Items
-  const remoteItems = (
-    remote_manifest.files ||
-    remote_manifest.results ||
-    []
-  ).map((item) =>
+  // 1. Prepare Items for Cards
+  // Remote Items (Handle Array vs Object structure)
+  let itemsSource = [];
+  if (Array.isArray(remote_manifest)) {
+    itemsSource = remote_manifest;
+  } else if (remote_manifest.files) {
+    itemsSource = remote_manifest.files;
+  } else if (remote_manifest.results) {
+    itemsSource = remote_manifest.results;
+  }
+
+  const remoteItems = itemsSource.map((item) =>
     normalizeItem({
       ...item,
       tipo: item.type || item.tipo, // ensure type exists
