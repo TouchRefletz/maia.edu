@@ -978,15 +978,15 @@ async function handleProxyPdf(request, env) {
 			return new Response('Proxy Error: No response', { status: 500, headers: corsHeaders });
 		}
 
+		const contentType = response.headers.get('content-type');
+		if (contentType && contentType.includes('text/html')) {
+			return new Response(`Error: Upstream returned HTML (Status ${response.status}). Check HF_TOKEN or URL validity.`, {
+				status: 401,
+				headers: corsHeaders,
+			});
+		}
+
 		if (!response.ok) {
-			// Check if it's the HTML error page again
-			const contentType = response.headers.get('content-type');
-			if (contentType && contentType.includes('text/html')) {
-				return new Response(`Error: Upstream returned HTML (Status ${response.status}). Check HF_TOKEN.`, {
-					status: 401,
-					headers: corsHeaders,
-				});
-			}
 			return new Response(`Failed to fetch PDF: ${response.status}`, { status: response.status, headers: corsHeaders });
 		}
 
