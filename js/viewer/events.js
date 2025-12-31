@@ -1,13 +1,21 @@
-import { cancelarRecorte } from '../cropper/cropper-core.js';
-import { fecharModalConfirmacao } from '../cropper/gallery.js';
-import { ativarModoRecorte } from '../cropper/mode.js';
-import { salvarQuestao } from '../cropper/save-handlers.js';
-import { confirmarEnvioIA } from '../envio/ui-estado.js';
-import { viewerState } from '../main.js';
-import { inicializarContextoViewer } from './contexto.js';
-import { carregarDocumentoPDF, mudarPagina, mudarZoom, trocarModo } from './pdf-core.js';
-import { configurarResizerSidebar } from './resizer.js';
-import { atualizarUIViewerModo, montarTemplateViewer } from './viewer-template.js';
+import { cancelarRecorte } from "../cropper/cropper-core.js";
+import { fecharModalConfirmacao } from "../cropper/gallery.js";
+import { ativarModoRecorte } from "../cropper/mode.js";
+import { salvarQuestao } from "../cropper/save-handlers.js";
+import { confirmarEnvioIA } from "../envio/ui-estado.js";
+import { viewerState } from "../main.js";
+import { inicializarContextoViewer } from "./contexto.js";
+import {
+  carregarDocumentoPDF,
+  mudarPagina,
+  mudarZoom,
+  trocarModo,
+} from "./pdf-core.js";
+import { configurarResizerSidebar } from "./resizer.js";
+import {
+  atualizarUIViewerModo,
+  montarTemplateViewer,
+} from "./viewer-template.js";
 
 /**
  * Configura todos os listeners de clique da interface do visualizador.
@@ -18,98 +26,99 @@ export function configurarEventosViewer() {
   const aoClicar = (id, callback) => {
     const elemento = document.getElementById(id);
     if (elemento) {
-      elemento.addEventListener('click', callback);
+      elemento.addEventListener("click", callback);
     } else {
       console.warn(`Botão não encontrado: #${id}`);
     }
   };
 
   // --- Controles Básicos ---
-  aoClicar('btnFecharViewer', fecharVisualizador);
+  aoClicar("btnFecharViewer", fecharVisualizador);
 
   // --- Navegação ---
-  aoClicar('btn-prev', () => mudarPagina(-1));
-  aoClicar('btn-next', () => mudarPagina(1));
+  aoClicar("btn-prev", () => mudarPagina(-1));
+  aoClicar("btn-next", () => mudarPagina(1));
 
   // --- Zoom ---
-  aoClicar('btnZoomOut', () => mudarZoom(-0.1));
-  aoClicar('btnZoomIn', () => mudarZoom(0.1));
+  aoClicar("btnZoomOut", () => mudarZoom(-0.1));
+  aoClicar("btnZoomIn", () => mudarZoom(0.1));
 
   // --- Modos de Visualização ---
-  aoClicar('btnModoProva', () => trocarModo('prova'));
-  aoClicar('btnModoGabarito', () => trocarModo('gabarito'));
+  aoClicar("btnModoProva", () => trocarModo("prova"));
+  aoClicar("btnModoGabarito", () => trocarModo("gabarito"));
 
   // --- Mobile Menu & Controls ---
-  aoClicar('btnMobileMenu', () => {
-    const menu = document.getElementById('mobileMenuOptions');
-    menu.classList.toggle('hidden');
+  aoClicar("btnMobileMenu", () => {
+    const menu = document.getElementById("mobileMenuOptions");
+    menu.classList.toggle("hidden");
   });
 
   // Helper to toggle panels
   const toggleMobilePanel = (id) => {
-    document.querySelectorAll('.floating-glass-panel').forEach(p => p.classList.add('hidden'));
-    document.getElementById('mobileMenuOptions').classList.add('hidden'); // Close menu
+    document
+      .querySelectorAll(".floating-glass-panel")
+      .forEach((p) => p.classList.add("hidden"));
+    document.getElementById("mobileMenuOptions").classList.add("hidden"); // Close menu
     const target = document.getElementById(id);
-    if (target) target.classList.remove('hidden');
+    if (target) target.classList.remove("hidden");
   };
 
-  aoClicar('optMobileModo', () => toggleMobilePanel('mobileModePanel'));
-  aoClicar('optMobileNav', () => toggleMobilePanel('mobileNavPanel'));
-  aoClicar('optMobileZoom', () => toggleMobilePanel('mobileZoomPanel'));
+  aoClicar("optMobileModo", () => toggleMobilePanel("mobileModePanel"));
+  aoClicar("optMobileNav", () => toggleMobilePanel("mobileNavPanel"));
+  aoClicar("optMobileZoom", () => toggleMobilePanel("mobileZoomPanel"));
 
   // Direct Action for Crop
-  aoClicar('optMobileRecortar', () => {
-    document.getElementById('mobileMenuOptions').classList.add('hidden'); // Close menu
+  aoClicar("optMobileRecortar", () => {
+    document.getElementById("mobileMenuOptions").classList.add("hidden"); // Close menu
     ativarModoRecorte();
   });
 
-  aoClicar('optMobileFechar', fecharVisualizador);
+  aoClicar("optMobileFechar", fecharVisualizador);
 
   // Mobile Control binding
-  aoClicar('btnModoProvaMobile', () => trocarModo('prova'));
-  aoClicar('btnModoGabaritoMobile', () => trocarModo('gabarito'));
-  aoClicar('btnPrevMobile', () => mudarPagina(-1));
-  aoClicar('btnNextMobile', () => mudarPagina(1));
-  aoClicar('btnZoomOutMobile', () => mudarZoom(-0.1));
-  aoClicar('btnZoomInMobile', () => mudarZoom(0.1));
-
+  aoClicar("btnModoProvaMobile", () => trocarModo("prova"));
+  aoClicar("btnModoGabaritoMobile", () => trocarModo("gabarito"));
+  aoClicar("btnPrevMobile", () => mudarPagina(-1));
+  aoClicar("btnNextMobile", () => mudarPagina(1));
+  aoClicar("btnZoomOutMobile", () => mudarZoom(-0.1));
+  aoClicar("btnZoomInMobile", () => mudarZoom(0.1));
 
   // --- Ferramenta de Recorte (Header) ---
-  aoClicar('btnRecortarHeader', ativarModoRecorte);
+  aoClicar("btnRecortarHeader", ativarModoRecorte);
 
   // --- Ações Flutuantes (Durante o Recorte) ---
-  aoClicar('btnConfirmarRecorte', salvarQuestao);
-  aoClicar('btnCancelarRecorte', cancelarRecorte);
+  aoClicar("btnConfirmarRecorte", salvarQuestao);
+  aoClicar("btnCancelarRecorte", cancelarRecorte);
 
   // --- Modal de Confirmação ---
-  aoClicar('btnModalMaisRecorte', fecharModalConfirmacao);
-  aoClicar('btnModalProcessar', confirmarEnvioIA);
-  aoClicar('btnModalCancelarTudo', fecharModalConfirmacao);
+  aoClicar("btnModalMaisRecorte", fecharModalConfirmacao);
+  aoClicar("btnModalProcessar", confirmarEnvioIA);
+  aoClicar("btnModalCancelarTudo", fecharModalConfirmacao);
 
   // --- NOVO: Click & Drag (Pan) para Desktop ---
   // Imita o comportamento de arrastar do celular no PC
-  const container = document.getElementById('canvasContainer');
+  const container = document.getElementById("canvasContainer");
   if (container) {
     let isDown = false;
     let startX, startY, scrollLeft, scrollTop;
 
     // Define cursor inicial como "grab" (mãozinha aberta)
-    container.style.cursor = 'grab';
+    container.style.cursor = "grab";
 
-    container.addEventListener('mousedown', (e) => {
+    container.addEventListener("mousedown", (e) => {
       // 1. Bloqueia se estiver em modo de recorte (verifica overlay)
-      const overlay = document.getElementById('selection-overlay');
+      const overlay = document.getElementById("selection-overlay");
       if (overlay && overlay.offsetParent !== null) return;
 
       // 2. Bloqueia se clicar em algum botão ou controle dentro do container (se houver)
-      if (e.target.closest('button, .resizer')) return;
+      if (e.target.closest("button, .resizer")) return;
 
       isDown = true;
-      container.classList.add('is-dragging'); // Opcional, para CSS extra se precisar
-      container.style.cursor = 'grabbing';
+      container.classList.add("is-dragging"); // Opcional, para CSS extra se precisar
+      container.style.cursor = "grabbing";
 
       // Previne seleção de texto durante o arrasto
-      container.style.userSelect = 'none';
+      container.style.userSelect = "none";
 
       startX = e.pageX - container.offsetLeft;
       startY = e.pageY - container.offsetTop;
@@ -119,17 +128,17 @@ export function configurarEventosViewer() {
 
     const stopDrag = () => {
       isDown = false;
-      container.classList.remove('is-dragging');
-      if (!document.getElementById('selection-overlay')) {
-        container.style.cursor = 'grab';
+      container.classList.remove("is-dragging");
+      if (!document.getElementById("selection-overlay")) {
+        container.style.cursor = "grab";
       }
-      container.style.removeProperty('user-select');
+      container.style.removeProperty("user-select");
     };
 
-    container.addEventListener('mouseleave', stopDrag);
-    container.addEventListener('mouseup', stopDrag);
+    container.addEventListener("mouseleave", stopDrag);
+    container.addEventListener("mouseup", stopDrag);
 
-    container.addEventListener('mousemove', (e) => {
+    container.addEventListener("mousemove", (e) => {
       if (!isDown) return;
       e.preventDefault(); // Impede comportamento padrão de seleção
 
@@ -149,25 +158,25 @@ export function configurarEventosViewer() {
 export function realizarLimpezaCompleta() {
   // 1. Encerra cropper com segurança (Se houver resquício)
   try {
-    import('../cropper/selection-overlay.js').then(module => {
+    import("../cropper/selection-overlay.js").then((module) => {
       module.removeSelectionOverlay();
     });
-  } catch (_) { }
+  } catch (_) {}
 
   try {
-    if (typeof viewerState.cropper !== 'undefined' && viewerState.cropper) {
+    if (typeof viewerState.cropper !== "undefined" && viewerState.cropper) {
       viewerState.cropper.destroy();
       viewerState.cropper = null;
     }
-  } catch (_) { }
+  } catch (_) {}
 
   // 2. Limpeza do DOM (Visual)
   const idsParaRemover = [
-    'pdfViewerContainer',
-    'sidebarResizer',
-    'viewerSidebar',
-    'reopenSidebarBtn',
-    'finalModal',
+    "pdfViewerContainer",
+    "sidebarResizer",
+    "viewerSidebar",
+    "reopenSidebarBtn",
+    "finalModal",
   ];
 
   idsParaRemover.forEach((id) => {
@@ -176,21 +185,21 @@ export function realizarLimpezaCompleta() {
   });
 
   // Esconde/Reseta elementos persistentes
-  document.getElementById('cropConfirmModal')?.classList.remove('visible');
-  document.getElementById('floatingActionParams')?.classList.add('hidden');
+  document.getElementById("cropConfirmModal")?.classList.remove("visible");
+  document.getElementById("floatingActionParams")?.classList.add("hidden");
 
   // 3. Gestão de Memória (URLs)
   try {
     if (window.__pdfUrls?.prova) URL.revokeObjectURL(window.__pdfUrls.prova);
     if (window.__pdfUrls?.gabarito)
       URL.revokeObjectURL(window.__pdfUrls.gabarito);
-  } catch (_) { }
+  } catch (_) {}
 
   // 4. Reset das Variáveis Globais (Estado)
   window.__pdfUrls = { prova: null, gabarito: null };
   window.__viewerArgs = null;
-  window.__modo = 'prova';
-  window.modo = 'prova';
+  window.__modo = "prova";
+  window.modo = "prova";
   window.__isProcessing = false;
   window.__capturandoImagemFinal = false;
 
@@ -212,7 +221,7 @@ export function realizarLimpezaCompleta() {
 export function fecharVisualizador() {
   // 1. Pergunta de Segurança
   const msg =
-    'Tem certeza que deseja fechar e voltar ao início? \n\nTodo o progresso não salvo desta questão será perdido.';
+    "Tem certeza que deseja fechar e voltar ao início? \n\nTodo o progresso não salvo desta questão será perdido.";
   if (!confirm(msg)) {
     return;
   }
@@ -221,7 +230,7 @@ export function fecharVisualizador() {
   realizarLimpezaCompleta();
 
   // 3. Redireciona/Recarrega a Interface de Upload
-  if (typeof generatePDFUploadInterface === 'function') {
+  if (typeof generatePDFUploadInterface === "function") {
     generatePDFUploadInterface(null); // Null garante form limpo
   }
 }
@@ -229,13 +238,13 @@ export function fecharVisualizador() {
 /**
  * Renderiza a interface de visualização de PDF e anexa os eventos.
  */
-export function gerarVisualizadorPDF(args) {
+export async function gerarVisualizadorPDF(args) {
   // FASE 1: Preparação
   const urlProva = inicializarContextoViewer(args);
 
   // FASE 2: Injeção do HTML no DOM
   const viewerHTML = montarTemplateViewer(args);
-  document.body.insertAdjacentHTML('beforeend', viewerHTML);
+  document.body.insertAdjacentHTML("beforeend", viewerHTML);
 
   // FASE 3: Eventos (Toda a mágica em uma linha)
   configurarEventosViewer();
@@ -248,13 +257,15 @@ export function gerarVisualizadorPDF(args) {
   // Tenta carregar. Se der sucesso, fecha qualquer modal de conflito que ainda esteja na tela
   // (Caso o usuário tenha vindo do conflito e o modal ficou aberto por algum motivo, ou "Processing" toaster)
   const carregou = await carregarDocumentoPDF(urlProva);
-  
+
   if (carregou) {
-    const modalConflict = document.getElementById('unified-decision-modal');
+    const modalConflict = document.getElementById("unified-decision-modal");
     if (modalConflict) modalConflict.remove();
 
     // Também fecha o toaster de processamento se houver
-    const toasterContainer = document.getElementById('search-toaster-container');
-    if (toasterContainer) toasterContainer.innerHTML = ''; 
+    const toasterContainer = document.getElementById(
+      "search-toaster-container"
+    );
+    if (toasterContainer) toasterContainer.innerHTML = "";
   }
 }
