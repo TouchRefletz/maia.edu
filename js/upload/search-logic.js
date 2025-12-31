@@ -46,6 +46,9 @@ export function setupSearchLogic() {
 
   if (btnBackToSearch) {
     btnBackToSearch.addEventListener("click", () => {
+      // PREVENT NAVIGATION IF UNSTABLE (e.g. initial connection)
+      // or just ensure Toaster catches it.
+
       manualUploadContainer.classList.add("hidden");
       manualUploadContainer.style.display = "none";
       searchContainer.classList.remove("hidden");

@@ -180,22 +180,27 @@ export const SearchToaster = {
   },
 
   updateState(progress, statusText, taskText) {
-    if (!this.element) return;
+    if (!this.element) {
+      // If meant to be visible but not rendered, try rendering (or just ignore updates until show() is called)
+      // Since show() calls render(), we just return here if not initialized.
+      return;
+    }
 
-    if (progress !== undefined) {
-      document.getElementById("toaster-progress-fill").style.width =
-        `${progress}%`;
-      document.getElementById("toaster-percent").innerText =
-        `${Math.floor(progress)}%`;
+    const fillEl = document.getElementById("toaster-progress-fill");
+    if (fillEl && progress !== undefined) {
+      fillEl.style.width = `${progress}%`;
+      const percentEl = document.getElementById("toaster-percent");
+      if (percentEl) percentEl.innerText = `${Math.floor(progress)}%`;
     }
 
     if (statusText) {
-      document.getElementById("toaster-status-text").innerText =
-        statusText.toUpperCase();
+      const statusEl = document.getElementById("toaster-status-text");
+      if (statusEl) statusEl.innerText = statusText.toUpperCase();
     }
 
     if (taskText) {
-      document.getElementById("toaster-task").innerText = taskText;
+      const taskEl = document.getElementById("toaster-task");
+      if (taskEl) taskEl.innerText = taskText;
     }
   },
 };
