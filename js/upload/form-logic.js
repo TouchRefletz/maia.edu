@@ -131,8 +131,86 @@ export function setupFormLogic(elements, initialData) {
         console.warn("[Manual] Conflict detected!", data);
         import("./search-logic.js").then((module) => {
           module.showConflictResolutionModal(data, (overrideData) => {
-            // ... same logic as before for override ...
-            // Note: Should probably show progress again if they confirm.
+            module.showConflictResolutionModal(data, (overrideData) => {
+              // RE-INITIALIZE PROGRESS for Conflict Flow
+              const progressConflict = showProgressModal(
+                "Resolvendo conflito e mesclando dados..."
+              );
+
+              // Prepare FormData for Override (similar to before but concise)
+              const newFormData = new FormData();
+              newFormData.append("title", titleInput.value);
+              if (srcProvaVal)
+                newFormData.append("source_url_prova", srcProvaVal);
+              if (srcGabVal)
+                newFormData.append("source_url_gabarito", srcGabVal);
+              newFormData.append("confirm_override", "true");
+              newFormData.append("mode", "update"); // Merge mode
+
+              // Handle URLs from selection
+              const hasLocalPdf =
+                overrideData.pdfUrl &&
+                overrideData.pdfUrl.includes("tmpfiles.org");
+              const hasLocalGab =
+                overrideData.gabUrl &&
+                overrideData.gabUrl.includes("tmpfiles.org");
+
+              if (hasLocalPdf)
+                newFormData.append("pdf_url_override", overrideData.pdfUrl);
+              if (hasLocalGab)
+                newFormData.append(
+                  "gabarito_url_override",
+                  overrideData.gabUrl
+                );
+
+              // If User chose REMOTE for PDF, we need to pass that too or let backend infer?
+              // Backend uses 'overwrite' or 'update'. If update, and no override, it keeps existing.
+              // But we might need to tell correct URL for Polling later.
+
+              // Actually, the Worker response (data) contains the correct slug/hf_url.
+              // We just need to trigger the merge action.
+
+              fetch(`${WORKER_URL}/manual-upload`, {
+                method: "POST",
+                body: newFormData,
+              })
+                .then((r) => r.json())
+                .then((d) => {
+                  if (d.success) {
+                    // CONFLICT RESOLVED -> START POLLING
+                    // We need to use the SAME polling logic.
+                    // But 'progress' variable is local to main scope.
+                    // We can reuse the function if we hoist it or pass the progress object?
+                    // Actually, 'showProgressModal' creates a singleton DOM element.
+                    // So we can just update it.
+
+                    // Call the reusable function (defined below/above - we need to ensure scope availability)
+                    // Since we are inside a callback, we might not see 'startPollingAndOpenViewer' if it's defined later in the main function.
+                    // Correction: We must define 'startPollingAndOpenViewer' BEFORE this block or hoist it.
+                    // Javascript 'const' is not hoisted.
+
+                    // Quick fix: Just copy polling logic OR move the definition up.
+                    // I will move the definition UP in the next replacement chunk or rely on function hoisting if I use 'function' keyword.
+                    // But I'm using const.
+
+                    // Actually, let's just use the progress modal we made and Manual Polling here to be safe and simple.
+
+                    startPollingAndOpenViewer(
+                      d.hf_url_preview,
+                      d.slug,
+                      d.ai_data
+                    );
+                  } else {
+                    progressConflict.close();
+                    alert("Erro na resolução: " + d.error);
+                  }
+                })
+                .catch((err) => {
+                  progressConflict.close();
+                  console.error(err);
+                  alert("Erro de conexão.");
+                });
+            });
           });
         });
         return;
@@ -147,70 +225,68 @@ export function setupFormLogic(elements, initialData) {
       const hfUrl = data.hf_url_preview;
       const slug = data.slug;
 
-      progress.update("Upload iniciado! Sincronizando com a Nuvem...");
-      console.log(`[Manual] Polling HF for: ${hfUrl}`);
+      // Reusable Polling Function
+      const startPollingAndOpenViewer = (hfUrl, slug, aiData) => {
+        progress.update("Upload iniciado! Sincronizando com a Nuvem...");
+        console.log(`[Manual] Polling HF for: ${hfUrl}`);
 
-      // Polling Function
-      const checkHgUrl = async () => {
-        try {
-          // We check headers to avoid HTML login pages (200 OK)
-          const response = await fetch(hfUrl, { method: "HEAD" });
-          if (response.status === 200) {
-            const type = response.headers.get("content-type");
-            if (type && type.includes("text/html")) {
-              return false;
+        const checkHgUrl = async () => {
+          try {
+            const response = await fetch(hfUrl, { method: "HEAD" });
+            if (response.status === 200) {
+              const type = response.headers.get("content-type");
+              if (type && type.includes("text/html")) return false;
+              return true;
             }
-            return true;
+            return false;
+          } catch (e) {
+            return false;
           }
-          return false;
-        } catch (e) {
-          return false;
-        }
+        };
+
+        let attempts = 0;
+        const maxAttempts = 30; // 60s
+
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          progress.update(`Sincronizando... (${attempts}/${maxAttempts})`);
+
+          try {
+            const exists = await checkHgUrl();
+            if (exists) {
+              clearInterval(pollInterval);
+              progress.update("Concluído! Abrindo visualizador...");
+
+              setTimeout(() => {
+                progress.close();
+                const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
+                gerarVisualizadorPDF({
+                  title: aiData?.institution
+                    ? `${aiData.institution} ${aiData.year}`
+                    : titleInput.value,
+                  rawTitle: titleInput.value,
+                  fileProva: proxyUrl,
+                  fileGabarito: aiData?.gabarito_url || null,
+                  gabaritoNaProva: gabaritoCheck.checked,
+                  isManualLocal: false,
+                  slug: slug,
+                });
+              }, 1000);
+            } else if (attempts >= maxAttempts) {
+              clearInterval(pollInterval);
+              progress.close();
+              alert(
+                "O arquivo demorou muito para aparecer na nuvem. Verifique o terminal ou tente novamente em instantes."
+              );
+            }
+          } catch (e) {
+            console.warn("Polling checking error", e);
+          }
+        }, 2000);
       };
 
-      let attempts = 0;
-      const maxAttempts = 30; // 30 * 2s = 60s timeout
-
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        progress.update(`Sincronizando... (${attempts}/${maxAttempts})`);
-
-        try {
-          const exists = await checkHgUrl();
-          if (exists) {
-            clearInterval(pollInterval);
-            progress.update("Concluído! Abrindo visualizador...");
-
-            setTimeout(() => {
-              progress.close();
-
-              // USE PROXY URL for Viewer to handle Auth/CORS
-              const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
-
-              // OPEN REMOTE VIEWER
-              gerarVisualizadorPDF({
-                title: data.ai_data?.institution
-                  ? `${data.ai_data.institution} ${data.ai_data.year}`
-                  : titleInput.value,
-                rawTitle: titleInput.value,
-                fileProva: proxyUrl, // USE PROXY
-                fileGabarito: data.ai_data?.gabarito_url || null,
-                gabaritoNaProva: gabaritoCheck.checked,
-                isManualLocal: false,
-                slug: slug,
-              });
-            }, 1000);
-          } else if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            progress.close();
-            alert(
-              "O arquivo demorou muito para aparecer na nuvem. Verifique o terminal ou tente novamente em instantes."
-            );
-          }
-        } catch (e) {
-          console.warn("Polling checking error", e);
-        }
-      }, 2000);
+      // Main Flow Use
+      startPollingAndOpenViewer(data.hf_url_preview, data.slug, data.ai_data);
     } catch (e) {
       if (progress && progress.close) progress.close();
       console.error("[Manual] Error triggering upload:", e);
