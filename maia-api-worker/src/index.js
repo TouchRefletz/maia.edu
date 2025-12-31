@@ -1251,7 +1251,25 @@ async function handleManualUpload(request, env) {
 				const res = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
 				const json = await res.json();
 				if (json && json.status === 'success') {
-					return json.data.url.replace('/file/', '/dl/');
+					let url = json.data.url;
+					// Fix: Ensure we use the /dl/ endpoint for raw file
+					if (url.includes('/file/')) {
+						url = url.replace('/file/', '/dl/');
+					} else if (!url.includes('/dl/')) {
+						// Assume format tmpfiles.org/ID/FILENAME -> tmpfiles.org/dl/ID/FILENAME
+						url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+					}
+
+					// Verify (HEAD check) to ensure it's accessible and not HTML
+					/*
+					try {
+						const check = await fetch(url, { method: 'HEAD' });
+						if (check.ok && check.headers.get('content-type')?.includes('text/html')) {
+							console.warn('[TmpFile] Generated URL returned HTML. Retrying or assuming failure.');
+						}
+					} catch (e) {} 
+					*/
+					return url;
 				}
 				return null;
 			} catch (e) {
