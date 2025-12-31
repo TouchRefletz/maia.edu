@@ -621,6 +621,19 @@ export class TerminalUI {
       this.updateTaskStateByName(taskTitle, status);
     }
 
+    // 0. STRICT ERROR DETECTION
+    const upperText = text.toUpperCase();
+    if (
+      upperText.includes("FALHA FATAL") ||
+      upperText.includes("ERRO CRÍTICO") ||
+      upperText.includes("FATAL ERROR") ||
+      (upperText.includes("CRITICAL ERROR") &&
+        !upperText.includes("NON-CRITICAL"))
+    ) {
+      this.fail(text);
+      return;
+    }
+
     if (text.includes("IPythonRunCellAction")) {
       this.el.stepText.innerText = "Executando script de automação Python...";
       this.el.stepText.style.color = "var(--color-primary)";
@@ -1074,39 +1087,23 @@ export class TerminalUI {
   }
 
   cancelFinished() {
-    this.state = this.MODES.DONE;
-    clearInterval(this.tickerInterval);
+    // Treat cancellation as a FAILURE per user request
+    this.fail("Operação cancelada manualamente pelo usuário.");
 
+    // Override status text specifically for clarity
     this.el.status.innerText = "CANCELADO";
-    this.el.status.classList.remove("active");
-    this.el.status.style.color = "var(--color-warning)"; // Orange/Yellow
-
+    this.el.status.style.color = "var(--color-error)"; // Reuse error red
     this.el.eta.innerText = "TEMPO: CANCELADO";
-    this.el.stepText.innerText = "Operação cancelada pelo usuário.";
-    this.el.stepText.style.color = "var(--color-warning)"; // Orange/Yellow
 
-    // Fill bar with warning color
-    if (this.el.fill)
-      this.el.fill.style.backgroundColor = "var(--color-warning)";
+    // Ensure minimized button is RED (fail does this, but being explicit doesn't hurt)
+    this.container.classList.remove("term-status-success");
+    this.container.classList.add("term-status-error");
 
-    this.queueLog(`[SISTEMA] Processo cancelado e encerrado.`, "warning");
-
-    this.triggerNotification(
-      "Tarefa Cancelada",
-      "O processo foi cancelado manualmente."
-    );
-
+    // Additional UI Cleanup specific to toggle
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.innerText = "Cancelado";
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.style.display = "none";
-    }
-
-    if (this.el.retryBtn) {
-      this.el.retryBtn.style.display = "flex";
-      this.el.retryBtn.style.alignItems = "center";
-      this.el.retryBtn.style.height = "22px";
+      this.el.cancelBtn.innerText = "Cancelado";
     }
   }
 
