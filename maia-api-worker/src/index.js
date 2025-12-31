@@ -1457,12 +1457,15 @@ async function handleManualUpload(request, env) {
 				ai_data: aiData,
 				hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/prova.pdf`,
 			}),
+			{
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			},
 		);
 	} catch (e) {
 		console.error('[Manual Upload Critical Error]', e);
 		return new Response(JSON.stringify({ error: e.message, stack: e.stack }), {
 			status: 500,
-			headers: corsHeaders,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	}
 }
