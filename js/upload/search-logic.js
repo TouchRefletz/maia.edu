@@ -190,10 +190,16 @@ export function setupSearchLogic() {
 
     // Setup Terminal if not exists (only on fresh start)
     let terminal = null;
-    if (!confirm) {
-      // Fresh start
+    const existingEl = document.getElementById("deep-search-terminal");
+
+    if (!confirm || !existingEl) {
+      // Fresh start OR Recovery if terminal is missing
       searchResults.innerHTML = "";
       selectedItems = { prova: null, gabarito: null };
+
+      // Only reset slug if fresh start, otherwise we might want to keep it?
+      // Actually, if we are retrying, we usually get a new slug anyway.
+      // So resetting is safer to avoid pusher conflicts.
       currentSlug = null;
 
       const consoleContainer = document.createElement("div");
@@ -204,14 +210,18 @@ export function setupSearchLogic() {
       terminal.onExpandRequest = handleExpandRequest; // Link expand logic
 
       const log = (text, type = "info") => terminal.processLogLine(text, type);
-      log("Iniciando Verificação Pré-Busca...", "info");
+
+      if (!confirm) {
+        log("Iniciando Verificação Pré-Busca...", "info");
+      } else {
+        log("Reiniciando busca (Terminal Restaurado)...", "warning");
+      }
 
       // Wire Retry Logic
       terminal.onRetry = () => showRetryConfirmationModal(log, terminal);
     } else {
       // Re-attach to existing terminal
-      const existingEl = document.getElementById("deep-search-terminal");
-      terminal = new TerminalUI(existingEl || "deep-search-terminal");
+      terminal = new TerminalUI(existingEl);
       terminalInstance = terminal; // Save Global Ref
       terminal.onExpandRequest = handleExpandRequest;
 
