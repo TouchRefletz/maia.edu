@@ -1,14 +1,18 @@
-import { gerarHtmlPainelFiltros } from '../banco/filtros-ui.js';
-import { carregarBancoDados, configurarObserverScroll } from '../banco/paginacao-e-carregamento.js';
-import { bancoState } from '../main.js';
-import { gerarHtmlModalScanOriginal } from '../ui/scan-original-modal.js';
+import { gerarHtmlPainelFiltros } from "../banco/filtros-ui.js";
+import {
+  carregarBancoDados,
+  configurarObserverScroll,
+} from "../banco/paginacao-e-carregamento.js";
+import { bancoState } from "../main.js";
+import { gerarHtmlModalScanOriginal } from "../ui/scan-original-modal.js";
+import { checkAndRestoreFloatingTerminal } from "../upload/search-logic.js";
 
 /**
  * 1. TELA INICIAL
  */
 export function gerarTelaInicial() {
-  document.body.innerHTML = '';
-  document.getElementById('pdfViewerContainer')?.remove();
+  document.body.innerHTML = "";
+  document.getElementById("pdfViewerContainer")?.remove();
   bancoState.ultimoKeyCarregada = null;
   bancoState.todasQuestoesCache = [];
 
@@ -43,6 +47,9 @@ export function gerarTelaInicial() {
     </div>
     `;
   document.body.innerHTML = html;
+
+  // Persist Floating Terminal
+  checkAndRestoreFloatingTerminal();
 }
 
 export function iniciarFluxoExtracao() {
@@ -51,7 +58,7 @@ export function iniciarFluxoExtracao() {
 
 export async function iniciarModoEstudante() {
   // 1. Limpa a tela
-  document.body.innerHTML = '';
+  document.body.innerHTML = "";
 
   // 2. Monta o HTML Principal
   const htmlFiltros = gerarHtmlPainelFiltros();
@@ -78,5 +85,9 @@ export async function iniciarModoEstudante() {
   await carregarBancoDados();
 
   // 5. Configura Scroll Infinito
+  // 5. Configura Scroll Infinito
   configurarObserverScroll();
+
+  // Persist Floating Terminal
+  checkAndRestoreFloatingTerminal();
 }

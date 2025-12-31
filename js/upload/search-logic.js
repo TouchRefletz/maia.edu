@@ -36,7 +36,25 @@ export function setupSearchLogic() {
 
   const btnVoltarInicio = document.querySelector(".js-voltar-inicio");
 
-  // Helper to Float Terminal
+  // Helper to Float Terminal (EXPORTED LOGIC)
+  // We attach this to window or export it. Since we are in a module, we should export it.
+  // But setupSearchLogic is the main export. We will add a secondary export at the bottom or modify the module structure.
+  // Actually, for simplicity and to avoid circular deps or complex refactors, let's just make it a global window function or
+  // export it if possible. The file structure allows multiple exports.
+
+  // Checking if we can re-dock on init
+  if (terminalInstance && terminalInstance.state !== "DONE") {
+    // Re-dock logic
+    const targetParent = searchResults; // Default place
+    if (targetParent) {
+      // Verify if it's already there (it shouldn't be, DOM was wiped)
+      if (!targetParent.contains(terminalInstance.container)) {
+        terminalInstance.setFloatMode(false);
+        targetParent.appendChild(terminalInstance.container);
+      }
+    }
+  }
+
   const floatTerminal = () => {
     // FLOATING MODE: If terminal exists and job running, float it.
     if (terminalInstance && terminalInstance.state !== "DONE") {
@@ -1749,5 +1767,25 @@ export function setupSearchLogic() {
     searchInput.addEventListener("keypress", (e) => {
       if (e.key === "Enter") doSearch(false);
     });
+  }
+}
+
+
+/* --- EXPORTED HELPER FOR GLOBAL NAVIGATION --- */
+export function checkAndRestoreFloatingTerminal() {
+  if (terminalInstance && terminalInstance.state !== 'DONE') {
+    terminalInstance.setFloatMode(true);
+    let wrapper = document.getElementById('floating-term-wrapper');
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.id = 'floating-term-wrapper';
+      wrapper.style.position = 'fixed';
+      wrapper.style.zIndex = '99999';
+      document.body.appendChild(wrapper);
+    }
+    if (terminalInstance.container && !wrapper.contains(terminalInstance.container)) {
+        wrapper.appendChild(terminalInstance.container);
+    }
+    wrapper.style.display = 'block';
   }
 }
