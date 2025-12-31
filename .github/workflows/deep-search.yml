@@ -691,7 +691,7 @@ jobs:
                     print(f'[Merge] Error: {e}')
             else:
                  print('[Merge] Manifests not found in both locations. Skipping merge.')
-            EOF
+          EOF
             
             # Run the merge script
             export SLUG="$slug"
