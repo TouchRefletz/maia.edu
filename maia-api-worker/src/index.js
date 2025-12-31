@@ -288,6 +288,7 @@ Output JSON ONLY.`;
 			Authorization: `Bearer ${githubPat}`,
 			Accept: 'application/vnd.github.v3+json',
 			'User-Agent': 'Cloudflare-Worker',
+			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify({
 			event_type: 'deep-search',
