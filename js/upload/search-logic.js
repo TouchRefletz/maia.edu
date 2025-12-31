@@ -5,8 +5,6 @@ const PROD_WORKER_URL =
 // Importa o visualizador
 import { AsyncQueue } from "../utils/queue.js";
 import { gerarVisualizadorPDF } from "../viewer/events.js";
-import { SearchPersistence } from "./search-persistence.js";
-import { SearchToaster } from "./search-toaster.js";
 import { TerminalUI } from "./terminal-ui.js";
 
 // --- STATE ---
@@ -20,6 +18,7 @@ let selectedItems = {
 let activePusher = null;
 let activeChannel = null;
 let activeWebSocket = null;
+let terminalInstance = null; // Guardar referencia global
 
 export function setupSearchLogic() {
   const btnSearch = document.getElementById("btnSearch");
@@ -41,104 +40,75 @@ export function setupSearchLogic() {
       manualUploadContainer.classList.remove("hidden");
       manualUploadContainer.style.display = "flex";
       manualUploadContainer.classList.add("fade-in-centralized");
+
+      // FLOATING MODE: If terminal exists and job running, float it.
+      if (terminalInstance && terminalInstance.state !== "DONE") {
+        terminalInstance.setFloatMode(true);
+        // O terminal já está dentro de searchResults, que está dentro de searchContainer.
+        // Se searchContainer está hidden, o terminal também fica.
+        // Precisamos mover o terminal para o body temporariamente ou usar fixed que ignora pais hidden (não funciona se pai for display:none).
+        // SOLUÇÃO: Mover para wrapper flutuante no body.
+
+        if (!document.getElementById("floating-term-wrapper")) {
+          const wrapper = document.createElement("div");
+          wrapper.id = "floating-term-wrapper";
+          wrapper.style.position = "fixed"; // Fallback
+          wrapper.style.zIndex = "99999";
+          document.body.appendChild(wrapper);
+        }
+        document
+          .getElementById("floating-term-wrapper")
+          .appendChild(terminalInstance.container);
+        document.getElementById("floating-term-wrapper").style.display =
+          "block";
+      }
     });
   }
 
   if (btnBackToSearch) {
     btnBackToSearch.addEventListener("click", () => {
-      // PREVENT NAVIGATION IF UNSTABLE (e.g. initial connection)
-      // or just ensure Toaster catches it.
-
       manualUploadContainer.classList.add("hidden");
       manualUploadContainer.style.display = "none";
       searchContainer.classList.remove("hidden");
       searchContainer.style.display = "flex";
       searchContainer.classList.add("fade-in-centralized");
-      SearchToaster.hide(); // Hide Toaster when returning
+
+      // RESTORE MODE
+      if (terminalInstance) {
+        terminalInstance.setFloatMode(false);
+        // Devolver ao lugar original
+        // O lugar original era resultsContainer
+        const originalParent =
+          document.getElementById("deep-search-terminal-container") ||
+          searchResults;
+        originalParent.appendChild(terminalInstance.container);
+      }
     });
   }
 
-  // --- NEW: Toaster & Persistence Init ---
-  SearchPersistence._init();
-
-  // Reopen Logic (Called by Toaster or Page Load)
-  const handleReopen = () => {
-    // Ensure UI is visible
-    manualUploadContainer.classList.add("hidden");
-    manualUploadContainer.style.display = "none";
-    searchContainer.classList.remove("hidden");
-    searchContainer.style.display = "flex";
-
-    // Restore Session
-    restoreSession();
+  // Handle Expand from Floating
+  const handleExpandRequest = () => {
+    if (btnBackToSearch) btnBackToSearch.click(); // Reuse logic
   };
 
-  const handleCancel = () => {
-    // Trigger cancel button if exists
-    const btnCancel = document.getElementById("term-btn-cancel");
-    if (btnCancel) btnCancel.click();
-    SearchPersistence.finishSession(false);
-  };
+  // STRICT CANCELLATION ON CLOSE
+  window.addEventListener("unload", () => {
+    // Use sendBeacon to guarantee request is sent triggers even if page dies
+    if (
+      currentSlug &&
+      (!terminalInstance || terminalInstance.state !== "DONE")
+    ) {
+      // Precisamos do runId se tiver, se não cancela pelo slug se a API suportar (mas a API pede runId).
+      // Se não tiver runId, paciência, o backend deve ter timeout.
+      const runId = terminalInstance ? terminalInstance.runId : null;
 
-  SearchToaster.init({
-    onReopen: handleReopen,
-    onCancel: handleCancel,
-  });
-
-  // Watch for Visibility Changes (Simulated by UI toggles)
-  // We hook into the buttons above, but also check periodically or via mutation observer if needed.
-  // For now, the buttons above control visibility effectively.
-
-  // Page Unload Warning
-  window.addEventListener("beforeunload", (e) => {
-    if (SearchPersistence.isActive()) {
-      e.preventDefault();
-      e.returnValue =
-        "Existem tarefas em andamento. Se você sair, poderá perder o histórico da busca.";
-      return e.returnValue;
+      if (runId) {
+        const data = JSON.stringify({ runId: runId });
+        const blob = new Blob([data], { type: "application/json" });
+        navigator.sendBeacon(`${PROD_WORKER_URL}/cancel-deep-search`, blob);
+      }
     }
   });
-
-  // Restore on Load logic
-  setTimeout(() => {
-    if (SearchPersistence.isActive()) {
-      console.log("[RESTORE] Found active session, restoring...");
-      handleReopen();
-    }
-  }, 500);
-
-  const restoreSession = () => {
-    const session = SearchPersistence.getSession();
-    if (!session || !session.isActive) return;
-
-    currentSlug = session.slug;
-
-    // Ensure Terminal Exists
-    let terminal = document.getElementById("deep-search-terminal");
-    if (!terminal) {
-      searchResults.innerHTML = "";
-      const consoleContainer = document.createElement("div");
-      consoleContainer.id = "deep-search-terminal";
-      searchResults.appendChild(consoleContainer);
-      // Re-instantiate UI wrapper
-      // But we need the instance... accessible?
-      // We'll create a new one, but we need to populate it.
-    }
-
-    // We need to re-attach logic. Ideally `doSearch` handles this, but here we just want to RECONNECT.
-    // So we call doSearch with a special flag or just re-run the connection logic?
-    // Better: Re-run doSearch but skip "trigger" and go straight to "connect".
-    // However, doSearch is local. Let's make a specialized "reconnect" function or
-    // modify doSearch to accept "recover" mode.
-
-    // For simplicity, we trigger doSearch with recover=true
-    // But we need to define doSearch first (it's below).
-    // So we will just call it inside the setTimeout above if needed,
-    // OR we move doSearch up.
-    // Actually, since this is inside setupSearchLogic, doSearch is defined below.
-    // We can call it freely.
-    doSearch(false, false, true, "recover");
-  };
 
   // --- Disclaimer Modal Logic ---
   const btnDisclaimerInfo = document.getElementById("btnDisclaimerInfo");
@@ -212,6 +182,8 @@ export function setupSearchLogic() {
       consoleContainer.id = "deep-search-terminal";
       searchResults.appendChild(consoleContainer);
       terminal = new TerminalUI("deep-search-terminal");
+      terminalInstance = terminal; // Save Global Ref
+      terminal.onExpandRequest = handleExpandRequest; // Link expand logic
 
       const log = (text, type = "info") => terminal.processLogLine(text, type);
       log("Iniciando Verificação Pré-Busca...", "info");
@@ -221,6 +193,9 @@ export function setupSearchLogic() {
     } else {
       // Re-attach to existing terminal
       terminal = new TerminalUI("deep-search-terminal");
+      terminalInstance = terminal; // Save Global Ref
+      terminal.onExpandRequest = handleExpandRequest;
+
       // If update mode, show visual cue
       if (mode === "update")
         terminal.processLogLine(
@@ -233,40 +208,9 @@ export function setupSearchLogic() {
       terminal.onRetry = () => showRetryConfirmationModal(log, terminal);
     }
 
-    // Recovery Mode
-    if (mode === "recover") {
-      if (!terminal) {
-        terminal = new TerminalUI("deep-search-terminal");
-        terminal.processLogLine("🔄 Recuperando sessão...", "warning");
-      }
-
-      // Replay Logs
-      const session = SearchPersistence.getSession();
-      if (session && session.logs) {
-        session.logs.forEach((l) => terminal.processLogLine(l.text, l.type));
-        if (session.tasks) terminal.updateTaskFromEvent(session.tasks);
-        if (session.progress)
-          terminal.currentVirtualProgress = session.progress;
-
-        // Sync Toaster
-        SearchToaster.updateState(session.progress, session.status);
-        SearchToaster.show(); // Show momentarily or valid logic?
-        // Actually, if we are recovering, we probably just opened the page.
-        // If the user is staring at the terminal, we hide the toaster.
-        SearchToaster.hide();
-      }
-    }
-
     // Internal Log helper
     const log = (text, type = "info") => {
       terminal?.processLogLine(text, type);
-      SearchToaster.updateState(terminal?.currentVirtualProgress, null, text);
-      SearchPersistence.saveLog(text, type);
-      if (terminal)
-        SearchPersistence.updateState(
-          terminal.currentVirtualProgress,
-          terminal.state
-        ); // Sync Status
     };
 
     // Pusher Config
@@ -274,30 +218,20 @@ export function setupSearchLogic() {
     const pusherCluster = "sa1";
 
     try {
-      // Step 1 & 2: Call Worker (Pre-flight OR Trigger)
-      // IF RECOVER: Skip trigger, just connect to currentSlug (which must be set)
-      let result = null;
-      if (mode === "recover") {
-        if (!currentSlug) {
-          log("Erro: Slug perdido na recuperação.", "error");
-          return;
-        }
-        result = { final_slug: currentSlug }; // Mock result for connection flow
-      } else {
-        const response = await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query,
-            force,
-            cleanup,
-            confirm,
-            mode,
-            apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
-          }),
-        });
-        result = await response.json();
-      }
+      // Step 1 & 2: Call Worker
+      const response = await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          force,
+          cleanup,
+          confirm,
+          mode,
+          apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
+        }),
+      });
+      const result = await response.json();
 
       // --- HANDLE PRE-FLIGHT ---
       if (result.preflight) {

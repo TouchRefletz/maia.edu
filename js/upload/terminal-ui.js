@@ -102,6 +102,57 @@ export class TerminalUI {
           70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
           100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
         }
+        /* Floating Mode CSS */
+        .term-floating {
+           position: fixed !important;
+           bottom: 20px !important;
+           right: 20px !important;
+           width: 380px !important;
+           height: auto !important;
+           max-height: 180px !important;
+           z-index: 99999 !important;
+           border-radius: 12px !important;
+           box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+           background: var(--color-surface, #1e1e2e) !important;
+           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+           overflow: hidden !important;
+        }
+        
+        .term-floating .term-logs {
+            display: none !important;
+        }
+        
+        .term-floating .term-header {
+            cursor: pointer;
+            padding: 12px 16px !important;
+        }
+        
+        .term-floating:hover {
+            transform: translateY(-5px);
+        }
+
+        .term-floating .term-tasks {
+            max-height: 60px;
+            overflow: hidden;
+        }
+        
+        /* Add an "EXPAND" hint overlay on hover or always */
+        .term-floating::after {
+            content: '⤢ Clique para Expandir';
+            position: absolute;
+            top: 10px;
+            right: 50%;
+            transform: translateX(50%);
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .term-floating:hover::after {
+            opacity: 1;
+        }
+
         .term-btn-notify {
           background: transparent;
           border: none;
@@ -202,9 +253,25 @@ export class TerminalUI {
     // Bind Notification Toggle
     this.el.notifyBtn = this.container.querySelector("#term-btn-notify");
     if (this.el.notifyBtn) {
-      this.el.notifyBtn.addEventListener("click", () =>
-        this.toggleNotification()
-      );
+      this.el.notifyBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Prevent float expansion when clicking notify
+        this.toggleNotification();
+      });
+    }
+
+    // Float Mode Expansion Click
+    this.container.addEventListener("click", () => {
+      if (this.container.classList.contains("term-floating")) {
+        if (this.onExpandRequest) this.onExpandRequest();
+      }
+    });
+  }
+
+  setFloatMode(isFloating) {
+    if (isFloating) {
+      this.container.classList.add("term-floating");
+    } else {
+      this.container.classList.remove("term-floating");
     }
   }
 
