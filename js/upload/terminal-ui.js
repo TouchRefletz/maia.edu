@@ -136,6 +136,8 @@ export class TerminalUI {
         .term-floating.term-minimized {
             width: 60px !important;
             height: 60px !important;
+            min-height: 60px !important; /* Force reset */
+            max-height: 60px !important; /* Force reset */
             border-radius: 50% !important;
             padding: 0 !important;
             overflow: hidden !important;
@@ -145,6 +147,11 @@ export class TerminalUI {
             justify-content: center !important;
             background: var(--color-surface, #1e1e2e) !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        }
+        
+        .term-floating.term-minimized:hover {
+            transform: scale(1.1);
         }
 
         /* Hide internal elements when minimized */
@@ -217,6 +224,28 @@ export class TerminalUI {
           justify-content: center;
           color: var(--color-text);
         }
+        
+        .term-btn-float-minimize {
+             background: transparent;
+             border: none;
+             color: var(--color-text-secondary);
+             cursor: pointer;
+             font-size: 1.2rem;
+             padding: 4px 8px;
+             border-radius: 4px;
+             display: none; /* Only show in float mode */
+        }
+        .term-btn-float-minimize:hover {
+             background: rgba(255,255,255,0.1);
+             color: var(--color-text);
+        }
+        
+        .term-floating .term-btn-float-minimize {
+             display: block !important;
+        }
+        .term-floating.term-minimized .term-btn-float-minimize {
+             display: none !important;
+        }
         .term-btn-notify.active {
           color: #ffc107;
           background: rgba(255, 193, 7, 0.1); /* Subtle yellow background */
@@ -243,6 +272,9 @@ export class TerminalUI {
             <div class="term-status active">INICIANDO_SISTEMA...</div>
              <button id="term-btn-notify" class="term-btn-notify inactive" title="Notificar ao concluir">
                 <span class="icon">🔕</span>
+            </button>
+            <button id="term-btn-float-minimize" class="term-btn-float-minimize" title="Minimizar">
+                _
             </button>
         </div>
       </div>
@@ -297,6 +329,33 @@ export class TerminalUI {
       this.el.cancelBtn.addEventListener("click", () => this.cancelJob());
     }
 
+    // Bind Float Minimize Button
+    const minBtn = this.container.querySelector("#term-btn-float-minimize");
+    if (minBtn) {
+      minBtn.addEventListener("click", (e) => {
+        e.stopPropagation(); // Don't trigger expand
+        this.container.classList.add("term-minimized");
+      });
+    }
+
+    // Global Click Outside Listener
+    // We bind this once. It checks if click is outside AND we are floating/expanded.
+    document.addEventListener("click", (e) => {
+      if (!this.container) return;
+      if (!document.body.contains(this.container)) return; // Detached
+
+      const isFloating = this.container.classList.contains("term-floating");
+      const isMinimized = this.container.classList.contains("term-minimized");
+
+      // Only intervene if floating AND expanded
+      if (isFloating && !isMinimized) {
+        // Check if click origin is outside container
+        if (!this.container.contains(e.target)) {
+          this.container.classList.add("term-minimized");
+        }
+      }
+    });
+
     // Bind Retry Button
     if (this.el.retryBtn) {
       this.el.retryBtn.addEventListener("click", () => {
@@ -320,25 +379,12 @@ export class TerminalUI {
     // Float Mode Expansion Click (Toggle Minimized)
     this.container.addEventListener("click", (e) => {
       if (this.container.classList.contains("term-floating")) {
-        // If click target is inside header or minimized button, toggle
-        // If it's already expanded and we click logs, don't minimize.
-        // Logic: If minimized, expand. If expanded, clicking header minimizes.
+        // Logic: If minimized, expand.
+        // If expanded, do nothing (click events bubble unless stopped, handled by controls)
 
         const isMinimized = this.container.classList.contains("term-minimized");
         if (isMinimized) {
           this.container.classList.remove("term-minimized");
-        } else {
-          // Only minimize if clicking header or specific close area?
-          // User said "clicando nele todo o terminal aparece".
-          // He didn't say how to close. Let's assume clicking header toggles.
-          if (e.target.closest(".term-header")) {
-            // this.container.classList.add("term-minimized");
-            // Actually usually users want to see it. Let's add a minimize button in header?
-            // For now, let's just let the external logic handle "Back to Search" for Docking.
-            // But for pure floating toggle, we might want a minimize button.
-            // Let's make the container toggle on header click.
-            this.container.classList.add("term-minimized");
-          }
         }
       }
     });

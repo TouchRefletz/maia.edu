@@ -329,7 +329,6 @@ export function setupSearchLogic() {
       }
 
       log(`Conectando ao canal: ${slug}...`, "info");
-      // SearchToaster.updateState("loading", "Conectando ao servidor...");
 
       let PusherClass = window.Pusher;
       if (!PusherClass) {
@@ -353,7 +352,7 @@ export function setupSearchLogic() {
           // Update Toaster with latest task
           const running = data.find((t) => t.status === "in_progress");
           if (running) {
-            // SearchToaster.updateState(undefined, undefined, running.title); // DISABLED TOASTER
+            //
           }
         }
       });
@@ -367,7 +366,7 @@ export function setupSearchLogic() {
 
         if (text.includes("COMPLETED")) {
           let isSuccess = true; // Scope var
-          // SearchToaster.updateState("success", "Busca finalizada!");
+
           log(
             "Busca base finalizada. Iniciando verificação de integridade...",
             "success"
@@ -394,7 +393,6 @@ export function setupSearchLogic() {
         }
       });
     } catch (e) {
-      // SearchToaster.updateState("error", "Erro na busca");
       log(`Erro Fatal: ${e.message}`, "error");
     }
   };
