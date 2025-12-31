@@ -1185,276 +1185,284 @@ async function executePineconeDelete(slug, env) {
 async function handleManualUpload(request, env) {
 	if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 
-	const formData = await request.formData();
-	const title = formData.get('title');
-	const sourceUrlProva = formData.get('source_url_prova');
-	const sourceUrlGabarito = formData.get('source_url_gabarito');
+	try {
+		const formData = await request.formData();
+		const title = formData.get('title');
+		const sourceUrlProva = formData.get('source_url_prova');
+		const sourceUrlGabarito = formData.get('source_url_gabarito');
 
-	const fileProva = formData.get('fileProva');
-	const fileGabarito = formData.get('fileGabarito');
+		const fileProva = formData.get('fileProva');
+		const fileGabarito = formData.get('fileGabarito');
 
-	if (!fileProva || !title) {
-		return new Response(JSON.stringify({ error: 'Prova and Title are required' }), {
-			status: 400,
-			headers: corsHeaders,
-		});
-	}
-
-	console.log(`[Manual Upload] Starting AI Research & Upload for: ${title}`);
-
-	// 1. UPLOAD FILES FIRST (Parallel)
-	const uploadToTmp = async (file) => {
-		const fd = new FormData();
-		fd.append('file', file);
-		try {
-			const res = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
-			const json = await res.json();
-			if (json && json.status === 'success') {
-				return json.data.url.replace('/file/', '/dl/');
-			}
-			return null;
-		} catch (e) {
-			console.error('Tmpfiles upload error:', e);
-			return null;
+		if (!fileProva || !title) {
+			return new Response(JSON.stringify({ error: 'Prova and Title are required' }), {
+				status: 400,
+				headers: corsHeaders,
+			});
 		}
-	};
 
-	const uploadPromises = [uploadToTmp(fileProva)];
-	if (fileGabarito) uploadPromises.push(uploadToTmp(fileGabarito));
+		console.log(`[Manual Upload] Starting AI Research & Upload for: ${title}`);
 
-	// We wait for uploads while we could potentially start AI, but let's keep it simple.
-	// Actually, let's run upload and AI in parallel if possible?
-	// But AI depends on nothing but title. Let's run AI and Upload in parallel.
-
-	// A. AI RESEARCH TASK
-	const aiTask = async () => {
-		try {
-			// Convert files to Base64 for AI context using arrayBuffer
-			const fileToBase64 = async (file) => {
-				if (!file) return null;
-				const arrayBuffer = await file.arrayBuffer();
-				const uint8Array = new Uint8Array(arrayBuffer);
-				let binary = '';
-				const len = uint8Array.byteLength;
-				for (let i = 0; i < len; i++) {
-					binary += String.fromCharCode(uint8Array[i]);
+		// 1. UPLOAD FILES FIRST (Parallel)
+		const uploadToTmp = async (file) => {
+			const fd = new FormData();
+			fd.append('file', file);
+			try {
+				const res = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', body: fd });
+				const json = await res.json();
+				if (json && json.status === 'success') {
+					return json.data.url.replace('/file/', '/dl/');
 				}
-				return btoa(binary);
-			};
-
-			const pdfBase64 = await fileToBase64(fileProva);
-			// Optional: Also send gabarito if needed, but usually Prova is enough for ID.
-
-			const aiFiles = [];
-			if (pdfBase64) {
-				aiFiles.push({ mimeType: 'application/pdf', data: pdfBase64 });
+				return null;
+			} catch (e) {
+				console.error('Tmpfiles upload error:', e);
+				return null;
 			}
+		};
 
-			// Step 1: SEARCH (Research Report) with FILE CONTEXT
-			const searchPrompt = `Analise o(s) arquivo(s) PDF anexo(s) para identificar a prova com precisão. O título fornecido pelo usuário foi '${title}'. Se o arquivo contradizer o título, confie no arquivo. Faça um relatório extenso e detalhado sobre a prova real identificada. Inclua instituição, ano, fase, características da prova, e datas se encontrar. Pesquise profundamente na web.`;
+		const uploadPromises = [uploadToTmp(fileProva)];
+		if (fileGabarito) uploadPromises.push(uploadToTmp(fileGabarito));
 
-			// Internal call to /search
-			// We MUST construct a full URL for internal fetch in Workers if not using direct function call.
-			// However, since we are in the same module, we can just call handleGeminiSearch?
-			// handleGeminiSearch expects a Request object. Let's mock it.
+		// We wait for uploads while we could potentially start AI, but let's keep it simple.
+		// Actually, let's run upload and AI in parallel if possible?
+		// But AI depends on nothing but title. Let's run AI and Upload in parallel.
 
-			const searchReqBody = {
-				texto: searchPrompt,
-				model: 'models/gemini-3-flash-preview',
-				apiKey: env.GOOGLE_GENAI_API_KEY,
-				files: aiFiles, // Pass the PDF
-			};
-			const searchReq = new Request('http://internal/search', { method: 'POST', body: JSON.stringify(searchReqBody) });
-			const searchRes = await handleGeminiSearch(searchReq, env);
+		// A. AI RESEARCH TASK
+		const aiTask = async () => {
+			try {
+				// Convert files to Base64 for AI context using arrayBuffer
+				const fileToBase64 = async (file) => {
+					if (!file) return null;
+					const arrayBuffer = await file.arrayBuffer();
+					const uint8Array = new Uint8Array(arrayBuffer);
+					let binary = '';
+					const len = uint8Array.byteLength;
+					for (let i = 0; i < len; i++) {
+						binary += String.fromCharCode(uint8Array[i]);
+					}
+					return btoa(binary);
+				};
 
-			if (!searchRes.ok) throw new Error('AI Search failed');
+				const pdfBase64 = await fileToBase64(fileProva);
+				// Optional: Also send gabarito if needed, but usually Prova is enough for ID.
 
-			// Read stream and accumulate text
-			const searchReader = searchRes.body.getReader();
-			const decoder = new TextDecoder();
-			let fullReport = '';
-			while (true) {
-				const { done, value } = await searchReader.read();
-				if (done) break;
-				const chunk = decoder.decode(value, { stream: true });
-				const lines = chunk.split('\n');
-				for (const line of lines) {
-					if (!line.trim()) continue;
-					try {
-						const json = JSON.parse(line);
-						// /search endpoint returns { type: 'answer', text: ... } for content
-						if (json.type === 'answer' && json.text) fullReport += json.text;
-					} catch (e) {}
+				const aiFiles = [];
+				if (pdfBase64) {
+					aiFiles.push({ mimeType: 'application/pdf', data: pdfBase64 });
 				}
-			}
 
-			console.log('[Manual Upload] AI Report generated.');
+				// Step 1: SEARCH (Research Report) with FILE CONTEXT
+				const searchPrompt = `Analise o(s) arquivo(s) PDF anexo(s) para identificar a prova com precisão. O título fornecido pelo usuário foi '${title}'. Se o arquivo contradizer o título, confie no arquivo. Faça um relatório extenso e detalhado sobre a prova real identificada. Inclua instituição, ano, fase, características da prova, e datas se encontrar. Pesquise profundamente na web.`;
 
-			// Step 2: EXTRACTION (Schema) with FILE CONTEXT + REPORT
-			const extractionPrompt = `Com base no relatório abaixo e nos arquivos originais, extraia os metadados exatos no formato JSON.\n\nRELATÓRIO:\n${fullReport}`;
-			const extractionSchema = {
-				type: 'OBJECT',
-				properties: {
-					institution: { type: 'STRING' },
-					year: { type: 'STRING' },
-					phase: { type: 'STRING' },
-					summary: { type: 'STRING' },
-				},
-				required: ['institution', 'year', 'phase'],
-			};
+				// Internal call to /search
+				// We MUST construct a full URL for internal fetch in Workers if not using direct function call.
+				// However, since we are in the same module, we can just call handleGeminiSearch?
+				// handleGeminiSearch expects a Request object. Let's mock it.
 
-			const genReqBody = {
-				texto: extractionPrompt,
-				schema: extractionSchema,
-				model: 'models/gemini-3-flash-preview',
-				apiKey: env.GOOGLE_GENAI_API_KEY,
-				files: aiFiles, // Pass the PDF again for context
-			};
-			const genReq = new Request('http://internal/generate', { method: 'POST', body: JSON.stringify(genReqBody) });
-			const genRes = await handleGeminiGenerate(genReq, env);
+				const searchReqBody = {
+					texto: searchPrompt,
+					model: 'models/gemini-3-flash-preview',
+					apiKey: env.GOOGLE_GENAI_API_KEY,
+					files: aiFiles, // Pass the PDF
+				};
+				const searchReq = new Request('http://internal/search', { method: 'POST', body: JSON.stringify(searchReqBody) });
+				const searchRes = await handleGeminiSearch(searchReq, env);
 
-			if (!genRes.ok) throw new Error('AI Extraction failed');
+				if (!searchRes.ok) throw new Error('AI Search failed');
 
-			// Read stream
-			const genReader = genRes.body.getReader();
-			let fullJsonText = '';
-			while (true) {
-				const { done, value } = await genReader.read();
-				if (done) break;
-				const chunk = decoder.decode(value, { stream: true });
-				const lines = chunk.split('\n');
-				for (const line of lines) {
-					if (!line.trim()) continue;
-					try {
-						const json = JSON.parse(line);
-						if (json.type === 'answer' && json.text) fullJsonText += json.text;
-					} catch (e) {}
+				// Read stream and accumulate text
+				const searchReader = searchRes.body.getReader();
+				const decoder = new TextDecoder();
+				let fullReport = '';
+				while (true) {
+					const { done, value } = await searchReader.read();
+					if (done) break;
+					const chunk = decoder.decode(value, { stream: true });
+					const lines = chunk.split('\n');
+					for (const line of lines) {
+						if (!line.trim()) continue;
+						try {
+							const json = JSON.parse(line);
+							// /search endpoint returns { type: 'answer', text: ... } for content
+							if (json.type === 'answer' && json.text) fullReport += json.text;
+						} catch (e) {}
+					}
 				}
-			}
 
-			return JSON.parse(fullJsonText);
-		} catch (e) {
-			console.error('AI Processing Error:', e);
-			// Fallback with user provided title if AI completely dies
-			return {
-				institution: 'Desconhecida',
-				year: new Date().getFullYear().toString(),
-				phase: 'Única',
-				summary: 'AI extraction failed.',
-			};
+				console.log('[Manual Upload] AI Report generated.');
+
+				// Step 2: EXTRACTION (Schema) with FILE CONTEXT + REPORT
+				const extractionPrompt = `Com base no relatório abaixo e nos arquivos originais, extraia os metadados exatos no formato JSON.\n\nRELATÓRIO:\n${fullReport}`;
+				const extractionSchema = {
+					type: 'OBJECT',
+					properties: {
+						institution: { type: 'STRING' },
+						year: { type: 'STRING' },
+						phase: { type: 'STRING' },
+						summary: { type: 'STRING' },
+					},
+					required: ['institution', 'year', 'phase'],
+				};
+
+				const genReqBody = {
+					texto: extractionPrompt,
+					schema: extractionSchema,
+					model: 'models/gemini-3-flash-preview',
+					apiKey: env.GOOGLE_GENAI_API_KEY,
+					files: aiFiles, // Pass the PDF again for context
+				};
+				const genReq = new Request('http://internal/generate', { method: 'POST', body: JSON.stringify(genReqBody) });
+				const genRes = await handleGeminiGenerate(genReq, env);
+
+				if (!genRes.ok) throw new Error('AI Extraction failed');
+
+				// Read stream
+				const genReader = genRes.body.getReader();
+				let fullJsonText = '';
+				while (true) {
+					const { done, value } = await genReader.read();
+					if (done) break;
+					const chunk = decoder.decode(value, { stream: true });
+					const lines = chunk.split('\n');
+					for (const line of lines) {
+						if (!line.trim()) continue;
+						try {
+							const json = JSON.parse(line);
+							if (json.type === 'answer' && json.text) fullJsonText += json.text;
+						} catch (e) {}
+					}
+				}
+
+				return JSON.parse(fullJsonText);
+			} catch (e) {
+				console.error('AI Processing Error:', e);
+				// Fallback with user provided title if AI completely dies
+				return {
+					institution: 'Desconhecida',
+					year: new Date().getFullYear().toString(),
+					phase: 'Única',
+					summary: 'AI extraction failed.',
+				};
+			}
+		};
+
+		// EXECUTE PARALLEL
+		const [uploadResults, aiData] = await Promise.all([Promise.all(uploadPromises), aiTask()]);
+
+		const pdfUrl = uploadResults[0];
+		const gabUrl = fileGabarito ? uploadResults[1] : null;
+
+		if (!pdfUrl) {
+			return new Response(JSON.stringify({ error: 'Failed to upload PDF to temporary storage' }), {
+				status: 500,
+				headers: corsHeaders,
+			});
 		}
-	};
 
-	// EXECUTE PARALLEL
-	const [uploadResults, aiData] = await Promise.all([Promise.all(uploadPromises), aiTask()]);
+		console.log('[Manual Upload] AI Data:', aiData);
 
-	const pdfUrl = uploadResults[0];
-	const gabUrl = fileGabarito ? uploadResults[1] : null;
-
-	if (!pdfUrl) {
-		return new Response(JSON.stringify({ error: 'Failed to upload PDF to temporary storage' }), {
-			status: 500,
-			headers: corsHeaders,
-		});
-	}
-
-	console.log('[Manual Upload] AI Data:', aiData);
-
-	// 2. Generate/Validate Slug
-	// AI now provides the slug, but we fallback if needed
-	let slug = aiData.slug;
-	if (!slug) {
-		slug = title
-			.toLowerCase()
-			.trim()
-			.replace(/[\s_]+/g, '-')
-			.replace(/[^a-z0-9-]/g, '');
-	}
-
-	// 3. DUPLICATE CHECK (Unless Override)
-	const confirmOverride = formData.get('confirm_override') === 'true';
-
-	if (!confirmOverride) {
-		try {
-			const hfManifestUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`;
-			const hfCheck = await fetch(hfManifestUrl, { method: 'HEAD' }); // HEAD is faster
-
-			if (hfCheck.status === 200) {
-				// Conflict found! Fetch the full manifest to show the user
-				const fullManifestRes = await fetch(hfManifestUrl);
-				const remoteManifest = await fullManifestRes.json();
-
-				return new Response(
-					JSON.stringify({
-						success: false,
-						status: 'conflict',
-						slug,
-						message: 'Prova encontrada no banco de dados.',
-						remote_manifest: remoteManifest,
-						ai_data: aiData,
-						// Pass back valid upload URLs so we don't need to re-upload if they override
-						temp_pdf_url: pdfUrl,
-						temp_gabarito_url: gabUrl,
-					}),
-					{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-				);
-			}
-		} catch (e) {
-			console.warn('HF Check failed, assuming new.', e);
+		// 2. Generate/Validate Slug
+		// AI now provides the slug, but we fallback if needed
+		let slug = aiData.slug;
+		if (!slug) {
+			slug = title
+				.toLowerCase()
+				.trim()
+				.replace(/[\s_]+/g, '-')
+				.replace(/[^a-z0-9-]/g, '');
 		}
-	}
 
-	// 4. Dispatch GitHub Action
-	const githubPat = env.GITHUB_PAT;
-	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
-	const githubRepo = env.GITHUB_REPO || 'maia.api';
+		// 3. DUPLICATE CHECK (Unless Override)
+		const confirmOverride = formData.get('confirm_override') === 'true';
 
-	const ghRes = await fetch(`https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${githubPat}`,
-			Accept: 'application/vnd.github.v3+json',
-			'User-Agent': 'Cloudflare-Worker',
-		},
-		body: JSON.stringify({
-			event_type: 'manual-upload',
-			client_payload: {
-				slug,
-				title,
-				// Use AI Data
-				institution: aiData.institution,
-				year: aiData.year,
-				phase: aiData.phase,
-				summary: aiData.summary,
+		if (!confirmOverride) {
+			try {
+				const hfManifestUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`;
+				const hfCheck = await fetch(hfManifestUrl, { method: 'HEAD' }); // HEAD is faster
 
-				source_url_prova: sourceUrlProva,
-				source_url_gabarito: sourceUrlGabarito,
+				if (hfCheck.status === 200) {
+					// Conflict found! Fetch the full manifest to show the user
+					const fullManifestRes = await fetch(hfManifestUrl);
+					const remoteManifest = await fullManifestRes.json();
 
-				// LOGIC UPDATE: Use overrides if present (and not empty)
-				pdf_url: formData.get('pdf_url_override') || pdfUrl,
-				gabarito_url: formData.get('gabarito_url_override') || gabUrl,
+					return new Response(
+						JSON.stringify({
+							success: false,
+							status: 'conflict',
+							slug,
+							message: 'Prova encontrada no banco de dados.',
+							remote_manifest: remoteManifest,
+							ai_data: aiData,
+							// Pass back valid upload URLs so we don't need to re-upload if they override
+							temp_pdf_url: pdfUrl,
+							temp_gabarito_url: gabUrl,
+						}),
+						{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+					);
+				}
+			} catch (e) {
+				console.warn('HF Check failed, assuming new.', e);
+			}
+		}
 
-				mode: formData.get('mode') || 'overwrite',
+		// 4. Dispatch GitHub Action
+		const githubPat = env.GITHUB_PAT;
+		const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+		const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+		const ghRes = await fetch(`https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${githubPat}`,
+				Accept: 'application/vnd.github.v3+json',
+				'User-Agent': 'Cloudflare-Worker',
 			},
-		}),
-	});
+			body: JSON.stringify({
+				event_type: 'manual-upload',
+				client_payload: {
+					slug,
+					title,
+					// Use AI Data
+					institution: aiData.institution,
+					year: aiData.year,
+					phase: aiData.phase,
+					summary: aiData.summary,
 
-	if (!ghRes.ok) {
-		const txt = await ghRes.text();
-		return new Response(JSON.stringify({ error: `GitHub Dispatch Failed: ${txt}` }), {
+					source_url_prova: sourceUrlProva,
+					source_url_gabarito: sourceUrlGabarito,
+
+					// LOGIC UPDATE: Use overrides if present (and not empty)
+					pdf_url: formData.get('pdf_url_override') || pdfUrl,
+					gabarito_url: formData.get('gabarito_url_override') || gabUrl,
+
+					mode: formData.get('mode') || 'overwrite',
+				},
+			}),
+		});
+
+		if (!ghRes.ok) {
+			const txt = await ghRes.text();
+			console.error(`GitHub Dispatch Failed: ${ghRes.status} - ${txt}`);
+			return new Response(JSON.stringify({ error: `GitHub Dispatch Failed: ${txt}` }), {
+				status: 500, // or 503
+				headers: corsHeaders,
+			});
+		}
+
+		return new Response(
+			JSON.stringify({
+				success: true,
+				slug,
+				message: 'Upload started. AI Researching & Syncing...',
+				ai_data: aiData,
+				hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/prova.pdf`,
+			}),
+		);
+	} catch (e) {
+		console.error('[Manual Upload Critical Error]', e);
+		return new Response(JSON.stringify({ error: e.message, stack: e.stack }), {
 			status: 500,
 			headers: corsHeaders,
 		});
 	}
-
-	return new Response(
-		JSON.stringify({
-			success: true,
-			slug,
-			message: 'Upload started. AI Researching & Syncing...',
-			ai_data: aiData,
-			hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/prova.pdf`,
-		}),
-		{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-	);
 }
