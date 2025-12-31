@@ -268,4 +268,9 @@ export async function gerarVisualizadorPDF(args) {
     );
     if (toasterContainer) toasterContainer.innerHTML = "";
   }
+
+  try {
+    const modalEl = document.getElementById("upload-progress-modal");
+    if (modalEl) modalEl.remove();
+  } catch (e) {}
 }
