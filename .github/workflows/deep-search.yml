@@ -650,13 +650,13 @@ jobs:
             mkdir -p hf_repo/output/$slug
 
             # --- MANIFEST MERGE LOGIC START ---
-            # We must merge existing manifest (if any) with the new one to preserve manual uploads
-            python3 -c "
+            # Create merge script to avoid indentation issues
+            cat << 'EOF' > merge_manifests.py
             import json
             import os
             import sys
 
-            slug = '$slug'
+            slug = os.environ.get('SLUG')
             local_manifest_path = f'output/{slug}/manifest.json'
             remote_manifest_path = f'hf_repo/output/{slug}/manifest.json'
 
@@ -672,23 +672,13 @@ jobs:
                     local_items = local_data if isinstance(local_data, list) else local_data.get('results', [])
                     remote_items = remote_data if isinstance(remote_data, list) else remote_data.get('results', [])
 
-                    # Create a map of existing filenames to avoid naive duplicates, 
-                    # BUT we must respect the 'manual-upload' vs 'downloaded' difference.
-                    # Actually, if we are in 'update' mode (which the frontend triggers), we want new files + old files.
-                    
                     merged_items = remote_items[:] # Start with old
-                    existing_filenames = { (i.get('filename') or i.get('path', '').split('/')[-1]) for i in remote_items }
-
+                    
+                    # Create a map of existing filenames to avoid naive duplicates
                     for item in local_items:
                         fname = item.get('filename') or item.get('path', '').split('/')[-1]
                         
-                        # IDEMPOTENCY CHECK:
-                        # If exact filename exists, we overwrite it (assuming new version is better or same)
-                        # OR we skip? 
-                        # Giving preference to the NEW search result if it re-downloaded the same file.
-                        # But if it's a DIFFERENT file name, we append.
-                        
-                        # Simple Strategy: Remove existing entry with same filename from 'merged_items' then append new
+                        # Remove existing entry with same filename then append new
                         merged_items = [i for i in merged_items if (i.get('filename') or i.get('path', '').split('/')[-1]) != fname]
                         merged_items.append(item)
 
@@ -699,10 +689,14 @@ jobs:
                     print(f'[Merge] Success. Total items: {len(merged_items)}')
                 except Exception as e:
                     print(f'[Merge] Error: {e}')
-                    # Don't fail the build, just proceed with overwrite if merge fails (fallback)
             else:
                  print('[Merge] Manifests not found in both locations. Skipping merge.')
-            "
+            EOF
+            
+            # Run the merge script
+            export SLUG="$slug"
+            python3 merge_manifests.py
+            rm merge_manifests.py
             # --- MANIFEST MERGE LOGIC END ---
 
             # Simple Copy: Overwrite/Merge local output into repo output

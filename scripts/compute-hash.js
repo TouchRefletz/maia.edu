@@ -10,13 +10,11 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { createCanvas, Image } = require("canvas");
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// PDF.js setup for Node
-// We need to fetch the standard font data for Node environment sometimes,
-// but for rendering to image often standard fonts are sufficient or ignored if standard text.
-// However, ensure 'pdfjs-dist/legacy/build/pdf.js' is used if needed for Node compatibility in some versions.
-// We will use standard require.
+// CJS Dependencies (using require for safety)
+const { createCanvas } = require("canvas");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
 
 // Constants matching Frontend
