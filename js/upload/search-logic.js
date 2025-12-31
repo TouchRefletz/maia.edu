@@ -187,7 +187,9 @@ export function setupSearchLogic() {
           loadResults(
             `${hfBase}/output/${existSlug}/manifest.json`,
             log,
-            terminal
+            terminal,
+            new Set(),
+            false // Disable Retry Button for Cached Results
           );
           return;
         }
@@ -250,7 +252,9 @@ export function setupSearchLogic() {
             loadResults(
               `${hfBase}/output/${finalSlug}/manifest.json`,
               log,
-              terminal
+              terminal,
+              new Set(),
+              true // Enable Retry Button for Fresh Searches
             );
           }, 3000);
         } else {
@@ -472,7 +476,8 @@ export function setupSearchLogic() {
     manifestUrl,
     logFn,
     terminal,
-    ignoredFiles = new Set()
+    ignoredFiles = new Set(),
+    enableRetry = true // Default to true (show button)
   ) => {
     const log =
       logFn ||
@@ -555,14 +560,20 @@ export function setupSearchLogic() {
 
         // Recursive Retry immediately (or short delay), passing ignoredFiles
         await new Promise((r) => setTimeout(r, 1000));
-        return loadResults(manifestUrl, logFn, terminal, ignoredFiles);
+        return loadResults(
+          manifestUrl,
+          logFn,
+          terminal,
+          ignoredFiles,
+          enableRetry
+        );
       }
 
       // 4. Success -> Render
       log("[SISTEMA] Todos os arquivos validados com sucesso.", "success");
 
       if (terminal) {
-        terminal.finish(true);
+        terminal.finish(enableRetry);
       }
 
       currentManifest = validItems;
