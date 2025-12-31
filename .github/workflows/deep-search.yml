@@ -521,86 +521,87 @@ jobs:
         env:
           SLUG: ${{ steps.deep_search.outputs.final_slug }}
         run: |
+          # Create script outside of subshell to avoid heredoc indentation issues
+          cat << 'EOF' > generate_thumbnails.py
+          import os
+          import json
+          from pdf2image import convert_from_path
+          from pathlib import Path
+
+          slug = os.environ.get("SLUG")
+          if not slug:
+              print("[Thumb] SLUG env var missing.")
+              exit(1)
+
+          base_dir = Path(f"output/{slug}")
+          thumbs_dir = base_dir / "thumbnails"
+          thumbs_dir.mkdir(exist_ok=True)
+          manifest_path = base_dir / "manifest.json"
+
+          if manifest_path.exists():
+              try:
+                  with open(manifest_path, 'r', encoding='utf-8') as f:
+                      data = json.load(f)
+                  
+                  # Normalize list structure (handle list or dict wrapper)
+                  items = []
+                  if isinstance(data, list):
+                      items = data
+                  elif isinstance(data, dict):
+                      items = data.get('results', []) or data.get('files', [])
+
+                  updated_count = 0
+                  for item in items:
+                      # Check "status" == "downloaded" OR existence of file in "files/"
+                      fname = item.get('filename')
+                      if not fname: 
+                          # Fallback: try to guess from path if available
+                          path = item.get('path')
+                          if path: fname = Path(path).name
+
+                      if fname and fname.lower().endswith('.pdf'):
+                          # Try to locate the file
+                          pdf_path = base_dir / "files" / fname
+                          # If not in files/, maybe it's at root of output? (Unlikely based on logic, but safe to check)
+                          if not pdf_path.exists():
+                              pdf_path = base_dir / fname
+                          
+                          if pdf_path.exists():
+                              try:
+                                  # Convert first page (DPI 150 is good balance)
+                                  images = convert_from_path(str(pdf_path), first_page=1, last_page=1, dpi=150)
+                                  if images:
+                                      thumb_name = f"{Path(fname).stem}.jpg"
+                                      thumb_path = thumbs_dir / thumb_name
+                                      images[0].save(thumb_path, 'JPEG', quality=80)
+                                      
+                                      # Update manifest with Relative Path
+                                      item['thumbnail'] = f"thumbnails/{thumb_name}"
+                                      updated_count += 1
+                                      print(f"[Thumb] Generated: {thumb_name}")
+                              except Exception as e:
+                                  print(f"[Thumb] Failed for {fname}: {e}")
+                  
+                  # Save updated manifest
+                  if updated_count > 0:
+                      with open(manifest_path, 'w', encoding='utf-8') as f:
+                          json.dump(items, f, indent=2, ensure_ascii=False)
+                      print(f"[Thumb] Success. Generated {updated_count} thumbnails.")
+                  else:
+                      print("[Thumb] No thumbnails generated (no PDFs found or errors).")
+
+              except Exception as e:
+                  print(f"[Thumb] Critical Error processing manifest: {e}")
+          else:
+              print(f"[Thumb] Manifest not found at {manifest_path}")
+          EOF
+
           (
             echo "Installing dependencies for thumbnail generation..."
             sudo apt-get update && sudo apt-get install -y poppler-utils
             pip install pdf2image
 
             echo "Generating thumbnails..."
-            cat << 'EOF' > generate_thumbnails.py
-            import os
-            import json
-            from pdf2image import convert_from_path
-            from pathlib import Path
-
-            slug = os.environ.get("SLUG")
-            if not slug:
-                print("[Thumb] SLUG env var missing.")
-                exit(1)
-
-            base_dir = Path(f"output/{slug}")
-            thumbs_dir = base_dir / "thumbnails"
-            thumbs_dir.mkdir(exist_ok=True)
-            manifest_path = base_dir / "manifest.json"
-
-            if manifest_path.exists():
-                try:
-                    with open(manifest_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    
-                    # Normalize list structure (handle list or dict wrapper)
-                    items = []
-                    if isinstance(data, list):
-                        items = data
-                    elif isinstance(data, dict):
-                        items = data.get('results', []) or data.get('files', [])
-
-                    updated_count = 0
-                    for item in items:
-                        # Check "status" == "downloaded" OR existence of file in "files/"
-                        fname = item.get('filename')
-                        if not fname: 
-                            # Fallback: try to guess from path if available
-                            path = item.get('path')
-                            if path: fname = Path(path).name
-
-                        if fname and fname.lower().endswith('.pdf'):
-                            # Try to locate the file
-                            pdf_path = base_dir / "files" / fname
-                            # If not in files/, maybe it's at root of output? (Unlikely based on logic, but safe to check)
-                            if not pdf_path.exists():
-                                pdf_path = base_dir / fname
-                            
-                            if pdf_path.exists():
-                                try:
-                                    # Convert first page (DPI 150 is good balance)
-                                    images = convert_from_path(str(pdf_path), first_page=1, last_page=1, dpi=150)
-                                    if images:
-                                        thumb_name = f"{Path(fname).stem}.jpg"
-                                        thumb_path = thumbs_dir / thumb_name
-                                        images[0].save(thumb_path, 'JPEG', quality=80)
-                                        
-                                        # Update manifest with Relative Path
-                                        item['thumbnail'] = f"thumbnails/{thumb_name}"
-                                        updated_count += 1
-                                        print(f"[Thumb] Generated: {thumb_name}")
-                                except Exception as e:
-                                    print(f"[Thumb] Failed for {fname}: {e}")
-                    
-                    # Save updated manifest
-                    if updated_count > 0:
-                        with open(manifest_path, 'w', encoding='utf-8') as f:
-                            json.dump(items, f, indent=2, ensure_ascii=False)
-                        print(f"[Thumb] Success. Generated {updated_count} thumbnails.")
-                    else:
-                        print("[Thumb] No thumbnails generated (no PDFs found or errors).")
-
-                except Exception as e:
-                    print(f"[Thumb] Critical Error processing manifest: {e}")
-            else:
-                print(f"[Thumb] Manifest not found at {manifest_path}")
-            EOF
-
             python3 generate_thumbnails.py
           ) 2>&1 | python3 logger.py
 
