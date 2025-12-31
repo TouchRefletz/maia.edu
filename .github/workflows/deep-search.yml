@@ -277,6 +277,12 @@ jobs:
                   sys.stdout.write(line)
                   sys.stdout.flush()
                   
+                  # CRIITCAL: Check for Agent Loop Error
+                  if "AgentStuckInLoopError" in line:
+                      print("\n[Logger] CRITICAL: Agent stuck in loop detected. Aborting workflow.", flush=True)
+                      send_to_pusher("log", {"message": "CRITICAL: Agent stuck in loop. Aborting."})
+                      sys.exit(1)
+                  
                   # 2. Add to Pusher Buffer
                   with buffer_lock:
                       log_buffer.append(line)
