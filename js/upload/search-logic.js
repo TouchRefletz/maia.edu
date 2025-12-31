@@ -21,6 +21,295 @@ let activeChannel = null;
 let activeWebSocket = null;
 let terminalInstance = null; // Guardar referencia global
 
+const normalizeItem = (item) => {
+  // Helper to ensure item has standard props
+  let newItem = { ...item };
+  if (!newItem.name && newItem.nome) newItem.name = newItem.nome;
+  if (!newItem.name && newItem.friendly_name)
+    newItem.name = newItem.friendly_name;
+  if (!newItem.url) {
+    let path = newItem.path || newItem.filename || newItem.arquivo_local;
+    if (path && !path.startsWith("http")) {
+      // Construct full URL for verification
+      const prefix = `output/${currentSlug}`;
+      // Handle 'files/' prefix cleanly
+      if (path.startsWith("files/")) path = path.replace("files/", "");
+      newItem.url = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/${prefix}/files/${path}`;
+    }
+  }
+  return newItem;
+};
+
+const toggleSelection = (item, cardEl, overlayEl, url) => {
+  const type = item.tipo?.toLowerCase().includes("gabarito")
+    ? "gabarito"
+    : "prova";
+
+  // Verificação de estado atual
+  const isCurrentlySelected =
+    selectedItems[type] && selectedItems[type].url === url;
+
+  // Seleciona todos os cards do mesmo tipo para manipular
+  const allCardsOfTheSameType = document.querySelectorAll(
+    `.result-card[data-type="${type}"]`
+  );
+
+  if (isCurrentlySelected) {
+    // --- AÇÃO DE DESELECIONAR ---
+    selectedItems[type] = null;
+
+    // Reset Visuals para ESTE card
+    overlayEl.style.display = "none";
+    cardEl.style.borderColor = "var(--color-card-border)";
+    cardEl.style.transform = "none"; // Reset scale/transform se tiver
+
+    // REABILITAR todos os outros cards
+    allCardsOfTheSameType.forEach((c) => {
+      if (c !== cardEl) {
+        c.style.opacity = "1";
+        c.style.pointerEvents = "auto";
+        c.style.filter = "none";
+        c.style.cursor = "pointer";
+      }
+    });
+  } else {
+    // --- AÇÃO DE SELECIONAR ---
+
+    // Se já existe um selecionado desse tipo (e não é este, pois caíria no if acima),
+    // em teoria não deveríamos conseguir clicar aqui por causa do bloqueo de UI.
+    // Mas se acontecer, ignoramos ou retornamos.
+    if (selectedItems[type]) return;
+
+    selectedItems[type] = { ...item, url, el: cardEl };
+
+    // Highlight ESTE card
+    overlayEl.style.display = "block";
+    cardEl.style.borderColor = "var(--color-primary)";
+
+    // DESABILITAR todos os outros cards
+    allCardsOfTheSameType.forEach((c) => {
+      if (c !== cardEl) {
+        c.style.opacity = "0.3"; // Bem apagado
+        c.style.pointerEvents = "none"; // Impede cliques
+        c.style.filter = "grayscale(100%)"; // Preto e branco
+        c.style.cursor = "not-allowed";
+      }
+    });
+  }
+
+  // Atualiza estado do botão de extração
+  const btn = document.getElementById("btnExtractSelection");
+  const hasSelection = selectedItems.prova && selectedItems.gabarito;
+
+  if (hasSelection) {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = "0.5";
+    btn.style.cursor = "not-allowed";
+  }
+};
+
+/**
+ * CONFLICT RESOLUTION MODAL (Mix & Match)
+ * @param {Object} conflictData - { slug, remote_manifest, ai_data, temp_pdf_url, temp_gabarito_url }
+ * @param {Function} onConfirm - Callback({ pdfUrl, gabUrl })
+ */
+export const showConflictResolutionModal = (conflictData, onConfirm) => {
+  const { slug, remote_manifest, ai_data, temp_pdf_url, temp_gabarito_url } =
+    conflictData;
+
+  // 1. Prepare Items for Cards
+  // Remote Items
+  const remoteItems = (
+    remote_manifest.files ||
+    remote_manifest.results ||
+    []
+  ).map((item) =>
+    normalizeItem({
+      ...item,
+      tipo: item.type || item.tipo, // ensure type exists
+      source: "remote",
+    })
+  );
+
+  // Local Items (Constructed from AI data + Temp URLs)
+  const localItems = [];
+  if (temp_pdf_url) {
+    localItems.push({
+      name: `(Novo) ${ai_data.institution} ${ai_data.year}`,
+      tipo: "Prova",
+      url: temp_pdf_url,
+      source: "local",
+    });
+  }
+  if (temp_gabarito_url) {
+    localItems.push({
+      name: `(Novo) Gabarito`,
+      tipo: "Gabarito",
+      url: temp_gabarito_url,
+      source: "local",
+    });
+  }
+
+  // 2. Render Modal
+  const overlay = document.createElement("div");
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    zIndex: 11000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backdropFilter: "blur(8px)",
+  });
+
+  const modal = document.createElement("div");
+  Object.assign(modal.style, {
+    backgroundColor: "var(--color-surface)",
+    width: "95%",
+    maxWidth: "1000px",
+    height: "85vh",
+    borderRadius: "var(--radius-xl)",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "var(--shadow-2xl)",
+    border: "1px solid var(--color-border)",
+    overflow: "hidden",
+  });
+
+  modal.innerHTML = `
+        <div style="padding: 24px; border-bottom: 1px solid var(--color-border);">
+            <h2 style="margin:0; color:var(--color-text);">Conflito Detectado: ${slug}</h2>
+            <p style="margin:8px 0 0; color:var(--color-text-secondary);">
+                Já existe uma versão desta prova no banco de dados. <br>
+                <strong>Selecione qual versão você deseja usar</strong> para a Prova e para o Gabarito.
+            </p>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding:24px; display:grid; grid-template-columns: 1fr 1fr; gap:32px;">
+            <!-- Remote Column -->
+            <div>
+                <h3 style="color:var(--color-primary); margin-bottom:16px; border-bottom:2px solid var(--color-primary); padding-bottom:8px;">
+                    ☁️ Na Nuvem (Existente)
+                </h3>
+                <div id="remote-list" style="display:flex; flex-direction:column; gap:16px;"></div>
+            </div>
+             <!-- Local Column -->
+            <div>
+                 <h3 style="color:var(--color-success); margin-bottom:16px; border-bottom:2px solid var(--color-success); padding-bottom:8px;">
+                    📂 Seu Upload (Novo)
+                </h3>
+                <div id="local-list" style="display:flex; flex-direction:column; gap:16px;"></div>
+            </div>
+        </div>
+        <div style="padding: 24px; border-top: 1px solid var(--color-border); display:flex; justify-content:flex-end; gap:16px; background:var(--color-bg-sub);">
+            <button id="btnCancelConflict" style="padding:12px 24px; border-radius:8px; border:1px solid var(--color-border); background:transparent; color:var(--color-text); cursor:pointer;">
+                Cancelar Upload
+            </button>
+            <button id="btnMergeConflict" disabled style="padding:12px 24px; border-radius:8px; border:none; background:var(--color-primary); color:white; font-weight:bold; cursor:not-allowed; opacity:0.5;">
+                Confirmar Fusão
+            </button>
+        </div>
+      `;
+
+  // 3. Selection State
+  const selection = { prova: null, gabarito: null };
+
+  const updateButton = () => {
+    const btn = modal.querySelector("#btnMergeConflict");
+    // Valid if we have at least a Prova selected (Gabarito optional but good)
+    // Actually, let's require explicit choice if options exist.
+    // For simplicity: User MUST select a Prova. Gabarito is optional if none exist.
+    if (selection.prova) {
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.style.cursor = "pointer";
+    }
+  };
+
+  const handleSelect = (item, type) => {
+    selection[type.toLowerCase()] = item;
+    // Visual Update: Highlight selected, dim others of same type across both lists
+
+    document
+      .querySelectorAll(`.conflict-card[data-type="${type.toLowerCase()}"]`)
+      .forEach((card) => {
+        if (card.dataset.url === item.url) {
+          card.style.borderColor = "var(--color-primary)";
+          card.style.transform = "scale(1.02)";
+          card.style.opacity = "1";
+          card.querySelector(".check-icon").style.display = "flex";
+        } else {
+          card.style.borderColor = "transparent";
+          card.style.transform = "scale(1)";
+          card.style.opacity = "0.6";
+          card.querySelector(".check-icon").style.display = "none";
+        }
+      });
+    updateButton();
+  };
+
+  // Helper to render mini-cards
+  const renderMiniCard = (item, containerId) => {
+    const container = modal.querySelector(containerId);
+    const type = (item.tipo || "Arquivo").toLowerCase().includes("gabarito")
+      ? "gabarito"
+      : "prova";
+
+    const card = document.createElement("div");
+    card.className = "conflict-card";
+    card.dataset.type = type;
+    card.dataset.url = item.url;
+
+    Object.assign(card.style, {
+      padding: "16px",
+      borderRadius: "12px",
+      backgroundColor: "var(--color-surface)",
+      border: "2px solid transparent",
+      boxShadow: "var(--shadow-sm)",
+      cursor: "pointer",
+      position: "relative",
+      transition: "all 0.2s",
+    });
+
+    card.innerHTML = `
+            <div class="check-icon" style="display:none; position:absolute; top:-10px; right:-10px; width:24px; height:24px; background:var(--color-primary); border-radius:50%; align-items:center; justify-content:center; color:white;">✓</div>
+            <div style="font-weight:bold; color:var(--color-text); margin-bottom:4px;">${item.name || "Sem Título"}</div>
+            <div style="font-size:0.8rem; color:var(--color-text-secondary); text-transform:uppercase;">${type} • ${item.source === "remote" ? "Hugging Face" : "Local"}</div>
+          `;
+
+    card.onclick = () => handleSelect(item, type);
+    container.appendChild(card);
+  };
+
+  remoteItems.forEach((i) => renderMiniCard(i, "#remote-list"));
+  localItems.forEach((i) => renderMiniCard(i, "#local-list"));
+
+  // 4. Actions
+  modal.querySelector("#btnCancelConflict").onclick = () => {
+    document.body.removeChild(overlay);
+    if (window.SearchToaster)
+      window.SearchToaster.add("info", "Upload cancelado pelo usuário.");
+  };
+
+  modal.querySelector("#btnMergeConflict").onclick = () => {
+    document.body.removeChild(overlay);
+    onConfirm({
+      pdfUrl: selection.prova ? selection.prova.url : null,
+      gabUrl: selection.gabarito ? selection.gabarito.url : null,
+    });
+  };
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+};
+
 export function setupSearchLogic() {
   const btnSearch = document.getElementById("btnSearch");
   const searchInput = document.getElementById("searchInput");
@@ -352,18 +641,66 @@ export function setupSearchLogic() {
 
           // Persist Session for "Exact Match" immediately
           SearchPersistence.startSession(existSlug);
-          SearchPersistence.finishSession(true);
 
-          // Load immediately
-          const hfBase =
-            "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
-          loadResults(
-            `${hfBase}/output/${existSlug}/manifest.json`,
-            log,
-            terminal,
-            new Set(),
-            false // Disable Retry Button for Cached Results
-          );
+          // --- AUTO-DETECT MANUAL UPLOAD & UPGRADE ---
+          // Fetch manifest to check if it's "manual-only"
+          // We do this proactively.
+          const checkAndAutoUpgrade = async () => {
+            try {
+              const mfUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${existSlug}/manifest.json?t=${Date.now()}`;
+              const r = await fetch(mfUrl);
+              if (r.ok) {
+                const data = await r.json();
+                const items = Array.isArray(data) ? data : data.results || [];
+
+                // Check if *only* manual content exists (or predominantly manual)
+                // Logic: If we have items and they are ALL link_origem="manual-upload",
+                // then this is a "stub" repo created by a user, not a full search.
+                // We should definitely AUTO-UPGRADE.
+
+                const isManualOnly =
+                  items.length > 0 &&
+                  items.every((i) => i.link_origem === "manual-upload");
+
+                if (isManualOnly) {
+                  log(
+                    `[AUTO-UPGRADE] Pasta '${existSlug}' encontrada, mas contém apenas uploads manuais.`,
+                    "warning"
+                  );
+                  log(
+                    `Iniciando Pesquisa Avançada complementar (Modo: UPDATE)...`,
+                    "success"
+                  );
+
+                  // Recursive call with UPDATE mode
+                  // force=true, cleanup=false, confirm=true, mode="update"
+                  doSearch(true, false, true, "update");
+                  return true; // We handled it
+                }
+              }
+            } catch (e) {
+              console.warn("Auto-upgrade check failed:", e);
+            }
+            return false;
+          };
+
+          // Execute check
+          checkAndAutoUpgrade().then((handled) => {
+            if (!handled) {
+              SearchPersistence.finishSession(true);
+              // Load immediately
+              const hfBase =
+                "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+              loadResults(
+                `${hfBase}/output/${existSlug}/manifest.json`,
+                log,
+                terminal,
+                new Set(),
+                false // Disable Retry Button for Cached Results
+              );
+            }
+          });
+          return;
           return;
         }
 
@@ -1047,25 +1384,6 @@ export function setupSearchLogic() {
     }
   };
 
-  const normalizeItem = (item) => {
-    // Helper to ensure item has standard props
-    let newItem = { ...item };
-    if (!newItem.name && newItem.nome) newItem.name = newItem.nome;
-    if (!newItem.name && newItem.friendly_name)
-      newItem.name = newItem.friendly_name;
-    if (!newItem.url) {
-      let path = newItem.path || newItem.filename || newItem.arquivo_local;
-      if (path && !path.startsWith("http")) {
-        // Construct full URL for verification
-        const prefix = `output/${currentSlug}`;
-        // Handle 'files/' prefix cleanly
-        if (path.startsWith("files/")) path = path.replace("files/", "");
-        newItem.url = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/${prefix}/files/${path}`;
-      }
-    }
-    return newItem;
-  };
-
   const renderResultsNewUI = async (items) => {
     // Container Principal
     const container = document.createElement("div");
@@ -1488,78 +1806,6 @@ export function setupSearchLogic() {
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-  };
-
-  const toggleSelection = (item, cardEl, overlayEl, url) => {
-    const type = item.tipo?.toLowerCase().includes("gabarito")
-      ? "gabarito"
-      : "prova";
-
-    // Verificação de estado atual
-    const isCurrentlySelected =
-      selectedItems[type] && selectedItems[type].url === url;
-
-    // Seleciona todos os cards do mesmo tipo para manipular
-    const allCardsOfTheSameType = document.querySelectorAll(
-      `.result-card[data-type="${type}"]`
-    );
-
-    if (isCurrentlySelected) {
-      // --- AÇÃO DE DESELECIONAR ---
-      selectedItems[type] = null;
-
-      // Reset Visuals para ESTE card
-      overlayEl.style.display = "none";
-      cardEl.style.borderColor = "var(--color-card-border)";
-      cardEl.style.transform = "none"; // Reset scale/transform se tiver
-
-      // REABILITAR todos os outros cards
-      allCardsOfTheSameType.forEach((c) => {
-        if (c !== cardEl) {
-          c.style.opacity = "1";
-          c.style.pointerEvents = "auto";
-          c.style.filter = "none";
-          c.style.cursor = "pointer";
-        }
-      });
-    } else {
-      // --- AÇÃO DE SELECIONAR ---
-
-      // Se já existe um selecionado desse tipo (e não é este, pois caíria no if acima),
-      // em teoria não deveríamos conseguir clicar aqui por causa do bloqueo de UI.
-      // Mas se acontecer, ignoramos ou retornamos.
-      if (selectedItems[type]) return;
-
-      selectedItems[type] = { ...item, url, el: cardEl };
-
-      // Highlight ESTE card
-      overlayEl.style.display = "block";
-      cardEl.style.borderColor = "var(--color-primary)";
-
-      // DESABILITAR todos os outros cards
-      allCardsOfTheSameType.forEach((c) => {
-        if (c !== cardEl) {
-          c.style.opacity = "0.3"; // Bem apagado
-          c.style.pointerEvents = "none"; // Impede cliques
-          c.style.filter = "grayscale(100%)"; // Preto e branco
-          c.style.cursor = "not-allowed";
-        }
-      });
-    }
-
-    // Atualiza estado do botão de extração
-    const btn = document.getElementById("btnExtractSelection");
-    const hasSelection = selectedItems.prova && selectedItems.gabarito;
-
-    if (hasSelection) {
-      btn.disabled = false;
-      btn.style.opacity = "1";
-      btn.style.cursor = "pointer";
-    } else {
-      btn.disabled = true;
-      btn.style.opacity = "0.5";
-      btn.style.cursor = "not-allowed";
-    }
   };
 
   // --- Advanced PDF Thumbnail Logic (Cancellation + Retina) ---

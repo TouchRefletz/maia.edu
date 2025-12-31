@@ -116,84 +116,127 @@ jobs:
           git config --global user.name "Maia Bot"
           git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
 
-      - name: Download Files & Structure
+      - name: Download Files & Structure (Strict Merge)
         env:
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
           PDF_URL: ${{ github.event.client_payload.pdf_url || inputs.pdf_url }}
           GAB_URL: ${{ github.event.client_payload.gabarito_url || inputs.gabarito_url }}
+          MODE: ${{ github.event.client_payload.mode || 'overwrite' }}
         run: |
           cd hf_repo
           mkdir -p "output/$SLUG/files"
 
-          echo "Downloading PDF from $PDF_URL..."
-          curl -L -o "output/$SLUG/files/prova.pdf" "$PDF_URL"
+          # Function to check and download
+          download_strict() {
+            local url="$1"
+            local fname="$2"
+            
+            if [ -n "$url" ] && [ "$url" != "null" ]; then
+                # STRICT CHECK: If file exists, FAIL.
+                if [ -f "output/$SLUG/files/$fname" ]; then
+                    echo "::error::CONFLICT: File 'output/$SLUG/files/$fname' already exists. Cannot overwrite in strict mode."
+                    exit 1
+                fi
+                
+                echo "Downloading $fname from $url..."
+                curl -L -o "output/$SLUG/files/$fname" "$url"
+            else
+                echo "Skipping $fname (No URL provided, preserving existing if any)."
+            fi
+          }
 
-          if [ -n "$GAB_URL" ] && [ "$GAB_URL" != "null" ]; then
-             echo "Downloading Gabarito from $GAB_URL..."
-             curl -L -o "output/$SLUG/files/gabarito.pdf" "$GAB_URL"
-          fi
+          download_strict "$PDF_URL" "prova.pdf"
+          download_strict "$GAB_URL" "gabarito.pdf"
 
           ls -R "output/$SLUG"
 
-      - name: Create Initial Manifest
+      - name: Update Manifest (Merge Strategy)
         env:
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
           TITLE: ${{ github.event.client_payload.title || inputs.title }}
           YEAR: ${{ github.event.client_payload.year || inputs.year }}
           INSTITUTION: ${{ github.event.client_payload.institution || inputs.institution }}
           PHASE: ${{ github.event.client_payload.phase || inputs.phase }}
-          SRC_PROVA: ${{ github.event.client_payload.source_url_prova || inputs.source_url_prova }}
-          SRC_GAB: ${{ github.event.client_payload.source_url_gabarito || inputs.source_url_gabarito }}
+
+          # Only add entries for what we actually downloaded
+          HAS_PDF: ${{ github.event.client_payload.pdf_url != '' && github.event.client_payload.pdf_url != 'null' }}
+          HAS_GAB: ${{ github.event.client_payload.gabarito_url != '' && github.event.client_payload.gabarito_url != 'null' }}
         run: |
           cd hf_repo/output/$SLUG
 
-          # Use Python to generate valid JSON array
-          cat << 'EOF' > create_manifest.py
+          cat << 'EOF' > update_manifest.py
           import json
           import os
+          import sys
 
           slug = os.environ.get("SLUG")
           title = os.environ.get("TITLE")
           year = os.environ.get("YEAR")
           inst = os.environ.get("INSTITUTION")
           phase = os.environ.get("PHASE")
-          src_prova = os.environ.get("SRC_PROVA") or "manual-upload"
-          src_gab = os.environ.get("SRC_GAB") or "manual-upload"
 
+          has_pdf = os.environ.get("HAS_PDF") == 'true'
+          has_gab = os.environ.get("HAS_GAB") == 'true'
+
+          manifest_path = "manifest.json"
           items = []
 
-          # Prova Entry
-          items.append({
-              "nome": title,
-              "tipo": "Prova",
-              "ano": year,
-              "instituicao": inst,
-              "fase": phase,
-              "link_origem": src_prova,
-              "status": "downloaded",
-              "filename": "prova.pdf",
-              "path": f"output/{slug}/files/prova.pdf"
-          })
+          # Load existing if available
+          if os.path.exists(manifest_path):
+              try:
+                  with open(manifest_path, 'r', encoding='utf-8') as f:
+                      items = json.load(f)
+              except:
+                  items = []
+                  
+          # Prepare New Entries
+          new_items = []
 
-          # Gabarito Entry (if exists)
-          if os.path.exists("files/gabarito.pdf"):
-               items.append({
+          if has_pdf:
+               new_items.append({
+                  "nome": title,
+                  "tipo": "Prova",
+                  "ano": year,
+                  "instituicao": inst,
+                  "fase": phase,
+                  "link_origem": "manual-upload",
+                  "status": "downloaded",
+                  "filename": "prova.pdf",
+                  "path": f"output/{slug}/files/prova.pdf"
+              })
+
+          if has_gab:
+               new_items.append({
                   "nome": f"{title} (Gabarito)",
                   "tipo": "Gabarito",
                   "ano": year,
                   "instituicao": inst,
                   "fase": phase,
-                  "link_origem": src_gab,
+                  "link_origem": "manual-upload",
                   "status": "downloaded",
                   "filename": "gabarito.pdf",
                   "path": f"output/{slug}/files/gabarito.pdf"
               })
 
-          with open("manifest.json", "w", encoding="utf-8") as f:
+          # Merge: Append new items to list
+          # Optional: Check for duplicates in JSON to be safe? 
+          # For now, we trust the file check failed the job if physical conflict existed.
+          # But for metadata, we just append.
+
+          if not new_items and not os.path.exists(manifest_path):
+              # If we have nothing to add and no manifest exists, we probably shouldn't require one?
+              # But let's create empty to be safe.
+              pass
+
+          items.extend(new_items)
+
+          with open(manifest_path, "w", encoding="utf-8") as f:
               json.dump(items, f, indent=2, ensure_ascii=False)
+              
+          print(f"Manifest updated. Total items: {len(items)}")
           EOF
 
-          python3 create_manifest.py
+          python3 update_manifest.py
           cat manifest.json
 
       - name: Generate Thumbnails

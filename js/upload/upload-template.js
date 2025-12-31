@@ -53,35 +53,19 @@ export function getUploadInterfaceHTML() {
                  <h2>Upload Manual</h2>
             </div>
 
-        <form id="pdfUploadForm" style="width: 100%; max-width: 500px;">
-            <div style="display: flex; gap: 15px;">
-                <div class="form-group" style="flex: 1;">
-                    <label for="institutionInput" class="form-label">Instituição</label>
-                    <div class="input-wrapper">
-                         <input type="text" id="institutionInput" class="form-control" placeholder="Ex: FUVEST" required>
-                    </div>
-                </div>
-                <div class="form-group" style="flex: 1;">
-                    <label for="phaseInput" class="form-label">Fase</label>
-                    <div class="input-wrapper">
-                         <input type="text" id="phaseInput" class="form-control" placeholder="Ex: 1ª Fase" required>
-                    </div>
-                </div>
-            </div>
+        <form id="pdfUploadForm" style="width: 100%;">
+            <!-- Removed Institution and Phase inputs -->
+
 
             <div class="form-group">
-                <label for="pdfTitleInput" class="form-label">Título do material</label>
+                <label for="pdfTitleInput" class="form-label">Nome da Prova / Vestibular</label>
                 <div class="input-wrapper">
                     <input type="text" id="pdfTitleInput" class="form-control" placeholder="Ex: FUVEST 2023 1ª Fase" required>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="pdfYearInput" class="form-label">Ano da prova</label>
-                <div class="input-wrapper">
-                    <input type="number" id="pdfYearInput" class="form-control" placeholder="Ex: 2023" min="1900" max="2100" required>
-                </div>
-            </div>
+            <!-- Removed Year input -->
+
 
             <div class="form-group">
                 <label class="form-label">Arquivo da Prova</label>
