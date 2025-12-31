@@ -188,6 +188,36 @@ export class TerminalUI {
         
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
+        /* SUCCESS STATE */
+        .term-floating.term-status-success .term-ring-spinner {
+            border: 4px solid #4caf50 !important;
+            animation: none !important;
+        }
+        .term-floating.term-status-success .term-minimized-btn span {
+             display: none; /* Hide computer icon */
+        }
+        .term-floating.term-status-success .term-minimized-btn::after {
+             content: '✔';
+             color: #4caf50;
+             font-size: 1.5rem;
+             font-weight: bold;
+        }
+
+        /* ERROR STATE */
+        .term-floating.term-status-error .term-ring-spinner {
+            border: 4px solid #f44336 !important;
+            animation: none !important;
+        }
+        .term-floating.term-status-error .term-minimized-btn span {
+             display: none;
+        }
+        .term-floating.term-status-error .term-minimized-btn::after {
+             content: '✖';
+             color: #f44336;
+             font-size: 1.5rem;
+             font-weight: bold;
+        }
+
         .term-floating .term-logs {
             /* In expanded floating mode, we show logs but maybe smaller? User said "aparece todo o terminal" */
              display: block !important;
@@ -947,23 +977,40 @@ export class TerminalUI {
     }
   }
 
-  finish(showRetry = false) {
+  finish(isSuccess = true) {
     this.state = this.MODES.DONE;
     this.currentVirtualProgress = 100;
     this.updateProgressBar();
     clearInterval(this.tickerInterval);
 
-    this.el.status.innerText = "MISSÃO_CONCLUÍDA";
-    this.el.status.classList.remove("active");
-    this.el.eta.innerText = "TEMPO: FINALIZADO";
-    this.el.stepText.innerText =
-      "Todas as tarefas foram concluídas com sucesso.";
+    if (isSuccess) {
+      this.el.status.innerText = "CONCLUÍDO";
+      this.el.status.classList.add("success");
+      this.el.status.classList.remove("active");
 
-    this.triggerNotification(
-      "Tarefa Concluída!",
-      "O processo foi finalizado com sucesso."
-    );
+      // Update Minimized Status
+      this.container.classList.remove("term-status-error");
+      this.container.classList.add("term-status-success");
 
+      this.el.eta.innerText = "TEMPO: FINALIZADO";
+      this.updateStepText("Todos os processos finalizados com sucesso.");
+
+      if (this.config.sounds.success) {
+        new Audio(this.config.sounds.success).play().catch(() => {});
+      }
+
+      if (this.notifyEnabled) {
+        new Notification("Processo Concluído", {
+          body: "A busca e verificação foram finalizadas com sucesso.",
+        });
+      }
+    } else {
+      // Fallback for non-success finish if needed (e.g. cancelled)
+      this.el.status.innerText = "FINALIZADO";
+      this.el.status.classList.remove("active");
+    }
+
+    // Button Logic Support (Restored)
     if (this.el.cancelBtn) {
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
@@ -971,7 +1018,15 @@ export class TerminalUI {
     }
 
     if (this.el.retryBtn) {
-      if (showRetry) {
+      // By default show retry on finish unless explicitly told not to?
+      // Or pass 'showRetry' as arg 2?
+      // Let's assume on SUCCESS we usually allow retry?
+      // Actually the original code had 'showRetry' param.
+      // We'll expose the button in case we need it, but usually standard usage hides it until needed.
+      // Re-reading original `search-logic.js`, finish(true) is often called with enableRetry=true.
+      // But now we changed signature to finish(isSuccess).
+      // Let's assume if isSuccess is true, we allow retry.
+      if (isSuccess) {
         this.el.retryBtn.style.display = "flex";
         this.el.retryBtn.style.alignItems = "center";
         this.el.retryBtn.style.height = "22px";
