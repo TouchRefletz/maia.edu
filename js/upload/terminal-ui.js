@@ -623,6 +623,17 @@ export class TerminalUI {
 
     // 0. STRICT ERROR DETECTION
     const upperText = text.toUpperCase();
+
+    // Git / Network Specific Failures that should HALT the flow
+    if (
+      text.includes("RPC failed; HTTP 503") ||
+      text.includes("the remote end hung up unexpectedly") ||
+      (text.includes("git push") && text.includes("error:"))
+    ) {
+      this.fail(`Falha de Conexão Git: ${text}`);
+      return;
+    }
+
     if (
       upperText.includes("FALHA FATAL") ||
       upperText.includes("ERRO CRÍTICO") ||

@@ -393,7 +393,11 @@ export function setupSearchLogic() {
         }
       });
     } catch (e) {
-      log(`Erro Fatal: ${e.message}`, "error");
+      if (e.name === "AbortError" || e.message.includes("aborted")) {
+        log("Operação cancelada.", "info");
+      } else {
+        log(`Erro Fatal: ${e.message}`, "error");
+      }
     }
   };
 

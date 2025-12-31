@@ -619,6 +619,13 @@ jobs:
             echo "Starting upload to Hugging Face..."
             git config --global user.email "bot@maia.api"
             git config --global user.name "Maia Bot"
+            
+            # Optimization for Large Pushes (Fixes 503 RPC failed)
+            git config --global http.postBuffer 524288000
+            git config --global http.maxRequestBuffer 104857600
+            git config --global lfs.activitytimeout 300
+            git config --global lfs.dialtimeout 300
+            git config --global http.version HTTP/1.1
 
             # Clone HF Repo
             git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
@@ -642,7 +649,20 @@ jobs:
 
             git add .
             git commit -m "Add search results for $slug" || echo "No changes to commit"
-            git push
+            
+            # Retry Loop for Push (Fixes transient network failures)
+            n=0
+            until [ "$n" -ge 5 ]
+            do
+               git push && break
+               n=$((n+1)) 
+               echo "Push failed. Retrying in 10s... (Attempt $n/5)"
+               sleep 10
+            done
+            if [ "$n" -ge 5 ]; then
+               echo "Failed to push after 5 attempts."
+               exit 1
+            fi
             echo "Upload to Hugging Face completed."
           ) 2>&1 | python3 logger.py
 
