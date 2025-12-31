@@ -5,6 +5,8 @@ const PROD_WORKER_URL =
 // Importa o visualizador
 import { AsyncQueue } from "../utils/queue.js";
 import { gerarVisualizadorPDF } from "../viewer/events.js";
+import { SearchPersistence } from "./search-persistence.js";
+import { SearchToaster } from "./search-toaster.js";
 import { TerminalUI } from "./terminal-ui.js";
 
 // --- STATE ---
