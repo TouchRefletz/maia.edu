@@ -74,7 +74,7 @@ function sha256(message) {
 }
 
 // Main Hash Function
-async function computeFileHash(filePath) {
+export async function computeFileHash(filePath) {
   try {
     const data = new Uint8Array(fs.readFileSync(filePath));
     const pdf = await pdfjsLib.getDocument({
@@ -97,6 +97,10 @@ async function computeFileHash(filePath) {
       const canvas = createCanvas(scaledViewport.width, scaledViewport.height);
       const ctx = canvas.getContext("2d");
 
+      // Ensure consistent white background (avoids transparency diffs)
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       await page.render({ canvasContext: ctx, viewport: scaledViewport })
         .promise;
 
@@ -112,50 +116,52 @@ async function computeFileHash(filePath) {
 }
 
 // Main Execution Logic
-(async () => {
-  const targetDir = process.argv[2];
-  if (!targetDir) {
-    console.error("Usage: node compute-hash.js <directory_path>");
-    process.exit(1);
-  }
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  (async () => {
+    const targetDir = process.argv[2];
+    if (!targetDir) {
+      console.error("Usage: node compute-hash.js <directory_path>");
+      process.exit(1);
+    }
 
-  const manifestPath = path.join(targetDir, "manifest.json");
-  if (!fs.existsSync(manifestPath)) {
-    console.error("Manifest not found at:", manifestPath);
-    process.exit(0);
-  }
+    const manifestPath = path.join(targetDir, "manifest.json");
+    if (!fs.existsSync(manifestPath)) {
+      console.error("Manifest not found at:", manifestPath);
+      process.exit(0);
+    }
 
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
-    let items = Array.isArray(manifest) ? manifest : manifest.results || [];
-    let updated = false;
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      let items = Array.isArray(manifest) ? manifest : manifest.results || [];
+      let updated = false;
 
-    for (const item of items) {
-      // Only process PDFs if hash is missing
-      if (item.filename && item.filename.toLowerCase().endsWith(".pdf")) {
-        // if (item.visual_hash) continue; // Optional: Skip if exists? No, enforce update.
+      for (const item of items) {
+        // Only process PDFs if hash is missing
+        if (item.filename && item.filename.toLowerCase().endsWith(".pdf")) {
+          // if (item.visual_hash) continue; // Optional: Skip if exists? No, enforce update.
 
-        const filePath = path.join(targetDir, "files", item.filename);
-        if (fs.existsSync(filePath)) {
-          console.log(`Hashing: ${item.filename}...`);
-          const hash = await computeFileHash(filePath);
-          if (hash) {
-            item.visual_hash = hash;
-            updated = true;
-            console.log(`  > Hash: ${hash.substring(0, 16)}...`);
+          const filePath = path.join(targetDir, "files", item.filename);
+          if (fs.existsSync(filePath)) {
+            console.log(`Hashing: ${item.filename}...`);
+            const hash = await computeFileHash(filePath);
+            if (hash) {
+              item.visual_hash = hash;
+              updated = true;
+              console.log(`  > Hash: ${hash.substring(0, 16)}...`);
+            }
           }
         }
       }
-    }
 
-    if (updated) {
-      fs.writeFileSync(manifestPath, JSON.stringify(items, null, 2));
-      console.log("Manifest updated with visual hashes.");
-    } else {
-      console.log("No hashes updated.");
+      if (updated) {
+        fs.writeFileSync(manifestPath, JSON.stringify(items, null, 2));
+        console.log("Manifest updated with visual hashes.");
+      } else {
+        console.log("No hashes updated.");
+      }
+    } catch (e) {
+      console.error("Critical Error:", e);
+      process.exit(1);
     }
-  } catch (e) {
-    console.error("Critical Error:", e);
-    process.exit(1);
-  }
-})();
+  })();
+}

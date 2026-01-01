@@ -45,6 +45,10 @@ export async function computePdfHash(file, onStatusUpdate) {
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
 
+      // Ensure consistent white background (avoids transparency diffs)
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       await page.render({ canvasContext: ctx, viewport: scaledViewport })
         .promise;
 
