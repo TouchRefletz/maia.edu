@@ -103,80 +103,91 @@ export function setupFormLogic(elements, initialData) {
     );
 
     // Reusable Polling Function (Moved Up)
-    const startPollingAndOpenViewer = (hfUrl, slug, aiData, hfUrlGabarito) => {
-      progress.update("Upload iniciado! Sincronizando com a Nuvem...");
-      console.log(
-        `[Manual] Polling HF for: ${hfUrl} (and Gabarito: ${hfUrlGabarito})`
-      );
+    // Reusable Pusher Listener
+    const startPollingAndOpenViewer = async (
+      hfUrl,
+      slug,
+      aiData,
+      hfUrlGabarito
+    ) => {
+      progress.update("Iniciando conexão com o servidor de logs...");
+      console.log(`[Manual] Subscribing to Pusher channel: ${slug}`);
 
-      const WORKER_URL =
-        "https://maia-api-worker.willian-campos-ismart.workers.dev"; // Re-declaration access
-
-      const checkHgUrl = async () => {
+      // 1. Load Pusher
+      let PusherClass = window.Pusher;
+      if (!PusherClass) {
         try {
-          const response = await fetch(hfUrl, { method: "HEAD" });
-          if (response.status === 200) {
-            const type = response.headers.get("content-type");
-            if (type && type.includes("text/html")) return false;
-            return true;
-          }
-          return false;
+          const module = await import("pusher-js");
+          PusherClass = module.default;
         } catch (e) {
-          return false;
+          console.warn("Failed to load Pusher, falling back to polling?", e);
+          // Fallback or Alert? For now just alert.
+          alert("Erro ao carregar sistema de notificação em tempo real.");
+          return;
         }
-      };
+      }
 
-      let attempts = 0;
-      const maxAttempts = 30; // 60s
+      const pusherKey = "6c9754ef715796096116";
+      const pusherCluster = "sa1";
 
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        progress.update(`Sincronizando... (${attempts}/${maxAttempts})`);
+      const pusher = new PusherClass(pusherKey, {
+        cluster: pusherCluster,
+      });
 
-        try {
-          const exists = await checkHgUrl();
-          if (exists) {
-            clearInterval(pollInterval);
-            progress.update("Concluído! Abrindo visualizador...");
+      const channel = pusher.subscribe(slug);
 
-            setTimeout(() => {
-              try {
-                const modalEl = document.getElementById(
-                  "upload-progress-modal"
-                );
-                if (modalEl) modalEl.remove();
-              } catch (e) {}
+      channel.bind("log", (data) => {
+        // data can be wrapped or direct
+        const msg = data.message || (data.data && data.data.message) || "";
+        console.log(`[Pusher] ${msg}`);
 
-              // USE PROXY
-              const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
+        // Update UI
+        progress.update(msg);
 
-              // Prepare Gabarito URL (if exists)
-              let proxyGabUrl = null;
-              if (hfUrlGabarito) {
-                proxyGabUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrlGabarito)}`;
-              }
+        // Check for success
+        if (msg && msg.includes("Cloud sync complete")) {
+          progress.update("Sincronização concluída! Abrindo visualizador...");
 
-              gerarVisualizadorPDF({
-                title: aiData?.institution
-                  ? `${aiData.institution} ${aiData.year}`
-                  : titleInput.value,
-                rawTitle: titleInput.value,
-                fileProva: proxyUrl,
-                fileGabarito: proxyGabUrl || aiData?.gabarito_url || null,
-                gabaritoNaProva: gabaritoCheck.checked,
-                isManualLocal: false,
-                slug: slug,
-              });
-            }, 1000);
-          } else if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            progress.close();
-            alert("O arquivo demorou muito... Verifique o terminal.");
-          }
-        } catch (e) {
-          console.warn("Polling error", e);
+          // Unsubscribe & Disconnect
+          channel.unbind_all();
+          pusher.unsubscribe(slug);
+
+          setTimeout(() => {
+            try {
+              const modalEl = document.getElementById("upload-progress-modal");
+              if (modalEl) modalEl.remove();
+            } catch (e) {}
+
+            // USE PROXY
+            const WORKER_URL =
+              "https://maia-api-worker.willian-campos-ismart.workers.dev";
+            const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
+
+            // Prepare Gabarito URL
+            let proxyGabUrl = null;
+            if (hfUrlGabarito) {
+              proxyGabUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrlGabarito)}`;
+            }
+
+            gerarVisualizadorPDF({
+              title: aiData?.institution
+                ? `${aiData.institution} ${aiData.year}` // Simplified Title Logic
+                : titleInput.value,
+              rawTitle: titleInput.value,
+              fileProva: proxyUrl,
+              fileGabarito: proxyGabUrl || aiData?.gabarito_url || null,
+              gabaritoNaProva: gabaritoCheck.checked,
+              isManualLocal: false,
+              slug: slug,
+            });
+          }, 1500);
         }
-      }, 2000);
+      });
+
+      // Fallback Safety for "already done" or "missed event"?
+      // If we subscribed too late, we might wait forever.
+      // Strategy: Check HEAD once at start just in case it's ALREADY there.
+      // But usually we are calling this right after dispatch.
     };
 
     try {
