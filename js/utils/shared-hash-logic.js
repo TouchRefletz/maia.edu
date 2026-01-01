@@ -5,8 +5,7 @@
 
 export const CONFIG = {
   GRID_SIZE: 16,
-  SCALE_FACTOR: 1.0, // Increased from 0.1 to 1.0 to reduce aliasing differences between Node/Browser
-  TARGET_WIDTH: 128,
+  TARGET_WIDTH: 128, // Common width for initial rendering to reduce aliasing
 };
 
 /**
@@ -100,7 +99,11 @@ export async function computePdfDocHash(
     // but usually page.cleanup() is enough.
 
     try {
-      const scaledViewport = page.getViewport({ scale: CONFIG.SCALE_FACTOR });
+      // Determine scale to match TARGET_WIDTH exactly
+      // This ensures both Node and Browser render the same number of pixels initially
+      const unscaledViewport = page.getViewport({ scale: 1.0 });
+      const scale = CONFIG.TARGET_WIDTH / unscaledViewport.width;
+      const scaledViewport = page.getViewport({ scale });
 
       const renderObj = createCanvasFn(
         scaledViewport.width,
