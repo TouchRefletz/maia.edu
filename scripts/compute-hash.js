@@ -34,7 +34,17 @@ function computeDHash(sourceCanvas, width, height) {
 
   // Draw and resize
   // node-canvas supports different patterns, default is usually good.
-  tempCtx.drawImage(sourceCanvas, 0, 0, width, height, 0, 0, w, h);
+  try {
+    tempCtx.drawImage(sourceCanvas, 0, 0, width, height, 0, 0, w, h);
+  } catch (e) {
+    console.error("Error in computeDHash drawImage:");
+    console.error(
+      "sourceCanvas type:",
+      sourceCanvas ? sourceCanvas.constructor.name : "null/undefined"
+    );
+    // console.error("sourceCanvas:", sourceCanvas); // May be too verbose for binary
+    throw e;
+  }
 
   const imageData = tempCtx.getImageData(0, 0, w, h);
   const data = imageData.data;
