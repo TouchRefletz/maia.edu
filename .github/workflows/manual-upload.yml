@@ -129,6 +129,7 @@ jobs:
           PDF_FILENAME: ${{ github.event.client_payload.metadata.pdf_filename || 'prova.pdf' }}
           GAB_FILENAME: ${{ github.event.client_payload.metadata.gabarito_filename || 'gabarito.pdf' }}
         run: |
+          echo "DEBUG: PDF_FILENAME for Download is: '${PDF_FILENAME}'"
           cd hf_repo
           mkdir -p "output/$SLUG/files"
 
@@ -299,6 +300,7 @@ jobs:
             echo "Installing dependencies for hashing..."
             sudo apt-get update && sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev
             npm install pdfjs-dist@3.11.174 @napi-rs/canvas@0.1.44
+            npm list
             
             echo "Computing visual hashes..."
             # Check if directory exists first
@@ -308,7 +310,8 @@ jobs:
                 echo "::error::Directory hf_repo/output/$SLUG not found!"
                 exit 1
             fi
-          ) 2>&1 | python3 logger.py
+          # ) 2>&1 | python3 logger.py 
+          )
 
       - name: Generate Thumbnails
         env:

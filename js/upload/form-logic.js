@@ -286,6 +286,23 @@ export function setupFormLogic(elements, initialData) {
       formData.append("title", titleInput.value);
 
       if (srcProvaVal) formData.append("source_url_prova", srcProvaVal);
+      // DEBUG LOGS
+      console.log("[Manual] --- FORM DATA PREVIEW ---");
+      // Note: formData.entries() might not show files in some browsers console easily, but text fields yes.
+      try {
+        for (let [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(
+              `[Manual] Key: ${key} -> File: ${value.name} (${value.size} bytes)`
+            );
+          } else {
+            console.log(`[Manual] Key: ${key} -> Value: "${value}"`);
+          }
+        }
+      } catch (e) {
+        console.log("[Manual] Error logging entries:", e);
+      }
+      console.log("[Manual] -------------------------");
       if (srcGabVal) formData.append("source_url_gabarito", srcGabVal);
 
       // Pass the RENAMED file

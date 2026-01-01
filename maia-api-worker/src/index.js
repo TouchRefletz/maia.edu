@@ -1489,8 +1489,15 @@ async function handleManualUpload(request, env) {
 		const pdfCustomName = formData.get('pdf_custom_name');
 		const gabCustomName = formData.get('gabarito_custom_name');
 
+		// DEBUG LOGS
+		console.log('[Manual Upload] Received Keys:', [...formData.keys()]);
+		console.log(`[Manual Upload] pdf_custom_name="${pdfCustomName}", gab_custom_name="${gabCustomName}"`);
+		console.log(`[Manual Upload] fileProva.name="${fileProva ? fileProva.name : 'null'}"`);
+
 		const pdfFinalName = pdfCustomName || (fileProva ? fileProva.name || 'prova.pdf' : 'prova.pdf');
 		const gabFinalName = gabCustomName || (fileGabarito ? fileGabarito.name || 'gabarito.pdf' : null);
+
+		console.log(`[Manual Upload] FINAL DECISION: pdf="${pdfFinalName}", gab="${gabFinalName}"`);
 
 		const ghRes = await fetch(`https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`, {
 			method: 'POST',
