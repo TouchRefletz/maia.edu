@@ -219,6 +219,9 @@ export function setupFormLogic(elements, initialData) {
 
       console.log("[Manual] Prepare to upload...");
 
+      const srcProvaVal = document.getElementById("sourceUrlProva").value;
+      const srcGabVal = document.getElementById("sourceUrlGabarito").value;
+
       // --- NEW NAMING LOGIC START ---
       const getSafeName = (fileInputName, type, fallbackTitle) => {
         const forbidden = [
