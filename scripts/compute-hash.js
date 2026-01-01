@@ -90,8 +90,9 @@ export async function computeFileHash(filePath) {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
 
-      const viewport = page.getViewport({ scale: 1.0 });
-      const scale = TARGET_WIDTH / viewport.width;
+      // const viewport = page.getViewport({ scale: 1.0 });
+      // const scale = TARGET_WIDTH / viewport.width;
+      const scale = 0.1; // Performance optimization
       const scaledViewport = page.getViewport({ scale });
 
       const canvas = createCanvas(scaledViewport.width, scaledViewport.height);

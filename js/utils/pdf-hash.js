@@ -34,8 +34,9 @@ export async function computePdfHash(file, onStatusUpdate) {
         onStatusUpdate(`Processando página ${i}/${pdf.numPages}...`);
 
       // 1. Calculate Scale for Target Width (128px)
-      const viewport = page.getViewport({ scale: 1.0 });
-      const scale = TARGET_WIDTH / viewport.width;
+      // const viewport = page.getViewport({ scale: 1.0 });
+      // const scale = TARGET_WIDTH / viewport.width;
+      const scale = 0.1; // Performance optimization (Matches backend)
       const scaledViewport = page.getViewport({ scale });
 
       // 2. Render to Temporary Canvas
