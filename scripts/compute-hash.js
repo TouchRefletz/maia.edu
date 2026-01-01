@@ -74,7 +74,7 @@ export async function computeFileHash(filePath) {
         c.height = h;
         return {
           canvas: c,
-          context: c.getContext("2d"),
+          context: c.getContext("2d", { willReadFrequently: true }),
         };
       };
 
