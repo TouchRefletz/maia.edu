@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // CJS Dependencies (using require for safety)
-const { createCanvas } = require("canvas");
+const { createCanvas } = require("@napi-rs/canvas");
 const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
 
 // Constants matching Frontend
