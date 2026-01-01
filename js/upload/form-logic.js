@@ -175,7 +175,7 @@ export function setupFormLogic(elements, initialData) {
                 : titleInput.value,
               rawTitle: titleInput.value,
               fileProva: proxyUrl,
-              fileGabarito: proxyGabUrl || aiData?.gabarito_url || null,
+              fileGabarito: proxyGabUrl || aiData?.gabarito_url || fileGabarito,
               gabaritoNaProva: gabaritoCheck.checked,
               isManualLocal: false,
               slug: slug,
@@ -343,11 +343,14 @@ export function setupFormLogic(elements, initialData) {
             .then((d) => {
               if (d.success) {
                 // Determine Gabarito URL from response (if provided) or construct it
-                const hfUrlGab =
-                  d.hf_url_gabarito ||
-                  (d.gabarito_filename
-                    ? `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${d.slug}/files/${d.gabarito_filename}`
-                    : null);
+                // Improved Gabarito URL derivation (matches main flow)
+                let hfUrlGab = d.hf_url_gabarito;
+                if (!hfUrlGab && d.gabarito_filename) {
+                  hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${d.slug}/files/${d.gabarito_filename}`;
+                } else if (!hfUrlGab && fileGabarito) {
+                  const gName = fileGabarito.name || "gabarito.pdf";
+                  hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${d.slug}/files/${gName}`;
+                }
 
                 startPollingAndOpenViewer(
                   d.hf_url_preview,
