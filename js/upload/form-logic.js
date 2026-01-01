@@ -172,14 +172,26 @@ export function setupFormLogic(elements, initialData) {
 
     try {
       // 1. Calculate Visual Hash Local
-      let localHash = null;
+      let localHashProva = null;
+      let localHashGab = null;
+
       try {
         // Import dynamic to avoid top-level await issues if bundle not ready
         const { computePdfHash } = await import("../utils/pdf-hash.js");
-        localHash = await computePdfHash(fileProva, (status) => {
-          progress.update(status);
-        });
-        console.log("[Manual] Local Visual Hash:", localHash);
+
+        if (fileProva) {
+          localHashProva = await computePdfHash(fileProva, (status) => {
+            progress.update("Prova: " + status);
+          });
+          console.log("[Manual] Local Prova Hash:", localHashProva);
+        }
+
+        if (fileGabarito) {
+          localHashGab = await computePdfHash(fileGabarito, (status) => {
+            progress.update("Gabarito: " + status);
+          });
+          console.log("[Manual] Local Gabarito Hash:", localHashGab);
+        }
       } catch (err) {
         console.warn("[Manual] Failed to compute hash:", err);
         progress.update("Erro no hash. Prosseguindo...");
@@ -198,7 +210,8 @@ export function setupFormLogic(elements, initialData) {
       formData.append("fileProva", fileProva);
       if (fileGabarito) formData.append("fileGabarito", fileGabarito);
 
-      if (localHash) formData.append("visual_hash", localHash);
+      if (localHashProva) formData.append("visual_hash", localHashProva);
+      if (localHashGab) formData.append("visual_hash_gabarito", localHashGab);
 
       const WORKER_URL =
         "https://maia-api-worker.willian-campos-ismart.workers.dev";
@@ -210,103 +223,96 @@ export function setupFormLogic(elements, initialData) {
       const data = await res.json();
 
       if (data.status === "conflict") {
-        // --- VISUAL HASH AUTO-RESOLUTION ---
+        // --- VISUAL HASH SMART AUTO-RESOLUTION ---
         console.warn("[Manual] Conflict detected!", data);
 
-        let matchFound = null;
-        if (localHash && data.remote_manifest) {
-          const items = Array.isArray(data.remote_manifest)
-            ? data.remote_manifest
-            : data.remote_manifest.results || data.remote_manifest.files || [];
+        const items = Array.isArray(data.remote_manifest)
+          ? data.remote_manifest
+          : data.remote_manifest?.results || data.remote_manifest?.files || [];
 
-          matchFound = items.find((item) => item.visual_hash === localHash);
-        }
+        // Helper to find match
+        const findMatch = (hash, typeFilter) => {
+          if (!hash) return null;
+          return items.find((item) => {
+            if (item.visual_hash !== hash) return false;
+            const iType = (item.tipo || item.type || "").toLowerCase();
+            if (typeFilter === "gabarito") return iType.includes("gabarito");
+            return !iType.includes("gabarito");
+          });
+        };
 
-        if (matchFound) {
-          console.log(
-            "[Manual] Visual Match Found! Auto-resolving using remote file.",
-            matchFound
-          );
+        const matchProva = findMatch(localHashProva, "prova");
+        const matchGab = findMatch(localHashGab, "gabarito");
+
+        // Helper to get Remote URL
+        const getRemoteUrl = (item) => {
+          if (!item) return null;
+          if (item.url) return item.url;
+          let path = item.path || item.filename;
+          if (path && !path.startsWith("http")) {
+            if (path.startsWith("files/")) path = path.replace("files/", "");
+            return `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${data.slug}/files/${path}`;
+          }
+          return null;
+        };
+
+        const remoteUrlProva = getRemoteUrl(matchProva);
+        const remoteUrlGab = getRemoteUrl(matchGab);
+
+        console.log("[Manual] Resolution Analysis:", {
+          prova: matchProva ? "MATCH (Use Remote)" : "NO MATCH (Use Local)",
+          gabarito: fileGabarito
+            ? matchGab
+              ? "MATCH (Use Remote)"
+              : "NO MATCH (Use Local)"
+            : "N/A",
+        });
+
+        // 1. FULL MATCH -> Use Remote Directly
+        if (matchProva && (!fileGabarito || matchGab)) {
           progress.update(
-            "Match visual encontrado! Usando arquivo existente..."
+            "Arquivos duplicados detectados. Usando versão da nuvem..."
           );
-
-          // Wait brief moment for UX
           setTimeout(() => {
-            // Determine remote URL
-            let remoteUrl = matchFound.url;
-            if (!remoteUrl) {
-              // Metadata fallback logic (same as search-logic normalize)
-              let path = matchFound.path || matchFound.filename;
-              if (path && !path.startsWith("http")) {
-                if (path.startsWith("files/"))
-                  path = path.replace("files/", "");
-                remoteUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${data.slug}/files/${path}`;
-              }
-            }
-
-            // Close modal and open viewer
             progress.close();
-            // Pass ai_data from conflict if available, or construct partial
             startPollingAndOpenViewer(
-              remoteUrl,
+              remoteUrlProva,
               data.slug,
               data.ai_data || {
-                institution: matchFound.instituicao || matchFound.institution,
-                year: matchFound.ano || matchFound.year,
+                institution: matchProva.instituicao,
+                year: matchProva.ano,
               }
             );
           }, 1000);
           return;
         }
 
-        // If NO MATCH -> Show Modal (OR Auto-Merge if user implies "se não tiver igual tu posta")
-        // The user said: "se não tiver igual tu posta na nuvem"
-        // This implies skipping the modal entirely?
-        // But the modal lets them choose to MERGE as a new file ("Seu Upload").
-        // If we skip the modal, we default to "Overwrite" or "Update"?
-        // "Posta na nuvem" implies we KEEP the local file.
-        // If the slug matches (conflict), we must be in UPDATE mode to avoid overwrite error if filename matches?
-        // Wait, if filename matches strictly, backend threw conflict.
-        // If we want to post "na nuvem", we need to override.
-        // Let's keep the modal for NON-MATCHES for safety unless user insists on full automation.
-        // User text: "essa tela não é pra aparecer ... se tiver igual usa back ... se não igual posta nuvem".
-        // This strongly suggests handling the "não igual" case automatically too.
-        // Automatic "Post to Cloud" = Override/Merge.
-
+        // 2. MIX & MATCH (Auto-Merge)
         console.log(
-          "[Manual] No hash match. Auto-posting to cloud as per user preference (Force Update)."
+          "[Manual] Partial or No Match. Auto-merging differences..."
         );
+        progress.update("Sincronizando diferenças com a nuvem...");
 
-        // AUTO-MERGE LOGIC (Skip Modal)
+        // Simply auto-merge/overwrite whatever didn't match
         import("./search-logic.js").then((module) => {
-          // We don't need module.showConflictResolutionModal anymore if we auto-merge.
-          // We just proceed to the Override Request.
-
-          progress.update("Arquivo novo detectado. Atualizando nuvem...");
-
           const newFormData = new FormData();
           newFormData.append("title", titleInput.value);
           if (srcProvaVal) newFormData.append("source_url_prova", srcProvaVal);
           if (srcGabVal) newFormData.append("source_url_gabarito", srcGabVal);
 
-          // Crucial: We need to re-send the files because the worker is stateless?
-          // Or does the worker keep temp files?
-          // The worker `manual-upload` usually expects files in body.
-          // But for override, we might need to send them again OR pass the temp URL if worker supports it.
-          // Looking at previous code, `showConflictResolutionModal` passed `temp_pdf_url`.
-          // But `newFormData` in previous implementation didn't append `fileProva` again!
-          // It used `pdf_url_override` with `data.temp_pdf_url`.
+          // LOGIC:
+          // If Prova Mismatch -> Send Local Temp URL
+          if (!matchProva && data.temp_pdf_url) {
+            newFormData.append("pdf_url_override", data.temp_pdf_url);
+          }
 
-          // Let's use the temp URL provided by the conflict response.
-          const tempPdf = data.temp_pdf_url;
-          const tempGab = data.temp_gabarito_url;
-
-          if (tempPdf) newFormData.append("pdf_url_override", tempPdf);
-          if (tempGab) newFormData.append("gabarito_url_override", tempGab);
+          // If Gabarito Mismatch -> Send Local Temp URL
+          if (fileGabarito && !matchGab && data.temp_gabarito_url) {
+            newFormData.append("gabarito_url_override", data.temp_gabarito_url);
+          }
 
           newFormData.append("confirm_override", "true");
-          newFormData.append("mode", "update"); // Use Update to merge, not overwrite/fail
+          newFormData.append("mode", "update");
 
           fetch(`${WORKER_URL}/manual-upload`, {
             method: "POST",
