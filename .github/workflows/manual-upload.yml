@@ -300,7 +300,13 @@ jobs:
             npm install pdfjs-dist@3.11.174 canvas@2.11.2
             
             echo "Computing visual hashes..."
-            node scripts/compute-hash.js "hf_repo/output/$SLUG"
+            # Check if directory exists first
+            if [ -d "hf_repo/output/$SLUG" ]; then
+                node scripts/compute-hash.js "hf_repo/output/$SLUG"
+            else
+                echo "::error::Directory hf_repo/output/$SLUG not found!"
+                exit 1
+            fi
           ) 2>&1 | python3 logger.py
 
       - name: Generate Thumbnails

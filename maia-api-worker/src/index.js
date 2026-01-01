@@ -1486,6 +1486,12 @@ async function handleManualUpload(request, env) {
 		const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
 		const githubRepo = env.GITHUB_REPO || 'maia.api';
 
+		const pdfCustomName = formData.get('pdf_custom_name');
+		const gabCustomName = formData.get('gabarito_custom_name');
+
+		const pdfFinalName = pdfCustomName || (fileProva ? fileProva.name || 'prova.pdf' : 'prova.pdf');
+		const gabFinalName = gabCustomName || (fileGabarito ? fileGabarito.name || 'gabarito.pdf' : null);
+
 		const ghRes = await fetch(`https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`, {
 			method: 'POST',
 			headers: {
@@ -1508,10 +1514,10 @@ async function handleManualUpload(request, env) {
 						summary: aiData.summary,
 						source_url_prova: sourceUrlProva,
 						source_url_gabarito: sourceUrlGabarito,
-						visual_hash: formData.get('visual_hash'), // Corrected key name to match form-logic
-						visual_hash_gabarito: formData.get('visual_hash_gabarito'),
-						pdf_filename: fileProva ? fileProva.name || 'prova.pdf' : 'prova.pdf',
-						gabarito_filename: fileGabarito ? fileGabarito.name || 'gabarito.pdf' : null,
+						// Visual Hash is computed in CI/CD now, not passed from frontend
+						// visual_hash: ...,
+						pdf_filename: pdfFinalName,
+						gabarito_filename: gabFinalName,
 					},
 				},
 			}),
@@ -1532,7 +1538,7 @@ async function handleManualUpload(request, env) {
 				slug,
 				message: 'Upload started. AI Researching & Syncing...',
 				ai_data: aiData,
-				hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/prova.pdf`,
+				hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${pdfFinalName}`,
 			}),
 			{
 				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
