@@ -1316,7 +1316,6 @@ export class TerminalUI {
 
     // Visual feedback
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.innerText = "Salvando...";
       this.el.cancelBtn.classList.add("disabled");
       this.el.cancelBtn.disabled = true;
       this.el.cancelBtn.style.cursor = "not-allowed";
