@@ -594,8 +594,13 @@ export function setupSearchLogic() {
         : false;
 
       // Re-attach to existing terminal
-      terminal = new TerminalUI(existingEl);
-      terminalInstance = terminal; // Save Global Ref
+      if (terminalInstance) {
+        terminal = terminalInstance;
+      } else {
+        terminal = new TerminalUI(existingEl);
+        terminalInstance = terminal;
+      }
+
       terminal.onExpandRequest = handleExpandRequest;
 
       // RESTORE STATE

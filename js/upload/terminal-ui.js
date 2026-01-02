@@ -635,12 +635,27 @@ export class TerminalUI {
         this.updatePlan(this.tasks); // Trigger Re-render
       }
     } else {
-      // Optional: Add new task if not exists?
+      // Auto-add task if it looks like one and doesn't exist?
+      // For now, let's just log it if not found, or maybe add it to end?
     }
   }
 
   processLogLine(text, type = "info") {
     if (!text) return;
+
+    // --- CHAIN OF THOUGHT FORMATTING ---
+    // If it's an "in_progress" log or starts with "Step", bold it as a Title
+    let formattedText = text;
+    if (
+      type === "in_progress" ||
+      type === "success" ||
+      type === "warning" ||
+      text.match(/^\d+\./)
+    ) {
+      if (!text.includes("<strong>")) {
+        formattedText = `<strong>${text}</strong>`;
+      }
+    }
 
     // 1. HYBRID STRATEGY: Server Event + Log Parsing Fallback
     // We try to detect standard task formats:
@@ -757,7 +772,8 @@ export class TerminalUI {
     }
 
     // 3. Prepare Display Text
-    let displayText = text;
+    // Use the formatted text from Step 0
+    let displayText = formattedText;
     if (foundTask) {
       displayText = "[PLAN UPDATE RECEIVED]";
     }
@@ -930,54 +946,30 @@ export class TerminalUI {
   }
 
   renderTaskList() {
-    if (!this.el.objectivesHeader || !this.el.tasksBody) return;
+    if (!this.el.tasksBody) return;
 
-    // 1. Render Floating Objectives (Header)
-    let headerHtml = "";
     let bodyHtml = "";
 
     this.tasks.forEach((t, index) => {
       const isDone = t.status === "done" || t.status === "completed";
       const isProgress = t.status === "in_progress";
-      const isNext = !isDone && !isProgress && index === 0; // Fallback if nothing in progress? Logic check.
 
-      // Icon Logic
-      // If done -> Checkmark
-      // If in_progress -> Spinning Star
-      // If todo -> Static Star (or number?)
-
-      let iconHtml = "";
-      let imgClass = "term-obj-img";
-
-      if (isProgress) {
-        imgClass += " spinning";
-        iconHtml = `<img src="/logo.png" class="${imgClass}" alt="Active">`;
-      } else if (isDone) {
-        iconHtml = `<div class="term-obj-check">✔</div>`;
-      } else {
-        // Todo/Waiting
-        iconHtml = `<img src="/logo.png" class="${imgClass}" alt="Waiting">`;
-      }
-
-      // Anchor Link
-      headerHtml += `
-         <a href="#term-task-${index}" class="term-obj-icon-link" title="${t.title}">
-            ${iconHtml}
-         </a>
-       `;
-
-      // 2. Render Definition Body (Cards)
+      // Card Logic (Horizontal)
       let cardClass = "term-task-card";
       if (isProgress) cardClass += " active";
       if (isDone) cardClass += " done";
 
-      // Body Icon (Small visual on left of card)
-      let bodyIcon = "○";
-      if (isDone) bodyIcon = "✔";
-      if (isProgress) bodyIcon = "⚡"; // Or play
+      // Icon for Visual Area
+      let visualContent = "";
+      if (isProgress) {
+        visualContent = `<img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:24px; height:24px;">`;
+      } else if (isDone) {
+        visualContent = `<div class="term-obj-check">✔</div>`;
+      } else {
+        visualContent = `<span style="font-size:1.2rem; opacity:0.5;">○</span>`;
+      }
 
       const rawNotes = t.notes || "";
-      // Ensure we have some content
       const noteContent = rawNotes
         ? rawNotes
         : isProgress
@@ -987,17 +979,16 @@ export class TerminalUI {
       bodyHtml += `
          <div id="term-task-${index}" class="${cardClass}">
              <div class="term-task-visual">
-                 <div class="term-task-visual-icon">${bodyIcon}</div>
+                 ${visualContent}
              </div>
              <div class="term-task-content">
-                 <div class="term-task-title">${t.title}</div>
+                 <div class="term-task-title" title="${t.title}">${t.title}</div>
                  <div class="term-task-notes">${noteContent}</div>
              </div>
          </div>
        `;
     });
 
-    this.el.objectivesHeader.innerHTML = headerHtml;
     this.el.tasksBody.innerHTML = bodyHtml;
 
     // Auto-scroll logic for body?
@@ -1205,7 +1196,7 @@ export class TerminalUI {
 
   cancelFinished() {
     // Treat cancellation as a FAILURE per user request
-    this.fail("Operação cancelada manualamente pelo usuário.");
+    this.fail("Operação cancelada manualmente pelo usuário.");
 
     // Override status text specifically for clarity
     this.el.status.innerText = "CANCELADO";
