@@ -217,15 +217,6 @@
   -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
 }
 
-/* Scrollbar Style for Tasks */
-.term-tasks-body::-webkit-scrollbar {
-    height: 6px;
-}
-.term-tasks-body::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 3px;
-}
-
 /* Adopted Thought Card Styles */
 .term-task-card {
   display: flex;
@@ -529,20 +520,3 @@
 }
 .term-log-line::before { display: none; }
 .term-log-line strong { color: inherit; font-weight: normal; font-size: inherit; display: inline; }
-
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-secondary);
-}
