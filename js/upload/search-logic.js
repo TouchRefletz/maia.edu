@@ -1221,7 +1221,10 @@ export function setupSearchLogic() {
       manifest.files ||
       (Array.isArray(manifest) ? manifest : []);
 
-    const items = rawItems
+    const corruptedItems = [];
+
+    // Phase 1: Normalize & Basic Filter
+    let items = rawItems
       .map((item) => normalizeItem(item))
       .filter((item) => {
         if (!item || !item.url || item.url.includes("/undefined")) return false;
@@ -1239,11 +1242,36 @@ export function setupSearchLogic() {
         return true;
       });
 
+    // Phase 2: Deduplication (Quarta Camada de Verificação)
+    const seenHashes = new Set();
+    const uniqueItems = [];
+
+    items.forEach((item) => {
+      // Se temos um hash visual e já vimos ele antes...
+      if (item.visual_hash && seenHashes.has(item.visual_hash)) {
+        if (log)
+          log(
+            `[DUPLICATA] Hash visual repetido detectado em ${
+              item.filename || item.nome
+            }. Marcando para remoção.`,
+            "warning"
+          );
+        // Adiciona direto aos corrompidos para limpeza
+        corruptedItems.push(item);
+      } else {
+        // Se é novo, registra e segue
+        if (item.visual_hash) seenHashes.add(item.visual_hash);
+        uniqueItems.push(item);
+      }
+    });
+
+    // Atualiza a lista base para usar apenas os únicos
+    items = uniqueItems;
+
     // Split references vs downloads
     const downloadableItems = items.filter((i) => i.status !== "reference");
     // Pre-populate valid with references
     const validItems = items.filter((i) => i.status === "reference");
-    const corruptedItems = [];
 
     // Check downloads efficiently
     const queue = new AsyncQueue(4); // 4 checks in parallel
