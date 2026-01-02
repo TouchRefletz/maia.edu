@@ -165,8 +165,23 @@ export function setupFormLogic(elements, initialData) {
       });
 
       const channel = pusher.subscribe(slug);
+      let eventReceived = false;
+
+      // SAFETY TIMEOUT: Warn if no events for a while
+      const safetyTimeout = setTimeout(() => {
+        if (!eventReceived) {
+          progress.update(
+            "⚠️ O processo está demorando mais que o normal ou não iniciou."
+          );
+          console.warn("[Manual] No Pusher events received in 20s.");
+          // We don't close yet, just warn.
+        }
+      }, 20000);
 
       channel.bind("log", (data) => {
+        eventReceived = true;
+        clearTimeout(safetyTimeout);
+
         // data can be wrapped or direct
         const msg = data.message || (data.data && data.data.message) || "";
         console.log(`[Pusher] ${msg}`);

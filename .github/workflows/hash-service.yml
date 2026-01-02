@@ -47,7 +47,7 @@ jobs:
           # output/*/manifest.json
 
           # Create a quick node script inline to handle JSON parsing reliability
-          cat << 'EOF' > check_existence.js
+          cat << 'EOF' > check_existence.cjs
           const fs = require('fs');
           const path = require('path');
           const glob = require('glob'); // Might need to install specific glob if not available, OR just use fs traversal
@@ -96,7 +96,7 @@ jobs:
           EOF
 
           # Run the check
-          RESULT_JSON=$(node check_existence.js)
+          RESULT_JSON=$(node check_existence.cjs)
           echo "Check Result: $RESULT_JSON"
 
           # Parse for outputs
