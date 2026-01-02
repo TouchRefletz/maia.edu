@@ -1,0 +1,70 @@
+name: "Compute PDF Hash"
+description: "Computes the visual hash of a PDF or directory of PDFs using Puppeteer"
+inputs:
+  path:
+    description: "Path to the directory or file to hash"
+    required: true
+  files:
+    description: "Specific filenames to hash (optional, space separated)"
+    required: false
+outputs:
+  hash:
+    description: "The computed hash (if single file)"
+    value: ${{ steps.compute.outputs.hash }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install System Dependencies (Puppeteer)
+      shell: bash
+      run: |
+        echo "Installing system dependencies..."
+        sudo apt-get update > /dev/null
+        sudo apt-get install -y ca-certificates fonts-liberation libasound2t64 \
+          libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 \
+          libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 \
+          libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 \
+          libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 \
+          libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 \
+          lsb-release wget xdg-utils > /dev/null
+
+    - name: Install Node Dependencies
+      shell: bash
+      run: |
+        echo "Installing node dependencies..."
+        # Using exact versions to match package.json to avoid surprises
+        npm install pdfjs-dist@3.11.174 puppeteer@24.34.0
+
+    - name: Run Hash Computation
+      id: compute
+      shell: bash
+      env:
+        TARGET_PATH: ${{ inputs.path }}
+        TARGET_FILES: ${{ inputs.files }}
+      run: |
+        echo "Computing hash for: $TARGET_PATH"
+        if [ -n "$TARGET_FILES" ]; then
+          echo "Specific files: $TARGET_FILES"
+        fi
+
+        # Pass TARGET_FILES as arguments to the script
+        # If TARGET_FILES is empty, it just runs with TARGET_PATH (directory mode or single file mode)
+
+        OUTPUT=$(node scripts/compute-hash.js "$TARGET_PATH" $TARGET_FILES)
+        echo "$OUTPUT"
+
+        # Capture output. The script prints "Hash: <hash>" for single files.
+        # For directories, it updates manifest.json in place.
+
+        # Extract Hash if it's a single file output
+        # Look for "Hash: <hex>" in the output
+        HASH=$(echo "$OUTPUT" | grep "Hash: " | awk '{print $2}' | tail -n 1)
+
+        if [ -n "$HASH" ]; then
+          echo "hash=$HASH" >> $GITHUB_OUTPUT
+        fi

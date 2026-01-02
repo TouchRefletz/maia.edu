@@ -299,28 +299,10 @@ jobs:
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
           PDF_FILENAME: ${{ steps.download.outputs.final_pdf_name }}
           GAB_FILENAME: ${{ steps.download.outputs.final_gab_name }}
-        run: |
-          set -o pipefail
-          (
-            echo "Installing dependencies for hashing..."
-            # Puppeteer needs libs
-            sudo apt-get update && sudo apt-get install -y ca-certificates fonts-liberation libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release wget xdg-utils
-            
-            # Install Puppeteer & PDF.js
-            npm install pdfjs-dist@3.11.174 puppeteer
-            npm list
-            
-            echo "Computing visual hashes..."
-            # Check if directory exists first
-            if [ -d "hf_repo/output/$SLUG" ]; then
-                # Pass specific filenames to avoid re-hashing the whole world
-                node scripts/compute-hash.js "hf_repo/output/$SLUG" "$PDF_FILENAME" "$GAB_FILENAME"
-            else
-                echo "::error::Directory hf_repo/output/$SLUG not found!"
-                exit 1
-            fi
-          # ) 2>&1 | python3 logger.py 
-          )
+        uses: ./.github/actions/compute-hash
+        with:
+          path: "hf_repo/output/${{ env.SLUG }}"
+          files: "${{ env.PDF_FILENAME }} ${{ env.GAB_FILENAME }}"
 
       - name: Generate Thumbnails
         env:

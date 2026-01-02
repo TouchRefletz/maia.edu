@@ -67,7 +67,13 @@ function boxDownscale(srcData, srcW, srcH, dstW, dstH) {
   return dstData;
 }
 
-export function computeDHash(sourceCanvas, width, height, createCanvasFn) {
+export function computeDHash(
+  sourceCanvas,
+  width,
+  height,
+  createCanvasFn,
+  debug = false
+) {
   const w = CONFIG.GRID_SIZE; // Still using config (try 8 or 16)
   const h = CONFIG.GRID_SIZE;
 
@@ -85,6 +91,7 @@ export function computeDHash(sourceCanvas, width, height, createCanvasFn) {
   // and captures only the macro layout (Text vs White Space).
 
   let hash = "";
+  let debugGrid = [];
 
   for (let i = 0; i < w * h; i++) {
     const idx = i * 4;
@@ -97,7 +104,16 @@ export function computeDHash(sourceCanvas, width, height, createCanvasFn) {
     // Math.min(3, ...) ensures 255 doesn't overflow if we did floor(256/64)=4
     const bucket = Math.min(3, Math.floor(val / 64));
 
+    if (debug) {
+      debugGrid.push(val); // Push raw grayscale value (0-255)
+    }
+
     hash += bucket.toString();
+  }
+
+  if (debug) {
+    console.log(`[Hash Debug] Grid (${w}x${h}):`, debugGrid.join(","));
+    console.log(`[Hash Debug] Quantized:`, hash);
   }
 
   return hash;
@@ -115,7 +131,8 @@ export async function computePdfDocHash(
   pdfDoc,
   createCanvasFn,
   sha256Fn,
-  onStatusUpdate
+  onStatusUpdate,
+  debug = false
 ) {
   let combinedVisualData = "";
 
@@ -161,7 +178,8 @@ export async function computePdfDocHash(
         renderCanvas,
         renderWidth,
         renderHeight,
-        createCanvasFn
+        createCanvasFn,
+        debug
       );
       combinedVisualData += hash;
     } finally {

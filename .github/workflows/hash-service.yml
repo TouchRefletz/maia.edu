@@ -1,0 +1,149 @@
+name: Hash Computation Service
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: "URL of the file to download and hash"
+        required: true
+      slug:
+        description: "Slug/Identifier for the request (used for Pusher channel)"
+        required: true
+
+jobs:
+  compute-hash:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Download File
+        run: |
+          echo "Downloading file from: ${{ inputs.file_url }}"
+          # Use a generic name 'temp_input.pdf' so the script path is predictable
+          # Or preserve name if possible? Let's use 'temp_input.pdf' for simplicity.
+          wget -O temp_input.pdf "${{ inputs.file_url }}"
+
+          if [ ! -s temp_input.pdf ]; then
+            echo "::error::File download failed or empty."
+            exit 1
+          fi
+
+      - name: Compute Hash (Composite Action)
+        id: compute
+        uses: ./.github/actions/compute-hash
+        with:
+          path: "temp_input.pdf"
+
+      - name: Check for Hash Existence in Repository
+        id: check
+        shell: bash
+        env:
+          TARGET_HASH: ${{ steps.compute.outputs.hash }}
+        run: |
+          echo "Checking if hash $TARGET_HASH exists in known manifests..."
+
+          # We need to scan all manifests.
+          # output/*/manifest.json
+
+          # Create a quick node script inline to handle JSON parsing reliability
+          cat << 'EOF' > check_existence.js
+          const fs = require('fs');
+          const path = require('path');
+          const glob = require('glob'); // Might need to install specific glob if not available, OR just use fs traversal
+
+          // Simple recursive traversal since glob might not be installed in the root context 
+          // (Wait, we installed npm deps in the composite action, but that was just for puppeteer/pdfjs)
+          // Let's use 'find' command to list files and stream to node for robustness.
+
+          const targetHash = process.env.TARGET_HASH;
+          const rootDir = 'output';
+
+          if (!targetHash) {
+             console.log(JSON.stringify({ exists: false }));
+             process.exit(0);
+          }
+
+          let found = false;
+          let foundSlug = null;
+
+          if (fs.existsSync(rootDir)) {
+              const slugs = fs.readdirSync(rootDir);
+              for (const slug of slugs) {
+                  const manifestPath = path.join(rootDir, slug, 'manifest.json');
+                  if (fs.existsSync(manifestPath)) {
+                      try {
+                          const content = fs.readFileSync(manifestPath, 'utf8');
+                          const data = JSON.parse(content);
+                          const items = Array.isArray(data) ? data : (data.results || []);
+                          
+                          for (const item of items) {
+                              if (item.visual_hash === targetHash) {
+                                  found = true;
+                                  foundSlug = slug;
+                                  break;
+                              }
+                          }
+                      } catch (e) {
+                          // ignore json errors
+                      }
+                  }
+                  if (found) break;
+              }
+          }
+
+          console.log(JSON.stringify({ exists: found, slug: foundSlug }));
+          EOF
+
+          # Run the check
+          RESULT_JSON=$(node check_existence.js)
+          echo "Check Result: $RESULT_JSON"
+
+          # Parse for outputs
+          EXISTS=$(echo $RESULT_JSON | grep -o '"exists":true' && echo "true" || echo "false")
+          FOUND_SLUG=$(echo $RESULT_JSON | sed -n 's/.*"slug":"\([^"]*\)".*/\1/p')
+
+          echo "exists=$EXISTS" >> $GITHUB_OUTPUT
+          echo "found_slug=$FOUND_SLUG" >> $GITHUB_OUTPUT
+
+      - name: Notify Frontend (Pusher)
+        if: always()
+        env:
+          PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+          PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
+          PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+          PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
+          CHANNEL: ${{ inputs.slug }}
+          HASH: ${{ steps.compute.outputs.hash }}
+          EXISTS: ${{ steps.check.outputs.exists }}
+          FOUND_SLUG: ${{ steps.check.outputs.found_slug }}
+        run: |
+          # Construct JSON payload
+          # We send: { hash, exists, existing_slug }
+
+          DATA_JSON=$(jq -n \
+            --arg hash "$HASH" \
+            --arg exists "$EXISTS" \
+            --arg found_slug "$FOUND_SLUG" \
+             '{hash: $hash, exists: ($exists == "true"), found_slug: $found_slug}'
+          )
+
+          # Construct Pusher Body
+          BODY=$(jq -n \
+            --arg name "hash_computed" \
+            --arg channel "$CHANNEL" \
+            --arg data "$DATA_JSON" \
+            '{name: $name, channels: [$channel], data: $data}'
+          )
+
+          # Sign Request
+          TS=$(date +%s)
+          BODY_MD5=$(echo -n "$BODY" | md5sum | awk '{print $1}')
+          SIGN_STRING="POST\n/apps/$PUSHER_APP_ID/events\nauth_key=$PUSHER_KEY&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5"
+          AUTH_SIGNATURE=$(echo -n -e "$SIGN_STRING" | openssl dgst -sha256 -hmac "$PUSHER_SECRET" | sed 's/^.* //')
+
+          echo "Broadcasting to Pusher Channel: $CHANNEL"
+
+          curl -s -X POST "https://api-$PUSHER_CLUSTER.pusher.com/apps/$PUSHER_APP_ID/events?auth_key=$PUSHER_KEY&auth_timestamp=$TS&auth_version=1.0&body_md5=$BODY_MD5&auth_signature=$AUTH_SIGNATURE" \
+            -H "Content-Type: application/json" \
+            -d "$BODY"

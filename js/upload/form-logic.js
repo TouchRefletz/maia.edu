@@ -1,6 +1,36 @@
 import { gerarVisualizadorPDF } from "../viewer/events.js";
 
 /**
+ * Helper: Upload to TmpFiles.org
+ */
+async function uploadToTmpFiles(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const response = await fetch("https://tmpfiles.org/api/v1/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const data = await response.json();
+    if (data.status === "success") {
+      // Convert view URL to download URL
+      // View: https://tmpfiles.org/12345/file.pdf
+      // Download: https://tmpfiles.org/dl/12345/file.pdf
+      let url = data.data.url;
+      if (url.includes("tmpfiles.org/")) {
+        url = url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+      }
+      return url;
+    }
+    throw new Error("Upload failed");
+  } catch (e) {
+    console.error("TmpFiles Upload Error:", e);
+    throw e;
+  }
+}
+
+/**
  * 3. LÓGICA DO FORMULÁRIO
  * Lida com preenchimento inicial, checkbox e submit.
  */
@@ -191,30 +221,97 @@ export function setupFormLogic(elements, initialData) {
     };
 
     try {
-      // 1. Calculate Visual Hash Local
-      let localHashProva = null;
-      let localHashGab = null;
+      // 1. NEW FLOW: TmpFiles -> GitHub Hash -> Worker
+      let remoteHashProva = null;
+      let remoteHashGab = null;
+      let tmpUrlProva = null;
+      let tmpUrlGab = null;
 
       try {
-        // Import dynamic to avoid top-level await issues if bundle not ready
-        const { computePdfHash } = await import("../utils/pdf-hash.js");
+        const timestampSlug = `manual-${Date.now()}`; // Temp slug for hash service channel
 
+        // A. Upload Prova to TmpFiles
         if (fileProva) {
-          localHashProva = await computePdfHash(fileProva, (status) => {
-            progress.update("Prova: " + status);
-          });
-          console.log("[Manual] Local Prova Hash:", localHashProva);
+          progress.update("Enviando prova para servidor temporário...");
+          tmpUrlProva = await uploadToTmpFiles(fileProva);
+          console.log("[Manual] TmpUrl Prova:", tmpUrlProva);
         }
 
+        // B. Upload Gabarito to TmpFiles
         if (fileGabarito) {
-          localHashGab = await computePdfHash(fileGabarito, (status) => {
-            progress.update("Gabarito: " + status);
+          progress.update("Enviando gabarito para servidor temporário...");
+          tmpUrlGab = await uploadToTmpFiles(fileGabarito);
+          console.log("[Manual] TmpUrl Gabarito:", tmpUrlGab);
+        }
+
+        // C. Request Hash from GitHub (via Worker Proxy)
+        progress.update("Solicitando cálculo de hash seguro (GitHub)...");
+
+        const WORKER_URL =
+          "https://maia-api-worker.willian-campos-ismart.workers.dev";
+
+        // Helper to request hash and wait for Pusher
+        const getRemoteHash = async (url, tempSlug) => {
+          // 1. Trigger
+          await fetch(`${WORKER_URL}/compute-hash`, {
+            method: "POST",
+            body: JSON.stringify({ url, slug: tempSlug }),
           });
-          console.log("[Manual] Local Gabarito Hash:", localHashGab);
+
+          // 2. Wait for Pusher
+          return new Promise(async (resolve, reject) => {
+            let PusherClass = window.Pusher;
+            if (!PusherClass) {
+              const module = await import("pusher-js");
+              PusherClass = module.default;
+            }
+            const pusher = new PusherClass("6c9754ef715796096116", {
+              cluster: "sa1",
+            });
+            const channel = pusher.subscribe(tempSlug);
+
+            const timeout = setTimeout(() => {
+              pusher.unsubscribe(tempSlug);
+              reject(new Error("Timeout waiting for hash"));
+            }, 60000); // 60s timeout
+
+            channel.bind("hash_computed", (data) => {
+              // data = { hash, exists, found_slug }
+              clearTimeout(timeout);
+              channel.unbind_all();
+              pusher.unsubscribe(tempSlug);
+              resolve(data);
+            });
+          });
+        };
+
+        if (tmpUrlProva) {
+          progress.update("Calculando hash da Prova (Remoto)...");
+          const result = await getRemoteHash(
+            tmpUrlProva,
+            timestampSlug + "-prova"
+          );
+          remoteHashProva = result.hash;
+          console.log("[Manual] Hash Prova:", result);
+
+          if (result.exists) {
+            alert(
+              `⚠️ Atenção: Esta prova já existe no sistema (Slug: ${result.found_slug}). O sistema usará a versão existente.`
+            );
+          }
+        }
+
+        if (tmpUrlGab) {
+          progress.update("Calculando hash do Gabarito (Remoto)...");
+          const result = await getRemoteHash(tmpUrlGab, timestampSlug + "-gab");
+          remoteHashGab = result.hash;
+          console.log("[Manual] Hash Gabarito:", result);
         }
       } catch (err) {
-        console.warn("[Manual] Failed to compute hash:", err);
-        progress.update("Erro no hash. Prosseguindo...");
+        console.warn("[Manual] Remote Hash Flow Failed:", err);
+        progress.update("Erro no fluxo remoto. Abortando.");
+        alert("Erro ao processar arquivo remotamente: " + err.message);
+        return; // Stop here if we can't get hash
       }
 
       console.log("[Manual] Prepare to upload...");
@@ -298,8 +395,12 @@ export function setupFormLogic(elements, initialData) {
         formData.append("gabarito_custom_name", finalNameGab);
       }
 
-      if (localHashProva) formData.append("visual_hash", localHashProva);
-      if (localHashGab) formData.append("visual_hash_gabarito", localHashGab);
+      if (remoteHashProva) formData.append("visual_hash", remoteHashProva);
+      if (remoteHashGab) formData.append("visual_hash_gabarito", remoteHashGab);
+
+      // Pass TmpURLs to Worker (to avoid re-uploading in backend)
+      if (tmpUrlProva) formData.append("pdf_url_override", tmpUrlProva);
+      if (tmpUrlGab) formData.append("gabarito_url_override", tmpUrlGab);
 
       // DEBUG LOGS (Moved to end)
       console.log("[Manual] --- FORM DATA PREVIEW ---");
@@ -355,8 +456,8 @@ export function setupFormLogic(elements, initialData) {
           });
         };
 
-        const matchProva = findMatch(localHashProva, "prova");
-        const matchGab = findMatch(localHashGab, "gabarito");
+        const matchProva = findMatch(remoteHashProva, "prova");
+        const matchGab = findMatch(remoteHashGab, "gabarito");
 
         // Helper to get Remote URL
         const getRemoteUrl = (item) => {

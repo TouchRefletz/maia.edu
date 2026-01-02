@@ -66,6 +66,9 @@ export default {
 				case '/proxy-pdf':
 					return handleProxyPdf(request, env);
 
+				case '/compute-hash':
+					return handleComputeHash(request, env);
+
 				case '/trigger-deep-search':
 					return handleTriggerDeepSearch(request, env);
 
@@ -418,6 +421,87 @@ async function handleDeleteArtifact(request, env) {
 		}
 
 		return new Response(JSON.stringify({ success: true, message: 'Deletion workflow triggered' }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * SERVICE: COMPUTE HASH (Proxy to GitHub Actions)
+ */
+async function handleComputeHash(request, env) {
+	const body = await request.json();
+	const { url, slug } = body;
+
+	if (!url || !slug) {
+		return new Response(JSON.stringify({ error: 'URL and Slug are required' }), { status: 400, headers: corsHeaders });
+	}
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+	const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+	if (!githubPat) {
+		throw new Error('GITHUB_PAT not configured');
+	}
+
+	const ghUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+
+	try {
+		const response = await fetch(ghUrl, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${githubPat}`,
+				Accept: 'application/vnd.github.v3+json',
+				'User-Agent': 'Cloudflare-Worker',
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				event_type: 'hash-computation', // Must match workflow trigger if customized, or use 'workflow_dispatch' via actions/workflows/ID/dispatches
+				// Wait, 'dispatches' endpoint (repository dispatch) triggers 'repository_dispatch' event.
+				// 'workflow_dispatch' needs a specific workflow ID endpoint or the generic dispatch if configured.
+				// Let's use 'repository_dispatch' with event_type 'hash-computation' IS EASIER but my workflow listens to 'workflow_dispatch'.
+				// CORRECTION: To trigger 'workflow_dispatch', I need to POST to /actions/workflows/:process.env.WORKFLOW_ID/dispatches
+				// OR easier: Change workflow to listen to 'repository_dispatch'.
+				// BUT user wanted 'workflow_dispatch' usually implies manual too.
+				// Let's stick to 'workflow_dispatch' logic?
+				// Actually, finding the workflow ID is annoying.
+				// Best practice: Use 'repository_dispatch' for API triggers.
+				// I WILL UPDATE hash-service.yml to ALSO listen to repository_dispatch types: [hash-computation].
+				// OR I use the workflow filename endpoint: /repos/OWNER/REPO/actions/workflows/hash-service.yml/dispatches
+			}),
+		});
+
+		// Let's use the FILENAME endpoint for workflow_dispatch which is robust.
+		const workflowDispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/actions/workflows/hash-service.yml/dispatches`;
+
+		const dispatchResp = await fetch(workflowDispatchUrl, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${githubPat}`,
+				Accept: 'application/vnd.github.v3+json',
+				'User-Agent': 'Cloudflare-Worker',
+			},
+			body: JSON.stringify({
+				ref: 'main', // or 'master', ensure branch
+				inputs: {
+					file_url: url,
+					slug: slug,
+				},
+			}),
+		});
+
+		if (!dispatchResp.ok) {
+			const text = await dispatchResp.text();
+			throw new Error(`GitHub Dispatch Error: ${dispatchResp.status} - ${text}`);
+		}
+
+		return new Response(JSON.stringify({ success: true, message: 'Hash Computation Triggered' }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	} catch (error) {
@@ -1242,6 +1326,8 @@ async function handleManualUpload(request, env) {
 		const fileGabarito = formData.get('fileGabarito');
 
 		const confirmOverride = formData.get('confirm_override') === 'true';
+		const inputVisualHash = formData.get('visual_hash');
+		const inputVisualHashGab = formData.get('visual_hash_gabarito');
 
 		if ((!fileProva && !confirmOverride) || !title) {
 			return new Response(JSON.stringify({ error: 'Prova and Title are required' }), {
@@ -1252,53 +1338,16 @@ async function handleManualUpload(request, env) {
 
 		console.log(`[Manual Upload] Starting AI Research & Upload for: ${title}`);
 
-		// 1. UPLOAD FILES FIRST (Parallel)
-		const uploadToTmp = async (file) => {
-			if (!file) return null;
+		// 1. USE PROVIDED URLS (From Frontend TmpFiles)
+		const pdfUrl = formData.get('pdf_url_override');
+		const gabUrl = formData.get('gabarito_url_override');
 
-			const uploadAttempt = async (attempt) => {
-				const fd = new FormData();
-				fd.append('file', file);
-				try {
-					const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-						method: 'POST',
-						body: fd,
-						headers: {
-							'User-Agent':
-								'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-						},
-					});
-					const json = await res.json();
-					if (json && json.status === 'success') {
-						let url = json.data.url;
-						if (url.includes('/file/')) {
-							url = url.replace('/file/', '/dl/');
-						} else if (!url.includes('/dl/')) {
-							url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-						}
-						return url;
-					}
-					console.error(`[Upload Error] Tmpfiles response:`, JSON.stringify(json));
-					throw new Error(JSON.stringify(json));
-				} catch (e) {
-					console.error(`Tmpfiles attempt ${attempt} failed:`, e);
-					if (attempt < 3) {
-						await new Promise((r) => setTimeout(r, 1000 * attempt)); // Backoff
-						return uploadAttempt(attempt + 1);
-					}
-					return null;
-				}
-			};
-
-			return uploadAttempt(1);
-		};
-
-		const uploadPromises = [uploadToTmp(fileProva)];
-		if (fileGabarito) uploadPromises.push(uploadToTmp(fileGabarito));
-
-		// We wait for uploads while we could potentially start AI, but let's keep it simple.
-		// Actually, let's run upload and AI in parallel if possible?
-		// But AI depends on nothing but title. Let's run AI and Upload in parallel.
+		if (!pdfUrl && !confirmOverride) {
+			return new Response(JSON.stringify({ error: 'PDF URL is required (Frontend upload failed?)' }), {
+				status: 400,
+				headers: corsHeaders,
+			});
+		}
 
 		// A. AI RESEARCH TASK
 		const aiTask = async () => {
@@ -1422,18 +1471,8 @@ async function handleManualUpload(request, env) {
 			}
 		};
 
-		// EXECUTE PARALLEL
-		const [uploadResults, aiData] = await Promise.all([Promise.all(uploadPromises), aiTask()]);
-
-		const pdfUrl = uploadResults[0];
-		const gabUrl = fileGabarito ? uploadResults[1] : null;
-
-		if (!pdfUrl && !confirmOverride) {
-			return new Response(JSON.stringify({ error: 'Failed to upload PDF to temporary storage' }), {
-				status: 500,
-				headers: corsHeaders,
-			});
-		}
+		// EXECUTE PARALLEL (Just AI now)
+		const [aiData] = await Promise.all([aiTask()]);
 
 		console.log('[Manual Upload] AI Data:', aiData);
 
@@ -1460,6 +1499,51 @@ async function handleManualUpload(request, env) {
 					// Conflict found! Fetch the full manifest to show the user
 					const fullManifestRes = await fetch(hfManifestUrl);
 					const remoteManifest = await fullManifestRes.json();
+
+					// --- SMART DEDUPLICATION START ---
+					// If the incoming hash matches a file already in the manifest, we skip everything and just return success.
+					if (inputVisualHash) {
+						const items = Array.isArray(remoteManifest) ? remoteManifest : remoteManifest.results || remoteManifest.files || [];
+						const match = items.find((item) => item.visual_hash === inputVisualHash);
+
+						if (match) {
+							console.log(`[Worker] Smart Deduplication: Hash ${inputVisualHash} found in slug ${slug}. Using existing file.`);
+
+							let existingUrl = match.url;
+							if (!existingUrl) {
+								const info = match.path || match.filename; // fallback
+								if (info)
+									existingUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${info}`;
+							}
+
+							// Logic for Gabarito (if present, check if it also matches or just return the main proof match)
+							// Ideally we check both, but if Prova matches, we assume it's the same "Exam Entity".
+							// Let's check gabarito too if provided.
+							let existingGabUrl = null;
+							if (inputVisualHashGab) {
+								const matchGab = items.find((item) => item.visual_hash === inputVisualHashGab);
+								if (matchGab) {
+									existingGabUrl =
+										matchGab.url ||
+										`https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${matchGab.filename || matchGab.path}`;
+								}
+							}
+
+							return new Response(
+								JSON.stringify({
+									success: true,
+									slug,
+									message: 'Arquivo já existente encontrado (Smart Deduplication).',
+									ai_data: aiData,
+									hf_url_preview: existingUrl,
+									hf_url_gabarito: existingGabUrl,
+									is_deduplicated: true,
+								}),
+								{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+							);
+						}
+					}
+					// --- SMART DEDUPLICATION END ---
 
 					return new Response(
 						JSON.stringify({
@@ -1523,8 +1607,7 @@ async function handleManualUpload(request, env) {
 						summary: aiData.summary,
 						source_url_prova: sourceUrlProva,
 						source_url_gabarito: sourceUrlGabarito,
-						// Visual Hash is computed in CI/CD now, not passed from frontend
-						// visual_hash: ...,
+						// visual_hash and gabarito_url NOT sent to Action (it computes them)
 						pdf_filename: pdfFinalName,
 						gabarito_filename: gabFinalName,
 					},

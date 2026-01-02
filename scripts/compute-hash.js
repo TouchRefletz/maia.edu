@@ -95,7 +95,8 @@ export async function computeFileHash(filePath) {
         passThroughFn,
         (status) => {
           console.log("Browser Progress:", status);
-        }
+        },
+        true // Enable Debug Logging
       );
     }, pdfData);
 
