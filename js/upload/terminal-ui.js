@@ -308,6 +308,9 @@ export class TerminalUI {
         </div>
         <div class="term-status-group" style="display:flex; align-items:center; gap:12px;">
             <div class="term-status active">INICIANDO_SISTEMA...</div>
+            <span class="term-timer" style="font-family: var(--font-family-mono); font-weight: bold; color: var(--term-accent);">
+                ${this.options.mode === "simple" ? "00:15" : "08:00"}
+            </span>
              <button id="term-btn-notify" class="term-btn-notify inactive" title="Notificar ao concluir">
                 <span class="icon">🔕</span>
             </button>
@@ -320,10 +323,6 @@ export class TerminalUI {
       <div class="term-progress-container ${simpleClass}">
         <div class="term-bar-wrapper">
           <div class="term-bar-fill" style="width: 0%"></div>
-        </div>
-        <div class="term-meta">
-          <span class="term-step-text">Inicializando ambiente de execução...</span>
-          <span class="term-eta">TEMPO ESTIMADO: ${this.options.mode === "simple" ? "00:15" : "08:00"}</span>
         </div>
       </div>
 
@@ -584,6 +583,17 @@ export class TerminalUI {
   updateStepText(text) {
     if (!text) return;
 
+    // 1. Try to categorize via LogTranslator (optional, mainly for type/color)
+    // If not found, default to 'info'
+    const translation = LogTranslator.translate(text) || {
+      text: text,
+      type: "info",
+    };
+
+    // 2. Append to Chain (New System)
+    this.appendChainThought(translation.text, translation.type);
+
+    // 3. Update Active Card Notes (Keep for context)
     // Find the currently active task
     const activeTask =
       this.tasks.find((t) => t.status === "in_progress") || this.tasks[0];
@@ -608,8 +618,6 @@ export class TerminalUI {
         }
       }
     }
-    // Also update legacy/fallback if needed (hidden by CSS now)
-    if (this.el.stepText) this.el.stepText.innerText = text;
   }
 
   /**
@@ -654,6 +662,21 @@ export class TerminalUI {
 
     // 1. Raw Log (Console) - Always append raw text
     this.queueLog(text, type);
+
+    // --- TRIGGERS FOR ADVANCED SEARCH AGENT ---
+    if (text.includes("Verificando banco de dados por resultados existentes")) {
+      if (this.el.status) this.el.status.innerText = "VERIFICANDO_CACHE...";
+    }
+    if (text.includes("Slug Canônico Gerado:")) {
+      // Optional: Update status or just let the log show
+    }
+    if (text.includes("Conectando ao canal:")) {
+      if (this.el.status) {
+        this.el.status.innerText = "AGENTE_PESQUISA_ATIVO";
+        this.el.status.classList.add("active");
+      }
+      this.queueLog(">> INICIANDO AGENTE DE PESQUISA AVANÇADA...", "system");
+    }
 
     // 2. Translate to Chain of Thought
     // Only attempt translation for info/system/success logs to avoid cluttering with errors unless critical

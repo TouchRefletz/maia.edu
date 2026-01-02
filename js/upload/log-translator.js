@@ -188,10 +188,15 @@ export class LogTranslator {
         text: "Limpando containers e recursos temporários...",
         type: "system",
       };
+    if (t.includes("Disk space before cleanup"))
+      return {
+        text: "Iniciando limpeza de arquivos temporários e liberando espaço em disco...",
+        type: "system",
+      };
     if (t.includes("Disk space after cleanup"))
       return {
-        text: "Verificando integridade e espaço em disco...",
-        type: "system",
+        text: "Limpeza de disco e integridade verificadas. Espaço liberado com sucesso.",
+        type: "success",
       };
     if (t.includes("Job succeeded") || t.includes("Job finished"))
       return { text: "Pipeline finalizado com sucesso.", type: "success" };
@@ -201,6 +206,23 @@ export class LogTranslator {
       return {
         text: `Erro detectado: ${t.substring(0, 50)}...`,
         type: "error",
+      };
+
+    // --- 5. DATA SEARCH & SETUP ---
+    if (t.includes("Verificando banco de dados por resultados existentes"))
+      return {
+        text: "Consultando base de dados por cache ou resultados prévios...",
+        type: "info",
+      };
+    if (t.includes("Slug Canônico Gerado:"))
+      return {
+        text: t, // Mantém o original pois contém info dinâmica importante
+        type: "success",
+      };
+    if (t.includes("Conectando ao canal:"))
+      return {
+        text: t, // Mantém o original
+        type: "info",
       };
 
     return null;
