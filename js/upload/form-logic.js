@@ -20,6 +20,9 @@ async function uploadToTmpFiles(file) {
       let url = data.data.url;
       if (url.includes("tmpfiles.org/")) {
         url = url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+        if (url.startsWith("http:")) {
+          url = url.replace("http:", "https:");
+        }
       }
       return url;
     }

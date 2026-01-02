@@ -165,7 +165,7 @@ jobs:
 
                 echo "Downloading $final_name from $url..."
                 
-                if ! curl -sL --fail -o "output/$SLUG/files/$final_name" "$url"; then
+                if ! curl -sL --fail --retry 3 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" -o "output/$SLUG/files/$final_name" "$url"; then
                      echo "::error::Download failed (HTTP Error) for $url"
                      exit 1
                 fi
