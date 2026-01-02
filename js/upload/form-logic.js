@@ -132,6 +132,30 @@ export function setupFormLogic(elements, initialData) {
       "Calculando identidade visual do arquivo..."
     );
 
+    // Helper to Open Viewer (Reusable)
+    const openViewer = (hfUrl, slug, aiData, hfUrlGabarito) => {
+      const WORKER_URL =
+        "https://maia-api-worker.willian-campos-ismart.workers.dev";
+      const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
+
+      let proxyGabUrl = null;
+      if (hfUrlGabarito) {
+        proxyGabUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrlGabarito)}`;
+      }
+
+      gerarVisualizadorPDF({
+        title: aiData?.institution
+          ? `${aiData.institution} ${aiData.year}`
+          : titleInput.value,
+        rawTitle: titleInput.value,
+        fileProva: proxyUrl,
+        fileGabarito: proxyGabUrl || aiData?.gabarito_url || fileGabarito,
+        gabaritoNaProva: gabaritoCheck.checked,
+        isManualLocal: false,
+        slug: slug,
+      });
+    };
+
     // Reusable Polling Function (Moved Up)
     // Reusable Pusher Listener
     const startPollingAndOpenViewer = async (
@@ -203,28 +227,7 @@ export function setupFormLogic(elements, initialData) {
               if (modalEl) modalEl.remove();
             } catch (e) {}
 
-            // USE PROXY
-            const WORKER_URL =
-              "https://maia-api-worker.willian-campos-ismart.workers.dev";
-            const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
-
-            // Prepare Gabarito URL
-            let proxyGabUrl = null;
-            if (hfUrlGabarito) {
-              proxyGabUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrlGabarito)}`;
-            }
-
-            gerarVisualizadorPDF({
-              title: aiData?.institution
-                ? `${aiData.institution} ${aiData.year}` // Simplified Title Logic
-                : titleInput.value,
-              rawTitle: titleInput.value,
-              fileProva: proxyUrl,
-              fileGabarito: proxyGabUrl || aiData?.gabarito_url || fileGabarito,
-              gabaritoNaProva: gabaritoCheck.checked,
-              isManualLocal: false,
-              slug: slug,
-            });
+            openViewer(hfUrl, slug, aiData, hfUrlGabarito);
           }, 1500);
         }
       });
@@ -623,12 +626,22 @@ export function setupFormLogic(elements, initialData) {
         hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gName}`;
       }
 
-      startPollingAndOpenViewer(
-        data.hf_url_preview,
-        data.slug,
-        data.ai_data,
-        hfUrlGab
-      );
+      // CHECK: Is Deduplicated? (Immediate Open)
+      if (data.is_deduplicated) {
+        progress.update("✅ Arquivos já existentes encontrados! Abrindo...");
+        setTimeout(() => {
+          progress.close();
+          openViewer(hfUrl, slug, data.ai_data, hfUrlGab);
+        }, 1000);
+      } else {
+        // Normal Flow: Wait for Pusher
+        startPollingAndOpenViewer(
+          data.hf_url_preview,
+          data.slug,
+          data.ai_data,
+          hfUrlGab
+        );
+      }
     } catch (e) {
       if (progress && progress.close) progress.close();
       console.error("[Manual] Error triggering upload:", e);
