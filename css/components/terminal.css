@@ -386,59 +386,80 @@
   color: #d32f2f;
 }
 
-/* Log Section */
-/* --- CHAIN OF THOUGHT LOGS (Vertical Timeline) --- */
-.term-log-header {
-    display: none; /* Hide header, we want a clean flow */
+/* --- TASKS BODY SPLIT (Header vs Chain) --- */
+.term-tasks-body {
+  position: relative;
+  flex: 1; /* Take remaining height above logs */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Manage scroll internally */
+  padding: 0;
+  background: var(--term-bg);
 }
 
-.term-logs {
-  flex: 1; /* Take remaining space */
-  background: transparent; /* Clean background */
-  padding: 20px 20px 20px 30px; /* Left padding for timeline */
+/* 1. Floating Header (Icons) */
+.term-floating-header {
+  /* Sticky top or just top block */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.4); /* Slightly darker/transparent */
+  border-bottom: 1px solid var(--term-border);
+  z-index: 10;
+  overflow-x: auto;
+  min-height: 60px;
+  flex-shrink: 0;
+}
+
+/* 2. Chain of Thought Stream (The Timeline) */
+.term-chain-stream {
+  flex: 1;
   overflow-y: auto;
-  font-family: var(--font-family-mono);
-  border-top: 1px solid var(--term-border);
+  padding: 20px 20px 20px 30px; /* Left padding for timeline line */
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* The vertical line base */
-.term-logs::before {
+/* Timeline Line */
+.term-chain-stream::before {
   content: '';
   position: absolute;
   top: 20px;
   bottom: 20px;
-  left: 24px; /* Align with nodes */
+  left: 24px;
   width: 2px;
   background: linear-gradient(to bottom, var(--term-accent) 0%, rgba(255,255,255,0.1) 100%);
   opacity: 0.3;
   z-index: 0;
 }
 
-.term-log-line {
+/* Chain Node (Thought Item) */
+.term-chain-node {
   position: relative;
   padding-left: 24px;
   color: var(--term-text);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   line-height: 1.5;
-  margin-bottom: 0;
-  word-break: break-word;
   animation: fadeIn 0.3s ease-out;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+.term-chain-node strong {
+  display: block;
+  color: var(--color-primary-light, #64ffda);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
 }
 
-/* Node Icon (The "Thought" Bullet) */
-.term-log-line::before {
-  content: '⚡'; /* Default icon */
+/* Node Icon */
+.term-chain-node::before {
+  content: '⚡';
   position: absolute;
-  left: -21px; /* Center on timeline line (30px padding - ~9px) */
+  left: -21px; /* Align with line */
   top: 0;
   width: 18px;
   height: 18px;
@@ -453,36 +474,50 @@
   z-index: 1;
 }
 
-/* Special Styling for "Thought" Titles */
-.term-log-line strong {
-  display: block;
-  color: var(--color-primary-light, #64ffda); /* Blue/Cyan as requested */
-  font-weight: 700;
-  margin-bottom: 4px;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+.term-chain-node.error::before { content: '✖'; border-color: var(--color-error); color: var(--color-error); }
+.term-chain-node.success::before { content: '✔'; border-color: var(--color-success); color: var(--color-success); }
+.term-chain-node.system::before { content: '⚙'; border-color: var(--color-text-secondary); color: var(--color-text-secondary); filter: grayscale(100%); }
+
+/* --- 3. RAW LOGS (Reverted to Console Style) --- */
+.term-log-header {
+    display: flex; /* Show header again */
+    margin-top: auto; 
+    border-top: 1px solid var(--term-border);
+    padding: 4px 16px;
+    background: rgba(0,0,0,0.3);
+    font-size: 0.7rem;
+    color: var(--color-text-secondary);
+    justify-content: space-between;
+    align-items: center;
 }
 
-/* Variants */
-.term-log-line.error::before {
-  content: '✖';
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-.term-log-line.success::before {
-  content: '✔';
-  border-color: var(--color-success);
-  color: var(--color-success);
-}
-.term-log-line.system::before {
-  content: '⚙';
-  border-color: var(--color-text-secondary);
-  color: var(--color-text-secondary);
-  filter: grayscale(100%);
+.term-logs {
+  height: 120px; /* Fixed height for logs at bottom */
+  flex: 0 0 120px; /* Don't grow/shrink */
+  background: #0d1117; /* Dark console bg */
+  padding: 8px 12px;
+  font-size: 0.7rem; /* Small font */
+  color: #8b949e; /* Dimmed text */
+  overflow-y: auto;
+  font-family: var(--font-family-mono);
+  border-top: 1px solid var(--term-border);
+  display: block; /* Block layout for raw text */
 }
 
-.term-log-line.error { color: var(--color-error); }
-.term-log-line.success { color: var(--color-text); } /* Keep text neutral */
+/* Remove Chain styles from logs */
+.term-logs::before { display: none; }
+.term-log-line {
+  padding-left: 0;
+  margin-bottom: 2px;
+  border: none;
+  animation: none;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.term-log-line::before { display: none; }
+.term-log-line strong { color: inherit; font-weight: normal; font-size: inherit; display: inline; }
+
 
 /* Scrollbar */
 ::-webkit-scrollbar {

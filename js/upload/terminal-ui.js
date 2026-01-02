@@ -92,16 +92,16 @@ export class TerminalUI {
         ? ""
         : `
       <div class="term-tasks-body">
-         <!-- Init State (Placeholder Card) -->
-        <div class="term-task-card active" id="term-init-card">
-           <div class="term-task-visual">
-              <img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:24px; height:24px;">
-           </div>
-           <div class="term-task-content">
-              <div class="term-task-title">As tarefas aparecerão aqui</div>
-              <div class="term-task-notes">Aguardando início do processo...</div>
-           </div>
-        </div>
+         <div class="term-floating-header" id="term-floating-header">
+             <!-- Tasks Icons will be rendered here -->
+         </div>
+         <div class="term-chain-stream" id="term-chain-stream">
+             <!-- Initial Greeting Node -->
+             <div class="term-chain-node system">
+                 <strong>🚀 Sistema Inicializado</strong>
+                 Aguardando instruções de pesquisa...
+             </div>
+         </div>
       </div>
     `;
 
@@ -357,6 +357,11 @@ export class TerminalUI {
       ".term-objectives-header"
     );
     this.el.tasksBody = this.container.querySelector(".term-tasks-body");
+    this.el.floatingHeader = this.container.querySelector(
+      "#term-floating-header"
+    );
+    this.el.chainStream = this.container.querySelector("#term-chain-stream");
+
     // Old ref for safety if needed, though we use new ones now
     this.el.taskList = this.el.tasksBody;
     this.el.logStream = this.container.querySelector("#term-logs-stream");
@@ -643,21 +648,19 @@ export class TerminalUI {
   processLogLine(text, type = "info") {
     if (!text) return;
 
-    // --- CHAIN OF THOUGHT FORMATTING ---
-    // If it's an "in_progress" log or starts with "Step", bold it as a Title
-    let formattedText = text;
-    if (
-      type === "in_progress" ||
-      type === "success" ||
-      type === "warning" ||
-      text.match(/^\d+\./)
-    ) {
-      if (!text.includes("<strong>")) {
-        formattedText = `<strong>${text}</strong>`;
-      }
+    // 1. Raw Log (Console) - Always append raw text
+    this.queueLog(text, type);
+
+    // 2. Translate to Chain of Thought
+    // Only attempt translation for info/system/success logs to avoid cluttering with errors unless critical
+    // With new aggressive translator, we try to match almost everything relevant.
+    const translation = LogTranslator.translate(text);
+
+    if (translation) {
+      this.appendChainThought(translation.text, translation.type);
     }
 
-    // 1. HYBRID STRATEGY: Server Event + Log Parsing Fallback
+    // 3. HYBRID STRATEGY: Server Event + Log Parsing Fallback
     // We try to detect standard task formats:
     // Format A: "- [x] Title | Notes: ..."
     // Format B: "1. ⏳ Title"
@@ -704,6 +707,11 @@ export class TerminalUI {
       this.updateTaskStateByName(taskTitle, status);
     }
 
+    // Explicit Backend "Thought" override (if we want to force a node from backend without translator)
+    if (text.match(/^\d+\.\s+⚡/)) {
+      this.appendChainThought(text.replace(/^\d+\.\s+/, ""), "in_progress");
+    }
+
     // 0. STRICT ERROR DETECTION
     const upperText = text.toUpperCase();
 
@@ -726,19 +734,6 @@ export class TerminalUI {
     ) {
       this.fail(text);
       return;
-    }
-
-    if (text.includes("IPythonRunCellAction")) {
-      this.el.stepText.innerText = "Executando script de automação Python...";
-      this.el.stepText.style.color = "var(--color-primary)";
-    } else if (text.includes("CmdRunAction")) {
-      this.el.stepText.innerText = "Executando comando no sistema...";
-      this.el.stepText.style.color = "var(--color-text)";
-    } else if (text.includes("MCPAction") || text.includes("tavily")) {
-      this.el.stepText.innerText = "Consultando fontes externas...";
-      this.el.stepText.style.color = "var(--color-warning)";
-    } else if (text.includes("Browser")) {
-      this.el.stepText.innerText = "Navegando na web...";
     }
 
     // 2. Check for Job URL
@@ -772,35 +767,19 @@ export class TerminalUI {
     }
 
     // 3. Prepare Display Text
-    // Use the formatted text from Step 0
-    let displayText = formattedText;
+    let displayText = formattedText; // For backwards compat, though mostly we use queueLog(raw) + ChainStream(translated)
     if (foundTask) {
       displayText = "[PLAN UPDATE RECEIVED]";
     }
 
     // 4. Update Activity
     this.lastLogTime = Date.now();
-
-    // --- Progress Bump on Activity ---
     this.bumpProgress(false);
-
-    // --- ETA Bonus on Activity ---
-    // Moved to tick() P-Controller logic
-    // We just mark activity time here.
 
     // 5. Completion/Failure Checks
     this.checkStateTransitions(displayText);
 
-    // 6. Log Batching (Split & Queue)
-    if (displayText.includes("\n")) {
-      const lines = displayText.split("\n");
-      lines.forEach((line) => {
-        const trimmed = line.trimEnd();
-        if (trimmed) this.queueLog(trimmed, type);
-      });
-    } else {
-      if (displayText.trim()) this.queueLog(displayText, type);
-    }
+    // Note: queueLog is already called at step 1. No need to call it again at end.
   }
 
   // --- New Aggressive Progress Logic with Strict Limits ---
@@ -946,57 +925,75 @@ export class TerminalUI {
   }
 
   renderTaskList() {
-    if (!this.el.tasksBody) return;
+    if (!this.el.floatingHeader) return;
 
-    let bodyHtml = "";
+    let headerHtml = "";
 
     this.tasks.forEach((t, index) => {
       const isDone = t.status === "done" || t.status === "completed";
       const isProgress = t.status === "in_progress";
 
       // Card Logic (Horizontal)
-      let cardClass = "term-task-card";
-      if (isProgress) cardClass += " active";
-      if (isDone) cardClass += " done";
+      let cardClass = "term-task-card"; // Reusing styles if they fit, or new
+      // Actually we are aiming for just ICONS in the header per plan
 
-      // Icon for Visual Area
-      let visualContent = "";
+      let iconHtml = "";
+      let statusColor = "var(--color-text-secondary)";
+      let borderColor = "transparent";
+      let bg = "rgba(255,255,255,0.05)";
+
       if (isProgress) {
-        visualContent = `<img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:24px; height:24px;">`;
+        iconHtml = `<img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:20px; height:20px;">`;
+        statusColor = "var(--color-primary)";
+        borderColor = "var(--color-primary)";
+        bg = "rgba(0, 210, 255, 0.1)";
       } else if (isDone) {
-        visualContent = `<div class="term-obj-check">✔</div>`;
+        iconHtml = `<div class="term-obj-check" style="color:var(--color-success)">✔</div>`;
+        statusColor = "var(--color-success)";
       } else {
-        visualContent = `<span style="font-size:1.2rem; opacity:0.5;">○</span>`;
+        iconHtml = `<span style="font-size:1.2rem; opacity:0.5;">○</span>`;
       }
 
-      const rawNotes = t.notes || "";
-      const noteContent = rawNotes
-        ? rawNotes
-        : isProgress
-          ? "Processando..."
-          : "Aguardando...";
-
-      bodyHtml += `
-         <div id="term-task-${index}" class="${cardClass}">
-             <div class="term-task-visual">
-                 ${visualContent}
-             </div>
-             <div class="term-task-content">
-                 <div class="term-task-title" title="${t.title}">${t.title}</div>
-                 <div class="term-task-notes">${noteContent}</div>
-             </div>
+      // Simple Chip Style
+      headerHtml += `
+         <div class="term-task-chip" style="
+            display:flex; 
+            align-items:center; 
+            gap:8px; 
+            background:${bg}; 
+            padding:6px 10px; 
+            border-radius:20px; 
+            border:1px solid ${borderColor};
+            white-space:nowrap;
+            font-size:0.75rem;
+            color:${statusColor};
+         ">
+             ${iconHtml}
+             <span>${t.title}</span>
          </div>
        `;
     });
 
-    this.el.tasksBody.innerHTML = bodyHtml;
+    this.el.floatingHeader.innerHTML = headerHtml;
+  }
 
-    // Auto-scroll logic for body?
-    // Not necessarily, user can scroll. Or scroll to active?
-    const activeCard = this.el.tasksBody.querySelector(".active");
-    if (activeCard) {
-      // activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  appendChainThought(text, type = "info") {
+    if (!this.el.chainStream) return;
+
+    const node = document.createElement("div");
+    node.className = `term-chain-node ${type}`;
+
+    // Ensure bold title logic if not present
+    let htmlContent = text;
+    if (!text.includes("<strong>")) {
+      htmlContent = `<strong>${text}</strong>`;
     }
+
+    node.innerHTML = htmlContent;
+    this.el.chainStream.appendChild(node);
+
+    // Auto-scroll chain
+    this.el.chainStream.scrollTop = this.el.chainStream.scrollHeight;
   }
 
   setVerifyMode() {
