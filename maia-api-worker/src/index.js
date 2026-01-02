@@ -464,7 +464,7 @@ async function handleComputeHash(request, env) {
 				'User-Agent': 'Cloudflare-Worker',
 			},
 			body: JSON.stringify({
-				ref: 'main',
+				ref: 'master',
 				inputs: {
 					file_url: url,
 					slug: slug,
