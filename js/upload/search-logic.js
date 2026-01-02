@@ -1130,8 +1130,8 @@ export function setupSearchLogic() {
         // Switch mode to allow progress up to 99%
         if (terminal.setVerifyMode) terminal.setVerifyMode();
 
-        terminal.el.status.innerText = "VERIFICANDO_INTEGRIDADE";
-        terminal.el.stepText.innerText = "Analisando estrutura dos arquivos...";
+        terminal.setStatus("VERIFICANDO_INTEGRIDADE");
+        terminal.updateStepText("Analisando estrutura dos arquivos...");
       }
 
       while (loadingAttempts < 10 && !manifest) {
@@ -1178,8 +1178,10 @@ export function setupSearchLogic() {
         );
 
         if (terminal) {
-          terminal.el.status.innerText = "LIMPANDO_ARQUIVOS";
-          terminal.el.stepText.innerText = `Removendo ${corruptedItems.length} itens corrompidos...`;
+          terminal.setStatus("LIMPANDO_ARQUIVOS");
+          terminal.updateStepText(
+            `Removendo ${corruptedItems.length} itens corrompidos...`
+          );
           // Bump slightly
           terminal.currentVirtualProgress = 95;
           terminal.updateProgressBar();
@@ -1224,8 +1226,12 @@ export function setupSearchLogic() {
       // AUTO-PERSIST RESULTS
       SearchPersistence.saveManifest(validItems);
     } catch (e) {
+      console.error("Critical Error in loadResults:", e); // Detailed Console Log
       if (terminal) terminal.fail(e.message);
-      log(`Erro ao carregar resultados: ${e.message}`, "error");
+      log(
+        `Erro detalhado ao carregar resultados: ${e.message}\nStack: ${e.stack || "N/A"}`,
+        "error"
+      );
     }
   };
 

@@ -1145,6 +1145,12 @@ export class TerminalUI {
     }
   }
 
+  setStatus(text) {
+    if (this.el.status) {
+      this.el.status.innerText = text;
+    }
+  }
+
   finish(isSuccess = true, showRetry = true) {
     this.state = this.MODES.DONE;
     this.currentVirtualProgress = 100;
