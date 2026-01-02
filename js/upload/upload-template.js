@@ -57,12 +57,7 @@ export function getUploadInterfaceHTML() {
             <!-- Removed Institution and Phase inputs -->
 
 
-            <div class="form-group">
-                <label for="pdfTitleInput" class="form-label">Nome da Prova / Vestibular</label>
-                <div class="input-wrapper">
-                    <input type="text" id="pdfTitleInput" class="form-control" placeholder="Ex: FUVEST 2023 1ª Fase" required>
-                </div>
-            </div>
+
 
             <!-- Removed Year input -->
 
@@ -85,18 +80,7 @@ export function getUploadInterfaceHTML() {
                 <span id="gabaritoFileName" class="file-name-display">Nenhum arquivo selecionado</span>
             </div>
 
-            <div class="form-group">
-                 <details>
-                    <summary style="cursor:pointer; color:var(--color-primary); font-size:0.9rem; margin-bottom:8px;">Adicionar Links de Origem (Opcional)</summary>
-                    <div style="margin-top:10px;">
-                        <label class="form-label" style="font-size:0.85rem;">Link da Prova (URL)</label>
-                        <input type="url" id="sourceUrlProva" class="form-control" placeholder="https://..." style="margin-bottom:10px;">
-                        
-                        <label class="form-label" style="font-size:0.85rem;">Link do Gabarito (URL)</label>
-                        <input type="url" id="sourceUrlGabarito" class="form-control" placeholder="https://...">
-                    </div>
-                 </details>
-            </div>
+
 
             <div class="form-group checkbox-group">
                 <input type="checkbox" id="gabaritoNaProvaCheck">

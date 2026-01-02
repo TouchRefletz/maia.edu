@@ -203,6 +203,10 @@ jobs:
           # CRITICAL: Use the FINAL RENAMED FILENAMES from the download step
           PDF_FILENAME: ${{ steps.download.outputs.final_pdf_name }}
           GAB_FILENAME: ${{ steps.download.outputs.final_gab_name }}
+          # NEW: Display names from AI
+          PDF_DISPLAY_NAME: ${{ github.event.client_payload.metadata.pdf_display_name }}
+          GAB_DISPLAY_NAME: ${{ github.event.client_payload.metadata.gabarito_display_name }}
+
           VISUAL_HASH: ${{ github.event.client_payload.metadata.visual_hash }}
           VISUAL_HASH_GABARITO: ${{ github.event.client_payload.metadata.visual_hash_gabarito }}
 
@@ -222,8 +226,11 @@ jobs:
           year = os.environ.get("YEAR")
           inst = os.environ.get("INSTITUTION")
           phase = os.environ.get("PHASE")
+          phase = os.environ.get("PHASE")
           pdf_fname = os.environ.get("PDF_FILENAME")
           gab_fname = os.environ.get("GAB_FILENAME")
+          pdf_display = os.environ.get("PDF_DISPLAY_NAME") or title
+          gab_display = os.environ.get("GAB_DISPLAY_NAME") or f"{title} (Gabarito)"
           v_hash = os.environ.get("VISUAL_HASH")
           v_hash_gab = os.environ.get("VISUAL_HASH_GABARITO")
 
@@ -258,7 +265,7 @@ jobs:
 
           if has_pdf and pdf_fname:
                items_map[pdf_fname] = {
-                  "nome": title,
+                  "nome": pdf_display,
                   "tipo": "Prova",
                   "ano": year_int,
                   "instituicao": inst,
@@ -271,7 +278,7 @@ jobs:
 
           if has_gab and gab_fname:
                items_map[gab_fname] = {
-                  "nome": f"{title} (Gabarito)",
+                  "nome": gab_display,
                   "tipo": "Gabarito",
                   "ano": year_int,
                   "instituicao": inst,

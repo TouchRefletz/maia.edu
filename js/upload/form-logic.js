@@ -36,7 +36,6 @@ async function uploadToTmpFiles(file) {
  */
 export function setupFormLogic(elements, initialData) {
   const {
-    titleInput,
     yearInput,
     gabaritoCheck,
     gabaritoGroup,
@@ -44,6 +43,10 @@ export function setupFormLogic(elements, initialData) {
     form,
     pdfInput,
   } = elements;
+
+  // Title is now auto-detected, so we don't need the input binding.
+  // We will send a placeholder "Auto-Detect" to satisfy backend requirements until refined.
+  const AUTO_TITLE = "Auto-Detect";
 
   // A. Lógica de Checkbox (Esconder/Mostrar Gabarito)
   const toggleGabarito = () => {
@@ -60,7 +63,7 @@ export function setupFormLogic(elements, initialData) {
 
   // B. Preenchimento de Dados Iniciais (Se houver)
   if (initialData) {
-    titleInput.value = initialData.rawTitle || "";
+    // titleInput removed
     gabaritoCheck.checked = initialData.gabaritoNaProva;
     toggleGabarito(); // Aplica o estado visual
 
@@ -146,8 +149,8 @@ export function setupFormLogic(elements, initialData) {
       gerarVisualizadorPDF({
         title: aiData?.institution
           ? `${aiData.institution} ${aiData.year}`
-          : titleInput.value,
-        rawTitle: titleInput.value,
+          : "Processando...",
+        rawTitle: "Auto-Detect",
         fileProva: proxyUrl,
         fileGabarito: proxyGabUrl || aiData?.gabarito_url || fileGabarito,
         gabaritoNaProva: gabaritoCheck.checked,
@@ -346,8 +349,11 @@ export function setupFormLogic(elements, initialData) {
 
       console.log("[Manual] Prepare to upload...");
 
-      const srcProvaVal = document.getElementById("sourceUrlProva").value;
-      const srcGabVal = document.getElementById("sourceUrlGabarito").value;
+      console.log("[Manual] Prepare to upload...");
+
+      // Source URLs removed from UI
+      const srcProvaVal = "";
+      const srcGabVal = "";
 
       // --- NEW NAMING LOGIC START ---
       const getSafeName = (fileInputName, type, fallbackTitle) => {
@@ -394,23 +400,16 @@ export function setupFormLogic(elements, initialData) {
         return finalName;
       };
 
-      const finalNameProva = getSafeName(
-        fileProva.name,
-        "prova",
-        titleInput.value
-      );
+      const finalNameProva = getSafeName(fileProva.name, "prova", AUTO_TITLE);
+
       let finalNameGab = null;
       if (fileGabarito) {
-        finalNameGab = getSafeName(
-          fileGabarito.name,
-          "gabarito",
-          titleInput.value
-        );
+        finalNameGab = getSafeName(fileGabarito.name, "gabarito", AUTO_TITLE);
       }
       // --- NEW NAMING LOGIC END ---
 
       const formData = new FormData();
-      formData.append("title", titleInput.value);
+      formData.append("title", AUTO_TITLE);
 
       if (srcProvaVal) formData.append("source_url_prova", srcProvaVal);
       if (srcGabVal) formData.append("source_url_gabarito", srcGabVal);
@@ -542,7 +541,7 @@ export function setupFormLogic(elements, initialData) {
         // Simply auto-merge/overwrite whatever didn't match
         import("./search-logic.js").then((module) => {
           const newFormData = new FormData();
-          newFormData.append("title", titleInput.value);
+          newFormData.append("title", AUTO_TITLE);
           if (srcProvaVal) newFormData.append("source_url_prova", srcProvaVal);
           if (srcGabVal) newFormData.append("source_url_gabarito", srcGabVal);
 

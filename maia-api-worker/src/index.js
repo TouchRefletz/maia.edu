@@ -1396,7 +1396,14 @@ async function handleManualUpload(request, env) {
 				console.log('[Manual Upload] AI Report generated.');
 
 				// Step 2: EXTRACTION (Schema) with FILE CONTEXT + REPORT
-				const extractionPrompt = `Com base no relatório abaixo e nos arquivos originais, extraia os metadados exatos no formato JSON.\n\nRELATÓRIO:\n${fullReport}`;
+				// We instruct the AI to generate standardized filenames for both files.
+				const extractionPrompt = `Com base no relatório abaixo e nos arquivos originais, extraia os metadados exatos no formato JSON.
+				TAMBÉM GERE OS NOMES DE ARQUIVO PADRONIZADOS.
+				Padrão de nome: "{Instituição} {Ano} - {Fase/Etapa} - {Tipo}.pdf"
+				Exemplo: "FUVEST 2024 - 1ª Fase - Prova.pdf", "UNICAMP 2023 - 2ª Fase - Gabarito.pdf", "ENEM 2022 - Dia 1 - Prova.pdf"
+
+				RELATÓRIO:
+				${fullReport}`;
 				const extractionSchema = {
 					type: 'OBJECT',
 					properties: {
@@ -1404,8 +1411,16 @@ async function handleManualUpload(request, env) {
 						year: { type: 'STRING' },
 						phase: { type: 'STRING' },
 						summary: { type: 'STRING' },
+						formatted_title_prova: {
+							type: 'STRING',
+							description: 'Nome padronizado para o arquivo da prova (ex: FUVEST 2024 - 1ª Fase - Prova.pdf)',
+						},
+						formatted_title_gabarito: {
+							type: 'STRING',
+							description: 'Nome padronizado para o arquivo do gabarito (ex: FUVEST 2024 - 1ª Fase - Gabarito.pdf)',
+						},
 					},
-					required: ['institution', 'year', 'phase'],
+					required: ['institution', 'year', 'phase', 'formatted_title_prova'],
 				};
 
 				const genReqBody = {
@@ -1475,8 +1490,11 @@ async function handleManualUpload(request, env) {
 		console.log(`[Worker] CustomNames: PDF="${pdfCustomName}", GAB="${gabCustomName}"`);
 
 		// Priority: Custom Name > File Name > CANARY FALLBACK (to prove code update)
-		const pdfFinalName = pdfCustomName || (fileProva && fileProva.name ? fileProva.name : 'FALLBACK_ERROR_PDF.pdf');
-		const gabFinalName = gabCustomName || (fileGabarito && fileGabarito.name ? fileGabarito.name : null);
+		// Priority: AI Standardized Name > Custom Name > File Name
+		const pdfFinalName =
+			aiData.formatted_title_prova || pdfCustomName || (fileProva && fileProva.name ? fileProva.name : 'FALLBACK_ERROR_PDF.pdf');
+		// For gabarito, if AI didn't return one (maybe needed forcing?), we try to infer or fallback
+		const gabFinalName = aiData.formatted_title_gabarito || gabCustomName || (fileGabarito && fileGabarito.name ? fileGabarito.name : null);
 
 		// 3. DUPLICATE CHECK (Unless Override)
 		let pdfUrlToDispatch = formData.get('pdf_url_override') || pdfUrl;
@@ -1620,6 +1638,10 @@ async function handleManualUpload(request, env) {
 					title,
 					pdf_url: pdfUrlToDispatch,
 					gabarito_url: gabUrlToDispatch,
+					ai_names: {
+						prova: pdfFinalNameForMeta,
+						gabarito: gabFinalNameForMeta,
+					},
 					mode: formData.get('mode') || 'overwrite',
 					// Consolidate metadata to avoid 10 property limit (GitHub 422)
 					metadata: {
@@ -1632,6 +1654,8 @@ async function handleManualUpload(request, env) {
 						// visual_hash and gabarito_url NOT sent to Action (it computes them)
 						pdf_filename: pdfFinalNameForMeta,
 						gabarito_filename: gabFinalNameForMeta,
+						pdf_display_name: pdfFinalNameForMeta.replace(/\.pdf$/i, ''),
+						gabarito_display_name: gabFinalNameForMeta ? gabFinalNameForMeta.replace(/\.pdf$/i, '') : null,
 					},
 				},
 			}),
