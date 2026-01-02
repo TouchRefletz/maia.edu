@@ -210,12 +210,12 @@ jobs:
           HAS_PDF: ${{ steps.download.outputs.final_pdf_name != '' }}
           HAS_GAB: ${{ steps.download.outputs.final_gab_name != '' }}
         run: |
-          cd hf_repo/output/$SLUG
-
+          # Create script in root (OUTSIDE hf_repo to avoid commit)
           cat << 'EOF' > update_manifest.py
           import json
           import os
           import sys
+          from pathlib import Path
 
           slug = os.environ.get("SLUG")
           title = os.environ.get("TITLE")
@@ -230,11 +230,12 @@ jobs:
           has_pdf = os.environ.get("HAS_PDF") == 'true'
           has_gab = os.environ.get("HAS_GAB") == 'true'
 
-          manifest_path = "manifest.json"
+          # Target manifest inside the repo structure
+          manifest_path = Path(f"hf_repo/output/{slug}/manifest.json")
           items = []
 
           # 1. Load Existing (Fail Safe)
-          if os.path.exists(manifest_path):
+          if manifest_path.exists():
               try:
                   with open(manifest_path, 'r', encoding='utf-8') as f:
                       content = f.read().strip()
@@ -288,11 +289,11 @@ jobs:
           with open(manifest_path, "w", encoding="utf-8") as f:
               json.dump(final_items, f, indent=2, ensure_ascii=False)
               
-          print(f"Manifest updated. Total items: {len(final_items)}")
+          print(f"Manifest updated at {manifest_path}. Total items: {len(final_items)}")
           EOF
 
           python3 update_manifest.py
-          cat manifest.json
+          cat "hf_repo/output/$SLUG/manifest.json"
 
       - name: Compute Visual Hashes
         env:
