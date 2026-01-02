@@ -228,63 +228,74 @@
 /* --- DETAILED TASKS BODY (Definition Cards) --- */
 .term-tasks-body {
   flex-grow: 1;
-  padding: 20px;
-  background: var(--term-bg); /* Or transparent */
+  padding: 20px 20px 10px 20px;
+  background: var(--term-bg);
   display: flex;
-  flex-direction: column;
-  gap: 20px; /* Space between cards */
-  /* Remove fixed height constraints to let it flow */
+  flex-direction: row; /* Horizontal */
+  gap: 16px;
+  overflow-x: auto; /* Horizontal Scroll */
+  overflow-y: hidden;
+  align-items: stretch;
+  mask-image: linear-gradient(to right, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+}
+
+/* Scrollbar Style for Tasks */
+.term-tasks-body::-webkit-scrollbar {
+    height: 6px;
+}
+.term-tasks-body::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
 }
 
 /* Adopted Thought Card Styles */
 .term-task-card {
   display: flex;
-  gap: 12px;
-  padding: 0; /* Layout handled by children */
+  flex-direction: column; /* Stack visual and content in mini-card if needed, but side-by-side matches "card" look better? Let's keep side-by-side but compact */
+  gap: 10px;
+  padding: 12px;
   border-radius: var(--radius-md);
-  scroll-margin-top: 100px; /* Buffer for anchors */
   opacity: 0.5; /* Default dim for upcoming */
-  transition: opacity 0.3s;
+  transition: all 0.3s;
+  min-width: 200px; /* Fixed width */
+  max-width: 200px;
+  flex-shrink: 0;
+  background: var(--color-bg-sub);
+  border: 1px solid var(--term-border);
 }
 
 .term-task-card.active {
   opacity: 1;
+  border-color: var(--term-accent);
+  background: rgba(var(--color-primary-rgb), 0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transform: translateY(-2px);
 }
 
 .term-task-card.done {
-  opacity: 0.7;
+  opacity: 0.8;
+  border-color: var(--color-success);
 }
 
-/* Left Column: Icon/Line */
+/* Visual Icon Area */
 .term-task-visual {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 24px;
-  flex-shrink: 0;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 8px;
   position: relative;
 }
 
-/* The vertical line connecting thoughts */
+/* Remove vertical line logic for horizontal mode */
 .term-task-card:not(:last-child) .term-task-visual::after {
-  content: '';
-  position: absolute;
-  top: 24px; /* Start below icon */
-  bottom: -20px; /* Extend into gap */
-  width: 2px;
-  background: var(--term-border);
-  /* Optional: dashed line for future? */
-}
-
-.term-task-card.active .term-task-visual::after {
-   background: var(--term-accent); /* Highlight path */
-   opacity: 0.5;
+  display: none;
 }
 
 .term-task-visual-icon {
-    font-size: 1rem;
+    font-size: 1.2rem;
     line-height: 1;
-    margin-top: 2px;
 }
 
 .term-task-content {
@@ -297,28 +308,37 @@
 
 .term-task-title {
   font-family: var(--font-family-mono);
-  font-size: 16px;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--term-accent);
   line-height: 1.2;
-  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .term-task-notes {
   font-family: var(--font-family-mono);
-  font-size: 11px;
+  font-size: 0.7rem; /* Smaller font */
   color: var(--term-text);
-  white-space: pre-wrap;
-  line-height: 1.5;
-  background: rgba(0,0,0,0.1);
-  padding: 8px;
-  border-radius: 6px;
-  border-left: 2px solid var(--term-border);
+  line-height: 1.4;
+  /* background: rgba(0,0,0,0.1); REMOVE bg for clean look */
+  /* padding: 8px; */
+  /* border-radius: 6px; */
+  /* border-left: 2px solid var(--term-border); REMOVE left border */
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Limit lines */
+  line-clamp: 2; /* Standard property */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 2.8em;
 }
 
 .term-task-card.active .term-task-notes {
-    border-left-color: var(--term-accent);
-    background: rgba(var(--color-primary-rgb), 0.05);
+    /* border-left-color: var(--term-accent); */
+    /* background: transparent; */
+    color: var(--term-text-shine);
 }
 
 /* --- GENERIC BUTTONS & LOGS (Refined) --- */
@@ -339,6 +359,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  height: 22px;
 }
 
 .term-btn:hover {

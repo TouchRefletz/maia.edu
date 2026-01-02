@@ -91,20 +91,15 @@ export class TerminalUI {
       this.options.mode === "simple"
         ? ""
         : `
-      <div class="term-objectives-header">
-        <!-- Init State -->
-        <a href="#" class="term-obj-icon-link">
-             <img src="/logo.png" class="term-obj-img spinning" alt="Active">
-        </a>
-      </div>
       <div class="term-tasks-body">
-        <div class="term-task-card active">
+         <!-- Init State (Placeholder Card) -->
+        <div class="term-task-card active" id="term-init-card">
            <div class="term-task-visual">
-              <div class="term-task-visual-icon">⚡</div>
+              <img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:24px; height:24px;">
            </div>
            <div class="term-task-content">
-              <div class="term-task-title">Verificando banco de dados...</div>
-              <div class="term-task-notes">Consultando registros existentes...</div>
+              <div class="term-task-title">As tarefas aparecerão aqui</div>
+              <div class="term-task-notes">Aguardando início do processo...</div>
            </div>
         </div>
       </div>
@@ -443,6 +438,41 @@ export class TerminalUI {
     } else {
       this.container.classList.remove("term-floating");
       this.container.classList.remove("term-minimized");
+    }
+  }
+
+  // --- Notification State Management ---
+  getNotificationState() {
+    return this.notifyEnabled;
+  }
+
+  setNotificationState(enabled) {
+    this.notifyEnabled = !!enabled;
+    this.updateNotificationUI();
+  }
+
+  toggleNotification() {
+    this.notifyEnabled = !this.notifyEnabled;
+    this.updateNotificationUI();
+
+    // Play sound on toggle for feedback
+    // if (this.notifyEnabled) this.playSound("success");
+  }
+
+  updateNotificationUI() {
+    const btn = this.el.notifyBtn;
+    if (!btn) return;
+
+    if (this.notifyEnabled) {
+      btn.classList.remove("inactive");
+      btn.classList.add("active");
+      btn.innerHTML = `<span class="icon">🔔</span>`;
+      btn.title = "Notificações Ativas";
+    } else {
+      btn.classList.remove("active");
+      btn.classList.add("inactive");
+      btn.innerHTML = `<span class="icon">🔕</span>`;
+      btn.title = "Notificar ao concluir";
     }
   }
 

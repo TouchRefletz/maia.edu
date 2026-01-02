@@ -588,10 +588,18 @@ export function setupSearchLogic() {
       // Wire Retry Logic
       terminal.onRetry = () => showRetryConfirmationModal(log, terminal);
     } else {
+      // 0. CAPTURE STATE (Notification)
+      const prevNotify = terminalInstance
+        ? terminalInstance.getNotificationState()
+        : false;
+
       // Re-attach to existing terminal
       terminal = new TerminalUI(existingEl);
       terminalInstance = terminal; // Save Global Ref
       terminal.onExpandRequest = handleExpandRequest;
+
+      // RESTORE STATE
+      if (prevNotify) terminal.setNotificationState(true);
 
       // Ensure we don't wipe tasks if we are just updating/retrying
       // If force=true (retry), maybe we want to reset status to in_progress?
@@ -719,7 +727,11 @@ export function setupSearchLogic() {
 
         // Se não identificou (não exato), NÃO mostra nada e SÓ pesquisa.
         // Ignora "similares" para simplificar fluxo.
-        log("Nenhum banco exato encontrado. Iniciando busca...", "info");
+        // log("Nenhum banco exato encontrado. Iniciando busca...", "info");
+
+        // --- CHANGE: Add specific task for "Advanced Search" ---
+        log("1. ⚡ Iniciando agente de pesquisa avançada", "in_progress");
+
         doSearch(force, cleanup, true, "overwrite");
         return;
       }
