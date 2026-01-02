@@ -661,6 +661,15 @@ export class TerminalUI {
   processLogLine(text, type = "info") {
     if (!text) return;
 
+    // 0. Split Multi-line Logs (CRITICAL FIX: Handle multiple events in one chunk)
+    if (text.includes("\n")) {
+      const lines = text.split("\n");
+      lines.forEach((line) => {
+        if (line.trim()) this.processLogLine(line, type);
+      });
+      return;
+    }
+
     // 1. Raw Log (Console) - Always append raw text
     this.queueLog(text, type);
 
@@ -1015,12 +1024,16 @@ export class TerminalUI {
     const lastNode = this.el.chainStream.lastElementChild;
     if (lastNode) {
       const lastContent = lastNode.querySelector(".node-content");
-      if (lastContent && lastContent.innerText.trim() === text.trim()) {
-        // Pulse last node to show activity but don't duplicate
-        lastNode.style.animation = "none";
-        lastNode.offsetHeight; /* trigger reflow */
-        lastNode.style.animation = "fadeIn 0.3s ease-out";
-        return;
+      if (lastContent) {
+        // Robust comparison: Strip HTML from input 'text' just in case, and compare with innerText
+        const cleanInput = text.replace(/<[^>]*>/g, "").trim();
+        const cleanExisting = lastContent.innerText.trim();
+
+        if (cleanExisting === cleanInput) {
+          // Setup hit counter if not exists (Optional polish)
+          // For now: Just ignore silently to prevent flickering
+          return;
+        }
       }
     }
 
