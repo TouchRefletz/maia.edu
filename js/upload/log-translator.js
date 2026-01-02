@@ -168,7 +168,7 @@ export class LogTranslator {
       };
     if (t.includes("python") || t.includes("jupyter"))
       return {
-        text: "Executando script de análise (Python)...",
+        text: "Executando código...",
         type: "in_progress",
       };
     if (t.includes("curl") || t.includes("wget"))
@@ -233,13 +233,6 @@ export class LogTranslator {
     if (t.includes("Job succeeded") || t.includes("Job finished"))
       return { text: "Pipeline finalizado com sucesso.", type: "success" };
 
-    // --- 5. LOG ERRORS ---
-    if (t.includes("Error:") || t.includes("Exception") || t.includes("Failed"))
-      return {
-        text: `Erro detectado: ${t.substring(0, 50)}...`,
-        type: "error",
-      };
-
     // --- 5. DATA SEARCH & SETUP ---
     if (t.includes("Verificando banco de dados por resultados existentes"))
       return {
@@ -255,6 +248,12 @@ export class LogTranslator {
       return {
         text: t, // Mantém o original
         type: "info",
+      };
+
+    if (t.includes("[SISTEMA] Todos os arquivos validados com sucesso"))
+      return {
+        text: "Validação final concluída. Todos os arquivos processados com sucesso.",
+        type: "success",
       };
 
     return null;

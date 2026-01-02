@@ -866,6 +866,12 @@ export class TerminalUI {
             text.includes("finished") ||
             text.includes("completed")))
       ) {
+        // CHANGED: Do NOT finish yet. The Agent finished, but we wait for file validation.
+        this.lockForValidation();
+      } else if (
+        text.includes("[SISTEMA] Todos os arquivos validados com sucesso")
+      ) {
+        // STRICT FINISH TRIGGER
         this.finish(true);
       } else if (text.includes("CANCELLED")) {
         this.cancelFinished();
@@ -1195,7 +1201,9 @@ export class TerminalUI {
       this.container.classList.add("term-status-success");
 
       if (this.el.eta) this.el.eta.style.display = "none";
-      this.updateStepText("Todos os processos finalizados com sucesso.");
+      this.updateStepText(
+        "Todos os processos do agente finalizados com sucesso."
+      );
 
       if (this.config.sounds.success) {
         new Audio(this.config.sounds.success).play().catch(() => {});
@@ -1324,6 +1332,30 @@ export class TerminalUI {
     // Create 'system' class if not exists, or just use info.
     // Actually, queueLog takes (text, type). Existing types: 'info', 'error', 'warning', 'success'.
     // Let's use 'warning' to make it visible or 'info'.
+  }
+
+  lockForValidation() {
+    if (this.state === this.MODES.DONE) return;
+
+    // Disable Cancel Button
+    if (this.el.cancelBtn) {
+      this.el.cancelBtn.innerText = "Processando...";
+      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.disabled = true;
+      this.el.cancelBtn.style.cursor = "not-allowed";
+      this.el.cancelBtn.title = "Aguardando validação final dos arquivos";
+    }
+
+    // Update Status if exists
+    if (this.el.status) {
+      this.el.status.innerText = "PROCESSANDO_ARQUIVOS...";
+      this.el.status.classList.add("active"); // keep pulsing or active
+    }
+
+    this.queueLog(
+      "[SISTEMA] Agente finalizou. Iniciando validação e processamento de arquivos...",
+      "system"
+    );
   }
 
   async cancelJob() {
