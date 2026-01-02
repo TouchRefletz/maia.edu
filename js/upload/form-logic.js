@@ -150,10 +150,12 @@ export function setupFormLogic(elements, initialData) {
       }
 
       gerarVisualizadorPDF({
-        title: aiData?.institution
-          ? `${aiData.institution} ${aiData.year}`
-          : "Processando...",
-        rawTitle: "Auto-Detect",
+        title:
+          aiData?.formatted_title_general ||
+          (aiData?.institution
+            ? `${aiData.institution} ${aiData.year || ""}`
+            : "Processando..."),
+        rawTitle: aiData?.formatted_title_general || "Documento",
         fileProva: proxyUrl,
         fileGabarito: proxyGabUrl || aiData?.gabarito_url || fileGabarito,
         gabaritoNaProva: gabaritoCheck.checked,

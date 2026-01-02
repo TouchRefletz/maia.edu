@@ -87,6 +87,9 @@ export default {
 				case '/delete-artifact':
 					return handleDeleteArtifact(request, env);
 
+				case '/canonical-slug':
+					return handleCanonicalSlug(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -118,87 +121,34 @@ async function handleTriggerDeepSearch(request, env) {
 	let canonicalSlug = body.slug; // Helper or frontend provided fallback
 	let reasoning = 'Manual override';
 
-	// If no forced slug provided, generate one via Gemini
+	// 2. Canonical Slug Generation (Pre-flight Phase)
+	let canonicalSlug = body.slug; // Helper or frontend provided fallback
+	let reasoning = 'Manual override';
+
+	// If no forced slug provided, generate one via Gemini (Centralized Service)
 	if (!canonicalSlug) {
 		try {
-			const currentDate = new Date().toISOString();
-			const prompt = `You are a precise naming authority for exam repositories. Your goal is to convert user queries into a standard 'canonical' kebab-case slug.
-
-Rules:
-1. Format: \`exam-name-year\` (e.g., \`enem-2024\`, \`ita-2025\`).
-2. Year Inference: If the user DOES NOT specify a year, you MUST infer the most recent *occurred* or *upcoming* edition based on the current date provided.
-    - Current Date: ${currentDate}
-    - Logic: If today is Dec 2025, 'Enem' implies 'enem-2025'. If user asks for 'Enem' in Jan 2025, it implies 'enem-2024' (last one) or 'enem-2025' (next one) based on typical exam schedule. Default to the *latest edition that likely has files available*.
-
-Query: "${query}"
-
-Output JSON ONLY.`;
-
-			const schema = {
-				type: 'OBJECT',
-				properties: {
-					slug: { type: 'STRING', description: 'The canonical kebab-case slug' },
-					reasoning: { type: 'STRING', description: 'Explanation of year inference' },
-				},
-				required: ['slug'],
-			};
-
-			// Internal Request to reuse handleGeminiGenerate
-			const internalReq = new Request('http://internal/generate', {
+			// Call internal Canonical Slug Service
+			const slugReq = new Request('http://internal/canonical-slug', {
 				method: 'POST',
-				body: JSON.stringify({
-					texto: prompt,
-					model: 'models/gemini-3-flash-preview', // User requested model
-					schema: schema,
-				}),
+				body: JSON.stringify({ query }),
 			});
+			const slugRes = await handleCanonicalSlug(slugReq, env);
 
-			// Capture the Response Stream
-			const genResponse = await handleGeminiGenerate(internalReq, env);
-
-			if (!genResponse.ok) {
-				console.warn('[Pre-flight] Gemini generation failed, falling back to simple slug.');
+			if (slugRes.ok) {
+				const slugData = await slugRes.json();
+				canonicalSlug = slugData.slug;
+				reasoning = slugData.reasoning;
+				console.log(`[Deep Search] Slug Refined: ${canonicalSlug} (${reasoning})`);
+			} else {
+				console.warn('[Deep Search] Slug Service failed, falling back to simple sanitization.');
 				canonicalSlug = query
 					.toLowerCase()
 					.replace(/[^a-z0-9]+/g, '-')
 					.replace(/^-+|-+$/g, '');
-			} else {
-				// Parse NDJSON Stream to get final 'answer' or assembled text
-				const reader = genResponse.body.getReader();
-				let fullText = '';
-				const decoder = new TextDecoder();
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					const chunk = decoder.decode(value, { stream: true });
-					const lines = chunk.split('\n');
-					for (const line of lines) {
-						if (!line.trim()) continue;
-						try {
-							const json = JSON.parse(line);
-							if (json.type === 'answer' && json.text) {
-								fullText += json.text;
-							}
-						} catch (e) {}
-					}
-				}
-
-				try {
-					const parsed = JSON.parse(fullText);
-					canonicalSlug = parsed.slug;
-					reasoning = parsed.reasoning;
-					console.log(`[Pre-flight] Canonical Slug Generated: ${canonicalSlug} (${reasoning})`);
-				} catch (e) {
-					console.warn('[Pre-flight] Failed to parse Gemini JSON, fallback.', e);
-					canonicalSlug = query
-						.toLowerCase()
-						.replace(/[^a-z0-9]+/g, '-')
-						.replace(/^-+|-+$/g, '');
-				}
 			}
 		} catch (e) {
-			console.error('[Pre-flight] Error in slug generation:', e);
+			console.error('[Deep Search] Error in slug generation:', e);
 			canonicalSlug = query
 				.toLowerCase()
 				.replace(/[^a-z0-9]+/g, '-')
@@ -1413,14 +1363,18 @@ async function handleManualUpload(request, env) {
 						summary: { type: 'STRING' },
 						formatted_title_prova: {
 							type: 'STRING',
-							description: 'Nome padronizado para o arquivo da prova (ex: FUVEST 2024 - 1ª Fase - Prova.pdf)',
+							description: 'Nome padronizado para o arquivo da prova (ex: FUVEST 2024 - 1ª Fase - Prova)',
 						},
 						formatted_title_gabarito: {
 							type: 'STRING',
-							description: 'Nome padronizado para o arquivo do gabarito (ex: FUVEST 2024 - 1ª Fase - Gabarito.pdf)',
+							description: 'Nome padronizado para o arquivo do gabarito (ex: FUVEST 2024 - 1ª Fase - Gabarito)',
+						},
+						formatted_title_general: {
+							type: 'STRING',
+							description: 'Nome geral para o conjunto prova+gabarito (ex: FUVEST 2024 - 1ª Fase)',
 						},
 					},
-					required: ['institution', 'year', 'phase', 'formatted_title_prova'],
+					required: ['institution', 'year', 'phase', 'formatted_title_prova', 'formatted_title_general'],
 				};
 
 				const genReqBody = {
@@ -1461,6 +1415,7 @@ async function handleManualUpload(request, env) {
 					year: new Date().getFullYear().toString(),
 					phase: 'Única',
 					summary: 'AI extraction failed.',
+					formatted_title_general: title, // Fallback to user title
 				};
 			}
 		};
@@ -1471,8 +1426,24 @@ async function handleManualUpload(request, env) {
 		console.log('[Manual Upload] AI Data:', aiData);
 
 		// 2. Generate/Validate Slug
-		// AI now provides the slug, but we fallback if needed
-		let slug = aiData.slug;
+		// Use Centralized Service with General Title
+		const generalTitle = aiData.formatted_title_general || title;
+		let slug = '';
+		try {
+			const slugReq = new Request('http://internal/canonical-slug', {
+				method: 'POST',
+				body: JSON.stringify({ query: generalTitle }),
+			});
+			const slugRes = await handleCanonicalSlug(slugReq, env);
+			if (slugRes.ok) {
+				const sData = await slugRes.json();
+				slug = sData.slug;
+				console.log(`[Manual Upload] Slug generated: ${slug}`);
+			}
+		} catch (e) {
+			console.warn('[Manual Upload] Slug service failed:', e);
+		}
+
 		// Fallback only if AI returns empty
 		if (!slug) {
 			slug = title
@@ -1704,4 +1675,110 @@ async function handleManualUpload(request, env) {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	}
+}
+
+/**
+ * 7. SERVICE: CANONICAL SLUG (Naming Authority)
+ * Path: /internal/canonical-slug
+ */
+async function handleCanonicalSlug(request, env) {
+	const body = await request.json();
+	const { query } = body;
+
+	if (!query) {
+		return new Response(JSON.stringify({ error: 'Query is required' }), { status: 400, headers: corsHeaders });
+	}
+
+	let canonicalSlug = '';
+	let reasoning = 'Manual override or fallback';
+
+	try {
+		const currentDate = new Date().toISOString();
+		const prompt = `You are a precise naming authority for exam repositories. Your goal is to convert user queries into a standard 'canonical' kebab-case slug.
+
+Rules:
+1. Format: \`exam-name-year\` (e.g., \`enem-2024\`, \`ita-2025\`, \`fuvest-2024\`).
+2. IMPORTANT: Do NOT include phase, stage, or specific numbers in the slug unless it is the year. 'Fuvest 2024 1ª Fase' -> 'fuvest-2024'.
+3. Year Inference: If the user DOES NOT specify a year, you MUST infer the most recent *occurred* or *upcoming* edition based on the current date provided.
+    - Current Date: ${currentDate}
+    - Logic: If today is Dec 2025, 'Enem' implies 'enem-2025'. If user asks for 'Enem' in Jan 2025, it implies 'enem-2024' (last one) or 'enem-2025' (next one) based on typical exam schedule. Default to the *latest edition that likely has files available*.
+
+Query: "${query}"
+
+Output JSON ONLY.`;
+
+		const schema = {
+			type: 'OBJECT',
+			properties: {
+				slug: { type: 'STRING', description: 'The canonical kebab-case slug' },
+				reasoning: { type: 'STRING', description: 'Explanation of year inference' },
+			},
+			required: ['slug'],
+		};
+
+		// Internal Request to reuse handleGeminiGenerate
+		const internalReq = new Request('http://internal/generate', {
+			method: 'POST',
+			body: JSON.stringify({
+				texto: prompt,
+				model: 'models/gemini-3-flash-preview', // User requested model
+				schema: schema,
+			}),
+		});
+
+		// Capture the Response Stream
+		const genResponse = await handleGeminiGenerate(internalReq, env);
+
+		if (!genResponse.ok) {
+			console.warn('[Slug Service] Gemini generation failed, falling back to simple slug.');
+			canonicalSlug = query
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-+|-+$/g, '');
+		} else {
+			// Parse NDJSON Stream to get final 'answer' or assembled text
+			const reader = genResponse.body.getReader();
+			let fullText = '';
+			const decoder = new TextDecoder();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				const chunk = decoder.decode(value, { stream: true });
+				const lines = chunk.split('\n');
+				for (const line of lines) {
+					if (!line.trim()) continue;
+					try {
+						const json = JSON.parse(line);
+						if (json.type === 'answer' && json.text) {
+							fullText += json.text;
+						}
+					} catch (e) {}
+				}
+			}
+
+			try {
+				const parsed = JSON.parse(fullText);
+				canonicalSlug = parsed.slug;
+				reasoning = parsed.reasoning;
+				console.log(`[Slug Service] Canonical Slug Generated: ${canonicalSlug} (${reasoning})`);
+			} catch (e) {
+				console.warn('[Slug Service] Failed to parse Gemini JSON, fallback.', e);
+				canonicalSlug = query
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-+|-+$/g, '');
+			}
+		}
+	} catch (e) {
+		console.error('[Slug Service] Error in slug generation:', e);
+		canonicalSlug = query
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '');
+	}
+
+	return new Response(JSON.stringify({ slug: canonicalSlug, reasoning }), {
+		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+	});
 }
