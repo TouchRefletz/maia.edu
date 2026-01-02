@@ -772,7 +772,7 @@ export class TerminalUI {
     }
 
     // 3. Prepare Display Text
-    let displayText = formattedText; // For backwards compat, though mostly we use queueLog(raw) + ChainStream(translated)
+    let displayText = text; // For backwards compat, though mostly we use queueLog(raw) + ChainStream(translated)
     if (foundTask) {
       displayText = "[PLAN UPDATE RECEIVED]";
     }
