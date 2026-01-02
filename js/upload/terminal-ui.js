@@ -1168,7 +1168,7 @@ export class TerminalUI {
       this.container.classList.remove("term-status-error");
       this.container.classList.add("term-status-success");
 
-      if (this.el.eta) this.el.eta.innerText = "TEMPO: FINALIZADO";
+      if (this.el.eta) this.el.eta.style.display = "none";
       this.updateStepText("Todos os processos finalizados com sucesso.");
 
       if (this.config.sounds.success) {
