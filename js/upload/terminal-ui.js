@@ -1,3 +1,5 @@
+import { LogTranslator } from "./log-translator.js";
+
 export class TerminalUI {
   constructor(containerIdOrElement, options = {}) {
     // State Enums (Define FIRST to prevent partial initialization errors)
@@ -651,6 +653,9 @@ export class TerminalUI {
     // 1. Raw Log (Console) - Always append raw text
     this.queueLog(text, type);
 
+    // 2. Translate to Chain of Thought
+    // Only attempt translation for info/system/success logs to avoid cluttering with errors unless critical
+    // With new aggressive translator, we try to match almost everything relevant.
     // 2. Translate to Chain of Thought
     // Only attempt translation for info/system/success logs to avoid cluttering with errors unless critical
     // With new aggressive translator, we try to match almost everything relevant.
