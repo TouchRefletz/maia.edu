@@ -427,16 +427,7 @@ jobs:
             - SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
             - SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
             - NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
-          3) Gere /workspace/output/__SLUG__/index.md
-          4) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
-          5) Gere /workspace/output/__SLUG__/DOWNLOAD_URLS.txt
-          6) Gere /workspace/output/__SLUG__/slug.txt
-             - IMPORTANTE: Escreva neste arquivo APENAS um nome curto e limpo para a pasta final (kebab-case).
-             - Exemplo: se a query for 'provas do enem 2025', escreva 'enem-2025'.
-             - Exemplo: se for 'unicamp 2024 segunda fase', escreva 'unicamp-2024-2f'.
-             - Esse nome será usado para renomear a pasta e salvar no banco de dados.
-          7) Gere /workspace/output/__SLUG__.zip
-          8) (Opcional) Gere /workspace/output/__SLUG__/index.pdf
+          3) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
 
           Ao final, responda apenas com caminhos e contagens.
           EOF
@@ -498,16 +489,8 @@ jobs:
           echo "Copying artifacts from container to host..."
           docker cp openhands-app:/workspace/output/${SLUG}/. "output/${SLUG}/" || echo "Failed to copy artifacts or directory empty"
 
-          # --- DYNAMIC RENAMING LOGIC ---
+          # --- NO DYNAMIC RENAMING (Handled by Worker) ---
           FINAL_SLUG="$SLUG"
-          if [ -f "output/${SLUG}/slug.txt" ]; then
-             CANDIDATE_SLUG=$(cat "output/${SLUG}/slug.txt" | tr -cd '[:alnum:]-')
-             if [ -n "$CANDIDATE_SLUG" ] && [ "$CANDIDATE_SLUG" != "$SLUG" ]; then
-                 echo "Renaming artifact from $SLUG to $CANDIDATE_SLUG..."
-                 mv "output/${SLUG}" "output/${CANDIDATE_SLUG}"
-                 FINAL_SLUG="$CANDIDATE_SLUG"
-             fi
-          fi
           echo "final_slug=$FINAL_SLUG" >> $GITHUB_OUTPUT
           # ------------------------------
 

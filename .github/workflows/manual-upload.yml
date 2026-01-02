@@ -386,26 +386,6 @@ jobs:
             python3 generate_thumbnails.py
           )
 
-      - name: Generate Index (Markdown)
-        env:
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-          TITLE: ${{ github.event.client_payload.title || inputs.title }}
-          PDF_FILENAME: ${{ steps.download.outputs.final_pdf_name }}
-          GAB_FILENAME: ${{ steps.download.outputs.final_gab_name }}
-        run: |
-          cd hf_repo/output/$SLUG
-          echo "# $TITLE" > index.md
-          echo "" >> index.md
-
-          # Fix: Use dynamic FINAL filenames
-          if [ -n "$PDF_FILENAME" ] && [ -f "files/$PDF_FILENAME" ]; then
-              echo "- [Prova](https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/$SLUG/files/$PDF_FILENAME)" >> index.md
-          fi
-
-          if [ -n "$GAB_FILENAME" ] && [ -f "files/$GAB_FILENAME" ]; then
-             echo "- [Gabarito](https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/$SLUG/files/$GAB_FILENAME)" >> index.md
-          fi
-
       - name: Push to Hugging Face
         env:
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
