@@ -904,7 +904,7 @@ export class TerminalUI {
       this.currentVirtualProgress = 10;
       this.updateProgressBar();
 
-      this.el.status.innerText = "EXECUTANDO_PLANO";
+      if (this.el.status) this.el.status.innerText = "EXECUTANDO_PLANO";
       this.el.objectivesHeader.innerHTML = "";
       this.el.tasksBody.innerHTML = "";
     }
@@ -951,7 +951,7 @@ export class TerminalUI {
       this.state = this.MODES.EXEC;
       this.currentVirtualProgress = 10;
       this.updateProgressBar();
-      this.el.status.innerText = "EXECUTANDO_PLANO";
+      if (this.el.status) this.el.status.innerText = "EXECUTANDO_PLANO";
     }
   }
 
@@ -1152,15 +1152,17 @@ export class TerminalUI {
     clearInterval(this.tickerInterval);
 
     if (isSuccess) {
-      this.el.status.innerText = "CONCLUÍDO";
-      this.el.status.classList.add("success");
-      this.el.status.classList.remove("active");
+      if (this.el.status) {
+        this.el.status.innerText = "CONCLUÍDO";
+        this.el.status.classList.add("success");
+        this.el.status.classList.remove("active");
+      }
 
       // Update Minimized Status
       this.container.classList.remove("term-status-error");
       this.container.classList.add("term-status-success");
 
-      this.el.eta.innerText = "TEMPO: FINALIZADO";
+      if (this.el.eta) this.el.eta.innerText = "TEMPO: FINALIZADO";
       this.updateStepText("Todos os processos finalizados com sucesso.");
 
       if (this.config.sounds.success) {
@@ -1174,8 +1176,10 @@ export class TerminalUI {
       }
     } else {
       // Fallback for non-success finish if needed (e.g. cancelled)
-      this.el.status.innerText = "FINALIZADO";
-      this.el.status.classList.remove("active");
+      if (this.el.status) {
+        this.el.status.innerText = "FINALIZADO";
+        this.el.status.classList.remove("active");
+      }
     }
 
     // Button Logic Support (Restored)
@@ -1206,9 +1210,11 @@ export class TerminalUI {
 
     clearInterval(this.tickerInterval);
 
-    this.el.status.innerText = "FALHA_NA_EXECUÇÃO";
-    this.el.status.classList.remove("active");
-    this.el.status.style.color = "var(--color-error)";
+    if (this.el.status) {
+      this.el.status.innerText = "FALHA_NA_EXECUÇÃO";
+      this.el.status.classList.remove("active");
+      this.el.status.style.color = "var(--color-error)";
+    }
 
     // Update Container Status for CSS hooks (e.g. stop animation)
     this.container.classList.remove("term-status-success");
@@ -1246,8 +1252,10 @@ export class TerminalUI {
     this.fail("Operação cancelada manualmente pelo usuário.");
 
     // Override status text specifically for clarity
-    this.el.status.innerText = "CANCELADO";
-    this.el.status.style.color = "var(--color-error)"; // Reuse error red
+    if (this.el.status) {
+      this.el.status.innerText = "CANCELADO";
+      this.el.status.style.color = "var(--color-error)"; // Reuse error red
+    }
 
     // Timer was already hidden by fail(), no need to access el.eta
 
@@ -1316,7 +1324,8 @@ export class TerminalUI {
           "Cancelamento enviado com sucesso. Aguardando finalização...",
           "success"
         );
-        this.el.status.innerText = "CANCELAMENTO_SOLICITADO";
+        if (this.el.status)
+          this.el.status.innerText = "CANCELAMENTO_SOLICITADO";
       } else {
         throw new Error(result.error || "Falha ao solicitar cancelamento");
       }
