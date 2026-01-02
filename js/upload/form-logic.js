@@ -253,10 +253,22 @@ export function setupFormLogic(elements, initialData) {
         // Helper to request hash and wait for Pusher
         const getRemoteHash = async (url, tempSlug) => {
           // 1. Trigger
-          await fetch(`${WORKER_URL}/compute-hash`, {
+          const response = await fetch(`${WORKER_URL}/compute-hash`, {
             method: "POST",
             body: JSON.stringify({ url, slug: tempSlug }),
           });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = errorText;
+            try {
+              const errorJson = JSON.parse(errorText);
+              if (errorJson.error) errorMessage = errorJson.error;
+            } catch (e) {}
+            throw new Error(
+              `Worker Error (${response.status}): ${errorMessage}`
+            );
+          }
 
           // 2. Wait for Pusher
           return new Promise(async (resolve, reject) => {
