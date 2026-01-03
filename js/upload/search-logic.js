@@ -601,6 +601,9 @@ export function setupSearchLogic() {
         terminalInstance = terminal;
       }
 
+      // RESET TERMINAL STATE FOR FRESH LOOK EVEN ON UPDATE
+      if (terminal) terminal.reset();
+
       terminal.onExpandRequest = handleExpandRequest;
 
       // RESTORE STATE
