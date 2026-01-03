@@ -13,7 +13,9 @@ on:
         required: true
       ntfy_topic:
         description: "ntfy.sh topic for log streaming"
-        required: false
+        default: "false"
+        # ATENÇÃO: Cleanup forçado para FALSE para evitar deleção acidental.
+        # Mesmo se o client_payload enviar true, vamos ignorar nos jobs críticos.
 
 jobs:
   search:
@@ -315,52 +317,29 @@ jobs:
              echo "Created output directory: output/${{ github.event.client_payload.slug || inputs.slug }}"
           ) 2>&1 | python3 -u logger.py
 
-      - name: Pre-execution Cleanup (HF)
-        if: ${{ github.event.client_payload.cleanup == true }}
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-        run: |
-          (
-            echo "Cleanup requested. Removing existing Hugging Face data for $SLUG..."
-            
-            # Configure Git
-            git config --global user.email "bot@maia.api"
-            git config --global user.name "Maia Bot"
+      # - name: Pre-execution Cleanup (HF) - DISABLED FOR NON-DESTRUCTIVE WORKFLOW
+      #   if: ${{ github.event.client_payload.cleanup == 'NEVER_RUN' }} # Disabled
+      #   env:
+      #     HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      #     SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+      #   run: |
+      #     echo "Cleanup is disabled to preserve existing data."
 
-            # Clone Repo
-            git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_cleanup_repo
-            cd hf_cleanup_repo
-
-            # Check and delete
-            if [ -d "output/$SLUG" ]; then
-                echo "Removing output/$SLUG..."
-                git rm -rf "output/$SLUG"
-                git commit -m "Cleanup (Retry) for $SLUG"
-                git push
-                echo "Cleanup committed."
-            else
-                echo "No existing data found at output/$SLUG."
-            fi
-            cd ..
-            rm -rf hf_cleanup_repo
-          ) 2>&1 | python3 -u logger.py
-
-      - name: Pre-execution Cleanup (Pinecone)
-        if: ${{ github.event.client_payload.cleanup == true }}
-        env:
-          WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
-          GH_PAT: ${{ secrets.GH_PAT }}
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-        run: |
-          (
-             echo "Requesting Pinecone deletion for $SLUG..."
-             curl -X POST "$WORKER_URL/delete-pinecone-record" \
-                  -H "Content-Type: application/json" \
-                  -H "Authorization: Bearer $GH_PAT" \
-                  -d "{\"slug\": \"$SLUG\"}" \
-             || echo "Warning: Failed to call delete endpoint"
-          ) 2>&1 | python3 -u logger.py
+      # - name: Pre-execution Cleanup (Pinecone) - DISABLED
+      #   if: ${{ github.event.client_payload.cleanup == 'NEVER_RUN' }}
+      #   env:
+      #     WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
+      #     GH_PAT: ${{ secrets.GH_PAT }}
+      #     SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+      #   run: |
+      #     (
+      #        echo "Requesting Pinecone deletion for $SLUG..."
+      #        curl -X POST "$WORKER_URL/delete-pinecone-record" \
+      #             -H "Content-Type: application/json" \
+      #             -H "Authorization: Bearer $GH_PAT" \
+      #             -d "{\"slug\": \"$SLUG\"}" \
+      #        || echo "Warning: Failed to call delete endpoint"
+      #     ) 2>&1 | python3 -u logger.py
 
       - name: Announce Job URL
         env:

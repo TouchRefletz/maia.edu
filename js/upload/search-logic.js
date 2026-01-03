@@ -856,12 +856,12 @@ export function setupSearchLogic() {
     });
 
     content.innerHTML = `
-          <div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>
-          <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Tentar Novamente?</h2>
+          <div style="font-size: 3rem; margin-bottom: 16px;">🔎</div>
+          <h2 style="font-size: 1.5rem; margin-bottom: 8px;">Continuar Busca?</h2>
           <p style="color: var(--color-text-secondary); margin-bottom: 24px;">
-              Isso irá <strong>apagar todos os dados</strong> da pesquisa atual no backend e iniciará uma nova busca do zero.
-              <br><br>
-              O cache será ignorado para garantir resultados frescos.
+              Deseja buscar <strong>novos arquivos</strong> para este termo?<br>
+              <br>
+              O sistema irá procurar itens que ainda não foram encontrados e adicioná-los ao banco de dados existente.
           </p>
           
           <div style="display: flex; gap: 12px; justify-content: center;">
@@ -871,9 +871,9 @@ export function setupSearchLogic() {
               ">Cancelar</button>
               
               <button id="btn-confirm-retry" style="
-                  background: var(--color-error); color: white; border: none; padding: 12px 24px;
+                  background: var(--color-primary); color: white; border: none; padding: 12px 24px;
                   border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;
-              ">Apagar e Reiniciar</button>
+              ">Buscar Mais</button>
           </div>
       `;
 
@@ -888,18 +888,15 @@ export function setupSearchLogic() {
     document.getElementById("btn-confirm-retry").onclick = () => {
       modal.remove();
 
-      // Hide/Remove existing results to avoid confusion
-      const existingResults = document.querySelector(".results-container");
-      if (existingResults) existingResults.remove();
-
       if (terminal)
         terminal.queueLog(
-          "[SISTEMA] Reiniciando busca (Cache Ignorado)...",
-          "warning"
+          "[SISTEMA] Iniciando busca complementar (Modo Update)...",
+          "info"
         );
 
-      // Trigger Force Search: force=true, cleanup=true, confirm=true, mode="overwrite"
-      doSearch(true, true, true, "overwrite");
+      // Trigger Search: force=true, cleanup=FALSE, confirm=true, mode="update"
+      // cleanup=false is critical to prevent deletion
+      doSearch(true, false, true, "update");
     };
   };
 
