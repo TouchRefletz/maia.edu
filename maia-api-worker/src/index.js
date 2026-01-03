@@ -330,7 +330,7 @@ async function handleCancelDeepSearch(request, env) {
  */
 async function handleDeleteArtifact(request, env) {
 	const body = await request.json();
-	const { slug, filename } = body;
+	const { slug, filename, filenames } = body;
 
 	if (!slug) {
 		return new Response(JSON.stringify({ error: 'Slug is required' }), { status: 400, headers: corsHeaders });
@@ -358,7 +358,8 @@ async function handleDeleteArtifact(request, env) {
 				event_type: 'delete-artifact',
 				client_payload: {
 					slug,
-					filename, // Optional, but used if provided for specific file deletion
+					filename, // Legacy singular support
+					filenames, // New batched support
 					manifest_only: body.manifest_only || false,
 				},
 			}),

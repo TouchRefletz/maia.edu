@@ -4,11 +4,32 @@ import os
 
 def main():
     manifest_path = os.environ.get("MANIFEST_PATH")
-    target = os.environ.get("FILENAME") # The filename or URL to remove
+    
+    # Support both single FILENAME and batched FILENAMES_JSON
+    targets = set()
+    
+    single_target = os.environ.get("FILENAME")
+    if single_target and single_target != "null":
+        targets.add(single_target)
+        
+    json_targets = os.environ.get("FILENAMES_JSON")
+    if json_targets and json_targets != "null":
+        try:
+            parsed = json.loads(json_targets)
+            if isinstance(parsed, list):
+                for t in parsed:
+                    if t: targets.add(t)
+        except Exception as e:
+            print(f"Erro ao parsear FILENAMES_JSON: {e}")
 
-    if not manifest_path or not target:
-        print("Erro: MANIFEST_PATH e FILENAME são obrigatórios.")
+    if not manifest_path:
+        print("Erro: MANIFEST_PATH é obrigatório.")
         sys.exit(1)
+        
+    if not targets:
+        print("Nenhum arquivo especificado para remoção (FILENAME ou FILENAMES_JSON vazios).")
+        # Exit gracefully, maybe just a sync run?
+        sys.exit(0)
 
     try:
         if not os.path.exists(manifest_path):
@@ -18,10 +39,13 @@ def main():
         with open(manifest_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # Handle "files/" prefix if present in target but not in manifest or vice-versa
-        target_base = target.replace("files/", "") if target.startswith("files/") else target
+        # Pre-process targets for flexible matching
+        target_bases = set()
+        for t in targets:
+            base = t.replace("files/", "") if t.startswith("files/") else t
+            target_bases.add(base)
         
-        print(f"Alvo para remoção (Strict): {target} (Base: {target_base})")
+        print(f"Alvos para remoção ({len(targets)}): {list(targets)}")
 
         # Helper to calculate new list
         items = []
@@ -50,20 +74,24 @@ def main():
             
             path = item.get("path", "")
             
-            # Strict Equality Checks
-            # We check both full path and basename to be safe, but NO wildcards/endswith
-            is_match = (
-                fname == target or 
-                fname == target_base or 
-                path == target or 
-                path == target_base or
-                (fname == "files/" + target_base) or
-                (path == "files/" + target_base) or
-                # Reference Checks (Target might be the URL or a specific ID if we had one, but relying on filename/link match)
-                (link == target) or
-                (link_origem == target) or
-                (url_source == target)
-            )
+            # Match Logic
+            # Check if ANY of the item's properties match ANY of the targets
+            is_match = False
+            
+            # Simple check against set
+            candidates = [fname, link, link_origem, url_source, path]
+            
+            for c in candidates:
+                if not c: continue
+                # Exact match
+                if c in targets:
+                    is_match = True
+                    break
+                # Base match
+                c_base = c.replace("files/", "") if c.startswith("files/") else c
+                if c_base in target_bases:
+                    is_match = True
+                    break
             
             if is_match:
                 print(f"REMOVENDO entrada do manifesto: {fname or link} (Match encontrado)")

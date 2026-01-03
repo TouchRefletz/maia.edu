@@ -1410,35 +1410,34 @@ export function setupSearchLogic() {
   };
 
   const performBatchCleanup = async (corruptedItems, log) => {
-    const queue = new AsyncQueue(2); // Cleanup Concurrency = 2
+    // Collect all filenames to delete
+    const filenamesToDelete = corruptedItems.map(
+      (item) =>
+        item.filename || (item.path ? item.path.split("/").pop() : item.url)
+    );
 
-    corruptedItems.forEach((item) => {
-      queue.enqueue(async () => {
-        const filename =
-          item.filename || (item.path ? item.path.split("/").pop() : item.url);
-        log(`[QUEUE] Solicitando exclusão: ${filename}...`, "warning");
+    if (filenamesToDelete.length === 0) return;
 
-        // 1. Delete Artifact (HF)
-        try {
-          // Determine if it's a reference (no file) or file
-          const isReference = item.status === "reference";
+    log(
+      `[BATCH] Solicitando exclusão de ${filenamesToDelete.length} itens em lote...`,
+      "warning"
+    );
 
-          await fetch(`${PROD_WORKER_URL}/delete-artifact`, {
-            method: "POST",
-            body: JSON.stringify({
-              slug: currentSlug,
-              filename: filename,
-              manifest_only: isReference, // Pass flag for Worker/Workflow (though workflow auto-detects missing file too)
-            }),
-            headers: { "Content-Type": "application/json" },
-          });
-        } catch (e) {
-          console.error("Artifact delete failed", e);
-        }
+    try {
+      await fetch(`${PROD_WORKER_URL}/delete-artifact`, {
+        method: "POST",
+        body: JSON.stringify({
+          slug: currentSlug,
+          filenames: filenamesToDelete, // Send array
+          batch_mode: true,
+        }),
+        headers: { "Content-Type": "application/json" },
       });
-    });
-
-    await queue.drain();
+      log(`[BATCH] Solicitação enviada com sucesso.`, "success");
+    } catch (e) {
+      console.error("Batch artifact delete failed", e);
+      log(`[ERRO] Falha ao enviar solicitação de exclusão em lote.`, "error");
+    }
   };
 
   // --- ROBUST 3-LAYER VERIFICATION ---

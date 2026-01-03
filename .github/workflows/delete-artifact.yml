@@ -21,6 +21,8 @@ jobs:
     env:
       SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
       FILENAME: ${{ github.event.client_payload.filename || inputs.filename }}
+      # Use toJson to safely pass array as JSON string
+      FILENAMES_JSON: ${{ toJson(github.event.client_payload.filenames) }}
       PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
       PUSHER_KEY: ${{ secrets.PUSHER_KEY }}
       PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
@@ -142,12 +144,12 @@ jobs:
             echo "[SYSTEM_INFO] JOB_URL=$JOB_URL"
           ) 2>&1 | python3 logger.py
 
-      - name: Cleanup Hugging Face (Specific File)
+      - name: Cleanup Hugging Face (Batch)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           (
-            echo "INICIANDO REMOÇÃO do arquivo corrompido: $FILENAME (Slug: $SLUG)..."
+            echo "INICIANDO LIMPEZA EM LOTE (Slug: $SLUG)..."
             
             git config --global user.email "bot@maia.api"
             git config --global user.name "Maia Bot"
@@ -156,108 +158,114 @@ jobs:
             git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_cleanup_repo
             cd hf_cleanup_repo
 
-            # Path Checks
-            BASE_DIR="output/$SLUG"
-            FILE_PATH="$BASE_DIR/$FILENAME"
-            FILES_SUBDIR_PATH="$BASE_DIR/files/$FILENAME"
-            MANIFEST_PATH="$BASE_DIR/manifest.json"
-
-            TARGET_TO_REMOVE=""
-
-            if [ -f "$FILE_PATH" ]; then
-                TARGET_TO_REMOVE="$FILE_PATH"
-            elif [ -f "$FILES_SUBDIR_PATH" ]; then
-                TARGET_TO_REMOVE="$FILES_SUBDIR_PATH"
-            fi
-
-            SHOULD_UPDATE_MANIFEST="false"
-
-            if [ -n "$TARGET_TO_REMOVE" ]; then
-                echo "Arquivo encontrado. Removendo: $TARGET_TO_REMOVE"
-                git rm "$TARGET_TO_REMOVE"
-                SHOULD_UPDATE_MANIFEST="true"
-
-                # Check for Thumbnail
-                REMOVED_FILENAME=$(basename "$TARGET_TO_REMOVE")
-                STEM="${REMOVED_FILENAME%.*}"
-                THUMB_PATH="$BASE_DIR/thumbnails/${STEM}.jpg"
-
-                if [ -f "$THUMB_PATH" ]; then
-                    echo "Thumbnail encontrada. Removendo: $THUMB_PATH"
-                    git rm "$THUMB_PATH"
-                else
-                     echo "Thumbnail não encontrada em: $THUMB_PATH (Pode não existir)"
-                fi
-            else
-                echo "AVISO: Arquivo $FILENAME (ou variantes) não encontrado no repositório."
-                # Se não achou arquivo, mas veio o comando de delete, assumimos que é para limpar
-                # o manifesto se estivermos no fluxo de 'manifest_only' ou apenas para garantir integridade.
-                # A flag client_payload.manifest_only poderia ser usada, mas para simplificar:
-                # Se o usuário pediu para deletar e não tem arquivo, PROVAVELMENTE é um link de referência ou erro de sync.
-                # Vamos forçar a atualização do manifesto.
-                echo "Habilitando limpeza de MANIFESTO para remover referências órfãs."
-                SHOULD_UPDATE_MANIFEST="true"
-            fi
-            
-            if [ "$SHOULD_UPDATE_MANIFEST" == "true" ] && [ -f "$MANIFEST_PATH" ]; then
-                echo "Atualizando manifest.json..."
-                # Python script to safely remove entry from manifest
-                export MANIFEST_PATH="$MANIFEST_PATH"
-                export FILENAME="$FILENAME"
-                python3 "$GITHUB_WORKSPACE/.github/scripts/update_manifest.py"
-
-                git add "$MANIFEST_PATH"
-            else
-                if [ "$SHOULD_UPDATE_MANIFEST" == "true" ]; then
-                     echo "ERRO/AVISO: Manifesto não encontrado no path esperado: $MANIFEST_PATH"
-                fi
-            fi
-
-            # Commit changes (File removal AND/OR Manifest update)
-            # Use --allow-empty in case nothing changed but we want to log the attempt?
-            # No, if nothing blocked, we might fail commit. Check status.
-            # Retry Loop for Race Conditions
             MAX_RETRIES=10
             success="false"
 
             for (( i=0; i<MAX_RETRIES; i++ )); do
-                if git diff --staged --quiet; then
-                    echo "Nenhuma mudança para commitar."
-                    success="true"
-                    break
-                fi
-
-                git commit -m "Cleanup: $FILENAME"
-
-                if git push origin main; then
-                    echo "SUCESSO: Limpeza aplicada."
-                    success="true"
-                    break
-                else
-                    echo "ALERTA: Falha no push (Possível Race Condition). Tentativa $((i+1))/$MAX_RETRIES..."
-                    git reset --soft HEAD~1
-                    
-                    # Random Backoff (2-7s) to mitigate thundering herd
+                 if [ $i -gt 0 ]; then
+                    echo "Tentativa $((i+1))/$MAX_RETRIES: Sincronizando (hard reset)..."
                     sleep $(( ( RANDOM % 6 ) + 2 ))
-
-                    # Sync & Re-Apply
                     git fetch origin main
-                    
-                    # Reset manifest to upstream version to avoid conflicts
-                    # We preserve the file deletion (git rm) in the index, but refresh manifest
-                    if [ "$SHOULD_UPDATE_MANIFEST" == "true" ] && [ -f "$MANIFEST_PATH" ]; then
-                        echo "Sincronizando manifest.json com upstream..."
-                        git checkout origin/main -- "$MANIFEST_PATH"
-                        
-                        echo "Re-aplicando atualização no manifesto..."
-                        python3 "$GITHUB_WORKSPACE/.github/scripts/update_manifest.py"
-                        git add "$MANIFEST_PATH"
-                    fi
-                fi
-            done
+                    git reset --hard origin/main
+                 fi
 
+                 # Create Python Helper to parse filenames
+                 # We simply dump the env vars to a file or read them in python
+                 cat << 'PYEOF' > batch_targets.py
+          import os
+          import json
+
+          # Handle both singular FILENAME and plural FILENAMES_JSON
+          filenames = []
+
+          singular = os.environ.get("FILENAME")
+          if singular and singular != "null":
+              filenames.append(singular)
+
+          plural_json = os.environ.get("FILENAMES_JSON")
+          if plural_json and plural_json != "null":
+              try:
+                  parsed = json.loads(plural_json)
+                  if isinstance(parsed, list):
+                      filenames.extend(parsed)
+              except:
+                  pass
+
+          # Print newline separated items
+          print("\n".join(filenames))
+          PYEOF
+
+                 TARGETS=$(python3 batch_targets.py)
+                 
+                 if [ -z "$TARGETS" ]; then
+                     echo "Nenhum arquivo alvo encontrado."
+                     success="true"
+                     break
+                 fi
+
+                 # Process Local Deletions
+                 BASE_DIR="output/$SLUG"
+                 MANIFEST_PATH="$BASE_DIR/manifest.json"
+                 SHOULD_UPDATE_MANIFEST="false"
+
+                 while IFS= read -r FILE_ITEM; do
+                      if [ -z "$FILE_ITEM" ]; then continue; fi
+                      
+                      FILE_PATH="$BASE_DIR/$FILE_ITEM"
+                      FILES_SUBDIR_PATH="$BASE_DIR/files/$FILE_ITEM"
+                      
+                      TARGET_TO_REMOVE=""
+                      if [ -f "$FILE_PATH" ]; then
+                          TARGET_TO_REMOVE="$FILE_PATH"
+                      elif [ -f "$FILES_SUBDIR_PATH" ]; then
+                          TARGET_TO_REMOVE="$FILES_SUBDIR_PATH"
+                      fi
+
+                      if [ -n "$TARGET_TO_REMOVE" ]; then
+                          echo "Removendo: $TARGET_TO_REMOVE"
+                          git rm "$TARGET_TO_REMOVE"
+                          SHOULD_UPDATE_MANIFEST="true"
+                          
+                          REMOVED_FILENAME=$(basename "$TARGET_TO_REMOVE")
+                          STEM="${REMOVED_FILENAME%.*}"
+                          THUMB_PATH="$BASE_DIR/thumbnails/${STEM}.jpg"
+                          if [ -f "$THUMB_PATH" ]; then
+                             git rm "$THUMB_PATH"
+                          fi
+                      else
+                          # Assumes strict manifest cleanup needed even if file gone
+                          SHOULD_UPDATE_MANIFEST="true"
+                      fi
+                 done <<< "$TARGETS"
+
+                 if [ "$SHOULD_UPDATE_MANIFEST" == "true" ] && [ -f "$MANIFEST_PATH" ]; then
+                     echo "Atualizando manifest.json (Batch)..."
+                     export MANIFEST_PATH="$MANIFEST_PATH"
+                     # Pass filenames to python via env var reused or just FILENAMES_JSON
+                     # We need to update update_manifest.py to handle FILENAMES_JSON
+                     python3 "$GITHUB_WORKSPACE/.github/scripts/update_manifest.py"
+                     git add "$MANIFEST_PATH"
+                 fi
+
+                 if git diff --staged --quiet; then
+                     echo "Nenhuma mudança para commitar."
+                     success="true"
+                     break
+                 fi
+
+                 git commit -m "Cleanup: Batch for $SLUG"
+                 
+                 if git push origin main; then
+                     echo "SUCESSO: Batch clean applied."
+                     success="true"
+                     break
+                 else
+                     echo "ALERTA: Push falhou."
+                 fi
+            done
+            
             if [ "$success" != "true" ]; then
-                echo "ERRO FATAL: Falha ao sincronizar após $MAX_RETRIES tentativas."
+                echo "ERRO FATAL."
                 exit 1
             fi
             
