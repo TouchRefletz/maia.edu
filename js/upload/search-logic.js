@@ -1312,12 +1312,6 @@ export function setupSearchLogic() {
           ignoredFiles &&
           (ignoredFiles.has(fname) || ignoredFiles.has(item.filename))
         ) {
-          // EXCEPTION: If it is a reference, we WANT to show it (as broken)
-          if (item.status === "reference") {
-            item.isKnownBroken = true; // Mark to skip re-verification logic
-            return true;
-          }
-
           if (log)
             log(`[SKIP] Ignorando arquivo pendente de exclusão: ${fname}`);
           return false;
@@ -1380,13 +1374,6 @@ export function setupSearchLogic() {
 
     // 2. Verify References (Links)
     const checkReferenceTask = async (item) => {
-      // Skip if known broken (Optimistic Filter retention)
-      if (item.isKnownBroken) {
-        item.isBroken = true;
-        validItems.push(item);
-        return;
-      }
-
       // Assume valid initially? No, strict check requested.
       const isValid = await verifyReference(item.url, log);
       if (isValid) {
@@ -1395,10 +1382,6 @@ export function setupSearchLogic() {
         if (log)
           log(`[REFERÊNCIA QUEBRADA] ${item.name} (${item.url})`, "warning");
         corruptedItems.push(item);
-        // KEEP in UI so user can see it (Last Chance View)
-        // We add a flag to potentially style it if needed, or just let the global warning handle it.
-        item.isBroken = true;
-        validItems.push(item);
       }
     };
 
@@ -1623,12 +1606,17 @@ export function setupSearchLogic() {
     }
 
     // --- RENDER REFERENCES ---
-    if (itemsRefs.length > 0) {
+    // User requested: Always show the field, even if empty (with message)
+    if (true) {
       // Create Section Break
       const refSection = document.createElement("div");
       refSection.style.gridColumn = "1 / -1";
       refSection.style.marginTop = "32px";
-      refSection.innerHTML = `
+
+      let contentHtml = `<h3 style="color:var(--color-text); margin-bottom:16px;">Links de Referência (${itemsRefs.length})</h3>`;
+
+      if (itemsRefs.length > 0) {
+        contentHtml += `
             <div style="
                 background: rgba(255, 193, 7, 0.1); 
                 border: 1px solid rgba(255, 193, 7, 0.3); 
@@ -1643,17 +1631,34 @@ export function setupSearchLogic() {
                 <div style="font-size: 1.5rem;">⚠️</div>
                 <div>
                     <strong>Referências Externas Detectadas</strong><br>
-                    <span style="font-size: 0.9em; opacity: 0.9;">Estes links foram encontrados durante a varredura, mas apontam para sites externos. Eles podem estar quebrados ou desatualizados. Use apenas para consulta manual.</span>
+                    <span style="font-size: 0.9em; opacity: 0.9;">Estes links foram encontrados durante a varredura, mas apontam para sites externos e não foram arquivados. Eles podem estar quebrados ou desatualizados.</span>
                 </div>
             </div>
-            <h3 style="color:var(--color-text); margin-bottom:16px;">Links de Referência (${itemsRefs.length})</h3>
-        `;
-      grid.appendChild(refSection);
+          `;
+        refSection.innerHTML = contentHtml;
+        grid.appendChild(refSection);
 
-      itemsRefs.forEach((item) => {
-        const card = createCard(item, true); // true = isReference
-        grid.appendChild(card);
-      });
+        itemsRefs.forEach((item) => {
+          const card = createCard(item, true); // true = isReference
+          grid.appendChild(card);
+        });
+      } else {
+        // Empty State
+        contentHtml += `
+            <div style="
+                padding: 32px; 
+                background: var(--color-bg-sub); 
+                border-radius: 8px; 
+                text-align: center; 
+                color: var(--color-text-secondary);
+                border: 1px dashed var(--color-border);
+            ">
+                Nenhuma referência encontrada ou válida.
+            </div>
+          `;
+        refSection.innerHTML = contentHtml;
+        grid.appendChild(refSection);
+      }
     }
 
     document.getElementById("btnExtractSelection").onclick = showRenameModal;
