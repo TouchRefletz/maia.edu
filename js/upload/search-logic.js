@@ -1382,6 +1382,10 @@ export function setupSearchLogic() {
         if (log)
           log(`[REFERÊNCIA QUEBRADA] ${item.name} (${item.url})`, "warning");
         corruptedItems.push(item);
+        // KEEP in UI so user can see it (Last Chance View)
+        // We add a flag to potentially style it if needed, or just let the global warning handle it.
+        item.isBroken = true;
+        validItems.push(item);
       }
     };
 
