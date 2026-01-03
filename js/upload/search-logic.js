@@ -593,6 +593,14 @@ export function setupSearchLogic() {
         ? terminalInstance.getNotificationState()
         : false;
 
+      // --- FIX: CLEAR PREVIOUS RESULTS ON UPDATE ---
+      // If we are "Adding more results" or "Retrying", we should clear the old grid
+      // so the user sees a "fresh" start while the agent runs.
+      const existingResults = searchResults.querySelector(".results-container");
+      if (existingResults) existingResults.remove();
+      // Reset selections since DOM elements are gone
+      selectedItems = { prova: null, gabarito: null };
+
       // Re-attach to existing terminal
       if (terminalInstance) {
         terminal = terminalInstance;
