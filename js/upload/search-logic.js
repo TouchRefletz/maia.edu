@@ -1680,9 +1680,155 @@ export function setupSearchLogic() {
         refSection.innerHTML = contentHtml;
         grid.appendChild(refSection);
       }
+
+      // MOVED: Render items separately to ensure they are appended correctly
+      if (itemsRefs.length > 0) {
+        const refList = document.createElement("div");
+        Object.assign(refList.style, {
+          gridColumn: "1 / -1",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        });
+
+        itemsRefs.forEach((item) => {
+          const row = createReferenceRow(item);
+          refList.appendChild(row);
+        });
+        grid.appendChild(refList);
+      }
     }
 
     document.getElementById("btnExtractSelection").onclick = showRenameModal;
+  };
+
+  // --- NEW: ROW RENDERER FOR REFERENCES ---
+  const createReferenceRow = (item) => {
+    let finalUrl = item.url;
+    if (!finalUrl && item.path) finalUrl = item.path;
+    if (!finalUrl) return document.createElement("div");
+
+    // Title Fallback
+    let displayTitle =
+      item.name || item.nome_amigavel || item.description || item.friendly_name;
+    if (!displayTitle || displayTitle.trim() === "") {
+      displayTitle = item.url; // Use URL if no name
+    }
+
+    const row = document.createElement("div");
+    Object.assign(row.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "16px 20px",
+      backgroundColor: "var(--color-surface)",
+      border: "1px solid var(--color-border)",
+      borderRadius: "var(--radius-lg)",
+      boxShadow: "var(--shadow-sm)",
+      transition: "all 0.2s ease",
+      width: "100%",
+      gap: "16px",
+    });
+
+    row.onmouseenter = () => {
+      row.style.borderColor = "var(--color-primary)";
+      row.style.transform = "translateX(4px)";
+    };
+    row.onmouseleave = () => {
+      row.style.borderColor = "var(--color-border)";
+      row.style.transform = "none";
+    };
+
+    // Icon + Info Group
+    const leftGroup = document.createElement("div");
+    Object.assign(leftGroup.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "16px",
+      flex: "1",
+      overflow: "hidden",
+    });
+
+    const icon = document.createElement("div");
+    icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+    Object.assign(icon.style, {
+      color: "var(--color-text-secondary)",
+      flexShrink: 0,
+    });
+
+    const textCol = document.createElement("div");
+    Object.assign(textCol.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      overflow: "hidden",
+    });
+
+    const titleEl = document.createElement("div");
+    titleEl.innerText = displayTitle;
+    Object.assign(titleEl.style, {
+      fontWeight: "600",
+      color: "var(--color-text)",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    });
+
+    const urlEl = document.createElement("div");
+    urlEl.innerText = finalUrl;
+    Object.assign(urlEl.style, {
+      fontSize: "0.85rem",
+      color: "var(--color-text-secondary)",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      opacity: "0.8",
+    });
+
+    textCol.appendChild(titleEl);
+    textCol.appendChild(urlEl);
+    leftGroup.appendChild(icon);
+    leftGroup.appendChild(textCol);
+
+    // Action Button
+    const btn = document.createElement("a");
+    btn.href = finalUrl;
+    btn.target = "_blank";
+    btn.innerHTML = `
+        <span>Visitar Link</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      `;
+    Object.assign(btn.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "8px 16px",
+      backgroundColor: "var(--color-bg-sub)",
+      color: "var(--color-text)",
+      border: "1px solid var(--color-border)",
+      borderRadius: "6px",
+      fontSize: "0.9rem",
+      fontWeight: "500",
+      textDecoration: "none",
+      whiteSpace: "nowrap",
+      transition: "all 0.2s",
+    });
+
+    btn.onmouseenter = () => {
+      btn.style.backgroundColor = "var(--color-primary)";
+      btn.style.borderColor = "var(--color-primary)";
+      btn.style.color = "white";
+    };
+    btn.onmouseleave = () => {
+      btn.style.backgroundColor = "var(--color-bg-sub)";
+      btn.style.borderColor = "var(--color-border)";
+      btn.style.color = "var(--color-text)";
+    };
+
+    row.appendChild(leftGroup);
+    row.appendChild(btn);
+
+    return row;
   };
 
   const createCard = (item, isReference = false) => {
