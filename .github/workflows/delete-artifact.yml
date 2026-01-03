@@ -27,6 +27,9 @@ jobs:
       PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Setup Logger
         run: |
           cat << 'EOF' > logger.py
