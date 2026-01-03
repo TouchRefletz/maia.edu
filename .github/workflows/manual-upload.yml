@@ -140,6 +140,9 @@ jobs:
             local fname="$2"
             local type="$3" # "pdf" or "gab"
             
+            # Notify start of download
+            python3 ../logger.py "Baixando arquivo processado: $fname"
+            
             local final_name="$fname"
             
             if [ -n "$url" ] && [ "$url" != "null" ]; then
@@ -184,6 +187,7 @@ jobs:
             
             # Export to GitHub Output
             echo "final_${type}_name=$final_name" >> $GITHUB_OUTPUT
+            python3 ../logger.py "Download concluído: $final_name"
             echo "::notice::Final $type Name: $final_name"
           }
 
@@ -405,6 +409,7 @@ jobs:
           git lfs install
           git lfs track "*.pdf" "*.jpg"
           git add .
+          python3 ../logger.py "Commitando alterações no dataset..."
           git commit -m "Manual upload (Rich Metadata) for $SLUG" || echo "Nothing to commit"
           git push
 

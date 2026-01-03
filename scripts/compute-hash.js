@@ -5,6 +5,7 @@
  * Usage: node scripts/compute-hash.js [directory_path] OR [pdf_file]
  */
 
+import { exec } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -12,6 +13,18 @@ import puppeteer from "puppeteer";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Helper: Log to Pusher via logger.py (if exists in root or parent)
+const logToPusher = (msg) => {
+  // Check root (../logger.py from scripts/) or current dir
+  let loggerPath = path.resolve(__dirname, "../logger.py");
+  if (!fs.existsSync(loggerPath)) loggerPath = "logger.py"; // Fallback for CWD
+
+  if (fs.existsSync(loggerPath)) {
+    // Fire and forget
+    exec(`python3 "${loggerPath}" "${msg}"`);
+  }
+};
 
 // Path to dependencies
 // We need to inject the raw code into the browser page
@@ -62,6 +75,7 @@ export async function computeFileHash(filePath) {
     await page.addScriptTag({ content: sharedLogic });
 
     // 4. Run the Hash Computation in the Browser Context
+    logToPusher(`Validando integridade visual: ${path.basename(filePath)}`);
     // We get the RAW VISUAL STRING back, and hash it in Node to avoid crypto.subtle issues in insecure contexts
     const rawVisualData = await page.evaluate(async (pdfBase64) => {
       // Utils injected via shared-hash-logic (unpacked)
@@ -160,6 +174,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
           const filePath = path.join(targetDir, "files", item.filename);
           if (fs.existsSync(filePath)) {
             console.log(`Hashing: ${item.filename}...`);
+            // Only log via Pusher if not verbose to avoid spam, or key files?
+            // Let's log updates
             const hash = await computeFileHash(filePath);
             if (hash) {
               // Determine if changed

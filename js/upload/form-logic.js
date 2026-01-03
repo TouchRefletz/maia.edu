@@ -172,7 +172,7 @@ export function setupFormLogic(elements, initialData) {
       aiData,
       hfUrlGabarito
     ) => {
-      progress.update("Iniciando conexão com o servidor de logs...");
+      progress.addLog("Iniciando conexão com o servidor de logs...", true);
       console.log(`[Manual] Subscribing to Pusher channel: ${slug}`);
 
       // 1. Load Pusher
@@ -202,8 +202,9 @@ export function setupFormLogic(elements, initialData) {
       // SAFETY TIMEOUT: Warn if no events for a while
       const safetyTimeout = setTimeout(() => {
         if (!eventReceived) {
-          progress.update(
-            "⚠️ O processo está demorando mais que o normal ou não iniciou."
+          progress.addLog(
+            "⚠️ O processo está demorando mais que o normal ou não iniciou.",
+            true
           );
           console.warn("[Manual] No Pusher events received in 20s.");
           // We don't close yet, just warn.
@@ -218,12 +219,15 @@ export function setupFormLogic(elements, initialData) {
         const msg = data.message || (data.data && data.data.message) || "";
         console.log(`[Pusher] ${msg}`);
 
-        // Update UI
-        progress.update(msg);
+        // Update UI handled inside startPolling via Translator now
+        // progress.update(msg);
 
         // Check for success
         if (msg && msg.includes("Cloud sync complete")) {
-          progress.update("Sincronização concluída! Abrindo visualizador...");
+          progress.addLog(
+            "Sincronização concluída! Abrindo visualizador...",
+            true
+          );
 
           // Unsubscribe & Disconnect
           channel.unbind_all();
@@ -258,20 +262,23 @@ export function setupFormLogic(elements, initialData) {
 
         // A. Upload Prova to TmpFiles
         if (fileProva) {
-          progress.update("Enviando prova para servidor temporário...");
+          progress.setTarget(10, "Upload Temporário");
+          progress.addLog("Enviando prova para servidor temporário...");
           tmpUrlProva = await uploadToTmpFiles(fileProva);
           console.log("[Manual] TmpUrl Prova:", tmpUrlProva);
         }
 
         // B. Upload Gabarito to TmpFiles
         if (fileGabarito) {
-          progress.update("Enviando gabarito para servidor temporário...");
+          progress.setTarget(15);
+          progress.addLog("Enviando gabarito para servidor temporário...");
           tmpUrlGab = await uploadToTmpFiles(fileGabarito);
           console.log("[Manual] TmpUrl Gabarito:", tmpUrlGab);
         }
 
         // C. Request Hash from GitHub (via Worker Proxy)
-        progress.update("Solicitando cálculo de hash seguro (GitHub)...");
+        progress.setTarget(20, "Verificando Integridade");
+        progress.addLog("Solicitando cálculo de hash seguro (GitHub)...");
 
         const WORKER_URL =
           "https://maia-api-worker.willian-campos-ismart.workers.dev";
@@ -324,7 +331,8 @@ export function setupFormLogic(elements, initialData) {
         };
 
         if (tmpUrlProva) {
-          progress.update("Calculando hash da Prova (Remoto)...");
+          progress.setTarget(25);
+          progress.addLog("Calculando hash da Prova (Remoto)...");
           const result = await getRemoteHash(
             tmpUrlProva,
             timestampSlug + "-prova"
@@ -340,14 +348,15 @@ export function setupFormLogic(elements, initialData) {
         }
 
         if (tmpUrlGab) {
-          progress.update("Calculando hash do Gabarito (Remoto)...");
+          progress.setTarget(30);
+          progress.addLog("Calculando hash do Gabarito (Remoto)...");
           const result = await getRemoteHash(tmpUrlGab, timestampSlug + "-gab");
           remoteHashGab = result.hash;
           console.log("[Manual] Hash Gabarito:", result);
         }
       } catch (err) {
         console.warn("[Manual] Remote Hash Flow Failed:", err);
-        progress.update("Erro no fluxo remoto. Abortando.");
+        progress.addLog("Erro no fluxo remoto. Abortando.", true);
         alert("Erro ao processar arquivo remotamente: " + err.message);
         return; // Stop here if we can't get hash
       }
@@ -454,6 +463,8 @@ export function setupFormLogic(elements, initialData) {
       console.log("[Manual] -------------------------");
 
       console.log("[Manual] FormData prepared. Dispatching to Worker...");
+      progress.setTarget(40, "Processamento AI");
+      progress.addLog("Enviando dados para worker de inteligência...");
 
       const WORKER_URL =
         "https://maia-api-worker.willian-campos-ismart.workers.dev";
@@ -519,8 +530,9 @@ export function setupFormLogic(elements, initialData) {
 
         // 1. FULL MATCH -> Use Remote Directly
         if (matchProva && (!fileGabarito || matchGab)) {
-          progress.update(
-            "Arquivos duplicados detectados. Usando versão da nuvem..."
+          progress.addLog(
+            "Arquivos duplicados detectados. Usando versão da nuvem...",
+            true
           );
           setTimeout(() => {
             progress.close();
@@ -541,7 +553,7 @@ export function setupFormLogic(elements, initialData) {
         console.log(
           "[Manual] Partial or No Match. Auto-merging differences..."
         );
-        progress.update("Sincronizando diferenças com a nuvem...");
+        progress.addLog("Sincronizando diferenças com a nuvem...", true);
 
         // Simply auto-merge/overwrite whatever didn't match
         import("./search-logic.js").then((module) => {
@@ -632,7 +644,11 @@ export function setupFormLogic(elements, initialData) {
 
       // CHECK: Is Deduplicated? (Immediate Open)
       if (data.is_deduplicated) {
-        progress.update("✅ Arquivos já existentes encontrados! Abrindo...");
+        progress.setTarget(100, "Concluído");
+        progress.addLog(
+          "✅ Arquivos já existentes encontrados! Abrindo...",
+          true
+        );
         setTimeout(() => {
           progress.close();
           openViewer(hfUrl, slug, data.ai_data, hfUrlGab);
