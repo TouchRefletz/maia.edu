@@ -91,6 +91,7 @@ export function setupFormLogic(elements, initialData) {
     console.log("[Manual] Starting Cloud-First Upload Flow...");
 
     // Create/Show Progress Modal
+    // Create/Show Progress Modal
     const showProgressModal = (initialStatus) => {
       let modal = document.getElementById("upload-progress-modal");
       if (!modal) {
@@ -102,13 +103,13 @@ export function setupFormLogic(elements, initialData) {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.85)",
+          backgroundColor: "rgba(0,0,0,0.9)",
           zIndex: 12000,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backdropFilter: "blur(5px)",
+          backdropFilter: "blur(10px)",
           color: "white",
           fontFamily: "var(--font-primary)",
         });
@@ -116,19 +117,93 @@ export function setupFormLogic(elements, initialData) {
       }
 
       modal.innerHTML = `
-        <div style="background:var(--color-surface); padding:40px; border-radius:16px; width:90%; max-width:400px; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.5); border:1px solid var(--color-border);">
-            <div class="spinner" style="margin:0 auto 20px; width:40px; height:40px; border:4px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:spin 1s linear infinite;"></div>
-            <h3 style="margin-bottom:10px; color:var(--color-text);">Processando</h3>
-            <p id="upload-status-text" style="color:var(--color-text-secondary); margin-bottom:0;">${initialStatus}</p>
+        <div style="background:var(--color-surface); padding:30px; border-radius:16px; width:90%; max-width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.6); border:1px solid var(--color-border); display:flex; flex-direction:column; gap:20px;">
+            
+            <div style="text-align:center;">
+                <h3 style="margin:0 0 5px 0; color:var(--color-text); font-size:1.2rem;">Processando Arquivos</h3>
+                <p style="margin:0; color:var(--color-text-secondary); font-size:0.9rem;">Tempo estimado: ~4 min (Cloud Sync)</p>
+            </div>
+
+            <!-- Progress Bar Container -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--color-text-secondary);">
+                    <span id="progress-percent">0%</span>
+                    <span id="progress-stage">Iniciando...</span>
+                </div>
+                <div style="width:100%; height:8px; background:rgba(255,255,255,0.1); border-radius:4px; overflow:hidden;">
+                    <div id="upload-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, var(--color-primary) 0%, #4facfe 100%); transition: width 0.5s ease-out;"></div>
+                </div>
+            </div>
+
+            <!-- Log Terminal -->
+            <div id="upload-log-terminal" style="
+                background: #1e1e1e; 
+                border-radius:8px; 
+                padding:15px; 
+                height:160px; 
+                overflow-y:auto; 
+                font-family: 'Fira Code', monospace; 
+                font-size:0.75rem; 
+                color:#d4d4d4; 
+                border:1px solid rgba(255,255,255,0.1);
+                display:flex; 
+                flex-direction:column; 
+                gap:4px;
+                scroll-behavior: smooth;
+            ">
+                <div style="color:#6a9955;">// Log de processamento em tempo real</div>
+                <div class="log-line">> ${initialStatus}</div>
+            </div>
+
         </div>
-        <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
       `;
+
+      const progressBar = document.getElementById("upload-progress-bar");
+      const progressPercent = document.getElementById("progress-percent");
+      const progressStage = document.getElementById("progress-stage");
+      const terminal = document.getElementById("upload-log-terminal");
+
+      // Auto-increment logic (visual only, capped by stage)
+      // Stages: 0-33% (Hash), 33-66% (Worker), 66-95% (Sync)
+      let currentProgress = 0;
+      let targetProgress = 5; // Start small
+      let currentStageName = "Preparando...";
+
+      const interval = setInterval(() => {
+        if (currentProgress < targetProgress) {
+          currentProgress += (targetProgress - currentProgress) * 0.1;
+          if (Math.abs(targetProgress - currentProgress) < 0.5)
+            currentProgress = targetProgress;
+        }
+
+        // Update UI
+        if (progressBar) progressBar.style.width = `${currentProgress}%`;
+        if (progressPercent)
+          progressPercent.textContent = `${Math.round(currentProgress)}%`;
+      }, 200);
+
+      const addLog = (text, isSystem = false) => {
+        if (!terminal) return;
+        const line = document.createElement("div");
+        line.className = "log-line";
+        line.style.color = isSystem ? "#569cd6" : "#d4d4d4";
+        line.textContent = `> ${text}`;
+        terminal.appendChild(line);
+        terminal.scrollTop = terminal.scrollHeight;
+      };
+
       return {
-        update: (text) => {
-          const el = document.getElementById("upload-status-text");
-          if (el) el.innerText = text;
+        setTarget: (percent, stageName) => {
+          if (percent > targetProgress) targetProgress = percent;
+          if (stageName) {
+            progressStage.textContent = stageName;
+            currentStageName = stageName;
+          }
         },
+        addLog: addLog, // Expose plain log adder
+        update: (text) => addLog(text), // Alias for backward compatibility
         close: () => {
+          clearInterval(interval);
           if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
         },
       };
