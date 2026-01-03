@@ -1200,44 +1200,21 @@ export class TerminalUI {
     this.logs = [];
     this.logQueue = [];
     this.currentVirtualProgress = 0;
-    this.updateProgressBar();
 
-    // Clear UI Containers
-    if (this.el.taskList) this.el.taskList.innerHTML = "";
-    if (this.el.logStream) this.el.logStream.innerHTML = "";
-
-    // Reset Status
-    if (this.el.status) {
-      this.el.status.innerText = "INICIANDO...";
-      this.el.status.classList.remove("success", "error", "active");
-      this.el.status.style.color = ""; // Reset inline color
-    }
-
-    // Reset Container Classes
-    this.container.classList.remove("term-status-success", "term-status-error");
-
-    // Reset Fill Color
-    if (this.el.fill)
-      this.el.fill.style.backgroundColor = "var(--color-primary)"; // Assuming primary green/blue
-
-    // Reset Buttons (Hide all except Cancel usually, but search logic handles toggle)
-    if (this.el.retryBtn) this.el.retryBtn.style.display = "none";
-    if (this.el.addMoreBtn) this.el.addMoreBtn.style.display = "none";
-    if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.remove("disabled");
-      this.el.cancelBtn.disabled = false;
-      this.el.cancelBtn.style.display = "flex";
-    }
-
-    // Reset Timer
+    // Reset Timer State
     this.startTime = Date.now();
     this.initialEstimatedDuration = this.options.initialDuration;
     this.estimatedRemainingTime = this.initialEstimatedDuration;
-    if (this.el.eta) this.el.eta.style.display = "block";
+
+    // Completely Re-Render Initial DOM
+    // This restores the placeholder, classes, and structure correctly.
+    this.renderInitialStructure();
+
+    // Clear Container Classes (remove success/error states)
+    this.container.classList.remove("term-status-success", "term-status-error");
 
     // Ensure ticker is running
-    if (!this.tickerInterval)
-      this.tickerInterval = setInterval(() => this.tick(), 1000);
+    this.tickerInterval = setInterval(() => this.tick(), 1000);
   }
 
   finish(isSuccess = true, showRetry = true) {
