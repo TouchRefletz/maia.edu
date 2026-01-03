@@ -170,6 +170,20 @@ jobs:
             if [ -n "$TARGET_TO_REMOVE" ]; then
                 echo "Arquivo encontrado. Removendo: $TARGET_TO_REMOVE"
                 git rm "$TARGET_TO_REMOVE"
+
+                # Check for Thumbnail
+                # We extract the filename from the path we just removed
+                REMOVED_FILENAME=$(basename "$TARGET_TO_REMOVE")
+                # Remove extension (assuming .pdf)
+                STEM="${REMOVED_FILENAME%.*}"
+                THUMB_PATH="$BASE_DIR/thumbnails/${STEM}.jpg"
+
+                if [ -f "$THUMB_PATH" ]; then
+                    echo "Thumbnail encontrada. Removendo: $THUMB_PATH"
+                    git rm "$THUMB_PATH"
+                else
+                     echo "Thumbnail não encontrada em: $THUMB_PATH (Pode não existir)"
+                fi
                 
                 if [ -f "$MANIFEST_PATH" ]; then
                     echo "Atualizando manifest.json..."
