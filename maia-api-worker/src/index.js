@@ -169,7 +169,9 @@ async function handleTriggerDeepSearch(request, env) {
 			const embedding = await generateEmbedding(searchParam, env.GOOGLE_GENAI_API_KEY);
 
 			if (embedding) {
-				const cacheResult = await executePineconeQuery(embedding, env, 10, { type: 'deep-search-result' }); // Get top 10
+				const cacheResult = await executePineconeQuery(embedding, env, 10, {
+					type: { $in: ['deep-search-result', 'manual-upload-result'] },
+				}); // Get top 10
 
 				if (cacheResult && cacheResult.matches) {
 					// 1. Exact Match Check
@@ -550,7 +552,11 @@ async function executePineconeQuery(vector, env, topK = 1, filter = {}) {
 	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH;
 	const apiKey = env.PINECONE_API_KEY;
 
-	if (filter.type === 'deep-search-result' && !pineconeHost) {
+	// Check if filter targets deep-search (either specific type or list including it)
+	const isDeepSearchQuery =
+		filter.type === 'deep-search-result' || (filter.type && filter.type['$in'] && filter.type['$in'].includes('deep-search-result'));
+
+	if (isDeepSearchQuery && !pineconeHost) {
 		console.error('[Pinecone Query] PINECONE_HOST_DEEP_SEARCH is required for deep-search queries but not set.');
 		return null; // Or throw, but for query we can just return null/empty
 	}
