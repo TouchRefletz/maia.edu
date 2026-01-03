@@ -722,7 +722,7 @@ export function setupSearchLogic() {
                 log,
                 terminal,
                 new Set(),
-                false // Disable Retry Button for Cached Results
+                true // Enable Retry/Add More Button even for Cached Results
               );
             }
           });
