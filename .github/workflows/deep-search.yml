@@ -382,26 +382,29 @@ jobs:
             if [ -s existing_manifest.json ] && grep -q "{" existing_manifest.json; then
                echo "Found existing manifest."
                
-               # Extract filenames using python for reliability
+               # Extract FULL JSON CONTENT using python for reliability (minify it)
                cat << 'EOF' > parse_existing.py
           import json
           try:
               with open('existing_manifest.json', 'r') as f:
                   data = json.load(f)
+              # Normalize to list
               items = data if isinstance(data, list) else data.get('results', [])
-              filenames = [i.get('filename') for i in items if i.get('filename')]
-              print(", ".join(filenames))
+              # Dump as compact JSON string
+              print(json.dumps(items, separators=(',', ':')))
           except:
-              print("")
+              print("[]")
           EOF
-               EXISTING_FILES=$(python3 parse_existing.py)
+               EXISTING_MANIFEST=$(python3 parse_existing.py)
                rm parse_existing.py
                
-               echo "existing_files=$EXISTING_FILES" >> $GITHUB_OUTPUT
-               echo "Existing files found: $EXISTING_FILES"
+               # Write to GITHUB_OUTPUT (SAFE way for multiline/JSON content)
+               # Although separators=(',', ':') makes it one line, strictly speaking.
+               echo "existing_manifest=$EXISTING_MANIFEST" >> $GITHUB_OUTPUT
+               echo "Existing manifest content loaded."
             else
                echo "No existing manifest found or invalid."
-               echo "existing_files=" >> $GITHUB_OUTPUT
+               echo "existing_manifest=" >> $GITHUB_OUTPUT
             fi
             
             rm -f existing_manifest.json
@@ -412,7 +415,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          EXISTING_FILES="${{ steps.fetch_manifest.outputs.existing_files }}"
+          EXISTING_MANIFEST='${{ steps.fetch_manifest.outputs.existing_manifest }}'
           # 1) Heredoc sem interpretação (não executa backticks)
           PROMPT_TEMPLATE=$(cat <<'EOF'
           Você recebeu uma consulta curta (QUERY) do tipo "nome da prova + ano", por exemplo: "ita 2022".
@@ -421,7 +424,7 @@ jobs:
 
           QUERY: "__QUERY__"
 
-          __EXISTING_FILES_INSTRUCTION__
+          __EXISTING_MANIFEST_INSTRUCTION__
 
           Regras para evitar pesquisa demais (muito importante):
           1) Não use Google como primeira opção (CAPTCHA é comum). Prefira:
@@ -459,12 +462,12 @@ jobs:
           EOF
           )
 
-          # Logic to inject existing files instruction only if they exist
-          if [ -n "$EXISTING_FILES" ]; then
-             INSTRUCTION="⚠️ ATENÇÃO: Os seguintes arquivos JÁ FORAM ENCONTRADOS e baixados anteriormente no banco de dados: [$EXISTING_FILES].\n   - IGNORE-OS completamente.\n   - NÃO os baixe novamente.\n   - Foque EXCLUSIVAMENTE em encontrar NOVOS arquivos ou gabaritos que NÃO estejam nesta lista."
-             PROMPT_TEMPLATE="${PROMPT_TEMPLATE/__EXISTING_FILES_INSTRUCTION__/$INSTRUCTION}"
+          # Logic to inject existing manifest only if available
+          if [ -n "$EXISTING_MANIFEST" ] && [ "$EXISTING_MANIFEST" != "[]" ]; then
+             INSTRUCTION="⚠️ ATENÇÃO: Os seguintes itens JÁ EXISTEM no banco de dados (Manifesto JSON Atual): $EXISTING_MANIFEST\n   - ANALISE este JSON para saber o que já temos.\n   - NÃO baixe novamente arquivos que já estão listados como 'downloaded'.\n   - EVITE duplicatas de arquivos que já possuem nomes similares.\n   - FOCAR em encontrar o que FALTA (ex: se tem a prova 1, procure o gabarito 1; se tem dia 1, procure dia 2)."
+             PROMPT_TEMPLATE="${PROMPT_TEMPLATE/__EXISTING_MANIFEST_INSTRUCTION__/$INSTRUCTION}"
           else
-             PROMPT_TEMPLATE="${PROMPT_TEMPLATE/__EXISTING_FILES_INSTRUCTION__/}"
+             PROMPT_TEMPLATE="${PROMPT_TEMPLATE/__EXISTING_MANIFEST_INSTRUCTION__/}"
           fi
 
           # Replace Placeholders
