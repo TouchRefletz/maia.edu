@@ -3,7 +3,6 @@ const PROD_WORKER_URL =
   import.meta.env.VITE_WORKER_URL || "https://your-worker.workers.dev";
 
 // Importa o visualizador
-import { AsyncQueue } from "../utils/queue.js";
 import { gerarVisualizadorPDF } from "../viewer/events.js";
 import { SearchPersistence } from "./search-persistence.js";
 import { TerminalUI } from "./terminal-ui.js";
@@ -1157,12 +1156,13 @@ export function setupSearchLogic() {
   };
 
   // --- CORE: INTEGRATED VERIFICATION & LOAD LOGIC ---
+  // --- CORE: INTEGRATED LOAD LOGIC (Backend Verified) ---
   const loadResults = async (
     manifestUrl,
     logFn,
     terminal,
     ignoredFiles = new Set(),
-    enableRetry = true // Default to true (show button)
+    enableRetry = true
   ) => {
     const log =
       logFn ||
@@ -1173,27 +1173,20 @@ export function setupSearchLogic() {
       let loadingAttempts = 0;
       let manifest = null;
 
-      // Update Terminal for Phase 3 (Verification)
+      // Update Terminal
       if (terminal) {
-        // Switch mode to allow progress up to 99%
-        if (terminal.setVerifyMode) terminal.setVerifyMode();
-
-        terminal.setStatus("VERIFICANDO_INTEGRIDADE");
-        terminal.updateStepText("Analisando estrutura dos arquivos...");
+        terminal.setStatus("CARREGANDO_RESULTADOS");
+        terminal.updateStepText("Obtendo manifesto verificado...");
       }
 
       while (loadingAttempts < 10 && !manifest) {
         try {
-          // Cache Busting: Ensure we get the latest manifest version
+          // Cache Busting
           const bust = Date.now();
           const r = await fetch(`${manifestUrl}?t=${bust}`);
           if (r.ok) {
             manifest = await r.json();
-
-            // Save valid manifest to persistence
-            if (manifest) {
-              SearchPersistence.saveManifest(manifest);
-            }
+            if (manifest) SearchPersistence.saveManifest(manifest);
             break;
           }
         } catch (e) {
@@ -1205,82 +1198,26 @@ export function setupSearchLogic() {
 
       if (!manifest) throw new Error("Manifesto não encontrado.");
 
-      // 2. Headless Verification
-      log(
-        "[SISTEMA] Iniciando verificação de integridade dos arquivos...",
-        "info"
-      );
+      // 2. Normalize Items
+      const rawItems =
+        manifest.results ||
+        manifest.files ||
+        (Array.isArray(manifest) ? manifest : []);
+      const validItems = rawItems.map(normalizeItem);
 
-      const { validItems, corruptedItems } = await verifyManifestIntegrity(
-        manifest,
-        log,
-        terminal,
-        ignoredFiles
-      );
-
-      // 3. Conditional Cleanup
-      if (corruptedItems.length > 0) {
-        log(
-          `[ALERTA] Identificados ${corruptedItems.length} arquivos incompatíveis.`,
-          "warning"
-        );
-
+      if (validItems.length === 0) {
+        log("[SISTEMA] Nenhum resultado válido encontrado.", "warning");
         if (terminal) {
-          terminal.setStatus("LIMPANDO_ARQUIVOS");
-          terminal.updateStepText(
-            `Removendo ${corruptedItems.length} itens corrompidos...`
-          );
-          // Bump slightly
-          terminal.currentVirtualProgress = 95;
-          terminal.updateProgressBar();
+          // Optional: trigger auto-retry logic here if needed, or just show empty state
         }
-
-        await performBatchCleanup(corruptedItems, log);
-
-        // Optimistic Update: Add these to ignoredFiles so we don't block on them
-        corruptedItems.forEach((item) => {
-          const filename =
-            item.filename ||
-            (item.path ? item.path.split("/").pop() : item.url);
-          ignoredFiles.add(filename);
-          // Also add the raw name/path to be safe
-          ignoredFiles.add(item.filename);
-        });
-
+      } else {
         log(
-          "[SISTEMA] Limpeza solicitada. Prosseguindo (Optimistic)...",
+          `[SISTEMA] ${validItems.length} itens carregados com sucesso.`,
           "success"
         );
-
-        // Recursive Retry immediately (or short delay), passing ignoredFiles
-        await new Promise((r) => setTimeout(r, 1000));
-        return loadResults(
-          manifestUrl,
-          logFn,
-          terminal,
-          ignoredFiles,
-          enableRetry
-        );
       }
 
-      // 4. Check for Total Failure (Auto-Run Agent)
-      if (validItems.length === 0) {
-        log(
-          "[SISTEMA] Nenhum resultado válido encontrado. Iniciando Agente Automaticamente...",
-          "warning"
-        );
-        if (terminal)
-          terminal.processLogLine(">> Redirecionando para Agent...", "system");
-
-        // Trigger Force Search (Overwrite)
-        // force=true, cleanup=false, confirm=true, mode="overwrite"
-        doSearch(true, false, true, "overwrite");
-        return;
-      }
-
-      // 5. Success -> Render
-      log("[SISTEMA] Todos os arquivos validados com sucesso.", "success");
-
+      // 3. Render
       if (terminal) {
         terminal.finish(true, enableRetry);
       }
@@ -1291,269 +1228,13 @@ export function setupSearchLogic() {
       // AUTO-PERSIST RESULTS
       SearchPersistence.saveManifest(validItems);
     } catch (e) {
-      console.error("Critical Error in loadResults:", e); // Detailed Console Log
+      console.error("Critical Error in loadResults:", e);
       if (terminal) terminal.fail(e.message);
-      log(
-        `Erro detalhado ao carregar resultados: ${e.message}\nStack: ${e.stack || "N/A"}`,
-        "error"
-      );
+      log(`Erro ao carregar resultados: ${e.message}`, "error");
     }
   };
 
-  // Headless Verification using Range Headers
-  const verifyManifestIntegrity = async (
-    manifest,
-    log,
-    terminal,
-    ignoredFiles
-  ) => {
-    // Normalization logic
-    const rawItems =
-      manifest.results ||
-      manifest.files ||
-      (Array.isArray(manifest) ? manifest : []);
-
-    const corruptedItems = [];
-
-    // Phase 1: Normalize & Basic Filter
-    let items = rawItems
-      .map((item) => normalizeItem(item))
-      .filter((item) => {
-        if (!item || !item.url || item.url.includes("/undefined")) return false;
-
-        // OPTIMISTIC FILTER: If we just asked to delete this, hide it.
-        const fname = item.filename || item.path?.split("/").pop();
-        if (
-          ignoredFiles &&
-          (ignoredFiles.has(fname) || ignoredFiles.has(item.filename))
-        ) {
-          if (log)
-            log(`[SKIP] Ignorando arquivo pendente de exclusão: ${fname}`);
-          return false;
-        }
-        return true;
-      });
-
-    // Phase 2: Deduplication (Quarta Camada de Verificação)
-    const seenHashes = new Set();
-    const uniqueItems = [];
-
-    items.forEach((item) => {
-      // Se temos um hash visual e já vimos ele antes...
-      if (item.visual_hash && seenHashes.has(item.visual_hash)) {
-        if (log)
-          log(
-            `[DUPLICATA] Hash visual repetido detectado em ${
-              item.filename || item.nome
-            }. Marcando para remoção.`,
-            "warning"
-          );
-        // Adiciona direto aos corrompidos para limpeza
-        corruptedItems.push(item);
-      } else {
-        // Se é novo, registra e segue
-        if (item.visual_hash) seenHashes.add(item.visual_hash);
-        uniqueItems.push(item);
-      }
-    });
-
-    // Atualiza a lista base para usar apenas os únicos
-    items = uniqueItems;
-
-    // Split references vs downloads
-    const downloadableItems = items.filter((i) => i.status !== "reference");
-    const referenceItems = items.filter((i) => i.status === "reference");
-
-    // Pre-populate valid with references (we will verification them below)
-    const validItems = [];
-    // const validItems = items.filter((i) => i.status === "reference"); // REMOVED: We now verify references
-
-    // Check downloads efficiently
-    const queue = new AsyncQueue(4); // 4 checks in parallel
-    let processed = 0;
-
-    // 1. Verify Downloads (PDFs)
-    const checkDownloadTask = async (item) => {
-      const isValid = await robustVerifyPdf(item.url, log);
-      if (isValid) {
-        validItems.push(item);
-      } else {
-        corruptedItems.push(item);
-      }
-      processed++;
-    };
-
-    downloadableItems.forEach((item) =>
-      queue.enqueue(() => checkDownloadTask(item))
-    );
-
-    // 2. Verify References (Links)
-    const checkReferenceTask = async (item) => {
-      // Assume valid initially? No, strict check requested.
-      const isValid = await verifyReference(item.url, log);
-      if (isValid) {
-        validItems.push(item);
-      } else {
-        if (log)
-          log(`[REFERÊNCIA QUEBRADA] ${item.name} (${item.url})`, "warning");
-        corruptedItems.push(item);
-      }
-    };
-
-    referenceItems.forEach((item) =>
-      queue.enqueue(() => checkReferenceTask(item))
-    );
-
-    await queue.drain();
-
-    return { validItems, corruptedItems };
-  };
-
-  // --- NEW: Verify Reference Link ---
-  const verifyReference = async (url, log) => {
-    if (!url || url === "#broken-reference") return false;
-    try {
-      // Use no-cors to avoid blocking but check network.
-      // Note: status is 0 (opaque). We accept opaque as "connected".
-      // If DNS fails or connection refused -> fetch throws TypeError.
-      await fetch(url, { method: "HEAD", mode: "no-cors" });
-      return true;
-    } catch (e) {
-      // Network error (DNS, Connection Refused etc)
-      return false;
-    }
-  };
-
-  const performBatchCleanup = async (corruptedItems, log) => {
-    // Collect all filenames to delete
-    const filenamesToDelete = corruptedItems.map(
-      (item) =>
-        item.filename || (item.path ? item.path.split("/").pop() : item.url)
-    );
-
-    if (filenamesToDelete.length === 0) return;
-
-    log(
-      `[BATCH] Solicitando exclusão de ${filenamesToDelete.length} itens em lote...`,
-      "warning"
-    );
-
-    try {
-      await fetch(`${PROD_WORKER_URL}/delete-artifact`, {
-        method: "POST",
-        body: JSON.stringify({
-          slug: currentSlug,
-          filenames: filenamesToDelete, // Send array
-          batch_mode: true,
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
-      log(`[BATCH] Solicitação enviada com sucesso.`, "success");
-    } catch (e) {
-      console.error("Batch artifact delete failed", e);
-      log(`[ERRO] Falha ao enviar solicitação de exclusão em lote.`, "error");
-    }
-  };
-
-  // --- ROBUST 3-LAYER VERIFICATION ---
-  const robustVerifyPdf = async (url, log) => {
-    // Helper helper for dual logging
-    const logError = (msg) => {
-      if (log) log(msg, "warning");
-      console.warn(msg);
-    };
-
-    /**
-     * Resolves the correct Fetch URL.
-     */
-    const getFetchUrl = (relativeUrl) => {
-      if (relativeUrl.startsWith("http")) return relativeUrl;
-      return `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${currentSlug}/${relativeUrl}`;
-    };
-
-    const targetUrl = getFetchUrl(url);
-    // Cache Busting for Verification
-    const bustUrl = `${targetUrl}?no_cache=${Date.now()}`;
-
-    try {
-      // --- LAYER 1: NETWORK & METADATA (HEAD) ---
-      // Low cost, checks existence and basic type.
-      const headResp = await fetch(bustUrl, { method: "HEAD" });
-
-      if (!headResp.ok) {
-        logError(
-          `[VERIFICAÇÃO L1] Arquivo inacessível: ${url} (Status: ${headResp.status})`
-        );
-        return false;
-      }
-
-      const type = headResp.headers.get("Content-Type");
-      const len = headResp.headers.get("Content-Length");
-
-      if (type && !type.includes("pdf") && !type.includes("octet-stream")) {
-        logError(`[VERIFICAÇÃO L1] Tipo inválido: ${type}`);
-        return false;
-      }
-      if (len && parseInt(len) < 500) {
-        logError(`[VERIFICAÇÃO L1] Arquivo muito pequeno: ${len} bytes`);
-        return false;
-      }
-
-      // --- LAYER 2: SIGNATURE CHECK (MAGIC BYTES) ---
-      // Medium cost, checks if it's actually a PDF binary.
-      const rangeResp = await fetch(targetUrl, {
-        headers: { Range: "bytes=0-1023" },
-      });
-
-      if (!rangeResp.ok && rangeResp.status !== 206) {
-        logError(`[VERIFICAÇÃO L2] Falha ao ler bytes iniciais.`);
-        return false;
-      }
-
-      const buffer = await rangeResp.arrayBuffer();
-      // Use slice(0, 50) to catch header even if lots of comments
-      const headerStr = new TextDecoder().decode(buffer.slice(0, 50));
-
-      // Strict PDF Regex: %PDF-1.x
-      const pdfRegex = /%PDF-1\.[0-7]/;
-      if (!pdfRegex.test(headerStr)) {
-        logError(
-          `[VERIFICAÇÃO L2] Assinatura PDF inválida: ${headerStr.substring(0, 15)}...`
-        );
-        return false;
-      }
-
-      // --- LAYER 3: STRUCTURAL INTEGRITY (PDF.js) ---
-      // High cost, checks if the PDF structure is parsable.
-      if (!window.pdfjsLib) {
-        console.warn("PDF.js not loaded, skipping Layer 3 check.");
-        return true;
-      }
-
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      }
-
-      try {
-        const loadingTask = pdfjsLib.getDocument({
-          url: targetUrl,
-          disableAutoFetch: true,
-          rangeChunkSize: 65536,
-        });
-
-        const pdf = await loadingTask.promise;
-        await pdf.getPage(1); // Try to decode page 1
-        return true;
-      } catch (pdfErr) {
-        logError(`[VERIFICAÇÃO L3] Estrutura corrompida: ${pdfErr.message}`);
-        return false;
-      }
-    } catch (e) {
-      logError(`[VERIFICAÇÃO] Erro sistêmico: ${e.message}`);
-      return false;
-    }
-  };
+  // --- VERIFICATION REMOVED (Handled by Backend) ---
 
   const renderResultsNewUI = async (items) => {
     // Container Principal
@@ -1827,14 +1508,11 @@ export function setupSearchLogic() {
   };
 
   const createCard = (item, isReference = false) => {
-    let finalUrl = item.url;
-    // Fallback if url is somehow missing but path exists
-    // (Normalized by verify strategy but just in case)
-    if (!finalUrl && item.path) finalUrl = item.path;
+    // Prioritize External Link
+    let finalUrl = item.link_origem || item.url || item.path;
+    if (!finalUrl && !isReference) return document.createElement("div");
 
-    if (!finalUrl && !isReference) return document.createElement("div"); // Skip invalid cards
-
-    // --- Title Fallback Logic ---
+    // Title Logic
     let displayTitle =
       item.name || item.nome_amigavel || item.description || item.friendly_name;
 
@@ -1856,177 +1534,124 @@ export function setupSearchLogic() {
       item.tipo?.toLowerCase().includes("gabarito") ? "gabarito" : "prova"
     );
 
-    // Estilos do Card
+    // Simplified Card Style (No image area)
     Object.assign(card.style, {
       position: "relative",
       borderRadius: "var(--radius-lg)",
-      overflow: "hidden",
       backgroundColor: "var(--color-surface)",
       border: "1px solid var(--color-card-border)",
       display: "flex",
       flexDirection: "column",
-      height: isReference ? "120px" : "380px", // Smaller height for references
-      transition:
-        "transform var(--duration-fast), border-color var(--duration-fast), box-shadow var(--duration-fast)",
+      // Height auto to fit content
+      minHeight: "180px",
+      transition: "transform 0.2s, box-shadow 0.2s",
       cursor: "pointer",
       boxShadow: "var(--shadow-sm)",
+      padding: "20px",
     });
 
     card.onmouseenter = () => {
       card.style.transform = "translateY(-4px)";
       card.style.boxShadow = "var(--shadow-lg)";
+      card.style.borderColor = "var(--color-primary)";
     };
     card.onmouseleave = () => {
       card.style.transform = "translateY(0)";
       card.style.boxShadow = "var(--shadow-sm)";
+      // Restore border unless selected (logic handled in toggleSelection)
+      if (!selectedItems[card.dataset.type]?.url?.includes(finalUrl)) {
+        card.style.borderColor = "var(--color-card-border)";
+      }
     };
 
-    // Thumbnail Logic (Priority: Backend > Frontend)
-    const thumbContainer = document.createElement("div");
-    Object.assign(thumbContainer.style, {
-      height: "220px",
-      width: "100%",
-      position: "relative",
-      backgroundColor: "var(--color-background)",
-      overflow: "hidden",
-      borderBottom: "1px solid var(--color-border)",
+    // Header: Badge + Icon
+    const header = document.createElement("div");
+    Object.assign(header.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: "16px",
     });
 
-    if (item.thumbnail && !item.thumbnail.includes("undefined")) {
-      // Backend Generation (Fast)
-      const img = document.createElement("img");
-      const thumbUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${currentSlug}/${item.thumbnail}`;
-
-      Object.assign(img.style, {
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        objectPosition: "top",
-        display: "block",
-      });
-      img.src = thumbUrl;
-      img.loading = "lazy";
-
-      // Fallback if backend image fails (404)
-      img.onerror = () => {
-        // console.warn("Backend thumbnail failed, falling back to canvas:", thumbUrl);
-        img.remove();
-        // Create Canvas Fallback
-        const canvas = document.createElement("canvas");
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.objectFit = "cover";
-        canvas.style.objectPosition = "top";
-        thumbContainer.appendChild(canvas);
-        registerPdfThumbnail(finalUrl, canvas);
-      };
-
-      thumbContainer.appendChild(img);
-    } else {
-      // Frontend Generation (Fallback/Legacy)
-      const canvas = document.createElement("canvas");
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-      canvas.style.objectFit = "cover";
-      canvas.style.objectPosition = "top";
-      thumbContainer.appendChild(canvas);
-      registerPdfThumbnail(finalUrl, canvas);
-    }
+    // Icon based on type
+    const isGab = (item.tipo || "").toLowerCase().includes("gabarito");
+    const iconChar = isGab ? "📝" : "📄";
+    const iconEl = document.createElement("div");
+    iconEl.innerText = iconChar;
+    iconEl.style.fontSize = "2rem";
 
     // Badge
-    const typeLabel = (item.tipo || "Arquivo").toUpperCase();
-    const isGab = typeLabel.includes("GABARITO");
     const badge = document.createElement("span");
-    badge.innerText = typeLabel;
+    badge.innerText = (item.tipo || "Arquivo").toUpperCase();
     Object.assign(badge.style, {
-      position: "absolute",
-      top: "12px",
-      right: "12px",
       padding: "4px 8px",
       borderRadius: "4px",
       fontSize: "0.7rem",
       fontWeight: "bold",
       backgroundColor: isGab
-        ? "rgba(var(--color-warning-rgb), 0.9)"
-        : "rgba(var(--color-primary-rgb), 0.9)",
-      color: "#fff",
-      boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-      backdropFilter: "blur(4px)",
-    });
-    thumbContainer.appendChild(badge);
-
-    // Content
-    const content = document.createElement("div");
-    Object.assign(content.style, {
-      padding: "20px",
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
+        ? "rgba(var(--color-warning-rgb), 0.1)"
+        : "rgba(var(--color-primary-rgb), 0.1)",
+      color: isGab ? "var(--color-warning)" : "var(--color-primary)",
+      border: `1px solid ${isGab ? "var(--color-warning)" : "var(--color-primary)"}`,
     });
 
+    header.appendChild(iconEl);
+    header.appendChild(badge);
+    card.appendChild(header);
+
+    // Title
     const title = document.createElement("h3");
     title.innerText = displayTitle;
-    title.title = displayTitle;
     Object.assign(title.style, {
       fontSize: "var(--font-size-md)",
       color: "var(--color-text)",
       fontWeight: "var(--font-weight-medium)",
       margin: "0 0 16px 0",
-      lineHeight: "1.5",
-      display: "-webkit-box",
-      WebkitLineClamp: 3,
-      WebkitBoxOrient: "vertical",
-      overflow: "hidden",
+      lineHeight: "1.4",
+      flex: 1, // Push footer down
     });
+    card.appendChild(title);
 
+    // Footer Actions
     const actions = document.createElement("div");
     Object.assign(actions.style, {
+      marginTop: "auto",
       display: "flex",
-      alignItems: "center",
       justifyContent: "flex-end",
     });
 
-    // Abrir Button (Secondary style)
-    const btnPreview = document.createElement("button");
-    btnPreview.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      Visualizar
+    const btnLink = document.createElement("div"); // Using div as button to avoid nested form submission issues if any
+    btnLink.innerHTML = `
+      <span>Ver Link Oficial</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     `;
-    Object.assign(btnPreview.style, {
+    Object.assign(btnLink.style, {
       display: "flex",
       alignItems: "center",
-      padding: "8px 16px",
-      borderRadius: "6px",
-      border: "1px solid var(--color-border)",
-      background: "transparent",
-      color: "var(--color-text-secondary)",
-      fontSize: "var(--font-size-sm)",
+      gap: "8px",
+      fontSize: "0.85rem",
+      color: "var(--color-primary)",
+      fontWeight: "600",
       cursor: "pointer",
-      transition: "background 0.2s",
+      padding: "8px 12px",
+      borderRadius: "6px",
+      background: "var(--color-bg-sub)",
     });
-    btnPreview.onmouseenter = () => {
-      btnPreview.style.background = "var(--color-bg-1)";
-      btnPreview.style.color = "var(--color-primary)";
-    };
-    btnPreview.onmouseleave = () => {
-      btnPreview.style.background = "transparent";
-      btnPreview.style.color = "var(--color-text-secondary)";
-    };
 
-    btnPreview.onclick = (e) => {
+    btnLink.onmouseenter = () =>
+      (btnLink.style.background = "var(--color-bg-hover)");
+    btnLink.onmouseleave = () =>
+      (btnLink.style.background = "var(--color-bg-sub)");
+
+    btnLink.onclick = (e) => {
       e.stopPropagation();
-      openPreviewModal(finalUrl, item.name);
+      window.open(finalUrl, "_blank");
     };
 
-    actions.appendChild(btnPreview);
-    content.appendChild(title);
-    content.appendChild(actions);
+    actions.appendChild(btnLink);
+    card.appendChild(actions);
 
-    card.appendChild(thumbContainer);
-    card.appendChild(content);
-
-    // Overlay de Seleção (Borda + Icon)
+    // Overlay de Seleção
     const selectOverlay = document.createElement("div");
     Object.assign(selectOverlay.style, {
       position: "absolute",
@@ -2042,13 +1667,12 @@ export function setupSearchLogic() {
       zIndex: 10,
     });
 
-    // Check Circle
     const checkIcon = document.createElement("div");
     checkIcon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
     Object.assign(checkIcon.style, {
       position: "absolute",
       top: "12px",
-      left: "12px", // Esquerda superior
+      left: "12px",
       width: "28px",
       height: "28px",
       backgroundColor: "var(--color-primary)",
@@ -2188,192 +1812,8 @@ export function setupSearchLogic() {
     document.body.appendChild(overlay);
   };
 
-  // --- Advanced PDF Thumbnail Logic (Cancellation + Retina) ---
-  const activeRenders = new Map();
-  const TARGET_HEIGHT = 300;
-  const PIXEL_RATIO = window.devicePixelRatio || 1;
-
-  const renderThumbnail = async (url, canvas) => {
-    if (!url || !canvas) return;
-
-    // Se já estiver renderizando neste canvas, cancela o anterior
-    if (activeRenders.has(canvas)) {
-      try {
-        await activeRenders.get(canvas).cancel();
-      } catch (e) {
-        // RenderingCancelledException é esperado
-      }
-    }
-
-    try {
-      if (!window.pdfjsLib) return;
-      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-      }
-
-      const loadingTask = pdfjsLib.getDocument(url);
-      const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1);
-
-      // --- CÁLCULO DE ESCALA OTIMIZADO (COVER + RETINA) ---
-      const initialViewport = page.getViewport({ scale: 1 });
-
-      // Dimensões do container (ou fallback)
-      const container = canvas.parentElement;
-      const containerWidth = container ? container.clientWidth : 300;
-      const containerHeight = container ? container.clientHeight : 220;
-
-      // Calcula scale para cobrir (Math.max) ambas as dimensões
-      const scaleW = containerWidth / initialViewport.width;
-      const scaleH = containerHeight / initialViewport.height;
-      const scale = Math.max(scaleW, scaleH) * PIXEL_RATIO;
-
-      const viewport = page.getViewport({ scale });
-
-      // Tamanho físico (alta resolução)
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      // Tamanho visual (CSS) para preencher container com crop
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-      canvas.style.objectFit = "cover";
-      canvas.style.objectPosition = "top center"; // Mostra o topo do documento
-
-      const ctx = canvas.getContext("2d", { alpha: false });
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const renderTask = page.render({
-        canvasContext: ctx,
-        viewport: viewport,
-      });
-
-      activeRenders.set(canvas, renderTask);
-
-      await renderTask.promise;
-
-      // Marca como carregado para não renderizar novamente
-      canvas.dataset.loaded = "true";
-      activeRenders.delete(canvas);
-    } catch (e) {
-      if (e.name === "RenderingCancelledException") return;
-
-      // REMOVED LEGACY CORRUPTION CHECK FROM HERE
-      // Verification logic is now handled HEADLESSLY before rendering.
-      // If we are here, the PDF ID is supposedly valid.
-      // If it still fails to render, we just show fallback, no auto-trigger.
-
-      console.warn("Erro no thumbnail (Render):", e);
-      // Fallback Visual
-    }
-  };
-
-  // Global Observer para gerenciar visibilidade e cancelamento
-  const thumbnailObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        const canvas = entry.target;
-        const url = canvas.dataset.pdfUrl;
-
-        if (entry.isIntersecting) {
-          // Se já carregou, ignora
-          if (canvas.dataset.loaded === "true") return;
-          renderThumbnail(url, canvas);
-        } else {
-          // Saiu da tela: Cancelar renderização pesada
-          if (activeRenders.has(canvas)) {
-            activeRenders.get(canvas).cancel();
-            activeRenders.delete(canvas);
-          }
-        }
-      });
-    },
-    { rootMargin: "200px", threshold: 0.1 }
-  );
-
-  const registerPdfThumbnail = (url, canvas) => {
-    canvas.dataset.pdfUrl = url;
-    thumbnailObserver.observe(canvas);
-  };
-
-  const openPreviewModal = (url, title) => {
-    const existing = document.getElementById("previewModal");
-    if (existing) existing.remove();
-
-    const modal = document.createElement("div");
-    modal.id = "previewModal";
-    Object.assign(modal.style, {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0,0,0,0.6)", // Backdrop blur leve
-      backdropFilter: "blur(4px)",
-      zIndex: 9999,
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      padding: "20px",
-    });
-
-    const isDarkMode =
-      document.documentElement.getAttribute("data-color-scheme") === "dark"; // Check simples
-
-    modal.innerHTML = `
-        <div style="
-            width: 100%; max-width: 1000px; height: 85vh; 
-            background: var(--color-surface); 
-            border-radius: var(--radius-lg); 
-            box-shadow: var(--shadow-lg);
-            display: flex; flex-direction: column; overflow: hidden;
-            border: 1px solid var(--color-border);
-        ">
-            <header style="
-                padding: 16px 24px; 
-                border-bottom: 1px solid var(--color-border); 
-                display: flex; justify-content: space-between; align-items: center;
-                background: var(--color-background);
-            ">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <span style="font-size:1.5rem;">📄</span>
-                    <div>
-                        <h3 style="margin:0; font-size:var(--font-size-md); color:var(--color-text); font-weight:var(--font-weight-bold);">${title}</h3>
-                        <span style="font-size:var(--font-size-sm); color:var(--color-text-secondary);">Visualização Prévia</span>
-                    </div>
-                </div>
-                <button id="btnCloseModal" style="
-                    background: transparent; border: none; 
-                    color: var(--color-text-secondary); 
-                    cursor: pointer; padding: 8px; border-radius: 50%;
-                    transition: background 0.2s;
-                    display: flex; align-items: center; justify-content: center;
-                ">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </header>
-            <div style="flex: 1; background: #525659; position: relative;">
-                <iframe src="${url}#toolbar=0&navpanes=0" style="width:100%; height:100%; border:none;"></iframe>
-            </div>
-        </div>
-      `;
-
-    document.body.appendChild(modal);
-
-    const btnClose = document.getElementById("btnCloseModal");
-    btnClose.onmouseenter = () =>
-      (btnClose.style.backgroundColor = "var(--color-bg-1)");
-    btnClose.onmouseleave = () =>
-      (btnClose.style.backgroundColor = "transparent");
-    btnClose.onclick = () => modal.remove();
-
-    // Fecha ao clicar fora
-    modal.onclick = (e) => {
-      if (e.target === modal) modal.remove();
-    };
-  };
+  // No-op functions or replaced logic
+  // Removed: advanced PDF rendering, previews, etc
 
   const showRenameModal = () => {
     const existing = document.getElementById("renameModal");
