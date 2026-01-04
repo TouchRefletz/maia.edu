@@ -1172,45 +1172,43 @@ export function setupSearchLogic() {
 
     // Header de Ação
     const header = document.createElement("div");
-    header.style.display = "flex";
-    header.style.justifyContent = "space-between";
-    header.style.alignItems = "center";
-    header.style.marginBottom = "24px";
+    header.style.marginBottom = "32px";
 
     header.innerHTML = `
-      <div style="flex:1;">
-          <h2 style="color:var(--color-text); font-weight:var(--font-weight-bold); font-size:var(--font-size-2xl);">
-            Resultados Encontrados (${items.length})
-          </h2>
+      <h2 style="color:var(--color-text); font-weight:var(--font-weight-bold); font-size:var(--font-size-2xl);">
+        Resultados Encontrados (${items.length})
+      </h2>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
           <p style="
             color: var(--color-text-secondary); 
-            margin-top: 8px; 
             font-size: 0.95rem; 
             background: var(--color-bg-sub); 
             padding: 8px 12px; 
             border-radius: 8px; 
             border: 1px dashed var(--color-border);
             display: inline-block;
+            margin: 0;
           ">
             📁 <strong>Dica:</strong> Baixe a Prova e o Gabarito desejados abaixo e depois clique em <strong style="color:var(--color-primary);">Fazer Upload Manual</strong>.
           </p>
+          
+          <button id="btnManualUploadHighlight" style="
+            background: var(--color-primary); 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: var(--radius-lg); 
+            cursor: pointer; 
+            font-weight: bold; 
+            opacity: 1; 
+            box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+            transition: all 0.2s ease;
+            display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Fazer Upload Manual</span>
+          </button>
       </div>
-      
-      <button id="btnManualUploadHighlight" style="
-        background: var(--color-primary); 
-        color: white; 
-        border: none; 
-        padding: 12px 24px; 
-        border-radius: var(--radius-lg); 
-        cursor: pointer; 
-        font-weight: bold; 
-        opacity: 1; 
-        box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
-        transition: all 0.2s ease;
-        display: flex; align-items: center; gap: 8px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Fazer Upload Manual</span>
-      </button>
     `;
     container.appendChild(header);
 
