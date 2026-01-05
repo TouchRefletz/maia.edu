@@ -363,7 +363,7 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef }) => {
                       + Adicionar bloco
                     </button>
                     <div id="editorAddMenu" className="add-menu hidden">
-                      {['texto', 'titulo', 'subtitulo', 'citacao', 'lista', 'equacao', 'codigo', 'destaque', 'separador', 'fonte', 'imagem'].map(type => (
+                      {['texto', 'titulo', 'subtitulo', 'citacao', 'lista', 'tabela', 'equacao', 'codigo', 'destaque', 'separador', 'fonte', 'imagem'].map(type => (
                         <button key={type} type="button" className="btn-add-block" data-add-type={type}>
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </button>

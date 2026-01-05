@@ -41,6 +41,7 @@ export const TIPOS_ESTRUTURA_VALIDOS = new Set([
   "destaque",
   "separador",
   "fonte",
+  "tabela",
 ]);
 
 window.__ultimaQuestaoExtraida = null;
