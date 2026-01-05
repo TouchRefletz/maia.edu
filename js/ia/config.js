@@ -403,7 +403,6 @@ export function obterConfiguracaoIA(modo) {
             - Se houver Texto com equação pequena no meio, gere 1 bloco: {tipo: 'texto', conteudo: 'O valor de $x$ é...'}.
             - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
             - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate o conteúdo EXCLUSIVAMENTE como uma tabela Markdown.
-            - **POEMAS/VERSOS:** Se a questão contiver poemas ou textos onde a quebra de linha é visualmente importante, use o tipo 'texto' (ou 'citacao') mas MANTENHA as quebras de linha explicitamente com '\n'. O sistema respeitará a formatação visual.
 
         Analise as imagens fornecidas. Junte as informações de todas as imagens.
         `;
