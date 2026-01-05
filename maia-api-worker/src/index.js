@@ -1599,40 +1599,43 @@ async function handleManualUpload(request, env) {
 		const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
 		const githubRepo = env.GITHUB_REPO || 'maia.api';
 
-		// (Calculated above)
+		if (!githubPat) throw new Error('GITHUB_PAT not configured');
 
-		console.log(
-			`[Worker] FINAL DECISION: pdf="${pdfFinalPhysicalName}", pdf_url=${pdfUrlToDispatch ? 'SENDING' : 'SKIP'}, gab_url=${gabUrlToDispatch ? 'SENDING' : 'SKIP'}`,
-		);
+		const url = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
 
-		const ghRes = await fetch(`https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`, {
+		console.log('[Worker] Dispatching to GitHub (Manifest Link Mode):', { slug });
+
+		const ghRes = await fetch(url, {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${githubPat}`,
 				Accept: 'application/vnd.github.v3+json',
 				'User-Agent': 'Cloudflare-Worker',
+				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
 				event_type: 'manual-upload',
 				client_payload: {
 					slug,
-					title,
-					pdf_url: pdfUrlToDispatch,
-					gabarito_url: gabUrlToDispatch,
-					ai_names: {
-						prova: pdfDisplayName, // Send Display Name for reference
-						gabarito: gabDisplayName,
-					},
-					mode: formData.get('mode') || 'overwrite',
-					// Consolidate metadata to avoid 10 property limit (GitHub 422)
+					// Legacy/Ignored by workflow but kept for schema validity if strictly typed somewhere
+					pdf_url: 'LEGACY_IGNORED',
+					gabarito_url: 'LEGACY_IGNORED',
+
+					title: generalTitle,
+
+					// Critical Data for Manifest Update
+					source_url_prova: sourceUrlProva || '',
+					source_url_gabarito: sourceUrlGabarito || '',
+					visual_hash: inputVisualHash || '',
+					visual_hash_gabarito: inputVisualHashGab || '',
+
 					metadata: {
 						year: aiData.year,
 						institution: aiData.institution,
 						phase: aiData.phase,
 						summary: aiData.summary,
-						source_url_prova: sourceUrlProva,
-						source_url_gabarito: sourceUrlGabarito,
-						// visual_hash and gabarito_url NOT sent to Action (it computes them)
+
+						// Filenames and Display Names for Manifest
 						pdf_filename: pdfFinalPhysicalName,
 						gabarito_filename: gabFinalPhysicalName,
 						pdf_display_name: pdfDisplayName,

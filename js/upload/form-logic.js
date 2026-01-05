@@ -37,6 +37,21 @@ async function uploadToTmpFiles(file) {
  * 3. LÓGICA DO FORMULÁRIO
  * Lida com preenchimento inicial, checkbox e submit.
  */
+/**
+ * Helper: Download PDF from URL (Blob)
+ */
+async function downloadPdfFromUrl(url) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const blob = await res.blob();
+    return blob;
+  } catch (e) {
+    console.warn("[Manual] Failed to download PDF from URL:", url, e);
+    return null;
+  }
+}
+
 export function setupFormLogic(elements, initialData) {
   const {
     yearInput,
@@ -330,122 +345,562 @@ export function setupFormLogic(elements, initialData) {
       };
 
       try {
-        // 1. NEW FLOW: TmpFiles -> GitHub Hash -> Worker
         let remoteHashProva = null;
         let remoteHashGab = null;
+        let remoteHashProvaLink = null;
+        let remoteHashGabLink = null;
         let tmpUrlProva = null;
         let tmpUrlGab = null;
 
-        try {
-          const timestampSlug = `manual-${Date.now()}`; // Temp slug for hash service channel
+        let skipUpload = false;
+        let uploadProva = true;
+        let uploadGabarito = true;
+        let targetSlug = null;
+        let aiDataFromManifest = null;
+        let remoteUrlProva = null;
+        let remoteUrlGab = null;
 
-          // A. Upload Prova to TmpFiles
-          if (fileProva) {
-            progress.setTarget(10, "Upload Temporário");
-            progress.addLog("Enviando prova para servidor temporário...");
-            tmpUrlProva = await uploadToTmpFiles(fileProva);
-            console.log("[Manual] TmpUrl Prova:", tmpUrlProva);
-          }
+        const timestampSlug = `manual-${Date.now()}`; // Temp slug for hash service channel
 
-          // B. Upload Gabarito to TmpFiles
-          if (fileGabarito) {
-            progress.setTarget(15);
-            progress.addLog("Enviando gabarito para servidor temporário...");
-            tmpUrlGab = await uploadToTmpFiles(fileGabarito);
-            console.log("[Manual] TmpUrl Gabarito:", tmpUrlGab);
-          }
+        // --- INDEPENDENT URL DOWNLOAD LOGIC ---
+        let tmpUrlProvaLink = null;
+        let tmpUrlGabLink = null;
 
-          // C. Request Hash from GitHub (via Worker Proxy)
-          progress.setTarget(20, "Verificando Integridade");
-          progress.addLog("Solicitando cálculo de hash seguro (GitHub)...");
+        const linkProva = document
+          .getElementById("sourceUrlProva")
+          ?.value.trim();
+        const linkGab = document
+          .getElementById("sourceUrlGabarito")
+          ?.value.trim();
 
-          const WORKER_URL =
-            "https://maia-api-worker.willian-campos-ismart.workers.dev";
-
-          // Helper to request hash and wait for Pusher
-          const getRemoteHash = async (url, tempSlug) => {
-            // 1. Trigger
-            const response = await fetch(`${WORKER_URL}/compute-hash`, {
-              method: "POST",
-              body: JSON.stringify({ url, slug: tempSlug }),
-            });
-
-            if (!response.ok) {
-              const errorText = await response.text();
-              let errorMessage = errorText;
-              try {
-                const errorJson = JSON.parse(errorText);
-                if (errorJson.error) errorMessage = errorJson.error;
-              } catch (e) {}
-              throw new Error(
-                `Worker Error (${response.status}): ${errorMessage}`
+        // 1. Prova Link Check
+        if (linkProva) {
+          progress.addLog(`Verificando link da prova: ${linkProva}...`);
+          const blob = await downloadPdfFromUrl(linkProva);
+          if (blob) {
+            progress.addLog(
+              "Download via link com sucesso! Enviando para TmpFiles..."
+            );
+            try {
+              tmpUrlProvaLink = await uploadToTmpFiles(blob);
+              console.log("[Manual] TmpUrl Prova (Link):", tmpUrlProvaLink);
+              progress.addLog("✅ Link da prova processado.");
+            } catch (err) {
+              console.warn(
+                "[Manual] Upload TmpFiles (Link Prova) Failed:",
+                err
               );
             }
-
-            // 2. Wait for Pusher
-            return new Promise(async (resolve, reject) => {
-              let PusherClass = window.Pusher;
-              if (!PusherClass) {
-                const module = await import("pusher-js");
-                PusherClass = module.default;
-              }
-              const pusher = new PusherClass("6c9754ef715796096116", {
-                cluster: "sa1",
-              });
-              const channel = pusher.subscribe(tempSlug);
-
-              const timeout = setTimeout(() => {
-                pusher.unsubscribe(tempSlug);
-                reject(new Error("Timeout waiting for hash"));
-              }, 600000); // 10m timeout
-
-              channel.bind("hash_computed", (data) => {
-                // data = { hash, exists, found_slug }
-                clearTimeout(timeout);
-                channel.unbind_all();
-                pusher.unsubscribe(tempSlug);
-                resolve(data);
-              });
-            });
-          };
-
-          if (tmpUrlProva) {
-            progress.setTarget(25);
-            progress.addLog("Calculando hash da Prova (Remoto)...");
-            const result = await getRemoteHash(
-              tmpUrlProva,
-              timestampSlug + "-prova"
+          } else {
+            progress.addLog(
+              "⚠️ Não foi possível baixar (CORS/Erro). O fluxo segue."
             );
-            remoteHashProva = result.hash;
-            console.log("[Manual] Hash Prova:", result);
-
-            if (result.exists) {
-              alert(
-                `⚠️ Atenção: Esta prova já existe no sistema (Slug: ${result.found_slug}). O sistema usará a versão existente.`
-              );
-            }
           }
-
-          if (tmpUrlGab) {
-            progress.setTarget(30);
-            progress.addLog("Calculando hash do Gabarito (Remoto)...");
-            const result = await getRemoteHash(
-              tmpUrlGab,
-              timestampSlug + "-gab"
-            );
-            remoteHashGab = result.hash;
-            console.log("[Manual] Hash Gabarito:", result);
-          }
-        } catch (err) {
-          console.warn("[Manual] Remote Hash Flow Failed:", err);
-          progress.addLog("Erro no fluxo remoto. Abortando.", true);
-          alert("Erro ao processar arquivo remotamente: " + err.message);
-          return; // Stop here if we can't get hash
         }
 
-        console.log("[Manual] Prepare to upload...");
+        // 2. Gabarito Link Check
+        if (linkGab) {
+          progress.addLog(`Verificando link do gabarito...`);
+          const blob = await downloadPdfFromUrl(linkGab);
+          if (blob) {
+            progress.addLog(
+              "Download via link com sucesso! Enviando para TmpFiles..."
+            );
+            try {
+              tmpUrlGabLink = await uploadToTmpFiles(blob);
+              console.log("[Manual] TmpUrl Gabarito (Link):", tmpUrlGabLink);
+              progress.addLog("✅ Link do gabarito processado.");
+            } catch (err) {
+              console.warn(
+                "[Manual] Upload TmpFiles (Link Gabarito) Failed:",
+                err
+              );
+            }
+          }
+        }
+        // --------------------------------------
 
-        console.log("[Manual] Prepare to upload...");
+        // A. Upload Prova to TmpFiles
+        if (fileProva) {
+          progress.setTarget(10, "Upload Temporário");
+          progress.addLog("Enviando prova para servidor temporário...");
+          tmpUrlProva = await uploadToTmpFiles(fileProva);
+          console.log("[Manual] TmpUrl Prova:", tmpUrlProva);
+        }
+
+        // B. Upload Gabarito to TmpFiles
+        if (fileGabarito) {
+          progress.setTarget(15);
+          progress.addLog("Enviando gabarito para servidor temporário...");
+          tmpUrlGab = await uploadToTmpFiles(fileGabarito);
+          console.log("[Manual] TmpUrl Gabarito:", tmpUrlGab);
+        }
+
+        // C. Request Hash from GitHub (via Worker Proxy) (PARALLEL EXECUTION)
+        progress.setTarget(20, "Verificando Integridade");
+        progress.addLog("Solicitando cálculo de hash seguro (GitHub)...");
+
+        const WORKER_URL =
+          "https://maia-api-worker.willian-campos-ismart.workers.dev";
+
+        // Helper to request hash and wait for Pusher
+        const getRemoteHash = async (url, tempSlug, label) => {
+          // 1. Trigger
+          console.log(`[Manual] Requesting Hash for ${label}...`);
+          const response = await fetch(`${WORKER_URL}/compute-hash`, {
+            method: "POST",
+            body: JSON.stringify({ url, slug: tempSlug }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            let errorMessage = errorText;
+            try {
+              const errorJson = JSON.parse(errorText);
+              if (errorJson.error) errorMessage = errorJson.error;
+            } catch (e) {}
+            throw new Error(
+              `Worker Error (${response.status}): ${errorMessage}`
+            );
+          }
+
+          // 2. Wait for Pusher
+          return new Promise(async (resolve, reject) => {
+            let PusherClass = window.Pusher;
+            if (!PusherClass) {
+              const module = await import("pusher-js");
+              PusherClass = module.default;
+            }
+            const pusher = new PusherClass("6c9754ef715796096116", {
+              cluster: "sa1",
+            });
+            const channel = pusher.subscribe(tempSlug);
+
+            const timeout = setTimeout(() => {
+              pusher.unsubscribe(tempSlug);
+              reject(new Error(`Timeout waiting for hash (${label})`));
+            }, 600000); // 10m timeout
+
+            channel.bind("hash_computed", (data) => {
+              // data = { hash, exists, found_slug }
+              clearTimeout(timeout);
+              channel.unbind_all();
+              pusher.unsubscribe(tempSlug);
+              resolve({ ...data, label });
+            });
+          });
+        };
+
+        // Prepare parallel tasks
+        const hashTasks = [];
+
+        // 1. Local Prova
+        if (tmpUrlProva) {
+          hashTasks.push({
+            url: tmpUrlProva,
+            suffix: "-prova",
+            label: "Prova (Arquivo)",
+            isLink: false,
+            isProva: true,
+          });
+        }
+
+        // 2. Local Gabarito
+        if (tmpUrlGab) {
+          hashTasks.push({
+            url: tmpUrlGab,
+            suffix: "-gab",
+            label: "Gabarito (Arquivo)",
+            isLink: false,
+            isProva: false,
+          });
+        }
+
+        // 3. Link Prova (Just for logs)
+        if (tmpUrlProvaLink) {
+          hashTasks.push({
+            url: tmpUrlProvaLink,
+            suffix: "-prova-link",
+            label: "Prova (Link Externo)",
+            isLink: true,
+            isProva: true,
+          });
+        }
+
+        // 4. Link Gabarito (Just for logs)
+        if (tmpUrlGabLink) {
+          hashTasks.push({
+            url: tmpUrlGabLink,
+            suffix: "-gab-link",
+            label: "Gabarito (Link Externo)",
+            isLink: true,
+            isProva: false,
+          });
+        }
+
+        if (hashTasks.length > 0) {
+          progress.setTarget(25);
+          progress.addLog(
+            `Iniciando cálculo de hash para ${hashTasks.length} itens...`
+          );
+
+          const promises = hashTasks.map((task) =>
+            getRemoteHash(task.url, timestampSlug + task.suffix, task.label)
+              .then((result) => ({ status: "fulfilled", result, task }))
+              .catch((reason) => ({ status: "rejected", reason, task }))
+          );
+
+          const results = await Promise.all(promises);
+
+          for (const outcome of results) {
+            const { task } = outcome;
+            if (outcome.status === "fulfilled") {
+              const data = outcome.result;
+              console.log(`[Manual] Hash Success [${task.label}]:`, data);
+              if (!task.isLink) {
+                if (task.isProva) remoteHashProva = data.hash;
+                else remoteHashGab = data.hash;
+              } else {
+                // CAPTURAR HASH DE LINK
+                if (task.isProva) remoteHashProvaLink = data.hash;
+                else remoteHashGabLink = data.hash;
+              }
+            }
+          }
+          progress.addLog("Cálculo de hashes finalizado.");
+
+          // Was Integrity Check - Moved to after cloud check
+
+          // --- ETAPA PRIMORDIAL: VERIFICAÇÃO DE EXISTÊNCIA NA NUVEM ---
+          progress.setTarget(30, "Verificando Nuvem");
+          progress.addLog("Verificando existência prévia na nuvem...");
+
+          try {
+            // 1. Obter Slug Previsto (Preflight)
+            const WORKER_URL =
+              "https://maia-api-worker.willian-campos-ismart.workers.dev";
+
+            // Usar nome do arquivo ou título para gerar slug
+            const queryForSlug = fileProva
+              ? fileProva.name.replace(".pdf", "")
+              : AUTO_TITLE;
+
+            // [FIX] Usar endpoint dedicado sugerido pelo user
+            const slugRes = await fetch(`${WORKER_URL}/canonical-slug`, {
+              method: "POST",
+              body: JSON.stringify({ query: queryForSlug }),
+            });
+
+            const slugData = await slugRes.json();
+            const predictedSlug = slugData.slug;
+
+            if (predictedSlug) {
+              targetSlug = predictedSlug;
+              console.log(`[Manual] Slug Previsto: ${predictedSlug}`);
+
+              // 2. Verificar Manifesto Existente
+              const manifestUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${predictedSlug}/manifest.json`;
+              const manifestRes = await fetch(manifestUrl);
+
+              if (manifestRes.ok) {
+                const manifest = await manifestRes.json();
+                const manifestItems = Array.isArray(manifest)
+                  ? manifest
+                  : manifest.results || manifest.files || [];
+
+                console.log(
+                  "[Manual] Manifesto encontrado. Comparando hashes...",
+                  manifestItems
+                );
+                progress.addLog(
+                  `Pasta '${predictedSlug}' encontrada. Comparando arquivos...`
+                );
+
+                // Helper de busca no manifesto
+                const findInManifest = (hash, typeFilter) => {
+                  if (!hash) return null;
+                  return manifestItems.find((item) => {
+                    // Verifica hash visual
+                    if (item.visual_hash === hash) return true;
+                    // Verifica nome do arquivo (fallback fraco, mas útil)
+                    // if (item.filename === ...) return true;
+                    return false;
+                  });
+                };
+
+                const matchProva = remoteHashProva
+                  ? findInManifest(remoteHashProva, "prova")
+                  : null;
+                const matchGab = remoteHashGab
+                  ? findInManifest(remoteHashGab, "gabarito")
+                  : null;
+
+                // Lógica de Decisão (Tabela de Verdade)
+                // Prova Existente? | Gabarito Existente? | Ação
+                // -----------------|---------------------|-------
+                // SIM              | SIM (ou N/A)        | Skip Tudo (Upload = false)
+                // SIM              | NÃO (e user enviou) | Upload SÓ Gabarito
+                // NÃO              | SIM                 | Upload SÓ Prova
+                // NÃO              | NÃO                 | Upload Tudo (Padrão)
+
+                const gabaritoEnviadoPeloUser = !!fileGabarito;
+
+                if (matchProva) {
+                  progress.addLog(
+                    "✅ Prova já existe na nuvem (Hash idêntico)."
+                  );
+                  uploadProva = false;
+                  remoteUrlProva = matchProva.url; // Só para referência, não usado no viewer
+                }
+
+                if (gabaritoEnviadoPeloUser) {
+                  if (matchGab) {
+                    progress.addLog("✅ Gabarito já existe na nuvem.");
+                    uploadGabarito = false;
+                    remoteUrlGab = matchGab.url;
+                  } else {
+                    progress.addLog("⚠️ Gabarito é novo e será enviado.");
+                  }
+                } else {
+                  uploadGabarito = false; // Não tem o que enviar
+                }
+
+                // Configurar AI Data do manifesto para o viewer
+                // Tenta pegar do primeiro item ou da raiz
+                const firstItem = matchProva || matchGab || manifestItems[0];
+                if (firstItem) {
+                  aiDataFromManifest = {
+                    institution: firstItem.instituicao || firstItem.institution,
+                    year: firstItem.ano || firstItem.year,
+                    formatted_title_general:
+                      firstItem.friendly_name || firstItem.name,
+                  };
+                }
+              } else {
+                console.log(
+                  "[Manual] Manifesto não encontrado (404). Upload completo necessário."
+                );
+              }
+            }
+          } catch (eChecks) {
+            console.warn("[Manual] Erro nas verificações pré-upload:", eChecks);
+            // Em caso de erro cheque, prossegue com upload completo por segurança
+          }
+
+          // --- REORDERED: INTEGRITY CHECK AFTER CLOUD CHECK ---
+          if (uploadProva || uploadGabarito) {
+            progress.addLog("Verificando consistência de origem (Links)...");
+
+            // PROVA
+            if (uploadProva) {
+              if (!tmpUrlProvaLink) {
+                progress.addLog(
+                  "⚠️ Upload nuvem cancelado para Prova: Link obrigatório ausente.",
+                  true
+                );
+                uploadProva = false;
+              } else if (remoteHashProva && remoteHashProvaLink) {
+                if (remoteHashProva !== remoteHashProvaLink) {
+                  progress.addLog(
+                    "❌ BLOQUEIO (Prova): Hash do arquivo difere do Link.",
+                    true
+                  );
+                  uploadProva = false;
+                } else {
+                  progress.addLog(
+                    "✅ Prova validada (Hash Link == Hash Arquivo)."
+                  );
+                }
+              } else {
+                if (!remoteHashProvaLink) {
+                  progress.addLog(
+                    "⚠️ Link da prova não processado corretamente. Cancelando upload."
+                  );
+                  uploadProva = false;
+                }
+              }
+            }
+
+            // GABARITO
+            if (uploadGabarito) {
+              if (!tmpUrlGabLink) {
+                progress.addLog(
+                  "⚠️ Upload nuvem cancelado para Gabarito: Link obrigatório ausente.",
+                  true
+                );
+                uploadGabarito = false;
+              } else if (remoteHashGab && remoteHashGabLink) {
+                if (remoteHashGab !== remoteHashGabLink) {
+                  progress.addLog(
+                    "❌ BLOQUEIO (Gabarito): Hash do arquivo difere do Link.",
+                    true
+                  );
+                  uploadGabarito = false;
+                } else {
+                  progress.addLog(
+                    "✅ Gabarito validado (Hash Link == Hash Arquivo)."
+                  );
+                }
+              } else {
+                if (!remoteHashGabLink) {
+                  progress.addLog(
+                    "⚠️ Link do gabarito não processado. Cancelando upload."
+                  );
+                  uploadGabarito = false;
+                }
+              }
+            }
+          }
+          // ----------------------------------------------------
+
+          // --- COPYRIGHT CHECK (GEMINI) ---
+          const checkCopyright = async (file, typeLabel) => {
+            if (!file) return true; // Skip if no file
+            progress.addLog(`Verificando direitos autorais (${typeLabel})...`);
+
+            try {
+              // 1. Convert to Base64
+              const toBase64 = (f) =>
+                new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(f);
+                  reader.onload = () => resolve(reader.result); // Includes data: prefix
+                  reader.onerror = (error) => reject(error);
+                });
+
+              const base64Data = await toBase64(file);
+
+              const prompt = `Analise este arquivo PDF. Verifique se ele é um material didático PRIVADO protegidos por direitos autorais estritos (ex: Apostilas Poliedro, Bernoulli, SAS, Anglo, materiais exclusivos de cursinhos pagos). 
+                     Provas oficiais de vestibulares (ENEM, FUVEST, UNICAMP, ITA, IME) e gabaritos oficiais SÃO PERMITIDOS e devem retornar false.
+                     Responda estritamente em JSON: { "protected": boolean, "reason": "string curta", "confidence": number }`;
+
+              const WORKER_GEN_URL =
+                "https://maia-api-worker.willian-campos-ismart.workers.dev/generate";
+
+              const response = await fetch(WORKER_GEN_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                  texto: prompt,
+                  model: "models/gemini-flash-latest", // Fast model
+                  schema: {
+                    type: "OBJECT",
+                    properties: {
+                      protected: { type: "BOOLEAN" },
+                      reason: { type: "STRING" },
+                      confidence: { type: "NUMBER" },
+                    },
+                    required: ["protected", "reason"],
+                  },
+                  files: [base64Data], // Send file
+                }),
+              });
+
+              if (!response.ok)
+                throw new Error("Erro na verificação de copyright.");
+
+              // Helper to read NDJSON stream or JSON
+              // Worker /generate returns NDJSON stream usually, but sometimes simple JSON if short?
+              // Wait, /generate logic in index.js returns NDJSON stream. We need to parse it.
+              // ACTUALLY, checking index.js, /generate returns NDJSON.
+
+              const reader = response.body.getReader();
+              const decoder = new TextDecoder();
+              let finalResult = null;
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split("\n");
+                for (const line of lines) {
+                  if (!line.trim()) continue;
+                  try {
+                    const msg = JSON.parse(line);
+                    if (msg.type === "answer" && msg.text) {
+                      // It might be streaming partial text, so we accumulate?
+                      // The Worker /generate streams parts. We need to accumulate text and then parse JSON.
+                      // OR, since we passed a schema, Gemini might output the JSON structure directly.
+                      // BUT `msg.text` will be parts of the JSON string.
+                      if (!finalResult) finalResult = "";
+                      finalResult += msg.text;
+                    }
+                  } catch (e) {}
+                }
+              }
+
+              if (finalResult) {
+                try {
+                  const json = JSON.parse(finalResult);
+                  if (json.protected) {
+                    progress.addLog(
+                      `❌ BLOQUEIO COPYRIGHT (${typeLabel}): ${json.reason}`,
+                      true
+                    );
+                    return false; // BLOCKED
+                  }
+                  progress.addLog(`✅ Copyright OK (${typeLabel}).`);
+                  return true; // OK
+                } catch (e) {
+                  console.warn("Manual Copyright Valid Parse Error", e);
+                  return true; // Fail open if invalid response
+                }
+              }
+              return true; // Fail open
+            } catch (e) {
+              console.error("Copyright Check Error:", e);
+              progress.addLog(
+                `⚠️ Erro ao verificar copyright: ${e.message}. Permitindo...`
+              );
+              return true; // Fail open
+            }
+          };
+
+          if (uploadProva) {
+            const allowed = await checkCopyright(fileProva, "Prova");
+            if (!allowed) uploadProva = false;
+          }
+          if (uploadGabarito) {
+            const allowed = await checkCopyright(fileGabarito, "Gabarito");
+            if (!allowed) uploadGabarito = false;
+          }
+
+          // ----------------------------------------------------
+
+          // --- PREPARAÇÃO FINAL ---
+          skipUpload = !uploadProva && !uploadGabarito;
+
+          if (skipUpload) {
+            progress.setTarget(100, "Concluído");
+            progress.addLog(
+              "Todos os arquivos já existem. Abrindo visualizador local..."
+            );
+
+            setTimeout(() => {
+              progress.close();
+              // ABRIR VIEWER LOCAL
+              gerarVisualizadorPDF({
+                title:
+                  aiDataFromManifest?.formatted_title_general ||
+                  "Documento Local",
+                rawTitle:
+                  aiDataFromManifest?.formatted_title_general ||
+                  "Documento Local",
+                fileProva: URL.createObjectURL(fileProva),
+                fileGabarito: fileGabarito
+                  ? URL.createObjectURL(fileGabarito)
+                  : null,
+                gabaritoNaProva: gabaritoCheck.checked,
+                isManualLocal: true, // Força modo local
+                slug: targetSlug || "local-preview",
+              });
+            }, 1000);
+            return; // FIM DO PROCESSO
+          }
+        }
+        console.log("[Manual] Prepare to upload...", {
+          uploadProva,
+          uploadGabarito,
+        });
 
         // Source URLs captured from DOM
         const srcProvaVal =
@@ -453,6 +908,7 @@ export function setupFormLogic(elements, initialData) {
         const srcGabVal =
           document.getElementById("sourceUrlGabarito")?.value.trim() || "";
 
+        // --- NEW NAMING LOGIC START ---
         // --- NEW NAMING LOGIC START ---
         const getSafeName = (fileInputName, type, fallbackTitle) => {
           const forbidden = [
@@ -472,13 +928,8 @@ export function setupFormLogic(elements, initialData) {
             if (el) uiName = el.textContent.trim();
           }
 
-          console.log(
-            `[Manual] Naming Check (${type}): UI="${uiName}", Input="${fileInputName}"`
-          );
-
           // Check if UI name is valid and NOT forbidden
           if (uiName && !forbidden.includes(uiName.toLowerCase())) {
-            console.log(`[Manual] Using UI filename: ${uiName}`);
             return uiName;
           }
 
@@ -491,11 +942,7 @@ export function setupFormLogic(elements, initialData) {
             .replace(/^-+|-+$/g, ""); // Trim dashes
 
           const suffix = type === "gabarito" ? "-gabarito.pdf" : ".pdf";
-          const finalName = slug + suffix;
-          console.log(
-            `[Manual] Using Slug Fallback: ${finalName} (ORIGINAL WAS: ${fileInputName})`
-          );
-          return finalName;
+          return slug + suffix;
         };
 
         const finalNameProva = getSafeName(fileProva.name, "prova", AUTO_TITLE);
@@ -508,255 +955,181 @@ export function setupFormLogic(elements, initialData) {
 
         const formData = new FormData();
         formData.append("title", AUTO_TITLE);
+        if (targetSlug) formData.append("slug_codinome", targetSlug); // Enviar slug se já soubermos
 
         if (srcProvaVal) formData.append("source_url_prova", srcProvaVal);
         if (srcGabVal) formData.append("source_url_gabarito", srcGabVal);
 
-        // Pass the RENAMED file
-        formData.append("fileProva", fileProva, finalNameProva);
-        // EXPLICIT CUSTOM NAME FIELD FOR WORKER PRIORITY
-        formData.append("pdf_custom_name", finalNameProva);
-
-        if (fileGabarito && finalNameGab) {
-          formData.append("fileGabarito", fileGabarito, finalNameGab);
-          formData.append("gabarito_custom_name", finalNameGab);
+        // CONDITIONAL APPEND based on Checks
+        if (uploadProva) {
+          formData.append("fileProva", fileProva, finalNameProva);
+          formData.append("pdf_custom_name", finalNameProva);
+          if (tmpUrlProva) formData.append("pdf_url_override", tmpUrlProva);
+          if (remoteHashProva) formData.append("visual_hash", remoteHashProva);
+        } else {
+          console.log("[Manual] Pulando upload da Prova (já existe).");
         }
 
-        if (remoteHashProva) formData.append("visual_hash", remoteHashProva);
-        if (remoteHashGab)
-          formData.append("visual_hash_gabarito", remoteHashGab);
-
-        // Pass TmpURLs to Worker (to avoid re-uploading in backend)
-        if (tmpUrlProva) formData.append("pdf_url_override", tmpUrlProva);
-        if (tmpUrlGab) formData.append("gabarito_url_override", tmpUrlGab);
+        if (fileGabarito && finalNameGab && uploadGabarito) {
+          formData.append("fileGabarito", fileGabarito, finalNameGab);
+          formData.append("gabarito_custom_name", finalNameGab);
+          if (tmpUrlGab) formData.append("gabarito_url_override", tmpUrlGab);
+          if (remoteHashGab)
+            formData.append("visual_hash_gabarito", remoteHashGab);
+        } else if (!uploadGabarito && fileGabarito) {
+          console.log("[Manual] Pulando upload do Gabarito (já existe).");
+        }
 
         // DEBUG LOGS (Moved to end)
         console.log("[Manual] --- FORM DATA PREVIEW ---");
         try {
           for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-              console.log(
-                `[Manual] Key: ${key} -> File: ${value.name} (${value.size} bytes)`
-              );
-            } else {
-              console.log(`[Manual] Key: ${key} -> Value: "${value}"`);
-            }
+            if (value instanceof File)
+              console.log(`[Manual] Key: ${key} -> File: ${value.name}`);
+            else console.log(`[Manual] Key: ${key} -> Value: "${value}"`);
           }
-        } catch (e) {
-          console.log("[Manual] Error logging entries:", e);
-        }
-        console.log("[Manual] -------------------------");
+        } catch (e) {}
 
         console.log("[Manual] FormData prepared. Dispatching to Worker...");
         progress.setTarget(40, "Processamento AI");
-        progress.addLog("Enviando dados para worker de inteligência...");
+        progress.addLog("Enviando arquivos novos para a nuvem...");
 
-        const WORKER_URL =
+        const WORKER_URL_UPLOAD =
           "https://maia-api-worker.willian-campos-ismart.workers.dev";
 
-        const res = await fetch(`${WORKER_URL}/manual-upload`, {
+        const res = await fetch(`${WORKER_URL_UPLOAD}/manual-upload`, {
           method: "POST",
           body: formData,
         });
         const data = await res.json();
         console.log("[Manual] Worker Response:", data);
 
-        if (data.ai_data) {
-          console.log("[Manual] AI Data received:", data.ai_data);
-        } else {
-          console.warn("[Manual] No AI Data received in response!");
-        }
+        // --- BYPASS DE CONFLITO PARA VIEWER LOCAL ---
+        // Se der conflito ou sucesso, para o usuário o importante é abrir o arquivo que ele tem na mão.
+        // A nuvem que se vire para resolver (ou o worker já resolveu).
+
+        progress.addLog("Processamento inicial concluído!");
 
         if (data.status === "conflict") {
-          // --- VISUAL HASH SMART AUTO-RESOLUTION ---
-          console.warn("[Manual] Conflict detected!", data);
-
-          const items = Array.isArray(data.remote_manifest)
-            ? data.remote_manifest
-            : data.remote_manifest?.results ||
-              data.remote_manifest?.files ||
-              [];
-
-          // Helper to find match
-          const findMatch = (hash, typeFilter) => {
-            if (!hash) return null;
-            return items.find((item) => {
-              if (item.visual_hash !== hash) return false;
-              const iType = (item.tipo || item.type || "").toLowerCase();
-              if (typeFilter === "gabarito") return iType.includes("gabarito");
-              return !iType.includes("gabarito");
-            });
-          };
-
-          const matchProva = findMatch(remoteHashProva, "prova");
-          const matchGab = findMatch(remoteHashGab, "gabarito");
-
-          // Helper to get Remote URL
-          const getRemoteUrl = (item) => {
-            if (!item) return null;
-            if (item.url) return item.url;
-            let path = item.path || item.filename;
-            if (path && !path.startsWith("http")) {
-              if (path.startsWith("files/")) path = path.replace("files/", "");
-              return `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${data.slug}/files/${path}`;
-            }
-            return null;
-          };
-
-          const remoteUrlProva = getRemoteUrl(matchProva);
-          const remoteUrlGab = getRemoteUrl(matchGab);
-
-          console.log("[Manual] Resolution Analysis:", {
-            prova: matchProva ? "MATCH (Use Remote)" : "NO MATCH (Use Local)",
-            gabarito: fileGabarito
-              ? matchGab
-                ? "MATCH (Use Remote)"
-                : "NO MATCH (Use Local)"
-              : "N/A",
-          });
-
-          // 1. FULL MATCH -> Use Remote Directly
-          if (matchProva && (!fileGabarito || matchGab)) {
-            progress.addLog(
-              "Arquivos duplicados detectados. Usando versão da nuvem...",
-              true
-            );
-            setTimeout(() => {
-              progress.close();
-              startPollingAndOpenViewer(
-                remoteUrlProva,
-                data.slug,
-                data.ai_data || {
-                  institution: matchProva.instituicao,
-                  year: matchProva.ano,
-                },
-                remoteUrlGab // Pass Gabarito URL
-              );
-            }, 1000);
-            return;
-          }
-
-          // 2. MIX & MATCH (Auto-Merge)
-          console.log(
-            "[Manual] Partial or No Match. Auto-merging differences..."
-          );
-          progress.addLog("Sincronizando diferenças com a nuvem...", true);
-
-          // Simply auto-merge/overwrite whatever didn't match
-          import("./search-logic.js").then((module) => {
-            const newFormData = new FormData();
-            newFormData.append("title", AUTO_TITLE);
-            if (srcProvaVal)
-              newFormData.append("source_url_prova", srcProvaVal);
-            if (srcGabVal) newFormData.append("source_url_gabarito", srcGabVal);
-
-            // FIX: Persist custom filenames in merge flow so Worker doesn't fallback to defaults
-            newFormData.append("pdf_custom_name", finalNameProva);
-            if (finalNameGab) {
-              newFormData.append("gabarito_custom_name", finalNameGab);
-            }
-
-            // LOGIC:
-            // If Prova Mismatch -> Send Local Temp URL
-            if (!matchProva && data.temp_pdf_url) {
-              newFormData.append("pdf_url_override", data.temp_pdf_url);
-            }
-
-            // If Gabarito Mismatch -> Send Local Temp URL
-            if (fileGabarito && !matchGab && data.temp_gabarito_url) {
-              newFormData.append(
-                "gabarito_url_override",
-                data.temp_gabarito_url
-              );
-            }
-
-            newFormData.append("confirm_override", "true");
-            newFormData.append("mode", "update");
-
-            fetch(`${WORKER_URL}/manual-upload`, {
-              method: "POST",
-              body: newFormData,
-            })
-              .then((r) => r.json())
-              .then((d) => {
-                if (d.success) {
-                  // Determine Gabarito URL from response (if provided) or construct it
-                  // Improved Gabarito URL derivation (matches main flow)
-                  let hfUrlGab = d.hf_url_gabarito;
-                  if (!hfUrlGab && d.gabarito_filename) {
-                    hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${d.slug}/files/${d.gabarito_filename}`;
-                  } else if (!hfUrlGab && fileGabarito) {
-                    const gName = fileGabarito.name || "gabarito.pdf";
-                    hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${d.slug}/files/${gName}`;
-                  }
-
-                  startPollingAndOpenViewer(
-                    d.hf_url_preview,
-                    d.slug,
-                    d.ai_data,
-                    hfUrlGab
-                  );
-                } else {
-                  progress.close();
-                  alert("Erro ao realizar fusão automática: " + d.error);
-                }
-              })
-              .catch((err) => {
-                progress.close();
-                alert("Erro de fusão automática: " + err.message);
-              });
-          });
-
-          return;
-        }
-
-        if (!data.success) {
-          throw new Error(data.error || "Erro desconhecido no upload.");
-        }
-
-        // SUCCESS START
-        const hfUrl = data.hf_url_preview;
-        const slug = data.slug;
-
-        // Determine Gabarito URL from response (need to be cleaner with filenames)
-        // Worker currently returns only hf_url_preview.
-        // We can infer it if we know the filename, OR we should update Worker to return it.
-        // For now, let's construct it if we have metadata, otherwise default to gabarito.pdf logic?
-        // Better: Use what we sent or got back from Worker.
-
-        let hfUrlGab = data.hf_url_gabarito;
-        if (!hfUrlGab && data.ai_data && data.ai_data.gabarito_filename) {
-          hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${data.ai_data.gabarito_filename}`;
-        } else if (!hfUrlGab && fileGabarito) {
-          // Fallback guess
-          const gName = fileGabarito.name || "gabarito.pdf";
-          hfUrlGab = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gName}`;
-        }
-
-        // CHECK: Is Deduplicated? (Immediate Open)
-        if (data.is_deduplicated) {
-          progress.setTarget(100, "Concluído");
           progress.addLog(
-            "✅ Arquivos já existentes encontrados! Abrindo...",
+            "⚠️ Aviso: Arquivos similares detectados no servidor."
+          );
+          // Não incomodamos o usuário com modal de conflito aqui, pois a regra é:
+          // "Só cancela, não usa mais o arquivo da nuvem nem nada, porque agora vai abrir SOMENTE com os arquivos locais"
+        }
+
+        const finalSlug = data.slug || targetSlug || "temp-slug";
+
+        // Se enviamos arquivos, podemos esperar uma confirmação via Pusher se quisermos ser chiques,
+        // mas para "abrir somente local", podemos ser imediatos se o worker já retornou OK.
+        // O worker retorna rápido? Geralmente sim, a parte demorada é o deep search (que não é esse endpoint).
+        // Esse endpoint manual-upload dispara o processamento async.
+
+        // Se enviamos apenas PROVA ou apenas GABARITO, o ideal seria esperar o processamento desse item?
+        // O user disse: "espera o gabarito fazer o que tem que fazer e abre entendeu?"
+
+        if (uploadProva || uploadGabarito) {
+          progress.addLog(
+            "Aguardando confirmação de processamento (Sync)...",
             true
           );
-          setTimeout(() => {
-            progress.close();
-            openViewer(hfUrl, slug, data.ai_data, hfUrlGab);
-          }, 1000);
-        } else {
-          // Normal Flow: Wait for Pusher
-          startPollingAndOpenViewer(
-            data.hf_url_preview,
-            data.slug,
-            data.ai_data,
-            hfUrlGab
-          );
+
+          // Usar a mesma lógica de polling/pusher mas APENAS para saber quando terminar,
+          // NÃO para pegar URL.
+
+          // Reutilizar startPolling mas modificar para NÃO abrir com URL remota
+          // Precisamos esperar o evento 'Cloud sync complete' ou similar.
+
+          await new Promise(async (resolve) => {
+            let PusherClass = window.Pusher;
+            if (!PusherClass) {
+              const module = await import("pusher-js");
+              PusherClass = module.default;
+            }
+            const pusher = new PusherClass("6c9754ef715796096116", {
+              cluster: "sa1",
+            });
+            const channel = pusher.subscribe(finalSlug);
+
+            let done = false;
+            const safeResolve = () => {
+              if (!done) {
+                done = true;
+                channel.unbind_all();
+                pusher.unsubscribe(finalSlug);
+                resolve();
+              }
+            };
+
+            // Timeout de segurança (se o worker for rápido demais e perdermos o ev, ou demorar)
+            setTimeout(() => {
+              progress.addLog(
+                "⚠️ Tempo limite de sync atingido. Abrindo assim mesmo..."
+              );
+              safeResolve();
+            }, 15000); // 15s max wait
+
+            channel.bind("log", (d) => {
+              const msg = d.message || "";
+              console.log(`[Pusher Sync] ${msg}`);
+              // progress.update(msg); // Opcional mostrar logs detalhados
+              if (
+                msg.includes("Cloud sync complete") ||
+                msg.includes("Processamento concluído")
+              ) {
+                progress.addLog("✅ Sincronização confirmada!");
+                safeResolve();
+              }
+            });
+
+            // Se já veio sucesso imediato e não é async?
+            // O manual-upload geralmente é async para coisas pesadas.
+          });
         }
+
+        progress.setTarget(100, "Abrindo");
+        setTimeout(() => {
+          progress.close();
+          gerarVisualizadorPDF({
+            title:
+              data.ai_data?.formatted_title_general ||
+              aiDataFromManifest?.formatted_title_general ||
+              AUTO_TITLE,
+            rawTitle: "Documento Local",
+            fileProva: URL.createObjectURL(fileProva), // SEMPRE LOCAL
+            fileGabarito: fileGabarito
+              ? URL.createObjectURL(fileGabarito)
+              : null, // SEMPRE LOCAL
+            gabaritoNaProva: gabaritoCheck.checked,
+            isManualLocal: true,
+            slug: finalSlug,
+          });
+        }, 800);
+
+        return;
       } catch (e) {
         if (progress && progress.close) progress.close();
         console.error("[Manual] Error triggering upload:", e);
-        alert("Erro no upload: " + e.message);
+
+        // Ensure viewer opens even on error
+        setTimeout(() => {
+          alert(
+            "Erro na sincronização: " +
+              e.message +
+              "\nAbrindo modo visualização local."
+          );
+          gerarVisualizadorPDF({
+            title: AUTO_TITLE || "Documento Local (Offline)",
+            rawTitle: "Documento Local",
+            fileProva: fileProva ? URL.createObjectURL(fileProva) : null,
+            fileGabarito: fileGabarito
+              ? URL.createObjectURL(fileGabarito)
+              : null,
+            gabaritoNaProva: gabaritoCheck.checked,
+            isManualLocal: true,
+            slug: "local-error-" + Date.now(),
+          });
+        }, 500);
       }
     }; // End executeUploadSequence
 

@@ -9,10 +9,10 @@ on:
         description: 'Slug for folder name (e.g. "enem-2023")'
         required: true
       pdf_url:
-        description: "Temporary URL for the PDF"
-        required: true
+        description: "Ignored (Legacy)"
+        required: false
       gabarito_url:
-        description: "Temporary URL for the Answer Key"
+        description: "Ignored (Legacy)"
         required: false
       title:
         description: "Exam Title"
@@ -109,7 +109,7 @@ jobs:
           PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
           PUSHER_CLUSTER: ${{ secrets.PUSHER_CLUSTER }}
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-        run: python3 logger.py "☁️ Request received. Syncing to standard dataset structure..."
+        run: python3 logger.py "☁️ Request received. Syncing manifest only (Link Mode)..."
 
       - name: Clone Hugging Face Repo
         env:
@@ -119,84 +119,7 @@ jobs:
           git config --global user.name "Maia Bot"
           git clone --depth 1 https://user:$HF_TOKEN@huggingface.co/datasets/toquereflexo/maia-deep-search hf_repo
 
-      - name: Download Files & Structure (Smart Rename)
-        id: download
-        env:
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-          PDF_URL: ${{ github.event.client_payload.pdf_url || inputs.pdf_url }}
-          GAB_URL: ${{ github.event.client_payload.gabarito_url || inputs.gabarito_url }}
-          # Use provided filename or fallback, but allow renaming
-          PDF_FILENAME: ${{ github.event.client_payload.metadata.pdf_filename || 'prova.pdf' }}
-          GAB_FILENAME: ${{ github.event.client_payload.metadata.gabarito_filename || 'gabarito.pdf' }}
-        run: |
-          echo "DEBUG: PDF_FILENAME for Download is: '${PDF_FILENAME}'"
-          cd hf_repo
-          mkdir -p "output/$SLUG/files"
-
-          # Function to check, rename if needed, and download
-          # Exports variable: final_pdf_name, final_gab_name
-          download_smart() {
-            local url="$1"
-            local fname="$2"
-            local type="$3" # "pdf" or "gab"
-            
-            # Notify start of download
-            python3 ../logger.py "Baixando arquivo processado: $fname"
-            
-            local final_name="$fname"
-            
-            if [ -n "$url" ] && [ "$url" != "null" ]; then
-                # SMART RENAMING LOOP
-                # If file exists, try file-1.pdf, file-2.pdf, etc.
-                local base="${fname%.*}"
-                local ext="${fname##*.}"
-                local counter=1
-                
-                while [ -f "output/$SLUG/files/$final_name" ]; do
-                    # Collision detected!
-                    # Check if it's visually identical? (Optional optimization, but user asked to keep it if different)
-                    # For now, simplistic approach: Collision = Rename. 
-                    # We assume visual hash check happened BEFORE in frontend/worker if we wanted to avoid upload.
-                    
-                    counter=$((counter + 1))
-                    final_name="${base}-${counter}.${ext}"
-                done
-                
-                if [ "$fname" != "$final_name" ]; then
-                     echo "::notice::Collision resolved: Renaming '$fname' -> '$final_name'"
-                fi
-
-                echo "Downloading $final_name from $url..."
-                
-                if ! curl -sL --fail --retry 3 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" -o "output/$SLUG/files/$final_name" "$url"; then
-                     echo "::error::Download failed (HTTP Error) for $url"
-                     exit 1
-                fi
-                
-                # MIME CHECK
-                mime_type=$(file --mime-type -b "output/$SLUG/files/$final_name")
-                if [[ "$mime_type" != "application/pdf" ]]; then
-                    echo "::error::Invalid file type! Expected pdf, got $mime_type"
-                    rm "output/$SLUG/files/$final_name"
-                    exit 1
-                fi
-            else
-                echo "Skipping $type (No URL provided)."
-                final_name="" 
-            fi
-            
-            # Export to GitHub Output
-            echo "final_${type}_name=$final_name" >> $GITHUB_OUTPUT
-            python3 ../logger.py "Download concluído: $final_name"
-            echo "::notice::Final $type Name: $final_name"
-          }
-
-          download_smart "$PDF_URL" "$PDF_FILENAME" "pdf"
-          download_smart "$GAB_URL" "$GAB_FILENAME" "gab"
-
-          ls -R "output/$SLUG"
-
-      - name: Update Manifest (Merge Strategy)
+      - name: Update Manifest (Link Only Strategy)
         env:
           # Access nested metadata or fallbacks
           SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
@@ -204,19 +127,26 @@ jobs:
           YEAR: ${{ github.event.client_payload.metadata.year || inputs.year }}
           INSTITUTION: ${{ github.event.client_payload.metadata.institution || inputs.institution }}
           PHASE: ${{ github.event.client_payload.metadata.phase || inputs.phase }}
-          # CRITICAL: Use the FINAL RENAMED FILENAMES from the download step
-          PDF_FILENAME: ${{ steps.download.outputs.final_pdf_name }}
-          GAB_FILENAME: ${{ steps.download.outputs.final_gab_name }}
-          # NEW: Display names from AI
+
+          # Display Names
           PDF_DISPLAY_NAME: ${{ github.event.client_payload.metadata.pdf_display_name }}
           GAB_DISPLAY_NAME: ${{ github.event.client_payload.metadata.gabarito_display_name }}
 
-          VISUAL_HASH: ${{ github.event.client_payload.metadata.visual_hash }}
-          VISUAL_HASH_GABARITO: ${{ github.event.client_payload.metadata.visual_hash_gabarito }}
+          # Original Source URLs
+          PDF_SOURCE: ${{ github.event.client_payload.source_url_prova || inputs.source_url_prova }}
+          GAB_SOURCE: ${{ github.event.client_payload.source_url_gabarito || inputs.source_url_gabarito }}
 
-          # Only add entries for what we actually downloaded (if filename is not empty)
-          HAS_PDF: ${{ steps.download.outputs.final_pdf_name != '' }}
-          HAS_GAB: ${{ steps.download.outputs.final_gab_name != '' }}
+          # Visual Hashes (Passed from frontend)
+          VISUAL_HASH: ${{ github.event.client_payload.visual_hash }}
+          VISUAL_HASH_GABARITO: ${{ github.event.client_payload.visual_hash_gabarito }}
+
+          # Filenames (Sanitized from Frontend/Worker)
+          PDF_FILENAME: ${{ github.event.client_payload.metadata.pdf_filename }}
+          GAB_FILENAME: ${{ github.event.client_payload.metadata.gabarito_filename }}
+
+          HAS_PDF: ${{ github.event.client_payload.source_url_prova != '' }}
+          HAS_GAB: ${{ github.event.client_payload.source_url_gabarito != '' }}
+
         run: |
           # Create script in root (OUTSIDE hf_repo to avoid commit)
           cat << 'EOF' > update_manifest.py
@@ -230,19 +160,27 @@ jobs:
           year = os.environ.get("YEAR")
           inst = os.environ.get("INSTITUTION")
           phase = os.environ.get("PHASE")
-          phase = os.environ.get("PHASE")
+
+          # PDF DATA
           pdf_fname = os.environ.get("PDF_FILENAME")
-          gab_fname = os.environ.get("GAB_FILENAME")
           pdf_display = os.environ.get("PDF_DISPLAY_NAME") or title
-          gab_display = os.environ.get("GAB_DISPLAY_NAME") or f"{title} (Gabarito)"
+          pdf_source = os.environ.get("PDF_SOURCE")
           v_hash = os.environ.get("VISUAL_HASH")
+
+          # GAB DATA
+          gab_fname = os.environ.get("GAB_FILENAME")
+          gab_display = os.environ.get("GAB_DISPLAY_NAME") or f"{title} (Gabarito)"
+          gab_source = os.environ.get("GAB_SOURCE")
           v_hash_gab = os.environ.get("VISUAL_HASH_GABARITO")
 
           has_pdf = os.environ.get("HAS_PDF") == 'true'
           has_gab = os.environ.get("HAS_GAB") == 'true'
 
-          # Target manifest inside the repo structure
-          manifest_path = Path(f"hf_repo/output/{slug}/manifest.json")
+          # Ensure the folder exists even if no physical files (Repo structure)
+          output_dir = Path(f"hf_repo/output/{slug}")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          manifest_path = output_dir / "manifest.json"
+
           items = []
 
           # 1. Load Existing (Fail Safe)
@@ -261,34 +199,36 @@ jobs:
           # 2. Build Dictionary for Upsert (Key = filename)
           items_map = {item.get('filename'): item for item in items if item.get('filename')}
 
-          # 3. Prepare Payloads (Using FINAL filenames)
+          # 3. Prepare Payloads
           try:
               year_int = int(year)
           except:
               year_int = year
 
+          # Entry 1: Prova
           if has_pdf and pdf_fname:
                items_map[pdf_fname] = {
                   "nome": pdf_display,
-                  "tipo": "Prova",
+                  "tipo": "prova",
                   "ano": year_int,
                   "instituicao": inst,
                   "fase": phase,
-                  "link_origem": "manual-upload",
-                  "status": "downloaded",
+                  "link_origem": pdf_source,
+                  "status": "verified",
                   "filename": pdf_fname,
                   "visual_hash": v_hash
               }
 
+          # Entry 2: Gabarito
           if has_gab and gab_fname:
                items_map[gab_fname] = {
                   "nome": gab_display,
-                  "tipo": "Gabarito",
+                  "tipo": "gabarito",
                   "ano": year_int,
                   "instituicao": inst,
                   "fase": phase,
-                  "link_origem": "manual-upload",
-                  "status": "downloaded",
+                  "link_origem": gab_source,
+                  "status": "verified",
                   "filename": gab_fname,
                   "visual_hash": v_hash_gab
               }
@@ -305,90 +245,6 @@ jobs:
 
           python3 update_manifest.py
           cat "hf_repo/output/$SLUG/manifest.json"
-
-      - name: Compute Visual Hashes
-        env:
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-          PDF_FILENAME: ${{ steps.download.outputs.final_pdf_name }}
-          GAB_FILENAME: ${{ steps.download.outputs.final_gab_name }}
-        uses: ./.github/actions/compute-hash
-        with:
-          path: "hf_repo/output/${{ env.SLUG }}"
-
-      - name: Generate Thumbnails
-        env:
-          SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
-        run: |
-          cat << 'EOF' > generate_thumbnails.py
-          import os
-          import json
-          from pdf2image import convert_from_path
-          from pathlib import Path
-
-          slug = os.environ.get("SLUG")
-          if not slug:
-              print("[Thumb] SLUG env var missing.")
-              exit(1)
-
-          base_dir = Path(f"hf_repo/output/{slug}")
-          thumbs_dir = base_dir / "thumbnails"
-          thumbs_dir.mkdir(exist_ok=True)
-          manifest_path = base_dir / "manifest.json"
-
-          if manifest_path.exists():
-              try:
-                  with open(manifest_path, 'r', encoding='utf-8') as f:
-                      data = json.load(f)
-                  
-                  items = data if isinstance(data, list) else data.get('results', [])
-
-                  updated_count = 0
-                  for item in items:
-                      fname = item.get('filename')
-                      # Skip if thumbnail already exists to preserve legacy/manual edits
-                      if 'thumbnail' in item:
-                          continue
-
-                      if fname and fname.lower().endswith('.pdf'):
-                          pdf_path = base_dir / "files" / fname
-                          
-                          if pdf_path.exists():
-                              try:
-                                  # Convert first page
-                                  images = convert_from_path(str(pdf_path), first_page=1, last_page=1, dpi=150)
-                                  if images:
-                                      thumb_name = f"{Path(fname).stem}.jpg"
-                                      thumb_path = thumbs_dir / thumb_name
-                                      images[0].save(thumb_path, 'JPEG', quality=80)
-                                      
-                                      # Use relative path (standard)
-                                      item['thumbnail'] = f"thumbnails/{thumb_name}"
-                                      updated_count += 1
-                                      print(f"[Thumb] Generated: {thumb_name}")
-                              except Exception as e:
-                                  print(f"[Thumb] Failed for {fname}: {e}")
-                  
-                  if updated_count > 0:
-                      with open(manifest_path, 'w', encoding='utf-8') as f:
-                          json.dump(items, f, indent=2, ensure_ascii=False)
-                      print(f"[Thumb] Success. Generated {updated_count} thumbnails.")
-                  else:
-                      print("[Thumb] No new thumbnails needed.")
-
-              except Exception as e:
-                  print(f"[Thumb] Critical Error: {e}")
-          else:
-              print(f"[Thumb] Manifest not found at {manifest_path}")
-          EOF
-
-          (
-            echo "Installing dependencies..."
-            sudo apt-get update && sudo apt-get install -y poppler-utils
-            pip install pdf2image
-
-            echo "Generating thumbnails..."
-            python3 generate_thumbnails.py
-          )
 
       - name: Push to Hugging Face
         env:
@@ -407,14 +263,15 @@ jobs:
           git config --global lfs.dialtimeout 300
 
           git lfs install
-          git lfs track "*.pdf" "*.jpg"
+          # No file tracking needed since we are not adding PDFs
+
           git add .
-          python3 ../logger.py "Commitando alterações no dataset..."
-          git commit -m "Manual upload (Rich Metadata) for $SLUG" || echo "Nothing to commit"
+          python3 ../logger.py "Commitando alterações no manifesto..."
+          git commit -m "Manual upload (Manifest Link) for $SLUG" || echo "Nothing to commit"
           git push
 
           # Notify Frontend
-          python3 ../logger.py "✅ Cloud sync complete! Files and Thumbnails are live."
+          python3 ../logger.py "✅ Cloud sync complete! Manifest updated."
 
       - name: Update Semantic Cache
         if: success()
