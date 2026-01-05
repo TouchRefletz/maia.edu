@@ -569,13 +569,21 @@ export function setupFormLogic(elements, initialData) {
             if (outcome.status === "fulfilled") {
               const data = outcome.result;
               console.log(`[Manual] Hash Success [${task.label}]:`, data);
+
+              // EXTRACT HASH ROBUSTLY & LOG
+              const validHash = data.hash || data.visual_hash;
+              const displayHash = validHash
+                ? validHash.substring(0, 15) + "..."
+                : "(VAZIO/NULL)";
+              progress.addLog(`Hash recebido [${task.label}]: ${displayHash}`);
+
               if (!task.isLink) {
-                if (task.isProva) remoteHashProva = data.hash;
-                else remoteHashGab = data.hash;
+                if (task.isProva) remoteHashProva = validHash;
+                else remoteHashGab = validHash;
               } else {
                 // CAPTURAR HASH DE LINK
-                if (task.isProva) remoteHashProvaLink = data.hash;
-                else remoteHashGabLink = data.hash;
+                if (task.isProva) remoteHashProvaLink = validHash;
+                else remoteHashGabLink = validHash;
               }
             }
           }
@@ -667,6 +675,8 @@ export function setupFormLogic(elements, initialData) {
                   );
                   uploadProva = false;
                   remoteUrlProva = matchProva.url; // Só para referência, não usado no viewer
+                } else {
+                  progress.addLog("⚠️ Prova é nova e será enviada.");
                 }
 
                 if (gabaritoEnviadoPeloUser) {
@@ -988,11 +998,16 @@ export function setupFormLogic(elements, initialData) {
           formData.append("fileProva", fileProva, finalNameProva);
           formData.append("pdf_custom_name", finalNameProva);
           if (tmpUrlProva) formData.append("pdf_url_override", tmpUrlProva);
-          if (remoteHashProva || remoteHashProvaLink)
-            formData.append(
-              "visual_hash",
-              remoteHashProva || remoteHashProvaLink
+
+          const hashP = remoteHashProva || remoteHashProvaLink;
+          if (hashP) {
+            formData.append("visual_hash", hashP);
+            progress.addLog(
+              `Anexando visual_hash (Prova): ${hashP.substring(0, 10)}...`
             );
+          } else {
+            progress.addLog(`⚠️ visual_hash (Prova) está vazio!`);
+          }
         } else {
           console.log("[Manual] Pulando upload da Prova (já existe).");
         }
@@ -1005,11 +1020,13 @@ export function setupFormLogic(elements, initialData) {
           }
           if (tmpUrlGab) formData.append("gabarito_url_override", tmpUrlGab);
 
-          if (remoteHashGab || remoteHashGabLink)
-            formData.append(
-              "visual_hash_gabarito",
-              remoteHashGab || remoteHashGabLink
+          const hashG = remoteHashGab || remoteHashGabLink;
+          if (hashG) {
+            formData.append("visual_hash_gabarito", hashG);
+            progress.addLog(
+              `Anexando visual_hash (Gabarito): ${hashG.substring(0, 10)}...`
             );
+          }
         } else if (!uploadGabarito && fileGabarito) {
           console.log("[Manual] Pulando upload do Gabarito (já existe).");
         }
