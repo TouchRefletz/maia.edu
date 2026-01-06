@@ -187,7 +187,3 @@ Além disso, a **AGPL-3.0** também se aplica ao uso do software **via rede**: s
 Em outras palavras: se você publicar uma versão modificada, incorporar este projeto em um trabalho derivado e distribuí-lo — ou executá-lo para terceiros através da internet — você também deve licenciar esse trabalho sob a **AGPL-3.0**, garantindo as mesmas liberdades para as próximas pessoas. Acreditamos que o conhecimento cresce quando é compartilhado — e que essas liberdades devem permanecer protegidas para todos.
 
 > _A educação não tem preço. Sua falta tem custo. - Antônio Gomes Lacerda_
-
-```
-
-```
