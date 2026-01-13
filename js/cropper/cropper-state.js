@@ -38,6 +38,11 @@ export const CropperState = {
     if (!group) return "#00BCD4"; // Default
     // Removed draft check to allow color variation during creation/draft
 
+    // Fix: Force distinct color for Slot Mode (consistent UX)
+    if (group.tags && group.tags.includes("slot-mode")) {
+      return "#ff00f2ff"; // Pink
+    }
+
     // Se tiver externalId (IA), tenta usar o número da questão para cor consistente
     // Se for Manual, usa o ID interno do grupo
     let index = 0;

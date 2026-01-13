@@ -16,6 +16,7 @@ import {
   verificarRespostaBanco,
 } from "./banco/interacoes.js";
 import { cancelarRecorte } from "./cropper/cropper-core.js";
+import { CropperState } from "./cropper/cropper-state.js";
 import {
   ativarModoRecorte,
   cancelImageSlotMode,
@@ -61,6 +62,7 @@ import { highlightGroup } from "./cropper/selection-overlay.js";
 window.editImageSlotMode = editImageSlotMode;
 window.deleteImageSlot = deleteImageSlot;
 window.highlightCropGroup = highlightGroup;
+window.CropperState = CropperState;
 
 window.__ultimaQuestaoExtraida = null;
 window.__recortesAcumulados = [];
