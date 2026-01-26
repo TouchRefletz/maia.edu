@@ -9,6 +9,26 @@
   </tr>
 </table>
 
+<div align="center">
+  <img src="https://img.shields.io/badge/Google%20Gemini-3%20Flash%20(Preview)-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini 3 Flash">
+  <img src="https://img.shields.io/badge/System-Router%20Complexity%20Aware-21808D?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Router Complexity">
+  <img src="https://img.shields.io/badge/Feature-Google%20Grounding%20(Search)-34A853?style=for-the-badge&logo=google&logoColor=white" alt="Google Grounding">
+  <img src="https://img.shields.io/badge/Feature-Google%20Structured%20Output-34a0a8?style=for-the-badge&logo=google&logoColor=white" alt="Google Structured Output">
+</div>
+
+<div align="center">
+  <img src="https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Workers">
+  <img src="https://img.shields.io/badge/Pinecone-Vector_DB-000000?style=for-the-badge&logo=pinecone&logoColor=white" alt="Pinecone">
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+</div>
+
+<div align="center">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5">
+  <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3">
+</div>
+
 <br />
 
 **Ecossistema educacional inteligente para a democratização do ensino no Brasil.**
@@ -28,16 +48,82 @@ O objetivo do Maia.edu é servir como infraestrutura crítica para a educação 
 
 O projeto opera sobre uma arquitetura moderna e escalável, dividida em microsserviços na borda (_Edge Computing_), garantindo baixa latência e alta disponibilidade.
 
+### 🧠 Pipeline de Inferência Híbrida
+
+O coração do Maia.edu é um sistema roteável que entende a intenção do estudante para fornecer a resposta pedagógica ideal.
+
+graph TD
+%% Estilo dos nós
+classDef user fill:#21808D,stroke:#fff,stroke-width:2px,color:#fff;
+classDef ai fill:#4285F4,stroke:#fff,stroke-width:2px,color:#fff;
+classDef worker fill:#F38020,stroke:#fff,stroke-width:2px,color:#fff;
+classDef db fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+classDef front fill:#61DAFB,stroke:#333,stroke-width:2px,color:#000;
+
+    UserInput([👤 Mensagem do Estudante]):::user --> Router{🧠 Router Inteligente<br>Gemini 3 Flash}:::ai
+
+    subgraph "Backend (Cloudflare Workers)"
+        Router -- "Dúvida Rápida" --> ModeFast[⚡ Modo Rápido]:::ai
+        Router -- "Conceito Complexo" --> ModeReasoning[🤔 Modo Raciocínio]:::ai
+        Router -- "Passo-a-Passo" --> ModeScaffolding[🎓 Modo Scaffolding<br>Tutor Socrático]:::ai
+        Router -- "Intenção de Busca" --> ModeSearch[🔎 Modo Busca<br>RAG / Grounding]:::ai
+
+        ModeSearch --> Pinecone[(Pinecone Vector DB)]:::db
+        Pinecone --> ContextInjection[💉 Injeção de Contexto]:::worker
+        ContextInjection --> Generator[📝 Geração de Resposta<br>JSON Schema Strict]:::ai
+        ModeFast & ModeReasoning & ModeScaffolding --> Generator
+    end
+
+    Generator -- "Stream de JSON Tipado" --> Frontend[💻 Frontend React<br>Processamento de Stream]:::front
+
+    subgraph "Frontend (Client-Side Rendering)"
+        Frontend --> Parser{⚙️ Parser de Blocos}:::front
+        Parser -- "type: 'texto'" --> ComponentText[Renderizador Markdown]:::front
+        Parser -- "type: 'questao'" --> ComponentQuestion[Hydrate: <QuestaoCard /><br>Fetch Dados do DB]:::front
+        Parser -- "type: 'scaffolding'" --> ComponentScaffolding[Hydrate: <ScaffoldUI /><br>Interativo]:::front
+    end
+
+    ComponentText & ComponentQuestion & ComponentScaffolding --> Output([✨ Interface Final]):::user
+
 ### 1. Núcleo de Processamento (API & IA)
 
 O backend é sustentado por **Cloudflare Workers**, executando código diretamente na borda da rede. Quando uma questão é enviada:
 
-- **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Google Gemini** (modelos multimodais) para realizar a inferência semântica da prova.
+- **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Gemini 3 Flash Preview** (modelos multimodais) para realizar a inferência semântica da prova.
 - **Estruturação de Dados:** Diferente de OCRs tradicionais, nossa API força uma **saída estruturada em JSON**, categorizando rigorosamente:
   - Enunciados e alternativas;
   - Imagens, gráficos e legendas associadas;
   - Fontes, títulos e metadados contextuais;
   - Citações e trechos de código.
+
+#### 🔎 Geração Aumentada por Pesquisa (SAG)
+
+O extrator não apenas "lê" a imagem, mas atua como um agente pesquisador para garantir a precisão do gabarito.
+
+```mermaid
+graph TD
+    subgraph Passo 1: Extração Visual
+        Image[Crop da Questão] --> Extractor[Gemini 3 Flash<br>Visão Computacional]
+        Extractor --> JSON_Q[JSON Preliminar]
+    end
+
+    subgraph Passo 2: Pesquisa Agêntica
+        JSON_Q --> SearchAgent[Worker Search Agent]
+        SearchAgent --> Google[Google Search Grounding]
+        Google --> Report[Relatório de Pesquisa]
+    end
+
+    subgraph Passo 3: Geração Aumentada
+        JSON_Q & Report --> Generator[Gemini 3 Flash<br>Gerador de Gabarito]
+        Generator --> JSON_Full[JSON Completo + Fontes]
+    end
+
+    subgraph Passo 4: Normalização via Payload
+        JSON_Full --> Payload[Processador Payload]
+        Payload --> Normalizer[DataNormalizer<br>Padronização de Instituições]
+        Normalizer --> FinalDB[(Banco de Dados)]
+    end
+```
 
 ### 2. Renderização de Alta Fidelidade
 
@@ -90,6 +176,21 @@ Para escalar a captura de provas, implementamos um agente autônomo de busca pro
 3.  **Busca & Decisão:** O agente usa ferramentas de busca (como Tavily ou Google) para encontrar _links oficiais_ de provas e gabaritos, ignorando sites genéricos ou de baixa qualidade.
 4.  **Extração & Validação:** O sistema baixa os PDFs, valida se são arquivos legítimos (checa headers, tamanho, conteúdo) e os organiza.
 5.  **Manifesto:** Gera um arquivo `manifest.json` padronizado, listando tudo o que foi encontrado (arquivos baixados e links de referência).
+
+#### 📷 Scanner Auditor (Greedy Box)
+
+O sistema de digitalização possui um loop de "auditoria" para garantir cortes perfeitos.
+
+```mermaid
+graph TD
+    Page[Página PDF Renderizada] --> GreedyBox[Greedy Box Detection<br>Gemini 3 Flash]
+    GreedyBox --> Auditor{Agente Auditor}
+
+    Auditor -- "Corte Inválido (Cortou Texto)" --> Correction[Self-Correction Loop<br>Ajuste de Coordenadas]
+    Correction --> GreedyBox
+
+    Auditor -- "Aprovado" --> Crop[Final Crop]
+```
 
 ## 🧬 Estrutura do Banco de Dados
 
