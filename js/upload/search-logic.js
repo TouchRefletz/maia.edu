@@ -78,7 +78,7 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
       ...item,
       tipo: item.type || item.tipo, // ensure type exists
       source: "remote",
-    })
+    }),
   );
 
   // Local Items (Constructed from AI data + Temp URLs)
@@ -265,14 +265,24 @@ export function setupSearchLogic() {
 
   const searchContainer = document.getElementById("searchContainer");
   const manualUploadContainer = document.getElementById(
-    "manualUploadContainer"
+    "manualUploadContainer",
   );
 
   const btnVoltarInicio = document.querySelector(".js-voltar-inicio");
 
   // --- STATE RESTORATION (Persistence) ---
-  const savedSession = SearchPersistence.getSession();
-  const savedManifest = SearchPersistence.getManifest();
+  let savedSession = SearchPersistence.getSession();
+  let savedManifest = SearchPersistence.getManifest();
+
+  // [FIX] Reset state if previous search was completed (User expects fresh start)
+  if (savedSession && savedSession.status === "completed") {
+    console.log(
+      "[RESTORE] Previous session completed. Clearing state for fresh start.",
+    );
+    SearchPersistence.clear();
+    savedSession = null;
+    savedManifest = null;
+  }
 
   if (savedSession && savedSession.slug) {
     console.log("[RESTORE] Found saved session:", savedSession);
@@ -363,13 +373,11 @@ export function setupSearchLogic() {
 
   // --- Helper de NavegaÃ§Ã£o ---
   const switchToManualUpload = () => {
-    searchContainer.classList.add("hidden");
-    searchContainer.style.display = "none";
-    manualUploadContainer.classList.remove("hidden");
-    manualUploadContainer.style.display = "flex";
-    manualUploadContainer.classList.add("fade-in-centralized");
-
-    floatTerminal();
+    if (window.iniciarFluxoUploadManual) {
+      window.iniciarFluxoUploadManual();
+    } else {
+      console.error("Função de upload manual não encontrada no escopo global.");
+    }
   };
 
   // --- Toggles de Interface ---
@@ -461,7 +469,7 @@ export function setupSearchLogic() {
     force = false,
     cleanup = false,
     confirm = false,
-    mode = "overwrite"
+    mode = "overwrite",
   ) => {
     const query = searchInput.value.trim();
     if (!query) return;
@@ -487,7 +495,7 @@ export function setupSearchLogic() {
     // UI Feedback for "Update Mode"
     if (mode === "update") {
       const termHeader = document.querySelector(
-        "#deep-search-terminal .terminal-header span"
+        "#deep-search-terminal .terminal-header span",
       );
       if (termHeader) {
         termHeader.innerText = "TERMINAL - MODO ATUALIZAÇÃO";
@@ -521,7 +529,7 @@ export function setupSearchLogic() {
         // Initial LOG
         log(
           "Verificando banco de dados por resultados existentes...",
-          "in_progress"
+          "in_progress",
         );
       } else {
         log("Reiniciando busca (Terminal Restaurado)...", "warning");
@@ -568,7 +576,7 @@ export function setupSearchLogic() {
       if (mode === "update")
         terminal.processLogLine(
           "⚠ MODO ATUALIZAÇÃO ATIVADO: Novos arquivos serão mesclados.",
-          "warning"
+          "warning",
         );
     }
 
@@ -612,7 +620,7 @@ export function setupSearchLogic() {
             `Banco de provas encontrado (${
               result.exact_match.slug || result.canonical_slug
             }). Carregando resultados...`,
-            "success"
+            "success",
           );
           const existSlug = result.exact_match.slug || result.canonical_slug;
           currentSlug = existSlug;
@@ -643,11 +651,11 @@ export function setupSearchLogic() {
                 if (isManualOnly) {
                   log(
                     `[AUTO-UPGRADE] Pasta '${existSlug}' encontrada, mas contém apenas uploads manuais.`,
-                    "warning"
+                    "warning",
                   );
                   log(
                     `Iniciando Pesquisa Avançada complementar (Modo: UPDATE)...`,
-                    "success"
+                    "success",
                   );
 
                   // Recursive call with UPDATE mode
@@ -674,7 +682,7 @@ export function setupSearchLogic() {
                 log,
                 terminal,
                 new Set(),
-                true // Enable Retry/Add More Button even for Cached Results
+                true, // Enable Retry/Add More Button even for Cached Results
               );
             }
           });
@@ -741,7 +749,7 @@ export function setupSearchLogic() {
 
           log(
             "Busca base finalizada. Iniciando verificação de integridade...",
-            "success"
+            "success",
           );
           activePusher.unsubscribe(slug);
           SearchPersistence.finishSession(true); // Mark Done
@@ -757,7 +765,7 @@ export function setupSearchLogic() {
               log,
               terminal,
               new Set(),
-              true // Enable Retry Button for Fresh Searches
+              true, // Enable Retry Button for Fresh Searches
             );
           }, 3000);
         } else {
@@ -865,7 +873,7 @@ export function setupSearchLogic() {
       if (terminal)
         terminal.queueLog(
           "[SISTEMA] Iniciando busca complementar (Modo Update)...",
-          "info"
+          "info",
         );
 
       // Trigger Search: force=true, cleanup=FALSE, confirm=true, mode="update"
@@ -880,7 +888,7 @@ export function setupSearchLogic() {
     log,
     terminal,
     force,
-    cleanup
+    cleanup,
   ) => {
     // Create Modal UI dynamically
     const modalId = "unified-decision-modal";
@@ -1036,7 +1044,7 @@ export function setupSearchLogic() {
           loadResults(
             `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`,
             log,
-            terminal
+            terminal,
           );
         };
 
@@ -1071,7 +1079,7 @@ export function setupSearchLogic() {
         loadResults(
           `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${selected}/manifest.json`,
           log,
-          terminal
+          terminal,
         );
       } else {
         log("Erro ao selecionar item.", "error");
@@ -1086,7 +1094,7 @@ export function setupSearchLogic() {
     logFn,
     terminal,
     ignoredFiles = new Set(),
-    enableRetry = true
+    enableRetry = true,
   ) => {
     const log =
       logFn ||
@@ -1137,7 +1145,7 @@ export function setupSearchLogic() {
       } else {
         log(
           `[SISTEMA] ${validItems.length} itens carregados com sucesso.`,
-          "success"
+          "success",
         );
       }
 
@@ -1473,7 +1481,7 @@ export function setupSearchLogic() {
     card.className = "result-card";
     card.setAttribute(
       "data-type",
-      item.tipo?.toLowerCase().includes("gabarito") ? "gabarito" : "prova"
+      item.tipo?.toLowerCase().includes("gabarito") ? "gabarito" : "prova",
     );
 
     // Simplified Card Style (No image area)
@@ -1599,7 +1607,7 @@ export function setupSearchLogic() {
     candidates,
     originalQuery,
     onSelect,
-    onForce
+    onForce,
   ) => {
     // Create Overlay
     const overlay = document.createElement("div");

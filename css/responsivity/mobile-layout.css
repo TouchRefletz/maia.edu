@@ -124,7 +124,9 @@
         /* Forces full width without overflow issues */
         width: auto !important;
         /* Let left/right control width */
-        height: 80vh;
+        height: auto;
+        max-height: 85vh;
+        /* Mais alto se precisar, mas adaptável ao conteúdo */
         margin: 0 !important;
         z-index: 99999 !important;
         box-sizing: border-box !important;
@@ -136,7 +138,8 @@
         color: var(--color-text);
 
         border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+        /* Sombra mais forte para destaque */
 
         display: flex;
         flex-direction: column;
@@ -209,6 +212,11 @@
 
     /* Esconde redimensionador desktop */
     #sidebarResizer {
+        display: none !important;
+    }
+
+    /* Remove close button on mobile sidebar since it's a bottom sheet */
+    .sidebar-close-btn {
         display: none !important;
     }
 }

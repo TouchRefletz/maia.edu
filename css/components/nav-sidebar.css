@@ -68,6 +68,38 @@
   transform: translateX(0);
 }
 
+/* Botão Fechar Sidebar (X) */
+.nav-sidebar-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.nav-sidebar-close-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-error);
+}
+
+/* Ocultar em telas grandes se desejado, mas útil em geral.
+   Se quiser apenas mobile:
+*/
+@media (min-width: 769px) {
+  .nav-sidebar-close-btn {
+    display: none;
+  }
+}
+
 /* Header do Sidebar */
 /* Header do Sidebar */
 .nav-sidebar-header {

@@ -7,6 +7,9 @@ cleanupExpired().catch(console.error);
 import { ChatStorageService } from "./services/chat-storage.js";
 ChatStorageService.cleanupExpired().catch(console.error);
 
+import { initTheme } from "./services/theme-service.js";
+initTheme();
+
 import {
   app,
   auth,

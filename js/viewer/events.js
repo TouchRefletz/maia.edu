@@ -6,7 +6,12 @@ import { viewerState } from "../main.js";
 import { AiScanner } from "../services/ai-scanner.js";
 import { showConfirmModal } from "../ui/modal-confirm.js";
 import { inicializarContextoViewer } from "./contexto.js";
-import { carregarDocumentoPDF, mudarPagina, mudarZoom } from "./pdf-core.js";
+import {
+  carregarDocumentoPDF,
+  mudarPagina,
+  mudarZoom,
+  renderAllPages,
+} from "./pdf-core.js";
 import { configurarResizerSidebar } from "./resizer.js";
 import { montarTemplateViewer } from "./viewer-template.js";
 
@@ -40,51 +45,105 @@ export function configurarEventosViewer() {
   aoClicar("btnZoomOut", () => mudarZoom(-0.1));
   aoClicar("btnZoomIn", () => mudarZoom(0.1));
 
-  // --- Mobile Menu & Controls ---
-  aoClicar("btnMobileMenu", () => {
-    const menu = document.getElementById("mobileMenuOptions");
-    menu.classList.toggle("hidden");
-  });
+  // --- Mobile Floating Controls ---
+  aoClicar("btnFloatingClose", fecharVisualizador);
 
-  // Helper to toggle panels
-  const toggleMobilePanel = (id) => {
-    document
-      .querySelectorAll(".floating-glass-panel")
-      .forEach((p) => p.classList.add("hidden"));
-    document.getElementById("mobileMenuOptions").classList.add("hidden"); // Close menu
-    const target = document.getElementById(id);
-    if (target) target.classList.remove("hidden");
+  const toggleToolsPanel = () => {
+    const toolsPanel = document.getElementById("floatingToolsPanel");
+    if (!toolsPanel) return;
+
+    if (toolsPanel.classList.contains("hidden")) {
+      toolsPanel.classList.remove("hidden");
+      toolsPanel.classList.remove("closing");
+    } else {
+      toolsPanel.classList.add("closing");
+      const onAnimationEnd = () => {
+        if (toolsPanel.classList.contains("closing")) {
+          toolsPanel.classList.add("hidden");
+          toolsPanel.classList.remove("closing");
+        }
+        toolsPanel.removeEventListener("animationend", onAnimationEnd);
+      };
+      toolsPanel.addEventListener("animationend", onAnimationEnd);
+    }
   };
 
-  aoClicar("optMobileNav", () => toggleMobilePanel("mobileNavPanel"));
-  aoClicar("optMobileZoom", () => toggleMobilePanel("mobileZoomPanel"));
+  aoClicar("btnMobileTools", toggleToolsPanel);
 
-  // Direct Action for Crop
-  aoClicar("optMobileRecortar", () => {
-    document.getElementById("mobileMenuOptions").classList.add("hidden"); // Close menu
-    ativarModoRecorte();
-  });
-
-  aoClicar("optMobileFechar", fecharVisualizador);
-
+  // Controls inside the unified panel
   aoClicar("btnPrevMobile", () => mudarPagina(-1));
   aoClicar("btnNextMobile", () => mudarPagina(1));
   aoClicar("btnZoomOutMobile", () => mudarZoom(-0.1));
   aoClicar("btnZoomInMobile", () => mudarZoom(0.1));
 
-  // --- Ações Flutuantes (Durante o Recorte) ---
-  // Removido: Controles agora são inline no ImageSlotCard
-  // aoClicar("btnConfirmarRecorte", salvarQuestao);
-  // aoClicar("btnCancelarRecorte", cancelarRecorte);
+  // --- GESTOS: Pinch-to-Zoom (Mobile) ---
+  const container = document.getElementById("canvasContainer");
+  if (container) {
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+    let isPinching = false;
+    let lastPinchDist = 0;
 
-  // --- Modal de Confirmação ---
-  aoClicar("btnModalMaisRecorte", fecharModalConfirmacao);
-  aoClicar("btnModalProcessar", confirmarEnvioIA);
-  aoClicar("btnModalCancelarTudo", fecharModalConfirmacao);
+    // PINCH START
+    container.addEventListener(
+      "touchstart",
+      (e) => {
+        const overlay = document.getElementById("selection-overlay");
+        const isCropping =
+          overlay &&
+          (overlay.classList.contains("mode-creation") ||
+            overlay.classList.contains("mode-editing"));
+
+        if (e.touches.length === 2 && !isCropping) {
+          e.preventDefault();
+          isPinching = true;
+          pinchStartDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY,
+          );
+          pinchStartScale = viewerState.pdfScale;
+          lastPinchDist = pinchStartDist;
+        }
+      },
+      { passive: false },
+    );
+
+    // PINCH MOVE
+    container.addEventListener(
+      "touchmove",
+      (e) => {
+        if (isPinching && e.touches.length === 2) {
+          e.preventDefault();
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY,
+          );
+          lastPinchDist = dist;
+        }
+      },
+      { passive: false },
+    );
+
+    // PINCH END
+    container.addEventListener("touchend", (e) => {
+      if (isPinching && e.touches.length < 2) {
+        isPinching = false;
+
+        if (pinchStartDist > 0 && lastPinchDist > 0) {
+          const ratio = lastPinchDist / pinchStartDist;
+          // Apply changes if significant
+          if (Math.abs(ratio - 1) > 0.05) {
+            const newScale = pinchStartScale * ratio;
+            const delta = newScale - pinchStartScale;
+            // Use mudarZoom to ensure consistency with "ZOOM" controls
+            mudarZoom(delta);
+          }
+        }
+      }
+    });
+  }
 
   // --- NOVO: Click & Drag (Pan) para Desktop ---
-  // Imita o comportamento de arrastar do celular no PC
-  const container = document.getElementById("canvasContainer");
   if (container) {
     let isDown = false;
     let startX, startY, scrollLeft, scrollTop;

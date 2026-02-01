@@ -38,6 +38,11 @@ import { showConfirmModal } from "../ui/modal-confirm.js";
 import { gerarHtmlModalScanOriginal } from "../ui/scan-original-modal.js";
 import { checkAndRestoreFloatingTerminal } from "../upload/search-logic.js";
 import { mountApiKeyModal } from "../ui/ApiKeyModal.tsx";
+import {
+  getTheme,
+  toggleTheme,
+  updateThemeIcon,
+} from "../services/theme-service.js";
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
@@ -61,6 +66,11 @@ function renderInitialUI() {
     
     <!-- Sidebar Navigation -->
     <nav class="nav-sidebar">
+      <!-- Close Button (Mobile) -->
+      <button class="nav-sidebar-close-btn js-close-nav" aria-label="Fechar menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
       <div class="nav-sidebar-header">
         <div class="nav-brand-group">
             <img src="logo.png" alt="Logo" class="nav-sidebar-logo">
@@ -158,8 +168,8 @@ function renderInitialUI() {
                             <button class="model-menu-item" id="chatUploadFilesBtn" style="justify-content: flex-start; gap: 12px;">
                                 <div style="min-width: 24px; display: flex; align-items: center; justify-content: center;">
                                   <!-- Uploaded to: SVG Repo, www.svgrepo.com -->
-                                  <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="-6.4 -6.4 76.80 76.80" fill="#ffffff" stroke="#ffffff" stroke-width="0.00064">
-                                  <path fill="#ffffff" d="M44,16c-0.553,0-1-0.447-1-1V0H7C4.789,0,3,1.789,3,4v56c0,2.211,1.789,4,4,4h48c2.211,0,4-1.789,4-4V16H44 z M14,18h16c0.553,0,1,0.447,1,1s-0.447,1-1,1H14c-0.553,0-1-0.447-1-1S13.447,18,14,18z M48,51H14c-0.553,0-1-0.447-1-1 s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,51,48,51z M48,45H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1 S48.553,45,48,45z M48,39H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,39,48,39z M48,33H14 c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,33,48,33z M48,27H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34 c0.553,0,1,0.447,1,1S48.553,27,48,27z"/>
+                                  <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="-6.4 -6.4 76.80 76.80" fill="currentColor" stroke="currentColor" stroke-width="0.00064">
+                                  <path fill="currentColor" d="M44,16c-0.553,0-1-0.447-1-1V0H7C4.789,0,3,1.789,3,4v56c0,2.211,1.789,4,4,4h48c2.211,0,4-1.789,4-4V16H44 z M14,18h16c0.553,0,1,0.447,1,1s-0.447,1-1,1H14c-0.553,0-1-0.447-1-1S13.447,18,14,18z M48,51H14c-0.553,0-1-0.447-1-1 s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,51,48,51z M48,45H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1 S48.553,45,48,45z M48,39H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,39,48,39z M48,33H14 c-0.553,0-1-0.447-1-1s0.447-1,1-1h34c0.553,0,1,0.447,1,1S48.553,33,48,33z M48,27H14c-0.553,0-1-0.447-1-1s0.447-1,1-1h34 c0.553,0,1,0.447,1,1S48.553,27,48,27z"/>
                                   </svg>
                                 </div>
                                 <div class="model-item-content">
@@ -171,7 +181,7 @@ function renderInitialUI() {
                             <button class="model-menu-item" id="chatAddQuestionsBtn" style="justify-content: flex-start; gap: 12px;">
                                 <div style="min-width: 24px; display: flex; align-items: center; justify-content: center;">
                                   <!-- Uploaded to: SVG Repo, www.svgrepo.com -->
-                                  <svg fill="#ffffff" width="24px" height="24px" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff">
+                                  <svg fill="currentColor" width="24px" height="24px" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" stroke="currentColor">
                                   <g><path d="M397.5765,258.8732,269.125,287.3982v183.75l134.0506-29.8367A13.0954,13.0954,0,0,0,413.5,428.5358V271.6478A13.0751,13.0751,0,0,0,397.5765,258.8732Zm-18.4634,141.75-70,15.5753c-16.7352,3.5675-22.5757-21.6251-5.6866-25.6369l70-15.5753C390.3091,371.5209,395.9274,396.6024,379.1131,400.6227Zm0-61.25-70,15.5753c-16.7352,3.5675-22.5757-21.6251-5.6866-25.6369l70-15.5753C390.3091,310.2709,395.9274,335.3524,379.1131,339.3727Z"/> <path d="M98.5,271.6478v156.888a13.0193,13.0193,0,0,0,10.239,12.7757l134.136,29.8367v-183.75l-128.4494-28.525A13.0427,13.0427,0,0,0,98.5,271.6478Zm39.9881,40.3385,70,15.5752a13.13,13.13,0,1,1-5.6866,25.6369l-70-15.5752C116.0214,333.6135,121.5692,308.52,138.4881,311.9863Zm0,61.25,70,15.5752a13.13,13.13,0,1,1-5.6866,25.6369l-70-15.5752C116.0214,394.8635,121.5692,369.77,138.4881,373.2363Z"/> <path d="M295.375,198.4114h-78.75C211.0644,262.2762,300.8758,262.3157,295.375,198.4114Z"/> <path d="M223.8006,172.1614H288.114l16.8869-23.9749a59.9765,59.9765,0,0,0-6.7377-76.65c-52.5556-50.1672-131.6495,16.2162-91.2619,76.65Z"/> <path d="M339.0823,176.9979c4.3088,2.01,15.4449,10.3991,20.4309,9.7786,13.0267.3108,18.1793-18.0822,6.571-24.4941l-13.8769-8.014C337.134,145.8773,324.2867,168.125,339.0823,176.9979Z"/> <path d="M159.7415,154.263l-13.8855,8.0152c-11.6126,6.4161-6.4515,24.8005,6.571,24.4983,5.0458.5928,16.06-7.7524,20.44-9.7744C187.662,168.1154,174.8254,145.9082,159.7415,154.263Z"/> <path d="M346.3967,113.8626a13.1256,13.1256,0,0,0,13.125,13.125h16.0218c17.2522-.2916,17.2479-25.9584,0-26.25H359.5217A13.1257,13.1257,0,0,0,346.3967,113.8626Z"/> <path d="M136.4053,126.9876H152.427c17.2522-.2916,17.2479-25.9584,0-26.25H136.4053a13.125,13.125,0,0,0,0,26.25Z"/> <path d="M345.6533,75.2182c5.0458.5907,16.0517-7.7566,20.4309-9.7786,14.802-8.876,1.94-31.1206-13.125-22.73l-13.8769,8.0151C327.4676,57.1361,332.633,75.5258,345.6533,75.2182Z"/> <path d="M145.856,65.4439c4.3087,2.01,15.4513,10.397,20.4394,9.7743,13.0289.3066,18.1793-18.0842,6.5711-24.4983l-13.8855-8.014C143.8928,34.34,131.0668,56.5647,145.856,65.4439Z"/></g>
                                   </svg>
                                 </div>
@@ -231,11 +241,11 @@ function renderInitialUI() {
                 
                 <div class="chat-options-right">
                     <button class="action-btn btn-mic" id="chatMicBtn" title="Microfone">
-                        <svg width="20" height="20" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#ffffff">
+                        <svg width="20" height="20" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
                         <g id="SVGRepo_bgCarrier" stroke-width="0"/>
                         <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/>
                         <g id="SVGRepo_iconCarrier">
-                        <path fill="#ffffff" d="M480 704h160a64 64 0 0 0 64-64v-32h-96a32 32 0 0 1 0-64h96v-96h-96a32 32 0 0 1 0-64h96v-96h-96a32 32 0 0 1 0-64h96v-32a64 64 0 0 0-64-64H384a64 64 0 0 0-64 64v32h96a32 32 0 0 1 0 64h-96v96h96a32 32 0 0 1 0 64h-96v96h96a32 32 0 0 1 0 64h-96v32a64 64 0 0 0 64 64h96zm64 64v128h192a32 32 0 1 1 0 64H288a32 32 0 1 1 0-64h192V768h-96a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64h256a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128h-96z"/>
+                        <path fill="currentColor" d="M480 704h160a64 64 0 0 0 64-64v-32h-96a32 32 0 0 1 0-64h96v-96h-96a32 32 0 0 1 0-64h96v-96h-96a32 32 0 0 1 0-64h96v-32a64 64 0 0 0-64-64H384a64 64 0 0 0-64 64v32h96a32 32 0 0 1 0 64h-96v96h96a32 32 0 0 1 0 64h-96v96h96a32 32 0 0 1 0 64h-96v32a64 64 0 0 0 64 64h96zm64 64v128h192a32 32 0 1 1 0 64H288a32 32 0 1 1 0-64h192V768h-96a128 128 0 0 1-128-128V192A128 128 0 0 1 384 64h256a128 128 0 0 1 128 128v448a128 128 0 0 1-128 128h-96z"/>
                         </g>
                         </svg>
                     </button>
@@ -771,11 +781,21 @@ function renderUserButton(user) {
         <button class="nav-header-key-btn js-config-api" title="Configurar Chave API">
             🔑
         </button>
+        <button class="nav-header-key-btn js-toggle-theme" title="Alternar Tema">
+            <!-- Icon initialized by JS -->
+        </button>
       `;
 
     const loginBtn = userSection.querySelector(".js-open-login");
     if (loginBtn) {
       loginBtn.addEventListener("click", () => openLoginModal());
+    }
+
+    // Theme Toggle Listener (Anonymous)
+    const themeBtn = userSection.querySelector(".js-toggle-theme");
+    if (themeBtn) {
+      updateThemeIcon(getTheme());
+      themeBtn.addEventListener("click", () => toggleTheme());
     }
     // === DYNAMIC LOGOUT ALERT LOGIC ===
     const chatInputWrapper = document.getElementById("chatInputWrapper");
@@ -862,11 +882,21 @@ function renderUserButton(user) {
         <button class="nav-header-key-btn js-config-api" title="Configurar Chave API">
             🔑
         </button>
+        <button class="nav-header-key-btn js-toggle-theme" title="Alternar Tema">
+            <!-- Icon initialized by JS -->
+        </button>
       `;
 
     // Profile Dropdown Logic
     const profileBtn = document.getElementById("userProfileBtn");
     const dropdown = document.getElementById("userDropdownMenu");
+
+    // Theme Toggle Listener (Logged In)
+    const themeBtn = userSection.querySelector(".js-toggle-theme");
+    if (themeBtn) {
+      updateThemeIcon(getTheme());
+      themeBtn.addEventListener("click", () => toggleTheme());
+    }
 
     if (profileBtn && dropdown) {
       profileBtn.addEventListener("click", (e) => {

@@ -17,39 +17,27 @@ export function montarTemplateViewer(args) {
             </div>
         </header>
 
-        <!-- MOBILE MENU BUTTON (Visible only on <= 900px) -->
-        <div id="mobileHeaderContainer" class="mobile-only">
-             <button id="btnMobileMenu" class="mobile-fab-menu">☰</button>
-        </div>
+        <!-- FLOATING CLOSE BUTTON (Top Right) -->
+        <button id="btnFloatingClose" class="floating-close-btn mobile-only">✕</button>
 
-        <!-- MOBILE DROPDOWN OPTIONS -->
-        <div id="mobileMenuOptions" class="mobile-dropdown hidden">
-            <button class="mobile-menu-item" id="optMobileNav">Navegação</button>
-            <button class="mobile-menu-item" id="optMobileZoom">Zoom</button>
-            <button class="mobile-menu-item" id="optMobileRecortar">Recortar</button>
-            <button class="mobile-menu-item" id="optMobileFechar">✕ Fechar PDF</button>
-        </div>
+        <!-- FLOATING TOOLS TOGGLE (Bottom Right) -->
+        <button id="btnMobileTools" class="floating-tools-btn mobile-only">⚙️</button>
 
-        <!-- FLOATING CONTROL PANELS (Initially Hidden) -->
-        
-        <!-- NAVIGATION PANEL -->
-        <div id="mobileNavPanel" class="floating-glass-panel hidden">
-             <div class="control-row mobile-control-row">
-                <button id="btnPrevMobile" class="btn-icon">◀</button>
-                <span id="pageNumMobile">Pag 1</span>
-                <button id="btnNextMobile" class="btn-icon">▶</button>
+        <!-- UNIFIED FLOATING TOOLS PANEL (Bottom, Initially Hidden) -->
+        <div id="floatingToolsPanel" class="floating-bottom-panel hidden mobile-only">
+             <div class="tools-row">
+                 <div class="tool-group">
+                     <button id="btnPrevMobile" class="btn-icon">◀</button>
+                     <span id="pageNumMobile">Pg 1</span>
+                     <button id="btnNextMobile" class="btn-icon">▶</button>
+                 </div>
+                 <div class="tool-divider"></div>
+                 <div class="tool-group">
+                     <button id="btnZoomOutMobile" class="btn-icon">-</button>
+                     <span id="zoomLevelMobile">100%</span>
+                     <button id="btnZoomInMobile" class="btn-icon">+</button>
+                 </div>
              </div>
-             <button class="panel-close-btn" onclick="this.parentElement.classList.add('hidden')">✕</button>
-        </div>
-
-        <!-- 3. ZOOM PANEL (Separated) -->
-        <div id="mobileZoomPanel" class="floating-glass-panel hidden">
-             <div class="control-row mobile-control-row">
-                <button id="btnZoomOutMobile" class="btn-icon">-</button>
-                <span id="zoomLevelMobile">100%</span>
-                <button id="btnZoomInMobile" class="btn-icon">+</button>
-             </div>
-             <button class="panel-close-btn" onclick="this.parentElement.classList.add('hidden')">✕</button>
         </div>
 
 

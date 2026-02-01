@@ -31,6 +31,10 @@ function startIntersectionObserver() {
 
 // NOVO: Import para atualizar overlay ao renderizar
 import { refreshOverlayPosition } from "../cropper/selection-overlay.js";
+import {
+  configurarSidebarMobile,
+  garantirSidebarEBackdrop,
+} from "./sidebar-mobile.js";
 
 /**
  * Handler do Observer (Debounced + Lock)
@@ -72,7 +76,7 @@ function handleIntersection(entries) {
         pageNum: parseInt(page.dataset.pageNum),
         visibleHeight: height,
       };
-    }
+    },
   );
 
   // Ordena por maior altura visível
@@ -89,7 +93,7 @@ function handleIntersection(entries) {
         document.dispatchEvent(
           new CustomEvent("maia:pagechanged", {
             detail: { pageNum: bestPage.pageNum },
-          })
+          }),
         );
       }
     }
@@ -127,7 +131,7 @@ export async function renderAllPages() {
   if (container.children.length > 0 && viewerState.pdfScale) {
     const containerCenter = container.scrollTop + container.clientHeight / 2;
     const wrappers = Array.from(container.children).filter((el) =>
-      el.classList.contains("pdf-page")
+      el.classList.contains("pdf-page"),
     );
     for (let wrapper of wrappers) {
       const top = wrapper.offsetTop;
@@ -225,7 +229,7 @@ export async function renderAllPages() {
     // Como não removemos os elementos, o offsetTop já deve refletir as novas alturas (pois alteramos styles acima)
     // O browser faz reflow síncrono ao pedir offsetTop
     const targetWrapper = document.getElementById(
-      `page-wrapper-${scrollRestoration.pageNum}`
+      `page-wrapper-${scrollRestoration.pageNum}`,
     );
     if (targetWrapper) {
       const newTop = targetWrapper.offsetTop;
@@ -240,7 +244,7 @@ export async function renderAllPages() {
     // FIX: Assegura alinhamento exato ao topo da página atual (geralmente 1) no load inicial.
     // Isso evita que o "Smart Align" (na mudarPagina) detecte desalinhamento por poucos pixels (ex: margin) e consuma o primeiro clique.
     const targetWrapper = document.getElementById(
-      `page-wrapper-${viewerState.pageNum}`
+      `page-wrapper-${viewerState.pageNum}`,
     );
     if (targetWrapper) {
       container.scrollTop = targetWrapper.offsetTop;
@@ -367,6 +371,10 @@ export async function carregarDocumentoPDF(url) {
     // Inicializa a sidebar com o número total de páginas para criar os containers/details
     import("../ui/sidebar-page-manager.js").then(({ SidebarPageManager }) => {
       SidebarPageManager.init(pdf.numPages);
+
+      // [FIX] Garante que a sidebar mobile funcione (Bottom Sheet)
+      const sidebar = garantirSidebarEBackdrop();
+      configurarSidebarMobile(sidebar);
     });
 
     // Auto-Fit Zoom Implementation
@@ -393,7 +401,7 @@ export async function carregarDocumentoPDF(url) {
     console.error("PDF-Core: Load Error:", err);
     customAlert(
       "Erro ao carregar PDF. O arquivo pode estar indisponível.",
-      3000
+      3000,
     );
     return false;
   }
@@ -417,7 +425,7 @@ export function mudarPagina(dir) {
   // Se já está alinhado, troca de página.
 
   const currentPageWrapper = document.getElementById(
-    `page-wrapper-${viewerState.pageNum}`
+    `page-wrapper-${viewerState.pageNum}`,
   );
 
   if (currentPageWrapper) {

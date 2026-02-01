@@ -1,0 +1,100 @@
+/* =========================================
+   MOBILE CHAT REDESIGN (Gemini Style)
+   ========================================= */
+
+@media (max-width: 900px) {
+
+    /* 1. Main Container - Ensure full height and centering */
+    .maia-ai-container {
+        justify-content: center;
+        /* Center vertically key elements */
+        padding-bottom: 80px;
+        /* Space for fixed input */
+        min-height: 100vh;
+        width: 100%;
+        padding-left: 16px;
+        padding-right: 16px;
+        box-sizing: border-box;
+    }
+
+    /* 2. Brand Header (Logo + Title) - Center it visually */
+    #brandHeader {
+        margin-top: auto;
+        margin-bottom: auto;
+        flex-grow: 1;
+        /* Push to center/top */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        /* Slight optical adjustment upwards */
+    }
+
+    /* 3. Footer Suggestions - Position above input */
+    .maia-ai-footer {
+        width: 100%;
+        margin-bottom: 90px;
+        /* Push up above fixed input */
+        margin-top: 0;
+    }
+
+    /* 4. Chat Input Wrapper - The "Gemini" Fixed Bottom Bar */
+    .chat-input-wrapper {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100% !important;
+        /* Force full width */
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 24px 24px 0 0;
+        /* Rounded top only */
+        border: none;
+        border-top: 1px solid var(--color-border);
+        background: var(--color-surface);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        padding: 12px 16px 16px 16px;
+        /* Extra bottom padding for safe area */
+    }
+
+    /* Remove the default container styling that limits width */
+    .maia-ai-container .chat-input-wrapper {
+        width: 100%;
+    }
+
+    /* Adjust Input Field to be cleaner */
+    .chat-input-field {
+        font-size: 16px;
+        /* Prevent iOS zoom */
+        padding: 8px 0;
+    }
+
+    /* Adjust Actions Toolbar */
+    .chat-input-actions {
+        padding-top: 4px;
+    }
+
+    /* 5. When in Chat Mode (Messages visible) */
+    .maia-ai-container.chat-mode {
+        justify-content: flex-start;
+        padding-top: 60px;
+        /* Space for top header if any */
+    }
+
+    .maia-ai-container.chat-mode .chat-messages {
+        padding-bottom: 140px;
+        /* Ensure last message clears input */
+    }
+
+    /* Ensure dropdowns (now drop-ups) appear correctly above the fixed bar */
+    .maia-ai-container .chat-action-menu,
+    .maia-ai-container .chat-model-menu {
+        bottom: 80px;
+        /* Above the input bar */
+        left: 10px;
+        top: auto !important;
+        position: fixed;
+        max-width: 90vw;
+    }
+}

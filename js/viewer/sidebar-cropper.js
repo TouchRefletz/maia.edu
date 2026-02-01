@@ -263,6 +263,11 @@ function renderAddButton(container) {
     // Se não tivermos acesso fácil, o padrão será 1 e quando o usuário desenhar o crop,
     // o grupo será atualizado com a página correta e moverá de lugar.
 
+    // [FIX] Mobile: Fecha sidebar para user ver o PDF
+    if (window.innerWidth <= 900) {
+      import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+    }
+
     CropperState.createGroup({ tags: ["manual", "NOVO"] });
 
     // Scroll?
@@ -286,7 +291,13 @@ function renderEmptyStateGlobal(container) {
   btnAdd.className = "btn btn--primary btn--full-width btn-add-question";
   btnAdd.style.marginTop = "1rem";
   btnAdd.innerHTML = `<span class="icon">＋</span> Adicionar Nova Questão`;
-  btnAdd.onclick = () => CropperState.createGroup({ tags: ["manual", "NOVO"] });
+  btnAdd.onclick = () => {
+    // [FIX] Mobile: Fecha sidebar
+    if (window.innerWidth <= 900) {
+      import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+    }
+    CropperState.createGroup({ tags: ["manual", "NOVO"] });
+  };
 
   emptyMsg.appendChild(btnAdd);
   container.appendChild(emptyMsg);
@@ -730,6 +741,12 @@ function createGroupCard(group, isEditing) {
       btnEdit.innerText = "Editar";
       btnEdit.onclick = (e) => {
         e.stopPropagation();
+
+        // [FIX] Mobile: Fecha sidebar
+        if (window.innerWidth <= 900) {
+          import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+        }
+
         CropperState.setActiveGroup(group.id);
       };
 

@@ -47,6 +47,17 @@ export function esconderPainel(mostrarBotao = true) {
 
   if (mostrarBotao) mostrarBotaoReabrirPainel();
 
+  // Show Floating Mobile Controls (Button & Panel State?)
+  // User: "sumir quando abrir e voltar quando fechar"
+  // Logic: Show Button. Keep Panel state (hidden or not) if we want, or just show button.
+  // Actually simplest is: Remove .hidden from wrapper? No wrapper.
+  const toolsBtn = document.getElementById("btnMobileTools");
+  const closeBtn = document.getElementById("btnFloatingClose");
+  if (toolsBtn) toolsBtn.style.display = ""; // Restore default (CSS handles mobile-only)
+  if (closeBtn) closeBtn.style.display = "";
+
+  // Note: floatingToolsPanel visibility is managed by the toggle. We don't auto-open it.
+
   // ATUALIZA O CROPPER IMEDIATAMENTE E DEPOIS DA ANIMAÇÃO
   refreshOverlayPosition();
   setTimeout(refreshOverlayPosition, 305); // 300ms é o transition do CSS comumente
@@ -62,6 +73,15 @@ export function mostrarPainel() {
     .getElementById("header-mobile-toggle")
     ?.classList.remove("glow-effect");
   document.getElementById("reopenSidebarBtn")?.classList.remove("glow-effect");
+
+  // Hide Floating Mobile Controls
+  const toolsBtn = document.getElementById("btnMobileTools");
+  const closeBtn = document.getElementById("btnFloatingClose");
+  const toolsPanel = document.getElementById("floatingToolsPanel");
+
+  if (toolsBtn) toolsBtn.style.display = "none";
+  if (closeBtn) closeBtn.style.display = "none";
+  if (toolsPanel) toolsPanel.classList.add("hidden"); // Also hide the popup if open
 
   // 2. Lógica Mobile (Backdrop e Scroll)
   if (window.innerWidth <= 900) {

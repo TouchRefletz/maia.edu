@@ -73,6 +73,7 @@
 @import url('components/viewer.css');
 
 @import url('responsivity/mobile.css');
+@import url('responsivity/mobile-chat-redesign.css');
 
 @import url('result/complexidade.css');
 @import url('result/creditos.css');

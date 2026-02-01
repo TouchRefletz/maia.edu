@@ -457,6 +457,14 @@ export const SidebarPageManager = {
 
   _handleAddClick(e, pageNum) {
     e.stopPropagation();
+
+    // [FIX] Mobile: Fecha sidebar para user ver o PDF ao criar/editar
+    if (window.innerWidth <= 900) {
+      import("../viewer/sidebar.js").then(({ esconderPainel }) =>
+        esconderPainel(),
+      );
+    }
+
     import("../viewer/pdf-core.js").then(({ irParaPagina }) => {
       irParaPagina(pageNum);
       setTimeout(() => {

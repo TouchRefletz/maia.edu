@@ -26,8 +26,10 @@
   display: flex !important;
   flex-direction: column;
   margin-bottom: 24px;
-  min-height: 480px; /* Changed from height to min-height */
-  height: auto;      /* Allow growth */
+  min-height: 480px;
+  /* Changed from height to min-height */
+  height: auto;
+  /* Allow growth */
   position: relative;
   z-index: 10;
   backdrop-filter: blur(12px);
@@ -35,13 +37,20 @@
 
 /* Header Section - Refined */
 .term-header {
-  background-color: transparent; /* Seamless look */
+  background-color: transparent;
+  /* Seamless look */
   border-bottom: 1px solid var(--term-border);
   padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+}
+
+.term-status-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .term-title {
@@ -70,15 +79,26 @@
 }
 
 @keyframes pulse {
-  0% { opacity: 0.7; }
-  50% { opacity: 1; box-shadow: 0 0 8px var(--term-accent-dim); }
-  100% { opacity: 0.7; }
+  0% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--term-accent-dim);
+  }
+
+  100% {
+    opacity: 0.7;
+  }
 }
 
 /* Progress Bar Section */
 .term-progress-container {
-  padding: 20px 20px 0px 20px; /* Reduced bottom padding */
-  border-bottom: 1px solid transparent; /* Removed visible border */
+  padding: 20px 20px 0px 20px;
+  /* Reduced bottom padding */
+  border-bottom: 1px solid transparent;
+  /* Removed visible border */
   background: var(--term-bg);
   flex-shrink: 0;
 }
@@ -109,20 +129,19 @@
   left: 0;
   bottom: 0;
   right: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.3) 50%,
-    rgba(255,255,255,0) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0) 100%);
   transform: translateX(-100%);
   animation: shimmer 2s infinite;
 }
 
 @keyframes shimmer {
-  100% { transform: translateX(100%); }
+  100% {
+    transform: translateX(100%);
+  }
 }
-
 
 
 /* --- NEW FLOATING OBJECTIVES HEADER --- */
@@ -131,11 +150,13 @@
   display: flex;
   gap: 16px;
   padding: 10px 20px;
-  background: var(--term-bg); /* Or slightly different shade? */
+  background: var(--term-bg);
+  /* Or slightly different shade? */
   border-bottom: 1px solid var(--term-border);
   overflow-x: auto;
   align-items: center;
-  justify-content: center; /* Center by default, or flex-start if many */
+  justify-content: center;
+  /* Center by default, or flex-start if many */
   min-height: 60px;
 }
 
@@ -159,7 +180,8 @@
   width: 24px;
   height: 24px;
   object-fit: contain;
-  opacity: 0.4; /* Default inactive/upcoming */
+  opacity: 0.4;
+  /* Default inactive/upcoming */
   filter: grayscale(100%);
   transition: all 0.3s;
 }
@@ -168,7 +190,8 @@
 .term-obj-icon-link:not(:last-child)::after {
   content: '';
   position: absolute;
-  right: -16px; /* Half of gap */
+  right: -16px;
+  /* Half of gap */
   top: 50%;
   width: 16px;
   height: 2px;
@@ -179,16 +202,23 @@
 /* Active / Spinning State */
 .term-obj-img.spinning {
   opacity: 1;
-  filter: none; /* Full color */
+  filter: none;
+  /* Full color */
   animation: spin-logo 3s linear infinite;
-  width: 32px; /* Slightly larger */
+  width: 32px;
+  /* Slightly larger */
   height: 32px;
   filter: drop-shadow(0 0 5px var(--term-accent));
 }
 
 @keyframes spin-logo {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Check / Done State */
@@ -208,9 +238,11 @@
   padding: 20px 20px 10px 20px;
   background: var(--term-bg);
   display: flex;
-  flex-direction: row; /* Horizontal */
+  flex-direction: row;
+  /* Horizontal */
   gap: 16px;
-  overflow-x: auto; /* Horizontal Scroll */
+  overflow-x: auto;
+  /* Horizontal Scroll */
   overflow-y: hidden;
   align-items: stretch;
   mask-image: linear-gradient(to right, black 90%, transparent 100%);
@@ -220,13 +252,16 @@
 /* Adopted Thought Card Styles */
 .term-task-card {
   display: flex;
-  flex-direction: column; /* Stack visual and content in mini-card if needed, but side-by-side matches "card" look better? Let's keep side-by-side but compact */
+  flex-direction: column;
+  /* Stack visual and content in mini-card if needed, but side-by-side matches "card" look better? Let's keep side-by-side but compact */
   gap: 10px;
   padding: 12px;
   border-radius: var(--radius-md);
-  opacity: 0.5; /* Default dim for upcoming */
+  opacity: 0.5;
+  /* Default dim for upcoming */
   transition: all 0.3s;
-  min-width: 200px; /* Fixed width */
+  min-width: 200px;
+  /* Fixed width */
   max-width: 200px;
   flex-shrink: 0;
   background: var(--color-bg-sub);
@@ -237,7 +272,7 @@
   opacity: 1;
   border-color: var(--term-accent);
   background: rgba(var(--color-primary-rgb), 0.05);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
 }
 
@@ -262,8 +297,8 @@
 }
 
 .term-task-visual-icon {
-    font-size: 1.2rem;
-    line-height: 1;
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 .term-task-content {
@@ -287,7 +322,8 @@
 
 .term-task-notes {
   font-family: var(--font-family-mono);
-  font-size: 0.7rem; /* Smaller font */
+  font-size: 0.7rem;
+  /* Smaller font */
   color: var(--term-text);
   line-height: 1.4;
   /* background: rgba(0,0,0,0.1); REMOVE bg for clean look */
@@ -295,8 +331,10 @@
   /* border-radius: 6px; */
   /* border-left: 2px solid var(--term-border); REMOVE left border */
   display: -webkit-box;
-  -webkit-line-clamp: 2; /* Limit lines */
-  line-clamp: 2; /* Standard property */
+  -webkit-line-clamp: 2;
+  /* Limit lines */
+  line-clamp: 2;
+  /* Standard property */
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -304,9 +342,9 @@
 }
 
 .term-task-card.active .term-task-notes {
-    /* border-left-color: var(--term-accent); */
-    /* background: transparent; */
-    color: var(--term-text-shine);
+  /* border-left-color: var(--term-accent); */
+  /* background: transparent; */
+  color: var(--term-text-shine);
 }
 
 /* --- GENERIC BUTTONS & LOGS (Refined) --- */
@@ -331,8 +369,8 @@
 }
 
 .term-btn:hover {
-    border-color: var(--term-text);
-    color: var(--term-text-shine);
+  border-color: var(--term-text);
+  color: var(--term-text-shine);
 }
 
 .term-btn.disabled {
@@ -341,12 +379,13 @@
 }
 
 .term-btn.retry {
-    background-color: var(--term-accent);
-    color: #fff;
-    border: none;
+  background-color: var(--term-accent);
+  color: #fff;
+  border: none;
 }
+
 .term-btn.retry:hover {
-    opacity: 0.9;
+  opacity: 0.9;
 }
 
 .term-btn.cancel {
@@ -357,10 +396,12 @@
 /* --- TASKS BODY SPLIT (Header vs Chain) --- */
 .term-tasks-body {
   position: relative;
-  flex: 1; /* Take remaining height above logs */
+  flex: 1;
+  /* Take remaining height above logs */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Manage scroll internally */
+  overflow: hidden;
+  /* Manage scroll internally */
   padding: 0;
   background: var(--term-bg);
 }
@@ -373,7 +414,9 @@
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
-  background: #272e2e; /* Slightly darker/transparent */
+  background: var(--term-bg);
+  color: var(--term-text);
+  /* Slightly darker/transparent */
   border-bottom: 1px solid var(--term-border);
   z-index: 10;
   overflow-x: auto;
@@ -384,13 +427,16 @@
 /* 2. Chain of Thought Stream (The Timeline) */
 .term-chain-stream {
   flex: 1;
-  max-height: 200px; /* User requested scroll limit */
+  max-height: 200px;
+  /* User requested scroll limit */
   overflow-y: auto;
-  padding: 20px 20px 20px 30px; /* Left padding for timeline line */
+  padding: 20px 20px 20px 30px;
+  /* Left padding for timeline line */
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0; /* Removing gap to allow continuous line via padding */
+  gap: 0;
+  /* Removing gap to allow continuous line via padding */
   /* Scrollbar fancy */
   scrollbar-width: thin;
   scrollbar-color: var(--term-border) transparent;
@@ -401,13 +447,17 @@
 /* Chain Node (Thought Item) */
 .term-chain-node {
   position: relative;
-  padding-left: 20px; /* Adjusted since we use img now */
-  padding-bottom: 40px; /* Replaces Flex Gap */
+  padding-left: 20px;
+  /* Adjusted since we use img now */
+  padding-bottom: 40px;
+  /* Replaces Flex Gap */
   color: var(--term-text);
-  font-size: 1rem; /* User asked for bigger */
+  font-size: 1rem;
+  /* User asked for bigger */
   line-height: 1.5;
   animation: fadeIn 0.3s ease-out;
-  display: flex; /* Flex to align logo and text */
+  display: flex;
+  /* Flex to align logo and text */
   gap: 12px;
   align-items: center;
 }
@@ -416,7 +466,8 @@
 .term-chain-node::before {
   content: '';
   position: absolute;
-  left: 35px; /* 20px padding + 16px (half logo) - 1px (half line) */
+  left: 35px;
+  /* 20px padding + 16px (half logo) - 1px (half line) */
   top: 0;
   bottom: 0;
   width: 2px;
@@ -427,13 +478,15 @@
 
 /* First node: Start line at logo center */
 .term-chain-node:first-child::before {
-  top: 16px; /* Center of 32px logo */
+  top: 16px;
+  /* Center of 32px logo */
 }
 
 /* Last node: End line at logo center (Stop growing down) */
 .term-chain-node:last-child::before {
   bottom: auto;
-  height: 16px; /* Stop at center of logo */
+  height: 16px;
+  /* Stop at center of logo */
 }
 
 /* Single node: No timeline */
@@ -443,9 +496,10 @@
 
 .term-chain-node strong {
   display: block;
-  color: var(--color-primary-light, #64ffda);
+  color: var(--term-text);
   font-weight: 700;
-  font-size: 1.1rem; /* Bigger title */
+  font-size: 1.1rem;
+  /* Bigger title */
 }
 
 /* Node Logo */
@@ -456,59 +510,73 @@
   object-fit: contain;
   z-index: 1;
   background: var(--term-bg);
-  border-radius: 50%; /* If logo needs it */
-  padding: 2px; /* Small gap from potential border */
+  border-radius: 50%;
+  /* If logo needs it */
+  padding: 2px;
+  /* Small gap from potential border */
 }
 
 /* Content wrapper */
 .term-chain-node .node-content {
-    flex: 1;
+  flex: 1;
 }
 
 /* Rotating Logo for LAST node (Only when active/running) */
 .term-chain-node:last-child .node-logo {
-    animation: spin-slow 4s linear infinite;
+  animation: spin-slow 4s linear infinite;
 }
 
 /* Stop animation on Success/Error/Done */
 .term-status-success .term-chain-node .node-logo,
 .term-status-error .term-chain-node .node-logo,
 .term-status-done .term-chain-node .node-logo {
-    animation: none !important;
+  animation: none !important;
 }
 
 @keyframes spin-slow {
-    100% { transform: rotate(360deg); }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* --- 3. RAW LOGS (Reverted to Console Style) --- */
 .term-log-header {
-    display: flex; /* Show header again */
-    margin-top: auto; 
-    border-top: 1px solid var(--term-border);
-    padding: 10px 16px;
-    background: rgba(0,0,0,0.3);
-    font-size: 0.7rem;
-    color: var(--color-text-secondary);
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  /* Show header again */
+  margin-top: auto;
+  border-top: 1px solid var(--term-border);
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  justify-content: space-between;
+  align-items: center;
 }
 
 .term-logs {
-  height: 120px; /* Fixed height for logs at bottom */
-  flex: 0 0 120px; /* Don't grow/shrink */
-  background: #0d1117; /* Dark console bg */
+  height: 120px;
+  /* Fixed height for logs at bottom */
+  flex: 0 0 120px;
+  /* Don't grow/shrink */
+  background: #0d1117;
+  /* Dark console bg */
   padding: 8px 12px;
-  font-size: 0.7rem; /* Small font */
-  color: #8b949e; /* Dimmed text */
+  font-size: 0.7rem;
+  /* Small font */
+  color: #8b949e;
+  /* Dimmed text */
   overflow-y: auto;
   font-family: var(--font-family-mono);
   border-top: 1px solid var(--term-border);
-  display: block; /* Block layout for raw text */
+  display: block;
+  /* Block layout for raw text */
 }
 
 /* Remove Chain styles from logs */
-.term-logs::before { display: none; }
+.term-logs::before {
+  display: none;
+}
+
 .term-log-line {
   padding-left: 0;
   margin-bottom: 2px;
@@ -518,5 +586,324 @@
   white-space: pre-wrap;
   word-break: break-all;
 }
-.term-log-line::before { display: none; }
-.term-log-line strong { color: inherit; font-weight: normal; font-size: inherit; display: inline; }
+
+.term-log-line::before {
+  display: none;
+}
+
+.term-log-line strong {
+  color: inherit;
+  font-weight: normal;
+  font-size: inherit;
+  display: inline;
+}
+
+
+/* =========================================
+   FLOATING & MINIMIZED STATES (Migrated from JS)
+   ========================================= */
+
+@keyframes term-pulse-gold {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+/* Floating Mode - Default (Desktop) */
+.term-floating {
+  position: fixed !important;
+  bottom: 20px !important;
+  left: 20px !important;
+  right: auto !important;
+  width: 90vw !important;
+  max-width: 600px !important;
+  height: auto !important;
+  max-height: 80vh !important;
+  z-index: 99999 !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+  background: var(--term-bg) !important;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(12px);
+}
+
+/* MINIMIZED STATE (Button with Ring) */
+.term-floating.term-minimized {
+  width: 60px !important;
+  height: 60px !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--term-bg) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.term-floating.term-minimized:hover {
+  transform: scale(1.1);
+}
+
+/* Hide internal elements when minimized */
+.term-floating.term-minimized>*:not(.term-minimized-btn) {
+  display: none !important;
+}
+
+/* The Toggle Button (only visible when minimized) */
+.term-minimized-btn {
+  display: none;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.term-floating.term-minimized .term-minimized-btn {
+  display: flex;
+}
+
+/* Spinner Ring */
+.term-ring-spinner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  border-top-color: var(--term-accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* SUCCESS STATE */
+.term-floating.term-status-success .term-ring-spinner {
+  border: 4px solid var(--color-success) !important;
+  animation: none !important;
+}
+
+.term-floating.term-status-success .term-minimized-btn span {
+  display: none;
+}
+
+.term-floating.term-status-success .term-minimized-btn::after {
+  content: '✔';
+  color: var(--color-success);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+/* ERROR STATE */
+.term-floating.term-status-error .term-ring-spinner {
+  border: 4px solid var(--color-error) !important;
+  animation: none !important;
+}
+
+.term-floating.term-status-error .term-minimized-btn span {
+  display: none;
+}
+
+.term-floating.term-status-error .term-minimized-btn::after {
+  content: '✖';
+  color: var(--color-error);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.term-floating .term-logs {
+  display: block !important;
+  flex: 1;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.term-floating .term-header {
+  cursor: pointer;
+  padding: 12px 16px !important;
+}
+
+.term-floating:hover {
+  transform: translateY(-2px);
+}
+
+.term-btn-notify {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--term-text);
+}
+
+.term-btn-float-minimize {
+  background: transparent;
+  border: none;
+  color: var(--term-text);
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: none;
+}
+
+.term-btn-float-minimize:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--term-text-shine);
+}
+
+.term-floating .term-btn-float-minimize {
+  display: block !important;
+}
+
+.term-floating.term-minimized .term-btn-float-minimize {
+  display: none !important;
+}
+
+.term-btn-notify.active {
+  color: #ffc107;
+  background: rgba(255, 193, 7, 0.1);
+  animation: term-pulse-gold 2s infinite;
+}
+
+.term-btn-notify.inactive {
+  opacity: 0.4;
+  filter: grayscale(100%);
+  color: var(--term-text);
+}
+
+.term-btn-notify:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* =========================================
+   MOBILE RESPONSIVENESS FIXES
+   ========================================= */
+@media (max-width: 768px) {
+  .term-floating {
+    /* Dock to bottom on mobile */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 85vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    /* Top corners only */
+    margin: 0 !important;
+    z-index: 100000 !important;
+    /* Above everything */
+  }
+
+  /* Adjust minimized state on mobile */
+  .term-floating.term-minimized {
+    /* Keep it floating as a button, but maybe position it differently? */
+    /* Let's keep existing logic but ensure it's reachable */
+    left: auto !important;
+    right: 20px !important;
+    bottom: 90px !important;
+    /* Above nav bars */
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+  }
+
+  /* Hide complex headers or reduce padding on mobile */
+  /* Hide complex headers or reduce padding on mobile */
+  .term-header {
+    padding: 12px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px;
+    height: auto !important;
+  }
+
+  .term-status-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .term-log-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .term-log-header>span {
+    margin: 0 !important;
+    width: 100%;
+  }
+
+  .term-log-header>div {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+}
+
+/* =========================================
+   LIGHT MODE & THEMING
+   ========================================= */
+/* Ensure terminal specific vars map correctly in light mode */
+[data-color-scheme='light'] .term-floating {
+  background: var(--color-surface) !important;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid var(--color-border);
+}
+
+[data-color-scheme='light'] .term-task-card {
+  background: #fff;
+  border-color: var(--color-border);
+}
+
+[data-color-scheme='light'] .term-task-card.active {
+  background: var(--color-bg-1);
+  border-color: var(--color-primary);
+}
+
+/* Fix logs text color in light mode */
+[data-color-scheme='light'] .term-logs {
+  background: #f8f9fa;
+  /* Light console bg */
+  color: #444;
+}
+
+[data-color-scheme='light'] .term-log-line {
+  color: #333;
+}
+
+[data-color-scheme='light'] .term-log-line strong {
+  color: #e51;
+  /* Darker shine? */
+}
+
+/* Dark mode overrides if needed */
+[data-color-scheme='dark'] .term-floating {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}

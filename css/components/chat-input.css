@@ -161,7 +161,7 @@
 /* Estado de gravação do microfone */
 .btn-mic.recording {
   background: var(--color-bg-1);
-  color: white;
+  color: var(--color-primary);
   animation: micPulse 1s ease-in-out infinite;
 }
 
@@ -171,7 +171,7 @@
 
 .btn-mic.recording svg path,
 .btn-mic.recording svg {
-  fill: white !important;
+  fill: currentColor !important;
 }
 
 @keyframes micPulse {
@@ -194,7 +194,7 @@
   top: 45px;
   /* Acima do botão */
   left: 0;
-  background: #1e1e1e;
+  background: var(--color-surface);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   padding: 8px;
@@ -358,9 +358,9 @@
   position: absolute;
   left: 0;
   top: 45px;
-  background: #1e1e1e;
+  background: var(--color-surface);
   /* Dark theme bg specific */
-  border: 1px solid #333;
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   padding: 8px;
@@ -395,6 +395,7 @@
 /* Items */
 .model-menu-item {
   display: flex;
+  width: 100%;
   justify-content: space-between;
   align-items: flex-start;
   padding: 12px;
