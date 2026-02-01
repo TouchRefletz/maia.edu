@@ -41,7 +41,6 @@
 }
 
 /* Specific: Code blocks should always grow if possible */
-.slot-container>.chat-codigo,
 .slot-container>.chat-tabela,
 .slot-container>.chat-block table {
     flex-grow: 1;
@@ -361,6 +360,162 @@
     margin-top: 24px !important;
     margin-bottom: 24px !important;
     max-width: 100% !important;
+}
+
+/* =========================================
+   MOBILE LAYOUT RESPONSIVENESS
+   =========================================
+   All multi-column layouts collapse to single column on mobile.
+   This ensures readability and proper touch interaction.
+   ========================================= */
+
+@media (max-width: 767px) {
+
+    /* BASE: Force all layouts to single column */
+    .chat-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: var(--chat-block-spacing) !important;
+    }
+
+    /* Reset grid-template areas to not confuse mobile stacking */
+    .chat-layout--two_column,
+    .chat-layout--split_screen,
+    .chat-layout--three_column,
+    .chat-layout--asymmetrical,
+    .chat-layout--f_shape,
+    .chat-layout--magazine,
+    .chat-layout--z_shape,
+    .chat-layout--featured_media,
+    .chat-layout--masonry,
+    .chat-layout--card_block {
+        display: flex !important;
+        flex-direction: column !important;
+        grid-template-columns: 1fr !important;
+        grid-template-areas: none !important;
+    }
+
+    /* SLOT CONTAINERS: Full width, stack naturally */
+    .slot-container {
+        width: 100% !important;
+        height: auto !important;
+        grid-column: auto !important;
+        grid-row: auto !important;
+    }
+
+    /* Remove panel styling that makes sense for side-by-side but not stacked */
+    .chat-layout--two_column .slot-container,
+    .chat-layout--split_screen .slot-container,
+    .chat-layout--three_column .slot-container,
+    .chat-layout--asymmetrical .slot-container,
+    .chat-layout--f_shape .slot-container,
+    .chat-layout--magazine .slot-container {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Restore individual chat-block styling when stacked */
+    .chat-layout--two_column .slot-container>.chat-block,
+    .chat-layout--split_screen .slot-container>.chat-block,
+    .chat-layout--three_column .slot-container>.chat-block,
+    .chat-layout--asymmetrical .slot-container>.chat-block,
+    .chat-layout--f_shape .slot-container>.chat-block,
+    .chat-layout--magazine .slot-container>.chat-block {
+        margin-bottom: 0 !important;
+        /* Let gap handle spacing */
+    }
+
+    /* F-SHAPE: Header becomes normal block */
+    .chat-layout--f_shape>.slot-container:nth-child(1) {
+        flex-direction: column !important;
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        min-height: auto !important;
+    }
+
+    .chat-layout--f_shape>.slot-container:nth-child(1)>.chat-block {
+        padding: 10px !important;
+    }
+
+    .chat-layout--f_shape>.slot-container:nth-child(2) {
+        border-right: none !important;
+    }
+
+    /* Z-SHAPE: Remove alternating margins */
+    .chat-layout--z_shape>.chat-block:nth-child(odd),
+    .chat-layout--z_shape>.chat-block:nth-child(even) {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        text-align: left !important;
+        border-left: none !important;
+        border-right: none !important;
+    }
+
+    /* MASONRY: Single column */
+    .chat-layout--masonry {
+        column-count: 1 !important;
+    }
+
+    /* CARD BLOCK: Single column but PRESERVE card styling */
+    .chat-layout--card_block .slot-container {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .chat-layout--card_block .chat-block {
+        min-height: auto !important;
+        /* Explicitly preserve card styling on mobile */
+        background: var(--color-surface) !important;
+        border: 1px solid var(--color-border) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+        text-align: center !important;
+    }
+
+    .chat-layout--card_block .chat-block:hover {
+        background: rgba(var(--color-primary-rgb), 0.08) !important;
+        border-color: var(--color-primary) !important;
+    }
+
+    /* ASYMMETRICAL: Remove special styling for aside */
+    .chat-layout--asymmetrical>.chat-block:nth-child(2),
+    .chat-layout--asymmetrical>.slot-container:nth-child(2) {
+        background: transparent !important;
+        border: none !important;
+    }
+
+    /* FEATURED MEDIA: Adjust aspect ratio for mobile */
+    .chat-layout--featured_media>.chat-block:first-child {
+        aspect-ratio: 16/9 !important;
+        /* More portrait-friendly */
+    }
+
+    /* THREE COLUMN: Stack instead of grid */
+    .slot-col1,
+    .slot-col2,
+    .slot-col3 {
+        grid-column: auto !important;
+    }
+
+    /* Keep hover effects minimal */
+    .chat-block.chat-text:hover,
+    .chat-block.chat-paragrafo:hover {
+        transform: none !important;
+        background: transparent !important;
+    }
+
+    /* TITLES: No card styling on mobile */
+    .chat-block.chat-titulo,
+    .chat-block.chat-subtitulo {
+        padding: 0 !important;
+        margin: 12px 0 8px 0 !important;
+    }
 }
 
 /* --- Block Styles --- */
@@ -997,7 +1152,7 @@
     /* Optional padding */
 }
 
-/* Fix for inner content height */
+/* Fix for inner content height - RESET padding/margin on carousel items */
 .carousel-slide>.chat-block {
     height: 100%;
     min-height: auto;
@@ -1007,6 +1162,16 @@
     justify-content: center;
     width: 100%;
     /* Ensure full width */
+    /* RESET: Prevent mobile overrides from breaking carousel layout */
+    padding: 20px !important;
+    margin: 0 !important;
+}
+
+/* Carousel titles should have no extra margin in this context */
+.carousel-slide>.chat-block.chat-titulo,
+.carousel-slide>.chat-block.chat-subtitulo {
+    padding: 12px !important;
+    margin: 0 !important;
 }
 
 /* Controls */
@@ -1145,4 +1310,165 @@
         opacity: 1;
         transform: translate(-50%, 0);
     }
+}
+
+/* ========================================
+   LIGHT MODE ADAPTATIONS
+   ========================================
+   Uses [data-color-scheme='light'] for manual toggle
+   and @media (prefers-color-scheme: light) as fallback.
+   ======================================== */
+
+/* .chat-block (Cards das respostas da IA) */
+[data-color-scheme='light'] .chat-block,
+:root:not([data-color-scheme='dark']) .chat-block {
+    /* Glass effect invertido para light (claro) */
+    background: linear-gradient(180deg,
+            rgba(255, 255, 255, 0.85) 0%,
+            rgba(248, 248, 248, 0.7) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+
+    /* Bordas sutis para tema claro */
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-top-color: rgba(255, 255, 255, 0.9);
+
+    /* Sombras suaves */
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 2px 4px -1px rgba(0, 0, 0, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-color-scheme='light'] .chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover,
+:root:not([data-color-scheme='dark']) .chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover {
+    box-shadow:
+        0 8px 12px -2px rgba(0, 0, 0, 0.08),
+        0 4px 6px -2px rgba(0, 0, 0, 0.04),
+        0 0 0 1px rgba(var(--color-primary-rgb), 0.2);
+    background: linear-gradient(180deg,
+            rgba(255, 255, 255, 0.95) 0%,
+            rgba(250, 250, 250, 0.85) 100%);
+}
+
+/* Shine effect (linha brilhante no topo) */
+[data-color-scheme='light'] .chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador)::after,
+:root:not([data-color-scheme='dark']) .chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador)::after {
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(var(--color-primary-rgb), 0.4) 50%,
+            transparent 100%);
+}
+
+/* Titulo decorative line */
+[data-color-scheme='light'] .chat-titulo::after,
+:root:not([data-color-scheme='dark']) .chat-titulo::after {
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0.1) 0%, transparent 100%);
+}
+
+/* Citacao (quote) */
+[data-color-scheme='light'] .chat-citacao,
+:root:not([data-color-scheme='dark']) .chat-citacao {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Equacao (math blocks) */
+[data-color-scheme='light'] .chat-equacao,
+:root:not([data-color-scheme='dark']) .chat-equacao {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* hljs (syntax highlight) */
+[data-color-scheme='light'] .hljs,
+:root:not([data-color-scheme='dark']) .hljs {
+    background: #f5f5f5 !important;
+    color: #333 !important;
+}
+
+/* Tables row hover */
+[data-color-scheme='light'] .chat-block tr:hover td,
+:root:not([data-color-scheme='dark']) .chat-block tr:hover td {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Summary Content Wrapper (Thought Chip) */
+[data-color-scheme='light'] .summary-content-wrapper,
+:root:not([data-color-scheme='dark']) .summary-content-wrapper {
+    background: rgba(240, 240, 245, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+[data-color-scheme='light'] .summary-content-wrapper:hover,
+:root:not([data-color-scheme='dark']) .summary-content-wrapper:hover {
+    background: rgba(230, 230, 235, 0.95);
+}
+
+[data-color-scheme='light'] .chat-thought-container.open .summary-content-wrapper,
+:root:not([data-color-scheme='dark']) .chat-thought-container.open .summary-content-wrapper {
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-color: rgba(var(--color-primary-rgb), 0.25);
+}
+
+/* chat-thoughts-inner (Dark Box for thoughts) */
+[data-color-scheme='light'] .chat-thoughts-inner,
+:root:not([data-color-scheme='dark']) .chat-thoughts-inner {
+    background: rgba(245, 245, 248, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Slot container panels in multi-column layouts */
+[data-color-scheme='light'] .chat-layout--two_column .slot-container,
+[data-color-scheme='light'] .chat-layout--split_screen .slot-container,
+[data-color-scheme='light'] .chat-layout--three_column .slot-container,
+[data-color-scheme='light'] .chat-layout--asymmetrical .slot-container,
+[data-color-scheme='light'] .chat-layout--f_shape .slot-container,
+[data-color-scheme='light'] .chat-layout--magazine .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--two_column .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--split_screen .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--three_column .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--asymmetrical .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--f_shape .slot-container,
+:root:not([data-color-scheme='dark']) .chat-layout--magazine .slot-container {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+/* Card Block Layout */
+[data-color-scheme='light'] .chat-layout--card_block .chat-block,
+:root:not([data-color-scheme='dark']) .chat-layout--card_block .chat-block {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+/* Carousel Buttons - Light Mode */
+[data-color-scheme='light'] .carousel-prev,
+[data-color-scheme='light'] .carousel-next,
+:root:not([data-color-scheme='dark']) .carousel-prev,
+:root:not([data-color-scheme='dark']) .carousel-next {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: var(--color-text);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+[data-color-scheme='light'] .carousel-prev:hover,
+[data-color-scheme='light'] .carousel-next:hover,
+:root:not([data-color-scheme='dark']) .carousel-prev:hover,
+:root:not([data-color-scheme='dark']) .carousel-next:hover {
+    background: var(--color-primary);
+    color: #fff;
+    border-color: var(--color-primary);
+}
+
+/* Carousel Dots - Light Mode */
+[data-color-scheme='light'] .carousel-dot,
+:root:not([data-color-scheme='dark']) .carousel-dot {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+[data-color-scheme='light'] .carousel-dot.active,
+:root:not([data-color-scheme='dark']) .carousel-dot.active {
+    background: var(--color-primary);
 }

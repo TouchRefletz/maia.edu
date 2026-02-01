@@ -83,10 +83,15 @@ export function configurarEventosViewer() {
     let pinchStartScale = 1;
     let isPinching = false;
     let lastPinchDist = 0;
+    let pinchStartCenter = null;
 
     // Cache de dimensões para cálculo rápido no touchmove
     let startPageWidth = 0;
     let startPageHeight = 0;
+
+    // Cache de scroll inicial para manter o ponto fixo durante o pinch
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
 
     // PINCH START
     container.addEventListener(
@@ -107,6 +112,18 @@ export function configurarEventosViewer() {
           );
           pinchStartScale = viewerState.pdfScale;
           lastPinchDist = pinchStartDist;
+
+          // Calcula o centro do pinch (onde o usuário quer dar zoom)
+          const rect = container.getBoundingClientRect();
+          const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          pinchStartCenter = {
+            x: cx - rect.left,
+            y: cy - rect.top,
+          };
+
+          startScrollLeft = container.scrollLeft;
+          startScrollTop = container.scrollTop;
 
           // Captura dimensões atuais da primeira página para referência
           const firstPage = container.querySelector(".pdf-page");
@@ -143,6 +160,18 @@ export function configurarEventosViewer() {
               p.style.width = `${newW}px`;
               p.style.height = `${newH}px`;
             });
+
+            // Ajusta o scroll em tempo real para manter o centro do pinch fixo visualmente
+            // Formula: NewScroll = (StartScroll + PinPoint) * ratio - PinPoint
+            const newScrollLeft =
+              (startScrollLeft + pinchStartCenter.x) * ratio -
+              pinchStartCenter.x;
+            const newScrollTop =
+              (startScrollTop + pinchStartCenter.y) * ratio -
+              pinchStartCenter.y;
+
+            container.scrollLeft = newScrollLeft;
+            container.scrollTop = newScrollTop;
           }
         }
       },
@@ -164,7 +193,8 @@ export function configurarEventosViewer() {
             const newScale = pinchStartScale * ratio;
             const delta = newScale - pinchStartScale;
             // Use mudarZoom to ensure consistency with "ZOOM" controls
-            mudarZoom(delta);
+            // Agora passando o centro do pinch para zoom where you look
+            mudarZoom(delta, pinchStartCenter);
           } else {
             // Se cancelou/não mudou muito, restaura o tamanho original visualmente
             // (renderPage resetaria, mas vamos garantir)

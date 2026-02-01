@@ -119,7 +119,7 @@ function updateNavigationUI(pageNum) {
  * RECONSTRUÇÃO TOTAL DO LAYOUT (CHAMADA NO ZOOM OU LOAD INICIAL)
  * Preserva o scroll relativo visualmente.
  */
-export async function renderAllPages() {
+export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
   const container = document.getElementById("canvasContainer");
   if (!container || !viewerState.pdfDoc) return;
 
@@ -225,24 +225,39 @@ export async function renderAllPages() {
   }
 
   // --- 4. RESTAURAÇÃO DO SCROLL ---
-  if (scrollRestoration) {
+  if (zoomPoint && scaleRatio !== 1) {
+    // ZOOM AT POINT (Novidade: Zoom focado no dedo/mouse)
+    // Formula: newScroll = (oldScroll + mousePos) * scaleRatio - mousePos
+    const currentScrollLeft = container.scrollLeft;
+    const currentScrollTop = container.scrollTop;
+
+    const newScrollLeft =
+      (currentScrollLeft + zoomPoint.x) * scaleRatio - zoomPoint.x;
+    const newScrollTop =
+      (currentScrollTop + zoomPoint.y) * scaleRatio - zoomPoint.y;
+
+    container.scrollTo({
+      left: newScrollLeft,
+      top: newScrollTop,
+      behavior: "auto", // Instantâneo para evitar pulos visuais
+    });
+  } else if (scrollRestoration) {
+    // Legacy: Mantém posição relativa da página (útil pra resize de janela ou zoom sem ponto)
     // Como não removemos os elementos, o offsetTop já deve refletir as novas alturas (pois alteramos styles acima)
-    // O browser faz reflow síncrono ao pedir offsetTop
     const targetWrapper = document.getElementById(
       `page-wrapper-${scrollRestoration.pageNum}`,
     );
     if (targetWrapper) {
       const newTop = targetWrapper.offsetTop;
-      const newHeight = targetWrapper.offsetHeight; // deve ser cssHeight
+      const newHeight = targetWrapper.offsetHeight;
       const scrollTarget =
         newTop +
         newHeight * scrollRestoration.ratio -
         container.clientHeight / 2;
-      container.scrollTo({ top: scrollTarget, behavior: "auto" }); // auto/instant para não animar a correção de zoom
+      container.scrollTo({ top: scrollTarget, behavior: "auto" });
     }
   } else {
-    // FIX: Assegura alinhamento exato ao topo da página atual (geralmente 1) no load inicial.
-    // Isso evita que o "Smart Align" (na mudarPagina) detecte desalinhamento por poucos pixels (ex: margin) e consuma o primeiro clique.
+    // FIX Initial Load
     const targetWrapper = document.getElementById(
       `page-wrapper-${viewerState.pageNum}`,
     );
@@ -407,11 +422,26 @@ export async function carregarDocumentoPDF(url) {
   }
 }
 
-export function mudarZoom(delta) {
-  const newScale = viewerState.pdfScale + delta;
+export function mudarZoom(delta, zoomPoint = null) {
+  const oldScale = viewerState.pdfScale;
+  const newScale = oldScale + delta;
+
   if (newScale >= 0.1 && newScale <= 5.0) {
     viewerState.pdfScale = newScale;
-    renderAllPages();
+
+    // Se não informou ponto (ex: clicou no botão +), usa o centro do container
+    if (!zoomPoint) {
+      const container = document.getElementById("canvasContainer");
+      if (container) {
+        zoomPoint = {
+          x: container.clientWidth / 2,
+          y: container.clientHeight / 2,
+        };
+      }
+    }
+
+    const scaleRatio = newScale / oldScale;
+    renderAllPages(zoomPoint, scaleRatio);
   }
 }
 

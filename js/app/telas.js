@@ -43,6 +43,11 @@ import {
   toggleTheme,
   updateThemeIcon,
 } from "../services/theme-service.js";
+import {
+  initCustomChatScrollbar,
+  destroyCustomChatScrollbar,
+  updateChatScrollbar,
+} from "../ui/custom-chat-scrollbar.js";
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
@@ -1012,6 +1017,9 @@ window.startNewChat = function () {
   const url = window.location.pathname;
   window.history.replaceState({}, document.title, url);
 
+  // Destroy custom scrollbar
+  destroyCustomChatScrollbar();
+
   // Reconstrói a UI inicial (SPA Reset)
   renderInitialUI();
 };
@@ -1228,6 +1236,9 @@ window.loadChat = async function (chatId) {
 
   // 7. Hydrate Scaffolding (agora passa o ID do chat para o contexto)
   hydrateScaffoldingBlocks(messagesContainer);
+
+  // 8. Initialize custom scrollbar for mobile
+  setTimeout(() => initCustomChatScrollbar(), 100);
 };
 
 export function updateChatFloatingHeader(title) {
@@ -1368,6 +1379,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
     if (inputWrapper) {
       inputWrapper.parentNode.insertBefore(messagesContainer, inputWrapper);
     }
+
+    // Initialize custom scrollbar for mobile
+    setTimeout(() => initCustomChatScrollbar(), 100);
   }
 
   // 4. Criar HTML dos arquivos anexados (se houver)

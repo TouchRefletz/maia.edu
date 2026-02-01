@@ -4,17 +4,77 @@
 
 @media (max-width: 900px) {
 
+    /* =========================================
+       CUSTOM SCROLL TRACK - Visible above input
+       ========================================= */
+
+    /* Container for custom scrollbar - positioned on right side */
+    .chat-scroll-track {
+        display: block !important;
+        position: fixed !important;
+        right: 4px !important;
+        top: 50px !important;
+        /* Below chat header */
+        bottom: 140px !important;
+        /* Above fixed input bar */
+        width: 6px !important;
+        background: rgba(var(--color-primary-rgb), 0.15) !important;
+        border-radius: 10px !important;
+        z-index: 9999 !important;
+        /* Above everything except modals */
+        opacity: 1 !important;
+        transition: opacity 0.3s ease;
+        pointer-events: auto !important;
+        visibility: visible !important;
+    }
+
+    /* The draggable thumb */
+    .chat-scroll-thumb {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        min-height: 40px;
+        background: var(--color-primary);
+        border-radius: 10px;
+        cursor: grab;
+        transition: background 0.2s ease, transform 0.1s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .chat-scroll-thumb:hover {
+        background: var(--color-primary-active);
+        transform: scaleX(1.3);
+    }
+
+    .chat-scroll-thumb:active,
+    .chat-scroll-thumb.dragging {
+        cursor: grabbing;
+        background: var(--color-accent) !important;
+        transform: scaleX(1.5);
+    }
+
+    /* Hide native scrollbar in chat-messages on mobile */
+    .maia-ai-container.chat-mode .chat-messages {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .maia-ai-container.chat-mode .chat-messages::-webkit-scrollbar {
+        display: none;
+    }
+
     /* 1. Main Container - Ensure full height and centering */
     .maia-ai-container {
         justify-content: center;
         /* Center vertically key elements */
-        padding-bottom: 80px;
+        padding-bottom: 100px;
         /* Space for fixed input */
         min-height: 100vh;
         width: 100%;
+        box-sizing: border-box;
         padding-left: 16px;
         padding-right: 16px;
-        box-sizing: border-box;
     }
 
     /* 2. Brand Header (Logo + Title) - Center it visually */
@@ -33,39 +93,42 @@
     /* 3. Footer Suggestions - Position above input */
     .maia-ai-footer {
         width: 100%;
-        margin-bottom: 90px;
+        margin-bottom: 70px;
         /* Push up above fixed input */
         margin-top: 0;
     }
 
-    /* 4. Chat Input Wrapper - The "Gemini" Fixed Bottom Bar */
+    /* =========================================
+       4. Chat Input Wrapper - UNIFIED Bottom Bar
+       Applies to BOTH home screen AND chat mode
+       ========================================= */
     .chat-input-wrapper {
-        position: fixed;
-        bottom: 0;
-        left: 0;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
         width: 100% !important;
-        /* Force full width */
         max-width: 100% !important;
         margin: 0 !important;
-        border-radius: 24px 24px 0 0;
-        /* Rounded top only */
-        border: none;
-        border-top: 1px solid var(--color-border);
-        background: var(--color-surface);
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        padding: 12px 16px 16px 16px;
+        border-radius: 24px 24px 0 0 !important;
+        border: none !important;
+        border-top: 1px solid var(--color-border) !important;
+        background: var(--color-surface) !important;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
+        z-index: 1000 !important;
+        padding: 12px 16px 20px 16px !important;
         /* Extra bottom padding for safe area */
     }
 
-    /* Remove the default container styling that limits width */
-    .maia-ai-container .chat-input-wrapper {
-        width: 100%;
+    /* Override chat-mode specific positioning */
+    .maia-ai-container.chat-mode .chat-input-wrapper {
+        position: fixed !important;
+        bottom: 0 !important;
+        border-radius: 24px 24px 0 0 !important;
     }
 
     /* Adjust Input Field to be cleaner */
     .chat-input-field {
-        font-size: 16px;
+        font-size: 16px !important;
         /* Prevent iOS zoom */
         padding: 8px 0;
     }
@@ -79,18 +142,20 @@
     .maia-ai-container.chat-mode {
         justify-content: flex-start;
         padding-top: 60px;
-        /* Space for top header if any */
+        padding-bottom: 0;
+        /* No extra padding, messages handle it */
     }
 
     .maia-ai-container.chat-mode .chat-messages {
-        padding-bottom: 140px;
-        /* Ensure last message clears input */
+        padding-bottom: 200px;
+        /* Ensure last message clears fixed input at bottom */
+        padding-top: 20px;
     }
 
     /* Ensure dropdowns (now drop-ups) appear correctly above the fixed bar */
     .maia-ai-container .chat-action-menu,
     .maia-ai-container .chat-model-menu {
-        bottom: 80px;
+        bottom: 100px;
         /* Above the input bar */
         left: 10px;
         top: auto !important;

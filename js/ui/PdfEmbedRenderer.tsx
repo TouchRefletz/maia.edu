@@ -588,9 +588,9 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px 16px',
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-        borderRadius: '8px',
-        border: '1px solid rgba(100, 116, 139, 0.2)',
+        background: 'var(--color-surface)',
+        borderRadius: '12px',
+        border: '1px solid var(--color-border)',
         gap: '12px',
         minHeight: '100px',
       };
@@ -609,7 +609,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
               width: '48px',
               height: '48px',
               borderRadius: '50%',
-              background: 'rgba(100, 116, 139, 0.15)',
+              background: 'rgba(var(--color-primary-rgb), 0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -619,7 +619,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
             </div>
             <span style={{
               fontSize: '13px',
-              color: 'rgba(148, 163, 184, 0.9)',
+              color: 'var(--color-text)',
               fontWeight: 500,
               textAlign: 'center',
             }}>
@@ -627,7 +627,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
             </span>
             <span style={{
               fontSize: '10px',
-              color: 'rgba(100, 116, 139, 0.7)',
+              color: 'var(--color-text-secondary)',
               textAlign: 'center',
             }}>
               Nenhum link de PDF encontrado
@@ -671,7 +671,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         overflow: 'hidden',
         // [REMOVED] transform: needsScale ? `scale(${dynamicScale})` : undefined,
         transformOrigin: 'top left',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--color-surface)',
     };
     
     // Embed fills the wrapper
@@ -860,7 +860,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       width: '100%',
       height: '0',
       paddingBottom: `${(origHeight / origWidth) * 100}%`, 
-      backgroundColor: '#FFFFFF',
+      backgroundColor: 'var(--color-surface)',
       overflow: 'hidden',
   };
 
@@ -904,13 +904,12 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '32px 24px',
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+        background: 'var(--color-surface)',
         borderRadius: '12px',
-        border: '1px solid rgba(99, 102, 241, 0.15)',
+        border: '1px solid var(--color-border)',
         gap: '16px',
         minHeight: '140px',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(12px)',
+        boxShadow: 'var(--shadow-lg, 0 8px 32px rgba(0, 0, 0, 0.2))',
       };
 
       // Icon circle
@@ -918,13 +917,12 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         width: '56px',
         height: '56px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)',
+        background: 'rgba(var(--color-primary-rgb), 0.1)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '24px',
-        border: '1px solid rgba(99, 102, 241, 0.2)',
-        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.1)',
+        border: '1px solid rgba(var(--color-primary-rgb), 0.2)',
       };
 
       // Button styles
@@ -982,14 +980,14 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
                           margin: '0 0 4px 0',
                           fontSize: '14px',
                           fontWeight: 600,
-                          color: 'rgba(226, 232, 240, 0.95)',
+                          color: 'var(--color-text)',
                         }}>
                           Visualização não disponível
                         </p>
                         <p style={{
                           margin: 0,
                           fontSize: '11px',
-                          color: 'rgba(148, 163, 184, 0.7)',
+                          color: 'var(--color-text-secondary)',
                         }}>
                           {props.readOnly 
                             ? "Modo somente leitura - selecione o PDF manualmente"

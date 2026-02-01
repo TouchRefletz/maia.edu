@@ -2,6 +2,7 @@ import { renderLatexIn } from "../libs/loader";
 import { generateChatHtmlString } from "../render/ChatRender";
 import { hydrateAllChatContent } from "../render/hydration.js";
 import { updateChatFloatingHeader } from "../app/telas.js";
+import { initCustomChatScrollbar } from "../ui/custom-chat-scrollbar.js";
 
 /**
  * Módulo de Debug para Chat - VERSÃO COMPLETA E COMPLEXA
@@ -669,9 +670,12 @@ window.debugChat = async (targetId = null) => {
   // Define o título do header durante o debug
   updateChatFloatingHeader("Modo de Debug 🐛");
 
+  // Initialize custom scrollbar for mobile (debug mode)
+  setTimeout(() => initCustomChatScrollbar(), 100);
+
   // Se targetId for fornecido, filtra. Senão, usa o teste padrão solicitado (Questão + Scaffolding).
   // Ordem específica para testes visuais agradáveis
-  const keys = targetId ? [targetId] : ["scaffolding_demo"];
+  const keys = targetId ? [targetId] : Object.keys(SCENARIOS);
 
   // Limpa mensagens anteriores se estiver rodando tudo
   if (!targetId) {
