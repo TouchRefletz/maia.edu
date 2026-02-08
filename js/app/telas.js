@@ -2172,6 +2172,8 @@ export async function iniciarModoRevisao() {
                     </div>
                 </div>
             </div>
+            <!-- Elemento de fundo para fechar ao clicar fora (Mobile) -->
+            <div class="review-backdrop" id="reviewBackdrop"></div>
         </div>
     </div>
   `;
@@ -2186,8 +2188,107 @@ export async function iniciarModoRevisao() {
   configurarBuscaRevisao();
   configurarScrollRevisao();
 
+  // 6. Configura Comportamento Mobile (Resize & Backdrop)
+  configurarComportamentoMobileRevisao();
+
   // Persist Floating Terminal
   checkAndRestoreFloatingTerminal();
+}
+
+function configuringMobileHeader(container) {
+  // Se já existe, não recria
+  if (container.querySelector(".review-mobile-header")) return;
+
+  const header = document.createElement("div");
+  header.className = "review-mobile-header mobile-only";
+  header.innerHTML = `
+        <div class="review-drag-handle"></div>
+        <div class="review-mobile-title">Detalhes da Questão</div>
+        <button class="review-close-btn" id="btnCloseReviewMobile">
+            ×
+        </button>
+    `;
+
+  // Inserir no topo
+  container.insertBefore(header, container.firstChild);
+
+  // Evento Fechar
+  header
+    .querySelector("#btnCloseReviewMobile")
+    .addEventListener("click", fecharPainelMobile);
+
+  // Swipe Down to Close (Simples)
+  let startY = 0;
+  header.addEventListener("touchstart", (e) => {
+    startY = e.touches[0].clientY;
+  });
+  header.addEventListener("touchmove", (e) => {
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - startY;
+    if (deltaY > 50) {
+      // Se arrastou 50px pra baixo
+      fecharPainelMobile();
+    }
+  });
+}
+
+function fecharPainelMobile() {
+  const panel = document.querySelector(".review-detail-panel");
+  const backdrop = document.getElementById("reviewBackdrop");
+
+  if (panel) panel.classList.remove("open");
+  if (backdrop) {
+    backdrop.classList.remove("visible");
+    setTimeout(() => {
+      backdrop.style.display = "none";
+    }, 300);
+  }
+}
+
+function abrirPainelMobile() {
+  // Só abre se for mobile
+  if (window.innerWidth > 900) return;
+
+  const panel = document.querySelector(".review-detail-panel");
+  const backdrop = document.getElementById("reviewBackdrop");
+
+  // Garante que header existe
+  if (panel) configuringMobileHeader(panel);
+
+  if (panel) panel.classList.add("open");
+  if (backdrop) {
+    backdrop.style.display = "block";
+    // Timeout para permitir transição de opacidade
+    setTimeout(() => backdrop.classList.add("visible"), 10);
+  }
+}
+
+function configurarComportamentoMobileRevisao() {
+  // Listener de Resize
+  window.addEventListener("resize", () => {
+    // Se mudou para desktop e tem questão selecionada, garante layout resetado
+    // O CSS media query já cuida da maioria, mas classes .open podem atrapalhar?
+    // Na verdade .open no desktop não faz nada pois transform não é aplicado, mas é bom limpar.
+    if (window.innerWidth > 900) {
+      const panel = document.querySelector(".review-detail-panel");
+      if (panel) panel.classList.remove("open");
+    } else {
+      // Se mudou para mobile e TEM questão selecionada (renderizada), abre o painel
+      const conteudoRenderizado = document.getElementById(
+        "reviewQuestaoContent",
+      );
+      // Se tem conteúdo (filhos), supomos que tem questão
+      if (conteudoRenderizado && conteudoRenderizado.children.length > 0) {
+        abrirPainelMobile();
+      }
+    }
+  });
+
+  // Backdrop Click
+  const backdrop = document.getElementById("reviewBackdrop");
+  if (backdrop) {
+    backdrop.addEventListener("click", fecharPainelMobile);
+  }
 }
 
 /**
@@ -2457,7 +2558,10 @@ function criarItemListaRevisao(id, fullData, nomeProva) {
     // Marca como selecionado
     item.classList.add("selected");
     // Renderiza a questão
-    renderizarQuestaoRevisao(fullData);
+    await renderizarQuestaoRevisao(fullData);
+
+    // [MOBILE] Abre o painel inferior
+    abrirPainelMobile();
   });
 
   return item;

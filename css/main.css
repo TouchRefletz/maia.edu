@@ -74,6 +74,7 @@
 
 @import url('responsivity/mobile.css');
 @import url('responsivity/mobile-chat-redesign.css');
+@import url('responsivity/mobile-review.css');
 
 @import url('result/complexidade.css');
 @import url('result/creditos.css');

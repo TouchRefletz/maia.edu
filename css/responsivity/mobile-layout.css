@@ -1,9 +1,5 @@
 /* Mobile responsive styles at 480px breakpoint */
 @media (max-width: 480px) {
-    body {
-        padding: var(--space-12);
-    }
-
     #promptTitle {
         font-size: var(--font-size-2xl);
     }

@@ -268,7 +268,8 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
     <div className="questao-tabs-react-root" ref={tabsContainerRef}>
 
       {/* HEADER MOBILE (Drag Handle) - Só aparece via CSS no mobile */}
-      <MobileInteractableHeader />
+      {/* Em modo review, o container pai já possui seu próprio header móvel */}
+      {!isReviewMode && <MobileInteractableHeader />}
 
       {/* [NOVO] Raciocínio da IA (Se disponível e não estiver em modo Review) */}
       {aiThoughtsHtml && !isReviewMode && (
