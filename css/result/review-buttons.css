@@ -128,7 +128,7 @@
   justify-content: space-between;
   margin-bottom: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .reviewable-block-tipo {
@@ -148,8 +148,8 @@
 
 /* Bloco de caption/descrição revisável dentro de imagem */
 .reviewable-caption {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   padding: 8px 10px;
   margin-top: 8px;
 }
@@ -157,7 +157,7 @@
 .reviewable-caption .reviewable-block-header {
   margin-bottom: 6px;
   padding-bottom: 4px;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  border-bottom: 1px dashed var(--color-border);
 }
 
 .reviewable-caption .reviewable-block-tipo {
@@ -352,14 +352,14 @@
 /* Tag aprovada - borda verde sutil */
 .tag-approved .tag-subject,
 .tag-approved .tag-keyword,
-.tag-approved > span {
+.tag-approved>span {
   box-shadow: 0 0 0 2px #22c55e !important;
 }
 
-/* Tag rejeitada - borda vermelha sutil */  
+/* Tag rejeitada - borda vermelha sutil */
 .tag-rejected .tag-subject,
 .tag-rejected .tag-keyword,
-.tag-rejected > span {
+.tag-rejected>span {
   box-shadow: 0 0 0 2px #ef4444 !important;
   opacity: 0.6;
 }
