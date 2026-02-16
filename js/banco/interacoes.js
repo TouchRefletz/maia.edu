@@ -18,7 +18,7 @@ export function verificarRespostaBanco(
   btn,
   cardId,
   letraEscolhida,
-  letraCorreta
+  letraCorreta,
 ) {
   const container = document.getElementById(cardId + "_opts");
   const resolution = document.getElementById(cardId + "_res");
@@ -43,6 +43,16 @@ export function verificarRespostaBanco(
       b.classList.add("wrong");
     }
     b.style.cursor = "default";
+
+    // Exibe justificativa individual (motivo) se existir
+    const motivo = b.dataset.motivo;
+    if (motivo) {
+      const motivoEl = b.querySelector(".q-opt-motivo");
+      if (motivoEl) {
+        motivoEl.textContent = motivo;
+        motivoEl.style.display = "block";
+      }
+    }
   });
 
   // Delay e Revelação

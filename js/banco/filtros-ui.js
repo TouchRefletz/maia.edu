@@ -84,8 +84,8 @@ export function gerarHtmlPainelFiltros() {
                 </div>
             </div>
             <div class="filter-group filter-full-width">
-                <label class="filter-label">Busca no Texto (Enunciado ou ID)</label>
-                <input type="text" id="filtroTexto" class="filter-control" placeholder="Digite termos, ID ou trechos do enunciado...">
+                <label class="filter-label">Busca no Texto (Todos os Campos)</label>
+                <input type="text" id="filtroTexto" class="filter-control" placeholder="Pesquise em qualquer campo da questão...">
             </div>
             <button class="filter-search-btn js-aplicar-filtros filter-full-width">
                 🔎 Filtrar Questões
@@ -217,15 +217,82 @@ export function capturarValoresFiltros() {
   };
 }
 
+/**
+ * Extrai TODO o texto pesquisável de uma questão numa string única (com cache).
+ * Cobre: enunciado, alternativas, motivos, resolução, relatório, justificativa,
+ * créditos, palavras-chave, matérias, key do Firebase, etc.
+ */
+function buildSearchBlob(item) {
+  if (item._searchBlob) return item._searchBlob;
+
+  const parts = [];
+  const push = (v) => {
+    if (v) parts.push(v);
+  };
+
+  const q = item.dados_questao || {};
+  const g = item.dados_gabarito || {};
+  const cred = g.creditos || {};
+  const meta = item.meta || {};
+
+  // -- Key / ID do Firebase --
+  push(item.key);
+
+  // -- dados_questao --
+  // estrutura (blocos de texto do enunciado)
+  (q.estrutura || []).forEach((b) => push(b.conteudo));
+  // alternativas
+  (q.alternativas || []).forEach((alt) => {
+    push(alt.letra);
+    (alt.estrutura || []).forEach((b) => push(b.conteudo));
+    push(alt.texto); // legado
+  });
+  // tags
+  (q.palavras_chave || []).forEach(push);
+  (q.materias_possiveis || []).forEach(push);
+  // campos legados
+  push(q.enunciado);
+  push(q.identificacao);
+
+  // -- dados_gabarito --
+  push(g.alternativa_correta);
+  push(g.justificativa_curta);
+  push(g.texto_referencia);
+  // alternativas analisadas (motivos)
+  (g.alternativas_analisadas || []).forEach((aa) => {
+    push(aa.letra);
+    push(aa.motivo);
+  });
+  // explicacao (passos da resolução)
+  (g.explicacao || []).forEach((passo) => {
+    (passo.estrutura || []).forEach((b) => push(b.conteudo));
+    push(passo.evidencia);
+    push(passo.fonte_material);
+  });
+  // complexidade
+  push(g.analise_complexidade?.justificativa_dificuldade);
+  // créditos
+  push(cred.material);
+  push(cred.autor_ou_instituicao || cred.autorouinstituicao);
+  push(cred.ano?.toString());
+
+  // -- meta --
+  push(meta.source_url);
+  push(meta.material_origem);
+
+  item._searchBlob = parts.join(" ").toLowerCase();
+  return item._searchBlob;
+}
+
 export function itemAtendeFiltros(item, f) {
   const q = item.dados_questao || {};
   const g = item.dados_gabarito || {};
   const cred = g.creditos || {};
   const meta = item.meta || {};
 
-  // 1. Texto (Enunciado ou ID)
+  // 1. Texto (busca profunda em todos os campos)
   if (f.texto) {
-    const blob = (q.enunciado + " " + q.identificacao).toLowerCase();
+    const blob = buildSearchBlob(item);
     if (!blob.includes(f.texto)) return false;
   }
 

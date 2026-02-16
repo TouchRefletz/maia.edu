@@ -1,3 +1,6 @@
+import { FATORES_DEF, CFG } from "../utils/complexity-data.js";
+import { _calcularComplexidade } from "../render/ComplexityCard.tsx";
+
 export function gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte) {
   let htmlFinal = "";
 
@@ -31,46 +34,45 @@ export function gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte) {
 }
 
 export function renderMatrizComplexidade(g) {
-  if (!g.analise_complexidade?.fatores) return "";
+  const calc = _calcularComplexidade(g.analise_complexidade);
+  if (!calc) return "";
 
-  const labels = {
-    texto_extenso: "Texto Extenso",
-    vocabulario_complexo: "Vocabulário Denso",
-    multiplas_fontes_leitura: "Múltiplas Fontes",
-    interpretacao_visual: "Interp. Visual",
-    dependencia_conteudo_externo: "Conteúdo Prévio",
-    interdisciplinaridade: "Interdisciplinar",
-    contexto_abstrato: "Abstrato",
-    raciocinio_contra_intuitivo: "Contra-Intuitivo",
-    abstracao_teorica: "Teoria Pura",
-    deducao_logica: "Dedução Lógica",
-    resolucao_multiplas_etapas: "Multi-etapas",
-    transformacao_informacao: "Transformação Info",
-    distratores_semanticos: "Distratores Fortes",
-    analise_nuance_julgamento: "Julgamento Sutil",
-  };
+  const { pct, nivel, grupos } = calc;
 
-  const fatores = g.analise_complexidade.fatores;
+  // Header com badge e barra de progresso
+  const htmlHeader = `
+    <div class="comp-header">
+      <div class="comp-badge" style="color:${nivel.cor}; border-color:${nivel.cor};">
+        ${nivel.texto} — ${pct}%
+      </div>
+      <div class="comp-bar-track">
+        <div class="comp-bar-fill" style="width:${pct}%; background:${nivel.cor};"></div>
+      </div>
+    </div>`;
+
+  // Grid de fatores agrupado por categoria
   let htmlGrid = '<div class="complexity-matrix">';
-
-  for (const [key, label] of Object.entries(labels)) {
-    // Verifica camelCase ou snake_case
-    const isActive = !!(
-      fatores[key] ||
-      fatores[key.replace(/_([a-z])/g, (_, x) => x.toUpperCase())]
-    );
-    htmlGrid += `<div class="comp-factor ${isActive ? "active" : ""}"><div class="comp-dot"></div><span>${label}</span></div>`;
+  for (const [catKey, catCfg] of Object.entries(CFG)) {
+    const itens = grupos[catKey] || [];
+    htmlGrid += `<div class="comp-cat-group">`;
+    htmlGrid += `<div class="comp-cat-label" style="color:${catCfg.color};">${catCfg.label}</div>`;
+    for (const item of itens) {
+      htmlGrid += `<div class="comp-factor ${item.ativo ? "active" : ""}"><div class="comp-dot" style="${item.ativo ? `background:${catCfg.color}; box-shadow:0 0 5px ${catCfg.color};` : ""}"></div><span>${item.label}</span></div>`;
+    }
+    htmlGrid += `</div>`;
   }
   htmlGrid += "</div>";
 
+  // Justificativa da IA
+  let htmlJust = "";
   if (g.analise_complexidade.justificativa_dificuldade) {
     const safeJust = String(
       g.analise_complexidade.justificativa_dificuldade,
     ).replace(/"/g, "&quot;");
-    htmlGrid += `<div class="markdown-content" data-raw="${safeJust}" style="margin-top:10px; font-style:italic; font-size:0.85rem; color:var(--color-text-secondary);">${g.analise_complexidade.justificativa_dificuldade}</div>`;
+    htmlJust = `<div class="markdown-content" data-raw="${safeJust}" style="margin-top:10px; font-style:italic; font-size:0.85rem; color:var(--color-text-secondary);">${g.analise_complexidade.justificativa_dificuldade}</div>`;
   }
 
-  return `<div class="q-res-section static-render-target"><span class="q-res-label">Matriz de Dificuldade</span>${htmlGrid}</div>`;
+  return `<div class="q-res-section static-render-target"><span class="q-res-label">Matriz de Dificuldade</span>${htmlHeader}${htmlGrid}${htmlJust}</div>`;
 }
 
 export function renderBotaoScanGabarito(imgsOriginalG, jsonImgsG) {

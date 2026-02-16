@@ -1,13 +1,62 @@
-/* Matriz de Complexidade (Grid de Fatores) */
+/* Cabeçalho de Dificuldade (Badge + Barra) */
+.comp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.comp-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.comp-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.comp-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Matriz de Complexidade (Grid de Fatores por Categoria) */
 .complexity-matrix {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
   margin-top: 10px;
   background: rgba(0, 0, 0, 0.02);
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
   border: 1px dashed var(--color-border);
+}
+
+.comp-cat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comp-cat-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
 .comp-factor {
@@ -30,10 +79,5 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-border);
-}
-
-.comp-factor.active .comp-dot {
-  background: var(--color-warning);
-  /* Laranja para destaque */
-  box-shadow: 0 0 5px var(--color-warning);
+  flex-shrink: 0;
 }

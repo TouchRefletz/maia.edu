@@ -1,5 +1,6 @@
 import { renderizar_estrutura_alternativa } from "../render/structure.js";
 import { hydrateBankCard } from "./bank-hydration";
+import { _calcularComplexidade } from "../render/ComplexityCard.tsx";
 import {
   gerarHtmlCorpoQuestao,
   renderBotaoScanGabarito,
@@ -35,6 +36,15 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
   // 3. Geração do HTML das Alternativas
   const cardId = `q_${idFirebase}`;
 
+  // Monta mapa de motivos por letra a partir de alternativas_analisadas
+  const motivoMap = {};
+  (g.alternativas_analisadas || []).forEach((aa) => {
+    const letraKey = String(aa.letra || "")
+      .trim()
+      .toUpperCase();
+    if (letraKey && aa.motivo) motivoMap[letraKey] = aa.motivo;
+  });
+
   const htmlAlts = (q.alternativas || [])
     .map((alt) => {
       const letra = alt.letra.trim().toUpperCase();
@@ -53,6 +63,13 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
         conteudoHtml = alt.texto || "";
       }
 
+      // Escapa o motivo para uso seguro no atributo data
+      const motivoRaw = motivoMap[letra] || "";
+      const motivoEscapado = motivoRaw
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
       // Gera o botão interativo
       return `
         <button 
@@ -60,9 +77,11 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
             data-card-id="${cardId}" 
             data-letra="${letra}" 
             data-correta="${g.alternativa_correta}"
+            data-motivo="${motivoEscapado}"
         >
             <span class="q-opt-letter">${letra})</span>
             <div class="q-opt-content">${conteudoHtml}</div>
+            <div class="q-opt-motivo" style="display:none;"></div>
         </button>`;
     })
     .join("");
@@ -122,6 +141,32 @@ export function gerarHtmlHeader(id, fullData) {
   };
   const statusInfo = statusMap[statusRaw] || statusMap["não revisada"];
 
+  // 4. Dificuldade (badge compacto)
+  let diffBadgeHtml = "";
+  const calc = _calcularComplexidade(g.analise_complexidade);
+  if (calc) {
+    // Mapeia nível para hex concreto (var() não funciona com sufixo de opacidade)
+    const diffColorMap = {
+      FÁCIL: { hex: "#28a745", icon: "🟢" },
+      MÉDIA: { hex: "#ffc107", icon: "🟡" },
+      DIFÍCIL: { hex: "#fd7e14", icon: "🟠" },
+      DESAFIO: { hex: "#dc3545", icon: "🔴" },
+    };
+    const dc = diffColorMap[calc.nivel.texto] || diffColorMap["MÉDIA"];
+    diffBadgeHtml = `
+                    <!-- Badge Dificuldade -->
+                    <span style="
+                        background: ${dc.hex}20;
+                        color: ${dc.hex};
+                        border: 1px solid ${dc.hex}40;
+                        padding: 3px 8px;
+                        border-radius: 4px;
+                        display:flex; align-items:center; gap:5px; font-weight:600;
+                    ">
+                        <span>${dc.icon}</span> ${calc.nivel.texto}
+                    </span>`;
+  }
+
   return `
         <div class="q-header">
             <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
@@ -150,6 +195,8 @@ export function gerarHtmlHeader(id, fullData) {
                     ">
                         <span>${origemIcon}</span> ${origemLabel}
                     </span>
+
+                    ${diffBadgeHtml}
 
                     <!-- Badge Status -->
                     <span style="
