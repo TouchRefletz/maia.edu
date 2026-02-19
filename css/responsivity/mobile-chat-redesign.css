@@ -28,6 +28,10 @@
         visibility: visible !important;
     }
 
+    body {
+        height: 100vh !important;
+    }
+
     /* The draggable thumb */
     .chat-scroll-thumb {
         position: absolute;
