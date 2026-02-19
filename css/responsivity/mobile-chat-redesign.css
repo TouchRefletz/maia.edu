@@ -28,18 +28,6 @@
         visibility: visible !important;
     }
 
-    /* Ensure the app fills the screen exactly, preventing global scroll */
-    html,
-    body {
-        height: 100dvh !important;
-        width: 100vw !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overscroll-behavior: none;
-        /* Prevents pull-to-refresh effects */
-    }
-
     /* The draggable thumb */
     .chat-scroll-thumb {
         position: absolute;
@@ -76,65 +64,51 @@
         display: none;
     }
 
-    /* 1. Main Container - Flex Column Layout for Safe Area/Keyboard handling */
-    /* 1. Main Container - Flex Column Layout
-       - AUTO overflow for Home Mode (allows page scroll)
-       - HIDDEN overflow for Chat Mode (messages scroll internally)
-    */
+    /* 1. Main Container - Ensure full height and centering */
     .maia-ai-container {
-        display: flex !important;
-        flex-direction: column;
-        justify-content: flex-start;
-        height: 100dvh;
+        justify-content: center;
+        /* Center vertically key elements */
+        padding-bottom: 100px;
+        /* Space for fixed input */
+        min-height: 100vh;
         width: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
-        /* Enable page scroll for Home */
-        padding-bottom: 0 !important;
+        box-sizing: border-box;
         padding-left: 16px;
         padding-right: 16px;
-        position: relative;
     }
 
-    /* 2. Brand Header (Home Mode Content) */
-    /* 2. Brand Header (Home Mode) - Natural Flow */
+    /* 2. Brand Header (Logo + Title) - Center it visually */
     #brandHeader {
-        flex: 1 0 auto;
-        /* Grow but don't shrink below content */
-        overflow: visible;
-        /* Let container handle scroll */
-        width: 100%;
-        margin: auto 0 20px 0 !important;
-        /* Center vertically, push footer down */
+        margin-top: auto;
+        margin-bottom: auto;
+        flex-grow: 1;
+        /* Push to center/top */
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 200px;
-        /* Prevent collapse */
+        /* Slight optical adjustment upwards */
     }
 
-    /* 3. Footer Suggestions - Order 5 (After Header, Before Input) */
+    /* 3. Footer Suggestions - Position above input */
     .maia-ai-footer {
-        flex-shrink: 0;
         width: 100%;
-        margin-bottom: 20px;
+        margin-bottom: 70px;
+        /* Push up above fixed input */
         margin-top: 0;
-        order: 5 !important;
     }
 
     /* =========================================
-       4. Chat Input Wrapper
-       - Sticky position for Home Mode (sticks to bottom of scrollable page)
-       - Order 10 (Visually Last)
+       4. Chat Input Wrapper - UNIFIED Bottom Bar
+       Applies to BOTH home screen AND chat mode
        ========================================= */
     .chat-input-wrapper {
-        position: sticky !important;
+        position: fixed !important;
         bottom: 0 !important;
-        left: auto !important;
-        width: calc(100% + 32px) !important;
-        max-width: none !important;
-        margin: 0 -16px !important;
+        left: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
         border-radius: 24px 24px 0 0 !important;
         border: none !important;
         border-top: 1px solid var(--color-border) !important;
@@ -142,22 +116,14 @@
         box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
         z-index: 1000 !important;
         padding: 12px 16px 20px 16px !important;
-        flex-shrink: 0 !important;
-        order: 10 !important;
+        /* Extra bottom padding for safe area */
     }
 
-    /* 5. Chat Mode Overrides - Lock Container, Scroll Messages */
-    .maia-ai-container.chat-mode {
-        overflow: hidden !important;
-        /* Lock container */
-        padding-top: 60px;
-        padding-bottom: 0;
-    }
-
-    /* Input in Chat Mode acts normally (pinned by flex) */
+    /* Override chat-mode specific positioning */
     .maia-ai-container.chat-mode .chat-input-wrapper {
-        position: relative !important;
-        margin-bottom: 0 !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        border-radius: 24px 24px 0 0 !important;
     }
 
     /* Adjust Input Field to be cleaner */
@@ -172,17 +138,18 @@
         padding-top: 4px;
     }
 
-    /* Chat Mode Message Area */
-    /* .maia-ai-container.chat-mode rule removed (merged above) */
+    /* 5. When in Chat Mode (Messages visible) */
+    .maia-ai-container.chat-mode {
+        justify-content: flex-start;
+        padding-top: 60px;
+        padding-bottom: 0;
+        /* No extra padding, messages handle it */
+    }
 
     .maia-ai-container.chat-mode .chat-messages {
-        flex: 1;
-        /* Fill available space */
-        overflow-y: auto;
-        /* Scroll internally */
-        padding-bottom: 20px;
+        padding-bottom: 200px;
+        /* Ensure last message clears fixed input at bottom */
         padding-top: 20px;
-        height: auto;
     }
 
     /* Ensure dropdowns (now drop-ups) appear correctly above the fixed bar */

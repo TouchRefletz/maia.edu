@@ -54,7 +54,6 @@ import {
 } from "./cropper/mode.js";
 import { salvarQuestao } from "./cropper/save-handlers.js";
 import "./debug/chat-debugger.js";
-import "./ui/mobile-viewport.js"; // Mobile Keyboard Fix
 import { enviarDadosParaFirebase } from "./firebase/envio.js";
 import { exibirModalOriginais } from "./render/final/OriginaisModal.tsx";
 
