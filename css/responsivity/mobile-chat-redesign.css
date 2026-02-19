@@ -77,50 +77,60 @@
     }
 
     /* 1. Main Container - Flex Column Layout for Safe Area/Keyboard handling */
+    /* 1. Main Container - Flex Column Layout
+       - AUTO overflow for Home Mode (allows page scroll)
+       - HIDDEN overflow for Chat Mode (messages scroll internally)
+    */
     .maia-ai-container {
         display: flex !important;
         flex-direction: column;
         justify-content: flex-start;
         height: 100dvh;
-        /* Adapts to viewport height */
         width: 100%;
-        overflow: hidden;
-        /* Prevent global scroll */
+        overflow-x: hidden;
+        overflow-y: auto;
+        /* Enable page scroll for Home */
         padding-bottom: 0 !important;
-        /* No longer needed for fixed input */
         padding-left: 16px;
         padding-right: 16px;
         position: relative;
     }
 
     /* 2. Brand Header (Home Mode Content) */
+    /* 2. Brand Header (Home Mode) - Natural Flow */
     #brandHeader {
-        flex: 1;
-        /* Grow to fill space */
-        overflow-y: auto;
-        /* Scroll internally if needed */
+        flex: 1 0 auto;
+        /* Grow but don't shrink below content */
+        overflow: visible;
+        /* Let container handle scroll */
         width: 100%;
-        margin: 0 !important;
+        margin: auto 0 20px 0 !important;
+        /* Center vertically, push footer down */
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        min-height: 200px;
+        /* Prevent collapse */
     }
 
-    /* 3. Footer Suggestions - Position above input */
+    /* 3. Footer Suggestions - Order 5 (After Header, Before Input) */
     .maia-ai-footer {
         flex-shrink: 0;
         width: 100%;
         margin-bottom: 20px;
         margin-top: 0;
-        order: 1 !important;
+        order: 5 !important;
     }
 
     /* =========================================
-      /* 4. Chat Input Wrapper - Relative positioning (Flow) */
+       4. Chat Input Wrapper
+       - Sticky position for Home Mode (sticks to bottom of scrollable page)
+       - Order 10 (Visually Last)
+       ========================================= */
     .chat-input-wrapper {
-        position: relative !important;
-        bottom: auto !important;
+        position: sticky !important;
+        bottom: 0 !important;
         left: auto !important;
         width: calc(100% + 32px) !important;
         max-width: none !important;
@@ -136,9 +146,18 @@
         order: 10 !important;
     }
 
-    /* Override chat-mode specific positioning */
+    /* 5. Chat Mode Overrides - Lock Container, Scroll Messages */
+    .maia-ai-container.chat-mode {
+        overflow: hidden !important;
+        /* Lock container */
+        padding-top: 60px;
+        padding-bottom: 0;
+    }
+
+    /* Input in Chat Mode acts normally (pinned by flex) */
     .maia-ai-container.chat-mode .chat-input-wrapper {
         position: relative !important;
+        margin-bottom: 0 !important;
     }
 
     /* Adjust Input Field to be cleaner */
@@ -153,11 +172,8 @@
         padding-top: 4px;
     }
 
-    /* 5. When in Chat Mode (Messages visible) */
-    .maia-ai-container.chat-mode {
-        padding-top: 60px;
-        padding-bottom: 0;
-    }
+    /* Chat Mode Message Area */
+    /* .maia-ai-container.chat-mode rule removed (merged above) */
 
     .maia-ai-container.chat-mode .chat-messages {
         flex: 1;
