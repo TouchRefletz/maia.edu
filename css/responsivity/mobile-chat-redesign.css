@@ -93,8 +93,8 @@
     /* 3. Footer Suggestions - Position above input */
     .maia-ai-footer {
         width: 100%;
-        margin-bottom: 70px;
-        /* Push up above fixed input */
+        margin-bottom: 120px;
+        /* Push up above fixed input (Increased to avoid overlap) */
         margin-top: 0;
     }
 
