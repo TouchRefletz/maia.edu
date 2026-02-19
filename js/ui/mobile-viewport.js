@@ -23,23 +23,30 @@ export function initMobileViewportHandler() {
     const isKeyboardOpen = viewport.height < window.screen.height * 0.75;
 
     if (isKeyboardOpen) {
-      // 1. Ensure Messages Scroll to Bottom (so user sees context)
-      if (messages) {
-        // Only scroll if we were already near bottom or just opened keyboard
-        // For now, force it to ensure visibility as requested
-        messages.scrollTop = messages.scrollHeight;
-      }
+      // Aggressively force scroll to bottom to ensure visibility
+      // We do this over several frames to handle layout transitions/animations
+      let attempts = 0;
+      const forceScroll = () => {
+        if (messages) {
+          messages.scrollTop = messages.scrollHeight;
+        }
 
-      // 2. Ensure Input is Visible
-      if (inputWrapper) {
-        // With resizes-content, bottom:0 should be fine.
-        // We add a small delay to allow layout to settle
-        requestAnimationFrame(() => {
-          if (document.activeElement?.classList.contains("chat-input-field")) {
-            document.activeElement.scrollIntoView({ block: "nearest" });
-          }
-        });
-      }
+        // Ensure input is visible
+        if (
+          inputWrapper &&
+          document.activeElement?.classList.contains("chat-input-field")
+        ) {
+          document.activeElement.scrollIntoView({ block: "nearest" });
+        }
+
+        attempts++;
+        if (attempts < 15) {
+          // Force for approx 250ms
+          requestAnimationFrame(forceScroll);
+        }
+      };
+
+      requestAnimationFrame(forceScroll);
     }
   };
 
