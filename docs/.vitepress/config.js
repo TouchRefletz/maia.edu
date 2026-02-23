@@ -5,6 +5,7 @@ export default defineConfig({
   title: "Maia.edu",
   description: "Ecossistema educacional inteligente e adaptativo.",
   base: "/docs/",
+  outDir: "../dist/docs",
 
   // Customização de Head Tags (Favicon)
   head: [["link", { rel: "icon", href: "/logo.png" }]],
