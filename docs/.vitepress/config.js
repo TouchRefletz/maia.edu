@@ -19,6 +19,7 @@ export default defineConfig({
     nav: [
       { text: "Home", link: "/" },
       { text: "Guia de Início", link: "/guia/introducao" },
+      { text: "Acesse o site", link: "https://maia-api.vercel.app/" },
     ],
 
     // Barra Lateral de Navegação
