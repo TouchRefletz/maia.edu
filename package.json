@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "concurrently \"vite\" \"npm run docs:dev\"",
+    "build": "vite build && vitepress build docs",
+    "docs:dev": "vitepress dev docs",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -14,12 +15,14 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.7.0",
     "auto-import": "^0.1.4",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
     "prettier": "^3.7.4",
     "prettier-plugin-organize-imports": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^5.0.0",
+    "vitepress": "^1.6.4",
     "ws": "^8.18.0"
   },
   "dependencies": {

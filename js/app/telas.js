@@ -121,6 +121,14 @@ function renderInitialUI() {
             <span class="nav-desc">Valide e corrija dados</span>
           </span>
         </button>
+
+        <a href="/docs/" target="_blank" class="nav-sidebar-item" style="text-decoration: none; color: inherit;">
+          <span class="nav-icon">📖</span>
+          <span class="nav-label">
+            <span class="nav-title">Documentação</span>
+            <span class="nav-desc">Guias, tutoriais e manuais</span>
+          </span>
+        </a>
         
         <div class="nav-divider" style="height: 1px; background: var(--color-border); margin: 10px 0;"></div>
         <div class="nav-section-title" style="padding: 0 16px; font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Histórico</div>
