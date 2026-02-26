@@ -908,8 +908,12 @@ async function handleGeminiGenerate(request, env) {
 						if (!part?.text) continue;
 						wroteSomethingThisAttempt = true;
 
-						const type = part.thought ? 'thought' : 'answer';
-						await writeNdjson({ type, attempt, model: modelo, text: part.text });
+						if (part.thought) {
+							// Se a API retornar um part = { text: "...", thought: true } ou algo similiar, manda pra thought
+							await writeNdjson({ type: 'thought', attempt, model: modelo, text: part.text });
+						} else {
+							await writeNdjson({ type: 'answer', attempt, model: modelo, text: part.text });
+						}
 					}
 
 					const finishReason = cand?.finishReason;
@@ -1318,9 +1322,12 @@ async function handleGeminiSearch(request, env) {
 
 					for (const part of partsResp) {
 						if (!part?.text) continue;
-						const type = part.thought ? 'thought' : 'answer';
-						// Para o endpoint de search, 'answer' é o relatório de pesquisa
-						await writeNdjson({ type, text: part.text });
+
+						if (part.thought) {
+							await writeNdjson({ type: 'thought', text: part.text });
+						} else {
+							await writeNdjson({ type: 'answer', text: part.text });
+						}
 					}
 
 					const finishReason = cand?.finishReason;

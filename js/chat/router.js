@@ -103,7 +103,7 @@ export async function routeMessage(
         schema: ROUTER_RESPONSE_SCHEMA,
         model: CHAT_CONFIG.routerModel,
         jsonMode: true,
-        thinking: true,
+        thinking: true, // Aqui o router foi ajustado para emitir pensamentos
         files: processedFiles.length > 0 ? processedFiles : undefined,
       }),
     });
@@ -136,7 +136,9 @@ export async function routeMessage(
         try {
           const msg = JSON.parse(line);
 
-          if (msg.type === "answer") {
+          if (msg.type === "thought" && options.onThought) {
+            options.onThought(msg.text);
+          } else if (msg.type === "answer") {
             answerText += msg.text;
           } else if (msg.type === "error") {
             // Se o worker reportar erro explícito, lançamos aqui

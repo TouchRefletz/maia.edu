@@ -458,10 +458,10 @@ export async function synthesizeContext(
       model: "gemini-3-flash-preview", // Usar modelo rápido se disponivel
     };
 
-    // Handlers vazios pois não precisamos de stream visual aqui
+    // Usa handlers para repassar onThought, permitindo que a UI veja a IA pensando
     const handlers = {
       onStatus: () => {},
-      onThought: () => {},
+      onThought: options.onThought || (() => {}),
       onAnswerDelta: () => {},
       signal: options.signal, // Pass signal
     };
@@ -561,6 +561,7 @@ export async function extractAndSaveNarrative(
   aiResponse,
   apiKey,
   attachments = [],
+  options = {},
 ) {
   // A API Key pode vir do backend (secrets) se não estiver no cliente.
   // Não bloqueamos mais a execução se não houver chave no cliente.
@@ -618,15 +619,15 @@ export async function extractAndSaveNarrative(
       required: ["fatos"],
     };
 
-    // Chama worker (sem streaming, ou fingindo stream com onAnswerDelta ignorado se possível,
-    // mas a função é `gerarConteudoEmJSONComImagemStream`, então vamos usar dummy handlers)
+    // Chama worker (sem exibição de stream visual principal, mas enviando pensamentos se solicitado)
     let jsonBuffer = "";
     const handlers = {
       onStatus: () => {},
-      onThought: () => {},
+      onThought: options.onThought || (() => {}),
       onAnswerDelta: (delta) => {
         jsonBuffer += delta;
       },
+      signal: options.signal,
     };
 
     // Usa modelo Rápido/Flash idealmente, mas aqui usamos o config default
@@ -653,7 +654,7 @@ export async function extractAndSaveNarrative(
       }
     }
 
-    const options = {
+    const requestOptions = {
       model: "gemini-3-flash-preview", // Tenta usar flash para isso ser rápido
       generationConfig: {
         response_mime_type: "application/json",
@@ -666,7 +667,7 @@ export async function extractAndSaveNarrative(
       processedFiles, // Passa os arquivos processados
       "", // mimetype (ignorado quando files são passados como objects)
       handlers,
-      options,
+      requestOptions,
       finalApiKey,
     );
 

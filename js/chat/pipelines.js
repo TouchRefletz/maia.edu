@@ -65,6 +65,7 @@ export async function runChatPipeline(
     console.log("[Pipeline] 🧠 Consultando Memória Contextual...");
     // Update UI: "Recuperando informações..."
     if (context.onProcessingStatus) {
+      window._currentChatPhase = "memory";
       context.onProcessingStatus("loading", "Recuperando informações");
     }
 
@@ -79,7 +80,7 @@ export async function runChatPipeline(
         message,
         context.apiKey,
         attachments,
-        { signal: context.signal }, // Pass signal
+        { signal: context.signal, onThought: context.onThought }, // Repassa callbacks pro service
       );
 
       if (contextString) {
@@ -132,6 +133,7 @@ export async function runChatPipeline(
     context.previousQueries = [];
   }
 
+  window._currentChatPhase = "mode"; // Garante que a UI de pensamentos do router renderize na caixa dele
   const { finalMode, wasRouted, routerResult } = await determineFinalMode(
     selectedMode,
     message,
@@ -141,6 +143,7 @@ export async function runChatPipeline(
       previousQueries: context.previousQueries,
       signal: context.signal, // Pass signal to router
       apiKey: context.apiKey,
+      onThought: context.onThought, // Hook de pensamentos pro router usar
     },
   );
 
@@ -343,6 +346,7 @@ export async function runChatPipeline(
         fullResponse,
         context.apiKey,
         attachments,
+        { onThought: context.onThought, signal: context.signal },
       )
         .then(() => {
           console.log("[Pipeline] 🧠 Ciclo de memória concluído.");

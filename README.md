@@ -91,7 +91,7 @@ O backend é sustentado por **Cloudflare Workers**, executando código diretamen
 
 - **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Gemini 3 Flash Preview** (modelos multimodais) para realizar a inferência semântica da prova.
 - **Estruturação de Dados:** Diferente de OCRs tradicionais, nossa API força uma **saída estruturada em JSON**, categorizando rigorosamente:
-  - Enunciados e alternativas;
+  - Enunciados, alternativas e **suporte completo para questões dissertativas**;
   - Imagens, gráficos e legendas associadas;
   - Fontes, títulos e metadados contextuais;
   - Citações e trechos de código.
@@ -165,17 +165,27 @@ Em vez de apenas entregar a resposta, a plataforma pode ativar o modo de estudo 
 - **Métricas de Proficiência:** O sistema avalia não apenas o acerto, mas a **certeza do usuário** (via slider de 0-100%) e o **tempo de resposta**, ajustando a dificuldade do próximo passo em tempo real.
 - **Intervenção Didática:** O fluxo só avança ou termina quando o sistema valida que o usuário compreendeu o conceito fundamental por trás do problema.
 
-## 🔎 Deep Search (Busca Profunda de Provas)
+### 4. Inteligência Ativa com Extração Sob Demanda
 
-Para escalar a captura de provas, implementamos um agente autônomo de busca profunda.
+A inteligência da Maia.ai transcende a consulta passiva ao banco de dados:
 
-### Como Funciona
+- **Solicitação de Extração AI-Driven:** Caso a IA identifique a necessidade de mais material sobre um tema específico para auxiliar o aluno, ela pode atuar como um agente pesquisador autônomo. A IA pode **solicitar uma extração de questões**, desencadeando a pesquisa web de PDFs relacionados ao assunto e orquestrando a **extração via CLI**. Esse conteúdo é fatiado e injetado no sistema em tempo real, garantindo que o aprendizado nunca seja interrompido por falta de exercícios.
 
-1.  **Solicitação:** O usuário insere uma query simples (ex: "ITA 2022").
-2.  **Agente AI (OpenHands):** Um container Docker isolado roda um agente inteligente que navega na web.
-3.  **Busca & Decisão:** O agente usa ferramentas de busca (como Tavily ou Google) para encontrar _links oficiais_ de provas e gabaritos, ignorando sites genéricos ou de baixa qualidade.
-4.  **Extração & Validação:** O sistema baixa os PDFs, valida se são arquivos legítimos (checa headers, tamanho, conteúdo) e os organiza.
-5.  **Manifesto:** Gera um arquivo `manifest.json` padronizado, listando tudo o que foi encontrado (arquivos baixados e links de referência).
+## 🔎 Busca e Extração Inteligente (Deep Search & Extraction)
+
+Para escalar a captura de conteúdo educacional, o Maia.edu possui um sistema autônomo e multifacetado de busca e extração. O sistema opera em dois modos principais de pesquisa e suporta múltiplos métodos de geração do banco.
+
+### Modos de Pesquisa
+
+1.  **Busca por Provas:** O usuário insere uma query direta (ex: "ITA 2022") e o sistema vasculha a internet em busca de links oficiais do caderno de questões completo e seu respectivo gabarito.
+2.  **Busca por Questões Temáticas (AI-Driven):** O usuário ou o agente escolhe um tópico específico de estudo (ex: "Eletromagnetismo avançado"). O sistema vasculha a web atrás de listas de exercícios ou materiais didáticos em PDF que tangenciam o tema, processando e fatiando o conhecimento encontrado.
+
+### Métodos de Extração
+
+Ambos os métodos compartilham o mesmo núcleo de validação: eles checam a integridade contínua do PDF (ignorando arquivos corrompidos ou constituídos inteiramente por imagens sem texto real) antes de processar o conteúdo.
+
+- **Extração pelo Navegador:** Permite que qualquer usuário faça o upload de um PDF ou interaja com a interface web para processar páginas e extrair conhecimento em tempo real diretamente de seu browser.
+- **Extração via CLI (Pipeline Local):** Um processo robusto em linha de comando orquestrado para processamento autônomo ou de grandes volumes. Ele controla o download em lote e a execução assíncrona, alimentando o banco de dados organicamente e de forma escalável.
 
 #### 📷 Scanner Auditor (Greedy Box)
 

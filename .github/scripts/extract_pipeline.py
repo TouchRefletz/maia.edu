@@ -110,6 +110,61 @@ REGION_DETECT_SCHEMA = {
     "required": ["coordinateSystem", "regions"],
 }
 
+REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "ok": {
+            "type": "boolean",
+            "description": "Retorne true SE E SOMENTE SE todas as 'regions' (caixas) seguem PERFEITAMENTE o princípio da CAIXA GULOSA (incluem TUDO: enunciado, imagens, fontes, TODAS as alternativas)."
+        },
+        "feedback": {
+            "type": "string",
+            "description": "Se ok=false, descreva EXATAMENTE quais questões estão cortadas ou incompletas e O QUE falta nelas (ex: 'Questão 05 cortou a fonte no rodapé', 'Questão 03 faltou a alternativa E')."
+        }
+    },
+    "required": ["ok"]
+}
+
+def build_review_prompt(current_json):
+    return f"""
+VOCÊ É UM AUDITOR DE QUALIDADE RIGOROSO (REVIEWER).
+SEU TRABALHO: Analisar se as caixas detectadas (bounding boxes) cobrem 100% do conteúdo de cada questão.
+
+JSON ATUAL (Candidato):
+{json.dumps(current_json, ensure_ascii=False, indent=2)}
+
+PRINCÍPIO RIGOROSO: "GREEDY BOX" (Caixa Gulosa)
+- A caixa deve ir do topo do número da questão ATÉ O FIM ABSOLUTO dela.
+- ISSO INCLUI:
+  1. Texto de apoio / Enunciado COMPLETO.
+  2. Imagens, tabelas, figuras.
+  3. TODAS as alternativas (A, B, C, D, E).
+  4. *** FONTES / REFERÊNCIAS BIBLIOGRÁFICAS *** (MUITO IMPORTANTE: Frequentemente estão em letras miúdas no rodapé da questão. DEVEM ESTAR DENTRO DA CAIXA).
+
+TAREFA:
+1. Olhe para a imagem original e para as coordenadas no JSON.
+2. Verifique se ALGUMA coisa ficou de fora da caixa de cada questão.
+3. Se estiver faltando UMA LINHA SEQUER (especialmente fontes ou última alternativa), reprove.
+
+Se estiver tudo 100% perfeito, retorne {{ "ok": true }}.
+Se houver falhas, retorne {{ "ok": false, "feedback": "Explique o erro..." }}.
+""".strip()
+
+def build_correction_prompt(current_json, feedback):
+    return f"""
+ATENÇÃO: A GERAÇÃO ANTERIOR FOI REPROVADA PELO AUDITOR.
+FEEDBACK DO AUDITOR: "{feedback}"
+
+JSON ANTERIOR (Incompleto/Errado):
+{json.dumps(current_json, ensure_ascii=False, indent=2)}
+
+SUA TAREFA:
+Refazer as bounding boxes das questões mencionadas no feedback, garantindo que agora sigam o princípio GREEDY BOX (incluindo fontes, notas, todas as alternativas).
+Mantenha as questões que já estavam certas (a menos que precisem de ajuste espacial por causa das outras).
+
+GERE O JSON COMPLETO CORRIGIDO.
+""".strip()
+
 QUESTION_EXTRACT_PROMPT = """
 Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
 
@@ -608,18 +663,82 @@ def main():
 
                 print(f"\n  📃 Page {page_num}/{len(pages)}")
 
-                # Step 1: Detect question regions
+                # Step 0: Regions Extraction with Audit Loop
+                regions = []
+                raw_gemini = {}
                 try:
+                    # 1. Primeira Extração (Extraction)
+                    print(f"    🔍 Detecting regions...")
                     regions_result = detect_regions(page_img)
-                    regions = regions_result.get("regions", [])
-                    print(f"    🔍 Detected {len(regions)} regions")
+                    current_json = regions_result
+                    raw_gemini = current_json
+                    
+                    if current_json.get("regions"):
+                        print(f"    �️‍♂️ Auditing {len(current_json['regions'])} regions...")
+                        # 2. Auditoria (Review)
+                        b64 = image_to_base64(page_img)
+                        review_response = call_gemini_with_retry(
+                            model="models/gemini-3-flash-preview",
+                            contents=[
+                                types.Content(
+                                    parts=[
+                                        types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                                        types.Part.from_text(text=build_review_prompt(current_json)),
+                                    ]
+                                )
+                            ],
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                response_schema=REVIEW_SCHEMA,
+                                temperature=0.1,
+                            ),
+                        )
+                        review_result = json.loads(review_response.text)
+                        
+                        if review_result.get("ok"):
+                            print(f"      ✅ Audit passed!")
+                            regions = current_json.get("regions", [])
+                        else:
+                            feedback = review_result.get("feedback", "Correção necessária")
+                            print(f"      ❌ Audit failed: {feedback}")
+                            print(f"    🛠️ Correcting regions...")
+                            
+                            # 3. Correção (Correction)
+                            correction_response = call_gemini_with_retry(
+                                model="models/gemini-3-flash-preview",
+                                contents=[
+                                    types.Content(
+                                        parts=[
+                                            types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                                            types.Part.from_text(text=build_correction_prompt(current_json, feedback)),
+                                        ]
+                                    )
+                                ],
+                                config=types.GenerateContentConfig(
+                                    response_mime_type="application/json",
+                                    response_schema=REGION_DETECT_SCHEMA,
+                                    temperature=0.1,
+                                ),
+                            )
+                            corrected_json = json.loads(correction_response.text)
+                            
+                            if corrected_json and corrected_json.get("regions"):
+                                print(f"      ✅ Correction applied! ({len(corrected_json['regions'])} regions)")
+                                regions = corrected_json.get("regions", [])
+                                raw_gemini = corrected_json
+                            else:
+                                print(f"      ⚠️ Correction failed, keeping original regions.")
+                                regions = current_json.get("regions", [])
+                    else:
+                        print(f"    ℹ️ No regions detected originally.")
+
                 except RateLimitError:
-                    print(f"  ⚠️ RATE LIMITED on page {page_num} - saving checkpoint")
+                    print(f"  ⚠️ RATE LIMITED on region detection - saving checkpoint")
                     manifest["rate_limit_hit"] = True
                     save_manifest(manifest)
                     sys.exit(0)
                 except Exception as e:
-                    print(f"    ❌ Region detection failed: {e}")
+                    print(f"    ❌ Region detection/audit failed: {e}")
                     traceback.print_exc()
                     if "pages" not in item["extraction_results"]:
                         item["extraction_results"]["pages"] = {}
@@ -641,7 +760,6 @@ def main():
                     question_groups[qid].append(region)
 
                 page_questions = []
-                raw_gemini = regions_result  # Save raw response
 
                 for qid, q_regions in question_groups.items():
                     print(f"    📝 Question {qid} ({len(q_regions)} region(s))")
@@ -764,8 +882,14 @@ def main():
                 # Small delay between pages to avoid rate limits
                 time.sleep(2)
             
-            # Mark file as complete
-            item["extraction_results"]["status"] = "complete"
+            # Check if ANY region was detected across all pages
+            total_regions = sum(p.get("regions_detected", 0) for p in item["extraction_results"].get("pages", {}).values())
+            if total_regions == 0:
+                item["extraction_results"]["status"] = "error"
+                item["extraction_results"]["error"] = "zero_regions_detected"
+            else:
+                item["extraction_results"]["status"] = "complete"
+
             save_manifest(manifest)
 
     except RateLimitError:

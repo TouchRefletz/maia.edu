@@ -441,7 +441,7 @@ jobs:
           - Listas de questões em PDF.
           - INDISPENSÁVEL: Classifique cada item no manifesto:
             - status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
-          - Estrutura do JSON: {nome, tipo, ano (se houver), instituicao (se houver/cursinho), fase (opcional), link_origem, status, filename (só se status=downloaded)}
+          - Estrutura do JSON: {nome, tipo, ano (se houver), assunto/tema (se possivel identificar), link_origem, status, filename (só se status=downloaded)}
 
           Preferência de links:
           - Priorize links diretos de PDF.
