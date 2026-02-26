@@ -29,7 +29,7 @@ jobs:
       GOOGLE_GENAI_API_KEY: ${{ secrets.LLM_API_KEY }}
       WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      HF_REPO: TouchRefletz/maia.edu
+      HF_REPO: toquereflexo/maia-deep-search
       SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
       QUERY: ${{ github.event.client_payload.query || inputs.query || '' }}
       INSTITUTION: ${{ github.event.client_payload.institution || inputs.institution || '' }}

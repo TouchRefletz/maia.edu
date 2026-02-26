@@ -1591,20 +1591,86 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             }
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
-        } else if (type === "extraction_triggered" && messagesContainer) {
-          // Gap detector notification — async, can arrive during/after streaming
+        } else if (type === "extraction_triggered") {
+          // Gap detector — expandable chip inserted BEFORE the AI response
           const { title, message: msg } = data;
+          const contentDiv = document.createElement("div");
+          contentDiv.innerHTML = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
+          const statusEl = createExpandableStatusGlobal(
+            title || "🔍 Extração solicitada",
+            contentDiv,
+          );
+
           const systemMsg = document.createElement("div");
           systemMsg.className = "chat-message chat-message--system visible";
-          systemMsg.innerHTML = `
-            <div class="chat-message-content" style="padding:12px 16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px;">
-              <div style="font-weight:600; margin-bottom:6px; color:var(--color-primary); font-size:13px;">🔍 ${title || "Extração solicitada"}</div>
-              <div style="font-size:13px; line-height:1.5; color:var(--color-text);">${msg || ""}</div>
+          const msgContent = document.createElement("div");
+          msgContent.className = "chat-message-content";
+          msgContent.style.cssText =
+            "padding:0; background:transparent; box-shadow:none;";
+          msgContent.appendChild(statusEl);
+          systemMsg.appendChild(msgContent);
+
+          // Insert BEFORE the AI response or loading
+          const aiMsg = document.getElementById("currentAiMessage");
+          const loadingEl2 = document.getElementById("chatLoading");
+          const insertBefore = aiMsg || loadingEl2;
+          if (insertBefore && messagesContainer) {
+            messagesContainer.insertBefore(systemMsg, insertBefore);
+          } else if (messagesContainer) {
+            messagesContainer.appendChild(systemMsg);
+          }
+          if (messagesContainer)
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else if (type === "memory_saving" && messagesContainer) {
+          // Memory saving — spinner chip
+          const { title } = data;
+          const container = document.createElement("div");
+          container.className = "chat-thought-container";
+          container.id = "memorySavingChip";
+
+          const header = document.createElement("div");
+          header.className = "chat-thought-header";
+          header.innerHTML = `
+            <div class="summary-content-wrapper">
+              <img src="logo.png" class="summary-logo-spinner" alt="Saving" style="width:18px; height:18px;">
+              <span class="summary-text">${title || "🧠 Salvando memórias..."}</span>
             </div>
           `;
-          // Insert at current bottom (after response or loading)
+          container.appendChild(header);
+
+          const systemMsg = document.createElement("div");
+          systemMsg.className = "chat-message chat-message--system visible";
+          const msgContent = document.createElement("div");
+          msgContent.className = "chat-message-content";
+          msgContent.style.cssText =
+            "padding:0; background:transparent; box-shadow:none;";
+          msgContent.appendChild(container);
+          systemMsg.appendChild(msgContent);
+
           messagesContainer.appendChild(systemMsg);
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else if (type === "memory_saved") {
+          // Memory saved — stop spinner, update text, reset send button
+          const chip = document.getElementById("memorySavingChip");
+          if (chip) {
+            const spinner = chip.querySelector(".summary-logo-spinner");
+            if (spinner) {
+              spinner.classList.remove("summary-logo-spinner");
+              spinner.classList.add("summary-logo-static");
+              spinner.style.animation = "none";
+            }
+            const text = chip.querySelector(".summary-text");
+            if (text) text.textContent = data?.title || "🧠 Memórias salvas";
+            chip.removeAttribute("id");
+          }
+
+          // NOW reset send button
+          activeGenerationController = null;
+          const sendBtn = document.querySelector(".chat-send-btn");
+          if (sendBtn) {
+            sendBtn.classList.remove("stop-mode");
+            sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+          }
         }
       },
 
@@ -1680,13 +1746,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         const currentAiMessage = document.getElementById("currentAiMessage");
         if (currentAiMessage) currentAiMessage.removeAttribute("id");
 
-        // Reset Send Button UI
-        activeGenerationController = null;
-        const sendBtn = document.querySelector(".chat-send-btn");
-        if (sendBtn) {
-          sendBtn.classList.remove("stop-mode");
-          sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
-        }
+        // NOTE: Button reset is now handled by memory_saved event
       },
 
       onError: (error) => {
@@ -1888,25 +1948,21 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           aiMessage.removeAttribute("id");
 
           // Limpeza final dos pensamentos (Skeleton e Status)
-          // Agora fazemos isso apenas no fim para manter a sensação de "processo ativo"
           const thoughtsContainer = aiMessage.querySelector(
             ".chat-thought-container",
           );
 
           if (thoughtsContainer) {
-            // 1. Remove Skeletons restantes
             const skeletons = thoughtsContainer.querySelectorAll(
               ".maia-thought-card--skeleton",
             );
             skeletons.forEach((s) => s.remove());
 
-            // 2. Remove Status Area (Loading text bottom)
             const loadStatus = thoughtsContainer.querySelector(
               ".loading-status-area",
             );
             if (loadStatus) loadStatus.remove();
 
-            // 3. Para o Spinner do Header
             const spinner = thoughtsContainer.querySelector(
               ".summary-logo-spinner",
             );
@@ -1919,7 +1975,6 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               spinner.style.height = "18px";
             }
 
-            // 4. Atualiza Texto do Header
             const summaryText =
               thoughtsContainer.querySelector(".summary-text");
             if (summaryText) {
@@ -1929,6 +1984,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             thoughtsContainer._cleaned = true;
           }
         }
+        // NOTE: Button reset is now handled by memory_saved event
       },
 
       // Callback para atualizações de status (Loading/System Messages)
@@ -2016,18 +2072,83 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           }
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
         } else if (type === "extraction_triggered" && messagesContainer) {
-          // Gap detector notification — async, can arrive during/after streaming
+          // Gap detector — expandable chip inserted BEFORE the AI response
           const { title, message: msg } = message;
+          const contentDiv = document.createElement("div");
+          contentDiv.innerHTML = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
+          const statusEl = createExpandableStatusGlobal(
+            title || "🔍 Extração solicitada",
+            contentDiv,
+          );
+
           const systemMsg = document.createElement("div");
           systemMsg.className = "chat-message chat-message--system visible";
-          systemMsg.innerHTML = `
-            <div class="chat-message-content" style="padding:12px 16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px;">
-              <div style="font-weight:600; margin-bottom:6px; color:var(--color-primary); font-size:13px;">🔍 ${title || "Extração solicitada"}</div>
-              <div style="font-size:13px; line-height:1.5; color:var(--color-text);">${msg || ""}</div>
+          const msgContent = document.createElement("div");
+          msgContent.className = "chat-message-content";
+          msgContent.style.cssText =
+            "padding:0; background:transparent; box-shadow:none;";
+          msgContent.appendChild(statusEl);
+          systemMsg.appendChild(msgContent);
+
+          const aiMsg = document.getElementById("currentAiMessage");
+          const loadingEl2 = document.getElementById("chatLoading");
+          const insertBefore = aiMsg || loadingEl2;
+          if (insertBefore) {
+            messagesContainer.insertBefore(systemMsg, insertBefore);
+          } else {
+            messagesContainer.appendChild(systemMsg);
+          }
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else if (type === "memory_saving" && messagesContainer) {
+          // Memory saving — spinner chip
+          const { title } = message;
+          const container = document.createElement("div");
+          container.className = "chat-thought-container";
+          container.id = "memorySavingChip";
+
+          const header = document.createElement("div");
+          header.className = "chat-thought-header";
+          header.innerHTML = `
+            <div class="summary-content-wrapper">
+              <img src="logo.png" class="summary-logo-spinner" alt="Saving" style="width:18px; height:18px;">
+              <span class="summary-text">${title || "🧠 Salvando memórias..."}</span>
             </div>
           `;
+          container.appendChild(header);
+
+          const systemMsg = document.createElement("div");
+          systemMsg.className = "chat-message chat-message--system visible";
+          const msgContent = document.createElement("div");
+          msgContent.className = "chat-message-content";
+          msgContent.style.cssText =
+            "padding:0; background:transparent; box-shadow:none;";
+          msgContent.appendChild(container);
+          systemMsg.appendChild(msgContent);
+
           messagesContainer.appendChild(systemMsg);
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else if (type === "memory_saved") {
+          // Memory saved — stop spinner, update text, reset send button
+          const chip = document.getElementById("memorySavingChip");
+          if (chip) {
+            const spinner = chip.querySelector(".summary-logo-spinner");
+            if (spinner) {
+              spinner.classList.remove("summary-logo-spinner");
+              spinner.classList.add("summary-logo-static");
+              spinner.style.animation = "none";
+            }
+            const text = chip.querySelector(".summary-text");
+            if (text) text.textContent = message?.title || "🧠 Memórias salvas";
+            chip.removeAttribute("id");
+          }
+
+          // NOW reset send button
+          activeGenerationController = null;
+          const sendBtn = document.querySelector(".chat-send-btn");
+          if (sendBtn) {
+            sendBtn.classList.remove("stop-mode");
+            sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+          }
         }
       },
 

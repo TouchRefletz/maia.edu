@@ -330,7 +330,13 @@ export async function runChatPipeline(
     }
 
     // === MEMORY EXTRACTION (ASYNC) ===
-    // Não aguardamos para não travar a resposta da UI
+    // Notify UI that memory saving is starting
+    if (context.onProcessingStatus) {
+      context.onProcessingStatus("memory_saving", {
+        title: "Salvando memórias...",
+      });
+    }
+
     setTimeout(() => {
       MemoryService.extractAndSaveNarrative(
         message,
@@ -338,10 +344,22 @@ export async function runChatPipeline(
         context.apiKey,
         attachments,
       )
-        .then(() => console.log("[Pipeline] 🧠 Ciclo de memória concluído."))
-        .catch((err) =>
-          console.error("[Pipeline] ⚠️ Erro no ciclo de memória:", err),
-        );
+        .then(() => {
+          console.log("[Pipeline] 🧠 Ciclo de memória concluído.");
+          if (context.onProcessingStatus) {
+            context.onProcessingStatus("memory_saved", {
+              title: "Memórias salvas",
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("[Pipeline] ⚠️ Erro no ciclo de memória:", err);
+          if (context.onProcessingStatus) {
+            context.onProcessingStatus("memory_saved", {
+              title: "Memórias processadas",
+            });
+          }
+        });
     }, 100);
 
     return { success: true, mode: finalMode, response: finalContent };
