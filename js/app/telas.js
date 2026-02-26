@@ -101,7 +101,7 @@ function renderInitialUI() {
         <button class="nav-sidebar-item nav-item--search js-iniciar-busca">
           <span class="nav-icon">🔍</span>
           <span class="nav-label">
-            <span class="nav-title">Pesquisar Provas</span>
+            <span class="nav-title">Pesquisar Questões</span>
             <span class="nav-desc">Busque e extraia da web</span>
           </span>
         </button>
@@ -109,7 +109,7 @@ function renderInitialUI() {
         <button class="nav-sidebar-item nav-item--upload js-iniciar-upload">
           <span class="nav-icon">✨</span>
           <span class="nav-label">
-            <span class="nav-title">Extrair exercícios</span>
+            <span class="nav-title">Extrair Exercícios</span>
             <span class="nav-desc">Através de IA em arquivos PDF</span>
           </span>
         </button>
@@ -1217,6 +1217,15 @@ window.loadChat = async function (chatId) {
           `Modo ${modeNames[mode] || mode} selecionado`,
           contentDiv,
         );
+      } else if (msg.content && msg.content.type === "extraction_triggered") {
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = `
+          <div style="font-size:13px; line-height:1.5;">${msg.content.message || "Extração de questões solicitada para completar lacunas no banco de dados."}</div>
+        `;
+        renderedContent = createExpandableStatusGlobal(
+          "🔍 Extração de questões solicitada",
+          contentDiv,
+        );
       }
 
       if (renderedContent) {
@@ -1582,6 +1591,20 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             }
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
           }
+        } else if (type === "extraction_triggered" && messagesContainer) {
+          // Gap detector notification — async, can arrive during/after streaming
+          const { title, message: msg } = data;
+          const systemMsg = document.createElement("div");
+          systemMsg.className = "chat-message chat-message--system visible";
+          systemMsg.innerHTML = `
+            <div class="chat-message-content" style="padding:12px 16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px;">
+              <div style="font-weight:600; margin-bottom:6px; color:var(--color-primary); font-size:13px;">🔍 ${title || "Extração solicitada"}</div>
+              <div style="font-size:13px; line-height:1.5; color:var(--color-text);">${msg || ""}</div>
+            </div>
+          `;
+          // Insert at current bottom (after response or loading)
+          messagesContainer.appendChild(systemMsg);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
       },
 
@@ -1991,6 +2014,19 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           } else {
             messagesContainer.appendChild(systemMsg);
           }
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else if (type === "extraction_triggered" && messagesContainer) {
+          // Gap detector notification — async, can arrive during/after streaming
+          const { title, message: msg } = message;
+          const systemMsg = document.createElement("div");
+          systemMsg.className = "chat-message chat-message--system visible";
+          systemMsg.innerHTML = `
+            <div class="chat-message-content" style="padding:12px 16px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:10px;">
+              <div style="font-weight:600; margin-bottom:6px; color:var(--color-primary); font-size:13px;">🔍 ${title || "Extração solicitada"}</div>
+              <div style="font-size:13px; line-height:1.5; color:var(--color-text);">${msg || ""}</div>
+            </div>
+          `;
+          messagesContainer.appendChild(systemMsg);
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
       },

@@ -90,6 +90,16 @@ export default {
 				case '/canonical-slug':
 					return handleCanonicalSlug(request, env);
 
+				// --- EXTRACTION PIPELINE ---
+				case '/trigger-extraction':
+					return handleTriggerExtraction(request, env);
+
+				case '/check-duplicate':
+					return handleCheckDuplicate(request, env);
+
+				case '/extract-and-save':
+					return handleExtractAndSave(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -107,7 +117,7 @@ export default {
  */
 async function handleTriggerDeepSearch(request, env) {
 	const body = await request.json();
-	const { query, ntfy_topic, force, cleanup, confirm, mode } = body;
+	const { query, ntfy_topic, force, cleanup, confirm, mode, search_type } = body;
 
 	// 1. Validate Input
 	if (!query) {
@@ -194,7 +204,7 @@ async function handleTriggerDeepSearch(request, env) {
 
 			const slugReq = new Request('http://internal/canonical-slug', {
 				method: 'POST',
-				body: JSON.stringify({ query }),
+				body: JSON.stringify({ query, search_type }),
 			});
 			const slugRes = await handleCanonicalSlug(slugReq, env);
 
@@ -321,6 +331,7 @@ async function handleTriggerDeepSearch(request, env) {
 				ntfy_topic,
 				cleanup: cleanup || false,
 				mode: mode || 'overwrite', // 'overwrite' or 'update'
+				search_type: search_type || 'provas', // 'provas' ou 'questoes'
 			},
 		}),
 	});
@@ -1846,7 +1857,7 @@ async function handleManualUpload(request, env) {
  */
 async function handleCanonicalSlug(request, env) {
 	const body = await request.json();
-	const { query } = body;
+	const { query, search_type = 'provas' } = body;
 
 	if (!query) {
 		return new Response(JSON.stringify({ error: 'Query is required' }), { status: 400, headers: corsHeaders });
@@ -1857,7 +1868,24 @@ async function handleCanonicalSlug(request, env) {
 
 	try {
 		const currentDate = new Date().toISOString();
-		const prompt = `You are a precise naming authority for exam repositories. Your goal is to convert user queries into a standard 'canonical' kebab-case slug.
+
+		let prompt = '';
+		if (search_type === 'questoes') {
+			prompt = `You are a precise naming authority for document repositories. Your goal is to convert user queries for question sets into a standard 'canonical' kebab-case slug.
+
+Rules:
+1. Format: \`questoes-tema\` (e.g., \`questoes-geometria-analitica-ita\`, \`questoes-logaritmo\`).
+2. Prefix MUST be 'questoes-'.
+3. CRITICAL: You MUST STRIP all unnecessary words and keep only the core theme and institution (if any).
+   
+   Example: "questões enem 2025 de matematica" -> "questoes-matematica-enem-2025"
+   Example: "lista de exercicios de logaritmo" -> "questoes-logaritmo"
+
+Query: "${query}"
+
+Output JSON ONLY.`;
+		} else {
+			prompt = `You are a precise naming authority for exam repositories. Your goal is to convert user queries into a standard 'canonical' kebab-case slug.
 
 Rules:
 1. Format: \`exam-name-year\` (e.g., \`enem-2024\`, \`ita-2025\`, \`fuvest-2024\`).
@@ -1877,6 +1905,7 @@ Rules:
 Query: "${query}"
 
 Output JSON ONLY.`;
+		}
 
 		const schema = {
 			type: 'OBJECT',
@@ -1952,4 +1981,451 @@ Output JSON ONLY.`;
 	return new Response(JSON.stringify({ slug: canonicalSlug, reasoning }), {
 		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 	});
+}
+
+// ============================================================
+// EXTRACTION PIPELINE ENDPOINTS
+// ============================================================
+
+/**
+ * SERVICE: TRIGGER EXTRACTION
+ * Smart dispatch:
+ * 1. Check if PDFs exist for the topic (Pinecone deep-search index)
+ * 2. If PDFs exist → dispatch extract-questions.yml
+ * 3. If no PDFs → dispatch deep-search.yml first (with search_type: questoes)
+ * 4. If PDFs exist but needs_more → dispatch deep-search in update mode
+ */
+async function handleTriggerExtraction(request, env) {
+	const body = await request.json();
+	const { query, institution, subject, year, needs_more } = body;
+
+	if (!query) {
+		return new Response(JSON.stringify({ error: 'Query is required' }), {
+			status: 400,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	const githubPat = env.GITHUB_PAT;
+	const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+	const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+	if (!githubPat) {
+		return new Response(JSON.stringify({ error: 'GITHUB_PAT not configured' }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	// Step 1: Check if we already have PDFs for this topic
+	let existingSlug = null;
+	let hasPdfs = false;
+
+	try {
+		const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
+		if (embedding) {
+			const result = await executePineconeQuery(embedding, env, 3, {
+				type: { $in: ['deep-search-result', 'manual-upload-result'] },
+			});
+
+			if (result?.matches?.length > 0) {
+				const best = result.matches[0];
+				if (best.score > 0.75 && best.metadata?.slug) {
+					existingSlug = best.metadata.slug;
+					hasPdfs = true;
+					console.log(`[TriggerExtraction] Found existing PDFs: ${existingSlug} (score: ${best.score})`);
+				}
+			}
+		}
+	} catch (e) {
+		console.warn('[TriggerExtraction] Pinecone check error:', e);
+	}
+
+	// Step 2: Determine action
+	const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+	const githubHeaders = {
+		Authorization: `Bearer ${githubPat}`,
+		Accept: 'application/vnd.github.v3+json',
+		'User-Agent': 'Cloudflare-Worker',
+		'Content-Type': 'application/json',
+	};
+
+	let action;
+	let dispatchPayload;
+
+	if (hasPdfs && !needs_more) {
+		// PDFs exist → extract directly
+		action = 'extract-questions';
+		dispatchPayload = {
+			event_type: 'extract-questions',
+			client_payload: {
+				query,
+				slug: existingSlug,
+				institution: institution || '',
+				subject: subject || '',
+				year: year || '',
+			},
+		};
+	} else if (hasPdfs && needs_more) {
+		// PDFs exist but need more → deep-search in update mode, then extract
+		action = 'deep-search-update';
+		dispatchPayload = {
+			event_type: 'deep-search',
+			client_payload: {
+				query,
+				slug: existingSlug,
+				mode: 'update',
+				search_type: 'questoes',
+				extract_after: true, // Signal to trigger extraction after
+			},
+		};
+	} else {
+		// No PDFs → deep-search first
+		action = 'deep-search-new';
+
+		// Generate a slug for the new search
+		let slug = query
+			.toLowerCase()
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '');
+
+		dispatchPayload = {
+			event_type: 'deep-search',
+			client_payload: {
+				query,
+				slug,
+				search_type: 'questoes',
+				extract_after: true,
+			},
+		};
+	}
+
+	// Step 3: Dispatch to GitHub Actions
+	const response = await fetch(dispatchUrl, {
+		method: 'POST',
+		headers: githubHeaders,
+		body: JSON.stringify(dispatchPayload),
+	});
+
+	if (!response.ok) {
+		const errText = await response.text();
+		console.error('[TriggerExtraction] GitHub dispatch failed:', errText);
+		return new Response(JSON.stringify({ error: `GitHub API Error: ${response.status}`, details: errText }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	return new Response(
+		JSON.stringify({
+			success: true,
+			action,
+			slug: existingSlug || dispatchPayload.client_payload.slug,
+			message: action === 'extract-questions' ? 'Extraction triggered directly' : 'Deep search triggered (extraction will follow)',
+		}),
+		{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+	);
+}
+
+/**
+ * SERVICE: CHECK DUPLICATE
+ * Generates embedding from question text, queries Pinecone question index.
+ * Score > 0.92 = confirmed duplicate.
+ */
+async function handleCheckDuplicate(request, env) {
+	const body = await request.json();
+	const { text } = body;
+
+	if (!text) {
+		return new Response(JSON.stringify({ error: 'text is required' }), {
+			status: 400,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	try {
+		// Generate embedding for the question text
+		const embedding = await generateEmbedding(text, env.GOOGLE_GENAI_API_KEY);
+
+		if (!embedding) {
+			return new Response(JSON.stringify({ error: 'Failed to generate embedding' }), {
+				status: 500,
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			});
+		}
+
+		// Query the question index (default Pinecone host = question bank)
+		const result = await executePineconeQuery(embedding, env, 3, {}, 'default', '');
+
+		if (!result?.matches?.length) {
+			return new Response(JSON.stringify({ exists: false, matches: [] }), {
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			});
+		}
+
+		const DEDUP_THRESHOLD = 0.92;
+		const matches = result.matches
+			.filter((m) => m.score > 0.7) // Only show somewhat relevant matches
+			.map((m) => ({
+				id: m.id,
+				score: m.score,
+				preview: m.metadata?.texto_preview || '',
+				institution: m.metadata?.institution || '',
+				year: m.metadata?.year || '',
+			}));
+
+		const exists = result.matches[0].score > DEDUP_THRESHOLD;
+
+		return new Response(JSON.stringify({ exists, matches, threshold: DEDUP_THRESHOLD }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		console.error('[CheckDuplicate] Error:', error);
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * SERVICE: EXTRACT AND SAVE
+ * Full question persistence: generates embeddings, upserts to Pinecone,
+ * saves to Firebase RTDB via REST API.
+ *
+ * Input: { questao, gabarito, source_slug, source_pdf, page_num }
+ * - questao: full dados_questao object
+ * - gabarito: full dados_gabarito object
+ * - source_slug: origin slug for grouping
+ * - source_pdf: PDF filename
+ * - page_num: page number in PDF
+ */
+async function handleExtractAndSave(request, env) {
+	const body = await request.json();
+	const { questao, gabarito, source_slug, source_pdf, page_num } = body;
+
+	if (!questao || !gabarito || !source_slug) {
+		return new Response(JSON.stringify({ error: 'questao, gabarito, and source_slug are required' }), {
+			status: 400,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	try {
+		// 1. Build semantic text (replicating construirTextoSemantico logic)
+		const textoQuestao = buildSemanticText(questao, gabarito);
+
+		// 2. Generate embedding
+		const embedding = await generateEmbedding(textoQuestao, env.GOOGLE_GENAI_API_KEY);
+
+		if (!embedding) {
+			throw new Error('Failed to generate embedding');
+		}
+
+		// 3. Build IDs
+		const chaveProva = source_slug;
+		const idQuestao = questao.identificacao || `Q${page_num || 0}_${Date.now().toString(36)}`;
+
+		// Base64URL ID (matching existing format)
+		const rawId = `${chaveProva} – ${idQuestao}`;
+		const pineconeId = btoa(rawId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+		// 4. Build full JSON for Pinecone metadata
+		const fullJson = JSON.stringify({
+			meta: {
+				timestamp: new Date().toISOString(),
+				source_slug,
+				source_pdf: source_pdf || '',
+			},
+			dados_questao: questao,
+			dados_gabarito: gabarito,
+		});
+
+		// 5. Build Pinecone metadata
+		const metadata = {
+			institution: questao.instituicao || gabarito?.creditos?.autor_ou_instituicao || '',
+			prova: chaveProva,
+			subject: (questao.materias_possiveis || []).slice(0, 3),
+			year: questao.ano || gabarito?.creditos?.ano || '',
+			texto_preview: textoQuestao.substring(0, 300),
+			has_full_json: fullJson.length <= 40000, // Pinecone metadata limit ~40KB
+		};
+
+		// Only include full_json if under limit
+		if (metadata.has_full_json) {
+			metadata.full_json = fullJson;
+		}
+
+		// Auto-detect question type
+		const tipoResposta = questao.alternativas && questao.alternativas.length > 0 ? 'objetiva' : 'dissertativa';
+		metadata.tipo_resposta = tipoResposta;
+
+		// 6. Upsert to Pinecone
+		const vectors = [
+			{
+				id: pineconeId,
+				values: embedding,
+				metadata,
+			},
+		];
+
+		await executePineconeUpsert(vectors, env, '', 'default');
+
+		// 7. Save to Firebase RTDB via REST API
+		let firebaseSaved = false;
+		const firebaseUrl = env.FIREBASE_DATABASE_URL;
+
+		if (firebaseUrl) {
+			try {
+				const firebasePath = `questoes/${chaveProva}/${idQuestao}.json`;
+				const firebaseData = {
+					dados_questao: {
+						...questao,
+						tipo_resposta: tipoResposta,
+					},
+					dados_gabarito: gabarito,
+					meta: {
+						pinecone_id: pineconeId,
+						source_pdf: source_pdf || '',
+						page_num: page_num || 0,
+						created_at: new Date().toISOString(),
+					},
+				};
+
+				const fbResponse = await fetch(`${firebaseUrl}/${firebasePath}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(firebaseData),
+				});
+
+				firebaseSaved = fbResponse.ok;
+				if (!firebaseSaved) {
+					console.warn('[ExtractAndSave] Firebase save failed:', await fbResponse.text());
+				}
+			} catch (fbErr) {
+				console.warn('[ExtractAndSave] Firebase error:', fbErr);
+			}
+		} else {
+			console.warn('[ExtractAndSave] FIREBASE_DATABASE_URL not configured, skipping Firebase save');
+		}
+
+		return new Response(
+			JSON.stringify({
+				saved: true,
+				pinecone_id: pineconeId,
+				firebase_path: `questoes/${chaveProva}/${idQuestao}`,
+				firebase_saved: firebaseSaved,
+				tipo_resposta: tipoResposta,
+			}),
+			{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+		);
+	} catch (error) {
+		console.error('[ExtractAndSave] Error:', error);
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * HELPER: Build semantic text for embedding
+ * Full port of construirTextoSemantico from js/ia/envio-textos.js
+ * Combines: construirTextoQuestao + construirTextoSolucao + construirTextoComplexidade
+ */
+function buildSemanticText(questao, gabarito) {
+	const parts = [];
+
+	// Contexto (Matéria e Keywords)
+	if (questao.materias_possiveis && Array.isArray(questao.materias_possiveis)) {
+		txtQ += `MATÉRIA: ${questao.materias_possiveis.join(', ')}. `;
+	}
+	if (questao.palavras_chave && Array.isArray(questao.palavras_chave)) {
+		txtQ += `PALAVRAS-CHAVE: ${questao.palavras_chave.join(', ')}. `;
+	}
+
+	// Enunciado (ALL content from estrutura, not just texto/fonte)
+	let textoEnunciado = '';
+	if (questao.estrutura && Array.isArray(questao.estrutura)) {
+		textoEnunciado = questao.estrutura.map((item) => item.conteudo || '').join(' ');
+	}
+	txtQ += `ENUNCIADO: ${textoEnunciado} `;
+
+	// Alternativas
+	if (questao.alternativas && Array.isArray(questao.alternativas)) {
+		const textoAlts = questao.alternativas
+			.map((alt) => {
+				let conteudoAlt = alt.texto || '';
+				// Prioriza estrutura se existir
+				if (alt.estrutura && Array.isArray(alt.estrutura)) {
+					conteudoAlt = alt.estrutura.map((i) => i.conteudo).join(' ');
+				}
+				return `${alt.letra || '?'}: ${conteudoAlt}`;
+			})
+			.join(' | ');
+		txtQ += `ALTERNATIVAS: ${textoAlts} `;
+	}
+
+	// === 2. construirTextoSolucao ===
+	let txtS = '';
+	if (gabarito) {
+		// Letra Correta
+		if (gabarito.dados_gabarito?.alternativa_correta) {
+			txtS += `GABARITO: Alternativa ${gabarito.dados_gabarito.alternativa_correta}. `;
+		} else if (gabarito.alternativa_correta) {
+			txtS += `GABARITO: Alternativa ${gabarito.alternativa_correta}. `;
+		}
+
+		// Resposta modelo (dissertativas)
+		if (gabarito.resposta_modelo) {
+			txtS += `RESPOSTA MODELO: ${gabarito.resposta_modelo} `;
+		} else if (gabarito.dados_gabarito?.resposta_modelo) {
+			txtS += `RESPOSTA MODELO: ${gabarito.dados_gabarito.resposta_modelo} `;
+		}
+
+		// Explicação Detalhada (array of blocos with estrutura)
+		const explicacao = gabarito.explicacao || gabarito.dados_gabarito?.explicacao;
+		if (explicacao && Array.isArray(explicacao)) {
+			const textoExpl = explicacao.flatMap((bloco) => (bloco.estrutura ? bloco.estrutura.map((i) => i.conteudo) : [])).join(' ');
+			if (textoExpl) txtS += `EXPLICAÇÃO: ${textoExpl} `;
+		}
+
+		// Análise dos Distratores
+		const analisadas = gabarito.dados_gabarito?.alternativas_analisadas || gabarito.alternativas_analisadas;
+		if (analisadas && Array.isArray(analisadas)) {
+			const textoMotivos = analisadas.map((analise) => `(${analise.letra}) ${analise.motivo || ''}`).join(' ');
+			if (textoMotivos) txtS += `ANÁLISE DOS DISTRATORES: ${textoMotivos} `;
+		}
+
+		// Justificativa Curta
+		const justificativa = gabarito.justificativa_curta || gabarito.dados_gabarito?.justificativa_curta;
+		if (justificativa) {
+			txtS += `RESUMO: ${justificativa} `;
+		}
+	}
+
+	// === 3. construirTextoComplexidade ===
+	let txtC = '';
+	const complex = gabarito?.dados_gabarito?.analise_complexidade || gabarito?.analise_complexidade;
+	if (complex) {
+		// Justificativa da Dificuldade
+		if (complex.justificativa_dificuldade) {
+			txtC += `COMPLEXIDADE: ${complex.justificativa_dificuldade} `;
+		}
+
+		// Fatores Ativos
+		if (complex.fatores) {
+			const fatoresAtivos = Object.entries(complex.fatores)
+				.filter(([, value]) => value === true)
+				.map(([key]) => key)
+				.join(', ');
+			if (fatoresAtivos) {
+				txtC += `Fatores: ${fatoresAtivos}.`;
+			}
+		}
+	}
+
+	return txtQ + txtS + txtC;
 }

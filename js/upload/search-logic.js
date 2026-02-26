@@ -263,6 +263,43 @@ export function setupSearchLogic() {
   const btnShowUpload = document.getElementById("btnShowUpload");
   const btnBackToSearch = document.getElementById("btnBackToSearch");
 
+  const btnTypeProvas = document.getElementById("btnTypeProvas");
+  const btnTypeQuestoes = document.getElementById("btnTypeQuestoes");
+
+  let currentSearchType = "provas";
+
+  if (btnTypeProvas && btnTypeQuestoes) {
+    btnTypeProvas.addEventListener("click", () => {
+      currentSearchType = "provas";
+      btnTypeProvas.classList.add("active");
+      btnTypeProvas.style.background = "var(--color-primary)";
+      btnTypeProvas.style.color = "white";
+
+      btnTypeQuestoes.classList.remove("active");
+      btnTypeQuestoes.style.background = "transparent";
+      btnTypeQuestoes.style.color = "var(--color-text-secondary)";
+
+      searchInput.placeholder = "Ex: Provas do ENEM 2023...";
+      document.getElementById("searchTitle").innerHTML =
+        "Nos dê o nome da prova e <strong>fazemos</strong> o resto.";
+    });
+
+    btnTypeQuestoes.addEventListener("click", () => {
+      currentSearchType = "questoes";
+      btnTypeQuestoes.classList.add("active");
+      btnTypeQuestoes.style.background = "var(--color-primary)";
+      btnTypeQuestoes.style.color = "white";
+
+      btnTypeProvas.classList.remove("active");
+      btnTypeProvas.style.background = "transparent";
+      btnTypeProvas.style.color = "var(--color-text-secondary)";
+
+      searchInput.placeholder = "Ex: Questões de Geometria Analítica ITA...";
+      document.getElementById("searchTitle").innerHTML =
+        "Nos dê o tema e <strong>encontramos</strong> as questões.";
+    });
+  }
+
   const searchContainer = document.getElementById("searchContainer");
   const manualUploadContainer = document.getElementById(
     "manualUploadContainer",
@@ -601,6 +638,7 @@ export function setupSearchLogic() {
           cleanup,
           confirm,
           mode,
+          search_type: currentSearchType,
           apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
         }),
       });

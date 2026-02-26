@@ -27,6 +27,15 @@ export function getSearchInterfaceHTML() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </button>
             </div>
+            
+            <div id="searchTypeToggle" style="display: flex; gap: 10px; margin-top: 20px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 400px;">
+                <button id="btnTypeProvas" data-type="provas" class="type-btn active" style="flex: 1; padding: 8px 16px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                    Buscar Provas
+                </button>
+                <button id="btnTypeQuestoes" data-type="questoes" class="type-btn" style="flex: 1; padding: 8px 16px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                    Buscar Questões
+                </button>
+            </div>
 
             <p style="text-align: center; color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 15px; opacity: 0.8;">
                 Resultados gerados por IA podem conter imprecisões. 

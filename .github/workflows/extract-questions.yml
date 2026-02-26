@@ -1,0 +1,202 @@
+name: Extract Questions
+
+on:
+  repository_dispatch:
+    types: [extract-questions]
+  workflow_dispatch:
+    inputs:
+      slug:
+        description: "Slug of the PDF collection on HuggingFace"
+        required: true
+      query:
+        description: "Original search query for context"
+        required: false
+      institution:
+        description: "Filter: Institution (e.g. ENEM, FUVEST)"
+        required: false
+      subject:
+        description: "Filter: Subject (e.g. Física, Matemática)"
+        required: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    env:
+      GOOGLE_GENAI_API_KEY: ${{ secrets.LLM_API_KEY }}
+      WORKER_URL: https://maia-api-worker.willian-campos-ismart.workers.dev
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_REPO: TouchRefletz/maia.edu
+      SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
+      QUERY: ${{ github.event.client_payload.query || inputs.query || '' }}
+      INSTITUTION: ${{ github.event.client_payload.institution || inputs.institution || '' }}
+      SUBJECT: ${{ github.event.client_payload.subject || inputs.subject || '' }}
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y poppler-utils
+          pip install google-genai pdf2image Pillow requests huggingface_hub
+
+      - name: Download PDFs from HuggingFace
+        run: |
+          python3 - <<'EOF'
+          import os, json
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ.get("HF_TOKEN"))
+          repo = os.environ["HF_REPO"]
+          slug = os.environ["SLUG"]
+          prefix = f"output/{slug}/files/"
+
+          print(f"📥 Downloading PDFs from {repo}/{prefix}")
+
+          files = api.list_repo_files(repo_id=repo, repo_type="dataset")
+          pdf_files = [f for f in files if f.startswith(prefix) and f.endswith(".pdf")]
+
+          if not pdf_files:
+              print("❌ No PDF files found for this slug")
+              # Check if manifest exists with checkpoint
+              try:
+                  api.hf_hub_download(repo_id=repo, filename=f"output/{slug}/manifest.json",
+                                       repo_type="dataset", local_dir="./hf_data")
+                  print("📋 Found manifest.json (may contain checkpoint)")
+              except:
+                  pass
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("has_pdfs=false\n")
+              exit(0)
+
+          os.makedirs("pdfs", exist_ok=True)
+          for pdf_path in pdf_files:
+              api.hf_hub_download(repo_id=repo, filename=pdf_path,
+                                   repo_type="dataset", local_dir="./hf_data")
+              print(f"  ✅ {pdf_path}")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("has_pdfs=true\n")
+              f.write(f"pdf_count={len(pdf_files)}\n")
+          EOF
+        id: download
+
+      - name: Check for Existing Manifest (Resume Support)
+        if: steps.download.outputs.has_pdfs == 'true'
+        run: |
+          python3 - <<'EOF'
+          import os, json
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ.get("HF_TOKEN"))
+          repo = os.environ["HF_REPO"]
+          slug = os.environ["SLUG"]
+
+          manifest = {"status": "starting", "slug": slug, "extraction_results": {}}
+
+          try:
+              path = api.hf_hub_download(
+                  repo_id=repo,
+                  filename=f"output/{slug}/manifest.json",
+                  repo_type="dataset",
+                  local_dir="./hf_data"
+              )
+              with open(path) as f:
+                  existing = json.load(f)
+
+              if existing.get("extraction_results"):
+                  manifest = existing
+                  if manifest.get("rate_limit_hit"):
+                      print("⚡ Resuming from rate-limited checkpoint!")
+                      manifest["rate_limit_hit"] = False
+                  elif manifest.get("status") == "complete":
+                      print("✅ Extraction already complete, nothing to do")
+                  else:
+                      print(f"📋 Resuming from existing manifest (status: {manifest.get('status')})")
+              else:
+                  print("📋 Fresh manifest")
+          except Exception as e:
+              print(f"📋 No existing manifest: {e}")
+
+          os.makedirs("work", exist_ok=True)
+          with open("work/manifest.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+      - name: Run Extraction Pipeline
+        if: steps.download.outputs.has_pdfs == 'true'
+        run: python3 .github/scripts/extract_pipeline.py
+        env:
+          MANIFEST_PATH: work/manifest.json
+
+      - name: Upload Manifest to HuggingFace
+        if: always() && steps.download.outputs.has_pdfs == 'true'
+        run: |
+          python3 - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ.get("HF_TOKEN"))
+          repo = os.environ["HF_REPO"]
+          slug = os.environ["SLUG"]
+          manifest_path = "work/manifest.json"
+
+          if os.path.exists(manifest_path):
+              api.upload_file(
+                  path_or_fileobj=manifest_path,
+                  path_in_repo=f"output/{slug}/manifest.json",
+                  repo_id=repo,
+                  repo_type="dataset",
+                  commit_message=f"[extract-questions] Update manifest for {slug}"
+              )
+              print(f"✅ Manifest uploaded to {repo}/output/{slug}/manifest.json")
+          else:
+              print("⚠️ No manifest to upload")
+          EOF
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os
+
+          manifest_path = "work/manifest.json"
+          if not os.path.exists(manifest_path):
+              print("No manifest found")
+              exit(0)
+
+          with open(manifest_path) as f:
+              m = json.load(f)
+
+          total_extracted = 0
+          total_skipped = 0
+          total_failed = 0
+
+          for pdf, data in m.get("extraction_results", {}).items():
+              for page, pdata in data.get("pages", {}).items():
+                  for q in pdata.get("questions", []):
+                      if q["status"] == "extracted":
+                          total_extracted += 1
+                      elif q["status"] == "skipped_dedup":
+                          total_skipped += 1
+                      elif q["status"] == "failed":
+                          total_failed += 1
+
+          print(f"📊 Extraction Summary:")
+          print(f"   Status: {m.get('status', 'unknown')}")
+          print(f"   Extracted: {total_extracted}")
+          print(f"   Skipped (dedup): {total_skipped}")
+          print(f"   Failed: {total_failed}")
+          print(f"   Rate limited: {m.get('rate_limit_hit', False)}")
+          EOF

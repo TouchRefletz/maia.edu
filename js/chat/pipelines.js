@@ -12,6 +12,10 @@ import {
 import { determineFinalMode } from "./router.js";
 import { CHAT_RESPONSE_SCHEMA, SCAFFOLDING_STEP_SCHEMA } from "./schemas.js"; // Import schema
 import { ScaffoldingService } from "./services/scaffolding-service.js"; // Import ScaffoldingService
+import {
+  checkQuestionRelevance,
+  triggerQuestionExtraction,
+} from "./services/gap-detector.js"; // Import Gap Detector
 import { ChatStorageService } from "../services/chat-storage.js"; // Import Persistence Service
 
 /**
@@ -190,11 +194,33 @@ export async function runChatPipeline(
         // REGISTRA QUERY USADA PARA NÃO REPETIR
         context.previousQueries.push(routerResult.busca_questao.conteudo);
 
-        // Injeta a questão no fluxo como um SYSTEM MESSAGE disfarçado ou append no user message
-        // Para garantir que o modelo use, vamos adicionar explicitamente
+        // SEMPRE injeta no contexto (mesmo com gap)
         additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário solicitou uma questão. Use os dados abaixo para gerar o bloco 'questao' na resposta. Não invente, use estes dados:\n${JSON.stringify(questionData.fullData)}`;
 
-        // Opcional: Forçar modo raciocínio se a questão for complexa? O router já deve ter decidido ALTA complexidade.
+        // GAP DETECTION: Check if result is genuinely relevant
+        // Runs in parallel — don't block the chat response
+        checkQuestionRelevance(
+          routerResult.busca_questao.conteudo,
+          questionData,
+          context.apiKey,
+          context.signal,
+        )
+          .then((relevance) => {
+            console.log("[Pipeline] 🔍 Relevance check:", relevance);
+            if (!relevance.relevant || relevance.needs_more) {
+              console.log("[Pipeline] 🔍 Gap detected — triggering extraction");
+              triggerQuestionExtraction(routerResult.busca_questao, context);
+            }
+          })
+          .catch((err) => {
+            if (err.name !== "AbortError") {
+              console.warn("[Pipeline] ⚠️ Gap detection error:", err);
+            }
+          });
+      } else {
+        // No results at all — trigger extraction
+        console.log("[Pipeline] ❌ No question found — triggering extraction");
+        triggerQuestionExtraction(routerResult.busca_questao, context);
       }
     } catch (err) {
       console.warn(

@@ -60,7 +60,13 @@ export function obterConfiguracaoIA(modo) {
         alternativa_correta: {
           type: "string",
           description:
-            "A alternativa correta, indicada no gabarito (ex.: 'A').",
+            "A alternativa correta, indicada no gabarito (ex.: 'A'). Deixe vazio para questões dissertativas.",
+        },
+
+        resposta_modelo: {
+          type: "string",
+          description:
+            "Para questões dissertativas: resposta modelo esperada. Para objetivas, pode ficar vazio.",
         },
 
         justificativa_curta: {
@@ -458,8 +464,16 @@ export function obterConfiguracaoIA(modo) {
           description: "Principais termos chave.",
           items: { type: "string" },
         },
+        tipo_resposta: {
+          type: "string",
+          enum: ["objetiva", "dissertativa"],
+          description:
+            "Se a questão tem alternativas (A, B, C...), é 'objetiva'. Se pede resposta escrita/discursiva, é 'dissertativa'.",
+        },
         alternativas: {
           type: "array",
+          description:
+            "Lista de alternativas. Para questões dissertativas, este array deve estar VAZIO [].",
           items: { $ref: "#/$defs/alternativa" },
         },
       },
@@ -469,6 +483,7 @@ export function obterConfiguracaoIA(modo) {
         "palavras_chave",
         "alternativas",
         "estrutura",
+        "tipo_resposta",
       ],
       $defs: {
         blocoConteudo: {

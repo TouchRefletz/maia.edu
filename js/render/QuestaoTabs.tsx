@@ -20,6 +20,7 @@ import { renderTags } from './final/render-components.js';
 import { AcoesGabaritoView, GabaritoCardView, GabaritoEditorView, prepararDadosGabarito } from './GabaritoCard.js';
 import { MobileInteractableHeader } from './MobileLayout';
 import { MainStructure } from './StructureRender';
+import { checkAnswerWithEmbeddings, checkAnswerWithAI } from '../services/answer-checker.js';
 
 // Interfaces básicas para Tipagem (adaptar conforme seus objetos reais)
 interface Bloco {
@@ -39,6 +40,7 @@ interface QuestaoData {
   materias_possiveis: string[];
   palavras_chave: string[];
   alternativas: Alternativa[];
+  tipo_resposta?: 'objetiva' | 'dissertativa';
   isRecitation?: boolean;
 }
 
@@ -74,6 +76,53 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
   
   // Referência para o container do componente
   const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Estado para dissertativa (resposta do aluno)
+  const [userAnswer, setUserAnswer] = useState('');
+  const [answerResult, setAnswerResult] = useState<any>(null);
+  const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
+  const [isAIChecking, setIsAIChecking] = useState(false);
+
+  // Detecta se é dissertativa
+  const isDissertativa = questao.tipo_resposta === 'dissertativa' || 
+    (!questao.alternativas || questao.alternativas.length === 0);
+
+  // Handler: Check answer via embeddings (default)
+  const handleCheckEmbeddings = async () => {
+    if (!userAnswer.trim()) return;
+    setIsCheckingAnswer(true);
+    setAnswerResult(null);
+    try {
+      const expectedAnswer = gabarito?.resposta_modelo || gabarito?.dados_gabarito?.resposta_modelo || '';
+      const result = await checkAnswerWithEmbeddings(
+        userAnswer,
+        expectedAnswer,
+        { dados_questao: questao },
+        (window as any).__API_KEY,
+      );
+      setAnswerResult(result);
+    } catch (e) {
+      console.error('[Dissertativa] Check error:', e);
+      setAnswerResult({ score: 0, feedback: 'Erro ao verificar resposta.', method: 'error' });
+    }
+    setIsCheckingAnswer(false);
+  };
+
+  // Handler: Check answer via AI (optional)
+  const handleCheckAI = async () => {
+    if (!userAnswer.trim()) return;
+    setIsAIChecking(true);
+    setAnswerResult(null);
+    try {
+      const fullJson = { dados_questao: questao, dados_gabarito: gabarito };
+      const result = await checkAnswerWithAI(userAnswer, fullJson, (window as any).__API_KEY);
+      setAnswerResult(result);
+    } catch (e) {
+      console.error('[Dissertativa] AI check error:', e);
+      setAnswerResult({ score: 0, feedback_geral: 'Erro na correção com IA.', method: 'error' });
+    }
+    setIsAIChecking(false);
+  };
 
   // Handlers para revisão
   const handleApprove = (fieldId: string) => {
@@ -444,27 +493,161 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             </div>
           )}
 
-          {/* Alternativas */}
-          {isReviewMode ? (
-            <div className="field-group">
-              <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
-              <div className="alts-list">
-                <Alternativas 
-                  alts={questao.alternativas} 
-                  isReviewMode={true}
-                  reviewState={reviewState}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                />
+          {/* Alternativas / Dissertativa */}
+          {isDissertativa ? (
+            /* === DISSERTATIVA MODE === */
+            <div className="field-group dissertativa-section">
+              <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ✍️ Resposta Dissertativa
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-primary)', color: '#fff', fontWeight: 500 }}>Dissertativa</span>
+              </span>
+              
+              {/* Input area */}
+              <textarea
+                className="form-control dissertativa-input"
+                placeholder="Digite sua resposta aqui..."
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                rows={6}
+                style={{
+                  width: '100%',
+                  resize: 'vertical',
+                  minHeight: '120px',
+                  fontFamily: 'inherit',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text)',
+                }}
+              />
+              
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={handleCheckEmbeddings}
+                  disabled={isCheckingAnswer || !userAnswer.trim()}
+                  style={{ flex: 1 }}
+                >
+                  {isCheckingAnswer ? '⏳ Verificando...' : '📊 Verificar Resposta'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--outline"
+                  onClick={handleCheckAI}
+                  disabled={isAIChecking || !userAnswer.trim()}
+                  title="Correção detalhada com IA (mais lento)"
+                  style={{ minWidth: '50px' }}
+                >
+                  {isAIChecking ? '⏳' : '🤖'}
+                </button>
               </div>
+              <small style={{ color: 'var(--color-text-secondary)', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+                📊 Verificação rápida por similaridade · 🤖 Correção detalhada com IA
+              </small>
+
+              {/* Result display */}
+              {answerResult && (
+                <div className="dissertativa-result" style={{
+                  marginTop: '12px',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: `1px solid ${answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)'}`,
+                  background: `${answerResult.score >= 70 ? 'rgba(34,197,94,0.08)' : answerResult.score >= 40 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'}`,
+                }}>
+                  {/* Score bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '28px', fontWeight: 700, color: answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)' }}>
+                      {answerResult.score}%
+                    </span>
+                    <div style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'var(--color-border)', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${answerResult.score}%`,
+                        height: '100%',
+                        borderRadius: '4px',
+                        background: answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)',
+                        transition: 'width 0.5s ease',
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* Embedding result */}
+                  {answerResult.method === 'embeddings' && (
+                    <div>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>{answerResult.feedback}</p>
+                      {answerResult.keywordsFound?.length > 0 && (
+                        <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', marginBottom: '4px' }}>
+                          ✅ Conceitos abordados: {answerResult.keywordsFound.join(', ')}
+                        </div>
+                      )}
+                      {answerResult.keywordsMissing?.length > 0 && (
+                        <div style={{ fontSize: '12px', color: 'var(--color-warning, #f59e0b)' }}>
+                          ⚠️ Conceitos ausentes: {answerResult.keywordsMissing.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* AI result */}
+                  {answerResult.method === 'ai' && (
+                    <div>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>{answerResult.feedback_geral}</p>
+                      {answerResult.pontos_fortes?.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)' }}>Pontos fortes:</strong>
+                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
+                            {answerResult.pontos_fortes.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {answerResult.pontos_fracos?.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <strong style={{ fontSize: '12px', color: 'var(--color-error, #ef4444)' }}>Pontos a melhorar:</strong>
+                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
+                            {answerResult.pontos_fracos.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {answerResult.sugestoes?.length > 0 && (
+                        <div>
+                          <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Sugestões:</strong>
+                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
+                            {answerResult.sugestoes.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="field-group">
-              <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
-              <div className="alts-list">
-                <Alternativas alts={questao.alternativas} />
+            /* === OBJETIVA MODE (original) === */
+            isReviewMode ? (
+              <div className="field-group">
+                <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
+                <div className="alts-list">
+                  <Alternativas 
+                    alts={questao.alternativas} 
+                    isReviewMode={true}
+                    reviewState={reviewState}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="field-group">
+                <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
+                <div className="alts-list">
+                  <Alternativas alts={questao.alternativas} />
+                </div>
+              </div>
+            )
           )}
         </div>
 
