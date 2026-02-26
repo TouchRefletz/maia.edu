@@ -225,7 +225,6 @@ def load_manifest():
         "query": QUERY,
         "institution": INSTITUTION,
         "subject": SUBJECT,
-        "extraction_results": {},
         "rate_limit_hit": False,
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
@@ -258,15 +257,7 @@ def crop_region(page_img: Image.Image, box: list) -> Image.Image:
     return page_img.crop((left, top, right, bottom))
 
 
-def should_skip_page(manifest, pdf_name, page_num):
-    """Check if a page was already fully processed."""
-    results = manifest.get("extraction_results", {}).get(pdf_name, {}).get("pages", {})
-    page_data = results.get(str(page_num), {})
-    # Skip if all questions on this page are in a final state
-    questions = page_data.get("questions", [])
-    if not questions:
-        return False
-    return all(q["status"] in ("extracted", "skipped_dedup") for q in questions)
+
 
 
 def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
@@ -511,40 +502,93 @@ def main():
     manifest = load_manifest()
     manifest["status"] = "in_progress"
 
-    # Find all PDFs
-    pdf_dir = "hf_data"
-    pdf_pattern = f"output/{SLUG}/files/*.pdf"
-    pdf_files = sorted(glob.glob(os.path.join(pdf_dir, pdf_pattern)))
+    items = []
+    if isinstance(manifest, list):
+        items = manifest
+    elif isinstance(manifest, dict):
+        items = manifest.get("results", manifest.get("files", manifest.get("items", [])))
 
-    if not pdf_files:
-        print("❌ No PDF files found!")
+    if not items:
+        print("❌ No valid items found in manifest to process")
         manifest["status"] = "error"
-        manifest["error"] = "No PDF files found"
+        manifest["error"] = "No items to process"
         save_manifest(manifest)
         sys.exit(1)
 
-    print(f"📄 Found {len(pdf_files)} PDFs to process")
-
+    pdf_dir = "pdfs"
+    os.makedirs(pdf_dir, exist_ok=True)
+    
     total_extracted = 0
     total_skipped = 0
     total_failed = 0
 
+    # Recalculate totals from existing items
+    for item in items:
+        data = item.get("extraction_results", {})
+        for page, pdata in data.get("pages", {}).items():
+            for q in pdata.get("questions", []):
+                if q["status"] == "extracted":
+                    total_extracted += 1
+                elif q["status"] == "skipped_dedup":
+                    total_skipped += 1
+                elif q["status"] == "failed":
+                    total_failed += 1
+
+    print(f"📄 Found {len(items)} items to process")
+
     try:
-        for pdf_path in pdf_files:
-            pdf_name = os.path.basename(pdf_path)
+        import urllib.request
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        for item_idx, item in enumerate(items):
+            url = item.get("url") or item.get("link") or item.get("link_origem") or item.get("external_url")
+            if not url or not url.startswith("http"):
+                continue
+
+            if "extraction_results" not in item:
+                item["extraction_results"] = {"pages": {}, "status": "pending"}
+            
+            # Check if this item is already fully extracted
+            if item["extraction_results"].get("status") == "complete":
+                continue
+
+            name = item.get("name") or item.get("nome") or "doc"
+            safe_name = "".join(c for c in name if c.isalnum() or c in "._- ")
+            if not safe_name.lower().endswith(".pdf"):
+                safe_name += ".pdf"
+            
+            pdf_path = os.path.join(pdf_dir, f"doc_{item_idx}_{safe_name}")
+            pdf_name = f"doc_{item_idx}_{safe_name}"
+
             print(f"\n{'='*60}")
-            print(f"📄 Processing: {pdf_name}")
+            print(f"📄 Processing: {safe_name}")
             print(f"{'='*60}")
 
-            # Initialize manifest entry for this PDF
-            if pdf_name not in manifest["extraction_results"]:
-                manifest["extraction_results"][pdf_name] = {"pages": {}}
+            # Download if not exists
+            if not os.path.exists(pdf_path):
+                print(f"  📥 Downloading {url}...")
+                try:
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, context=ctx, timeout=30) as response, open(pdf_path, 'wb') as out_file:
+                        out_file.write(response.read())
+                except Exception as e:
+                    print(f"  ❌ Failed to download {url}: {e}")
+                    item["extraction_results"]["status"] = "error"
+                    item["extraction_results"]["error"] = f"Download failed: {e}"
+                    save_manifest(manifest)
+                    continue
 
             # Convert PDF to images
             try:
                 pages = convert_from_path(pdf_path, dpi=200)
             except Exception as e:
                 print(f"  ❌ Failed to convert PDF: {e}")
+                item["extraction_results"]["status"] = "error"
+                item["extraction_results"]["error"] = f"PDF convert failed: {e}"
+                save_manifest(manifest)
                 continue
 
             print(f"  📃 {len(pages)} pages")
@@ -554,7 +598,11 @@ def main():
                 page_key = str(page_num)
 
                 # Check if already processed
-                if should_skip_page(manifest, pdf_name, page_num):
+                results_pages = item["extraction_results"].get("pages", {})
+                page_data = results_pages.get(page_key, {})
+                questions = page_data.get("questions", [])
+                
+                if questions and all(q["status"] in ("extracted", "skipped_dedup") for q in questions):
                     print(f"  ⏭️ Page {page_num}: already processed, skipping")
                     continue
 
@@ -573,7 +621,9 @@ def main():
                 except Exception as e:
                     print(f"    ❌ Region detection failed: {e}")
                     traceback.print_exc()
-                    manifest["extraction_results"][pdf_name]["pages"][page_key] = {
+                    if "pages" not in item["extraction_results"]:
+                        item["extraction_results"]["pages"] = {}
+                    item["extraction_results"]["pages"][page_key] = {
                         "regions_detected": 0,
                         "error": str(e),
                         "questions": [],
@@ -678,7 +728,10 @@ def main():
                         print(f"  ⚠️ RATE LIMITED — saving checkpoint")
                         q_entry["status"] = "pending"
                         page_questions.append(q_entry)
-                        manifest["extraction_results"][pdf_name]["pages"][page_key] = {
+                        
+                        if "pages" not in item["extraction_results"]:
+                            item["extraction_results"]["pages"] = {}
+                        item["extraction_results"]["pages"][page_key] = {
                             "regions_detected": len(regions),
                             "questions": page_questions,
                             "raw_gemini_response": raw_gemini,
@@ -697,8 +750,10 @@ def main():
 
                     page_questions.append(q_entry)
 
-                # Save page results to manifest
-                manifest["extraction_results"][pdf_name]["pages"][page_key] = {
+                # Save page results to manifest under item
+                if "pages" not in item["extraction_results"]:
+                    item["extraction_results"]["pages"] = {}
+                item["extraction_results"]["pages"][page_key] = {
                     "regions_detected": len(regions),
                     "questions": page_questions,
                     "raw_gemini_response": raw_gemini,
@@ -708,6 +763,10 @@ def main():
 
                 # Small delay between pages to avoid rate limits
                 time.sleep(2)
+            
+            # Mark file as complete
+            item["extraction_results"]["status"] = "complete"
+            save_manifest(manifest)
 
     except RateLimitError:
         print("\n⚠️ RATE LIMITED — saving checkpoint and exiting")
@@ -726,11 +785,6 @@ def main():
     # Complete!
     manifest["status"] = "complete"
     manifest["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    manifest["totals"] = {
-        "extracted": total_extracted,
-        "skipped_dedup": total_skipped,
-        "failed": total_failed,
-    }
     save_manifest(manifest)
 
     print(f"\n{'='*60}")
