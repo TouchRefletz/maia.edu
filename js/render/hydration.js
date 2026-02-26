@@ -94,18 +94,199 @@ export async function hydrateAllChatContent(container) {
       const renderImage = (imgUrl) => {
         placeholder.style.padding = "0";
         placeholder.style.border = "none";
+        // Mantém uma dimensão fixa para o placeholder como pedido, impedindo que imagem quebre o layout
+        placeholder.style.aspectRatio = "16/9";
+        placeholder.style.background = "var(--color-surface, #1e1e23)";
+        placeholder.style.position = "relative";
+        placeholder.style.overflow = "hidden";
+        placeholder.style.display = "flex";
+        placeholder.style.flexDirection = "column";
+
         placeholder.innerHTML = `
-            <img src="${imgUrl}" alt="${query}" style="max-width:100%; border-radius:8px; display:block; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
-            <div style="font-size:0.85em; color:var(--color-text-tertiary); text-align:center; margin-top:8px;">${query}</div>
+            <img class="chat-dynamic-img-expandable" src="${imgUrl}" alt="${query}" style="width:100%; height:100%; object-fit:cover; display:block; cursor:pointer;" />
+            <div style="font-size:0.85em; color:var(--color-text-secondary, #b0b0b0); background: var(--color-surface, rgba(0,0,0,0.8)); border: 1px solid var(--color-border, #333); padding:4px 8px; position:absolute; bottom:8px; left:8px; border-radius:6px; max-width:calc(100% - 16px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">${query}</div>
           `;
+
+        // Click action: Popup / Lightbox
+        const imgEl = placeholder.querySelector(".chat-dynamic-img-expandable");
+        if (imgEl) {
+          imgEl.addEventListener("click", () => {
+            const overlay = document.createElement("div");
+            overlay.style.position = "fixed";
+            overlay.style.top = "0";
+            overlay.style.left = "0";
+            overlay.style.width = "100%";
+            overlay.style.height = "100%";
+            overlay.style.backgroundColor = "rgba(10, 10, 12, 0.85)"; // Use a dark theme base
+            overlay.style.zIndex = "99999";
+            overlay.style.display = "flex";
+            overlay.style.alignItems = "center";
+            overlay.style.justifyContent = "center";
+            overlay.style.backdropFilter = "blur(12px)";
+            overlay.style.cursor = "zoom-out";
+
+            const expandedImg = document.createElement("img");
+            expandedImg.src = imgUrl;
+            expandedImg.style.maxWidth = "90%";
+            expandedImg.style.maxHeight = "90%";
+            expandedImg.style.objectFit = "contain";
+            expandedImg.style.borderRadius = "12px";
+            expandedImg.style.boxShadow =
+              "0 12px 60px rgba(0,0,0,0.8), 0 0 0 1px var(--color-border, rgba(255,255,255,0.05))";
+            expandedImg.style.cursor = "default";
+
+            const closeBtn = document.createElement("button");
+            closeBtn.innerHTML = "✖";
+            closeBtn.style.position = "absolute";
+            closeBtn.style.top = "20px";
+            closeBtn.style.right = "20px";
+            closeBtn.style.background = "var(--color-surface, #2a2a30)";
+            closeBtn.style.color = "var(--color-text, #fff)";
+            closeBtn.style.border =
+              "1px solid var(--color-border, rgba(255,255,255,0.1))";
+            closeBtn.style.borderRadius = "50%";
+            closeBtn.style.width = "40px";
+            closeBtn.style.height = "40px";
+            closeBtn.style.cursor = "pointer";
+            closeBtn.style.fontSize = "16px";
+            closeBtn.style.display = "flex";
+            closeBtn.style.alignItems = "center";
+            closeBtn.style.justifyContent = "center";
+            closeBtn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+            closeBtn.style.transition = "transform 0.2s, background 0.2s";
+
+            closeBtn.onmouseover = () => {
+              closeBtn.style.transform = "scale(1.1)";
+              closeBtn.style.background = "var(--color-border)";
+            };
+            closeBtn.onmouseout = () => {
+              closeBtn.style.transform = "scale(1)";
+              closeBtn.style.background = "var(--color-surface, #2a2a30)";
+            };
+
+            const closeLightbox = () => overlay.remove();
+
+            closeBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              closeLightbox();
+            });
+            overlay.addEventListener("click", closeLightbox);
+            expandedImg.addEventListener("click", (e) => e.stopPropagation());
+
+            overlay.appendChild(expandedImg);
+            overlay.appendChild(closeBtn);
+            document.body.appendChild(overlay);
+          });
+        }
       };
 
+      async function saveImageMetadataToHistory(imgUrl, _retryCount = 0) {
+        const MAX_RETRIES = 3;
+        const RETRY_DELAYS = [2000, 4000, 8000]; // Delays crescentes (2s, 4s, 8s)
+
+        if (!window.currentChatId) return; // Só persiste se estiver em um chat salvo
+        const messageEl = placeholder.closest(".chat-message");
+        if (!messageEl || messageEl.dataset.msgIndex === undefined) return;
+
+        const msgIndex = parseInt(messageEl.dataset.msgIndex, 10);
+        const chatId = window.currentChatId; // Captura o ID atual (pode mudar entre retries)
+
+        try {
+          const { ChatStorageService } =
+            await import("../services/chat-storage.js");
+          const chat = await ChatStorageService.getChat(chatId);
+
+          if (chat && chat.messages && chat.messages[msgIndex]) {
+            const msg = chat.messages[msgIndex];
+            let modified = false;
+
+            const updateBlock = (block) => {
+              if (!block || typeof block !== "object") return;
+
+              // Verifica se é o bloco de imagem alvo
+              if (block.tipo === "imagem") {
+                const blockConteudo =
+                  typeof block.conteudo === "string"
+                    ? block.conteudo
+                    : block.query || "";
+                if (
+                  blockConteudo.toLowerCase() === query.toLowerCase() ||
+                  blockConteudo === placeholder.dataset.query
+                ) {
+                  if (!block.props) block.props = {};
+                  if (block.props.url !== imgUrl) {
+                    block.props.url = imgUrl;
+                    modified = true;
+                  }
+                }
+              }
+
+              // Escaneia iterativamente estruturas comuns do chat formatado
+              if (Array.isArray(block)) {
+                block.forEach(updateBlock);
+              } else {
+                const keysToScan = [
+                  "conteudo",
+                  "slots",
+                  "sections",
+                  "slides",
+                  "content",
+                ];
+                keysToScan.forEach((key) => {
+                  if (block[key]) {
+                    if (Array.isArray(block[key]))
+                      block[key].forEach(updateBlock);
+                    else if (typeof block[key] === "object") {
+                      Object.values(block[key]).forEach((v) => {
+                        if (Array.isArray(v)) v.forEach(updateBlock);
+                        else updateBlock(v);
+                      });
+                    }
+                  }
+                });
+              }
+            };
+
+            updateBlock(msg.content);
+
+            if (modified) {
+              await ChatStorageService.saveChat(chat);
+              console.log(
+                "[Hydration] ✅ URL da Imagem salva no histórico:",
+                imgUrl,
+              );
+            }
+          } else if (_retryCount < MAX_RETRIES) {
+            // Mensagem ainda não foi persistida pelo pipeline (timing issue)
+            // Agenda retry com delay crescente para esperar o addMessage completar
+            const delay = RETRY_DELAYS[_retryCount] || 4000;
+            console.log(
+              `[Hydration] ⏳ Mensagem [${msgIndex}] não encontrada no storage. Retry ${_retryCount + 1}/${MAX_RETRIES} em ${delay}ms...`,
+            );
+            setTimeout(() => {
+              // Verifica se ainda estamos no mesmo chat antes de tentar novamente
+              if (window.currentChatId === chatId) {
+                saveImageMetadataToHistory(imgUrl, _retryCount + 1);
+              }
+            }, delay);
+          } else {
+            console.warn(
+              `[Hydration] ❌ Falha ao salvar URL da imagem após ${MAX_RETRIES} tentativas. Mensagem [${msgIndex}] não encontrada.`,
+            );
+          }
+        } catch (e) {
+          console.warn("Erro ao salvar imagem no histórico:", e);
+        }
+      }
+
       const renderError = () => {
-        placeholder.innerHTML = `
-            <div style="font-size:1.5em; margin-bottom:8px;">🚫</div>
-            <div>Não foi possível carregar a imagem.</div>
-            <div style="font-size:0.85em; margin-top:4px;">Descrição original: ${query}</div>
-          `;
+        placeholder.style.padding = "12px";
+        placeholder.style.border = "1px dashed var(--color-border, #444)";
+        placeholder.style.borderRadius = "8px";
+        placeholder.style.textAlign = "center";
+        placeholder.style.color = "var(--color-text-secondary, #888)";
+        placeholder.style.fontSize = "0.85em";
+        placeholder.innerHTML = `<div>🖼️ Imagem indisponível${query ? `: "${query}"` : ""}</div>`;
       };
 
       async function fetchFallback() {
@@ -124,6 +305,7 @@ export async function hydrateAllChatContent(container) {
             const data = await res.json();
             if (data.url) {
               renderImage(data.url);
+              await saveImageMetadataToHistory(data.url);
             } else {
               renderError();
             }

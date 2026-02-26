@@ -1451,6 +1451,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
   if (mensagem || arquivos.length > 0) {
     const userMessage = document.createElement("div");
     userMessage.className = "chat-message chat-message--user";
+    // Calculate the message index based on the current number of chat messages
+    const msgIndex = messagesContainer.querySelectorAll(".chat-message").length;
+    userMessage.dataset.msgIndex = msgIndex;
 
     const messageContent = mensagem ? `<p>${escapeHtml(mensagem)}</p>` : "";
     userMessage.innerHTML = `
@@ -1760,6 +1763,11 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           aiMessage = document.createElement("div");
           aiMessage.className = "chat-message chat-message--ai visible";
           aiMessage.id = "currentAiMessage";
+          // Calculate the message index based on the current number of chat messages
+          // .chat-message includes both user and ai messages.
+          const msgIndex =
+            messagesContainer.querySelectorAll(".chat-message").length;
+          aiMessage.dataset.msgIndex = msgIndex;
           aiMessage.innerHTML = `<div class="chat-message-content"></div>`;
           messagesContainer.appendChild(aiMessage);
         }
