@@ -79,20 +79,38 @@ const ChatContentBlockRenderer = ({ block, className = "" }) => {
         className: `chat-block chat-separador ${className}`,
       });
     case "imagem":
-      // Placeholder para imagem no chat
+      // Placeholder que será hidratado via JS (hydration.js)
       return React.createElement(
         "div",
-        { className: `chat-block chat-image-placeholder ${className}` },
+        {
+          className: `chat-block chat-dynamic-image-placeholder ${className}`,
+          "data-url": block.props?.url || "",
+          "data-query": conteudoRaw,
+          style: {
+            padding: "20px",
+            border: "1px dashed var(--color-border)",
+            borderRadius: "8px",
+            textAlign: "center",
+            color: "var(--color-text-secondary)",
+            margin: "10px 0",
+          },
+        },
         React.createElement(
           "div",
-          { className: "chat-image-icon" },
+          {
+            className: "chat-image-icon",
+            style: { display: "block", marginBottom: "8px", fontSize: "1.2em" },
+          },
           "\uD83D\uDDBC\uFE0F",
         ),
-        React.createElement("div", {
-          className: "chat-image-desc markdown-content",
-          "data-raw": conteudoSafe,
-          dangerouslySetInnerHTML: { __html: safeMarkdown(conteudoRaw) },
-        }),
+        React.createElement(
+          "div",
+          {
+            className: "chat-image-desc markdown-content",
+            style: { fontSize: "0.9em" },
+          },
+          `Buscando imagem: ${conteudoSafe}...`,
+        ),
       );
     case "questao":
       const filterData = {

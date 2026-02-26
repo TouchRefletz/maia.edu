@@ -94,11 +94,23 @@ const ChatContentBlockRenderer: React.FC<{
     );
     case 'separador': return <div className={`chat-block chat-separador ${className}`} />;
     case 'imagem':
-      // Placeholder para imagem no chat
+      // Placeholder que será hidratado via JS (hydration.js)
       return (
-        <div className={`chat-block chat-image-placeholder ${className}`}>
-           <div className="chat-image-icon">🖼️</div>
-           <div className="chat-image-desc markdown-content" data-raw={conteudoSafe} dangerouslySetInnerHTML={{ __html: safeMarkdown(conteudoRaw) }}></div>
+        <div 
+          className={`chat-block chat-dynamic-image-placeholder ${className}`}
+          data-url={block.props?.url || ''}
+          data-query={conteudoRaw}
+          style={{
+             padding: '20px',
+             border: '1px dashed var(--color-border)',
+             borderRadius: '8px',
+             textAlign: 'center',
+             color: 'var(--color-text-secondary)',
+             margin: '10px 0'
+          }}
+        >
+           <div className="chat-image-icon" style={{display:'block', marginBottom:'8px', fontSize:'1.2em'}}>🖼️</div>
+           <div className="chat-image-desc markdown-content" style={{fontSize:'0.9em'}}>Buscando imagem: {conteudoSafe}...</div>
         </div>
       );
     case 'questao':

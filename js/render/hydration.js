@@ -81,5 +81,71 @@ export async function hydrateAllChatContent(container) {
     },
   );
 
-  await Promise.all(hydrationPromises);
+  // 4. Imagens Dinâmicas (Busca via IA/Google/Wikimedia)
+  const imagePlaceholders = container.querySelectorAll(
+    ".chat-dynamic-image-placeholder:not([data-hydrated='true'])",
+  );
+  const imagePromises = Array.from(imagePlaceholders).map(
+    async (placeholder) => {
+      placeholder.dataset.hydrated = "true";
+      const definedUrl = placeholder.dataset.url;
+      const query = placeholder.dataset.query;
+
+      const renderImage = (imgUrl) => {
+        placeholder.style.padding = "0";
+        placeholder.style.border = "none";
+        placeholder.innerHTML = `
+            <img src="${imgUrl}" alt="${query}" style="max-width:100%; border-radius:8px; display:block; margin: 0 auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+            <div style="font-size:0.85em; color:var(--color-text-tertiary); text-align:center; margin-top:8px;">${query}</div>
+          `;
+      };
+
+      const renderError = () => {
+        placeholder.innerHTML = `
+            <div style="font-size:1.5em; margin-bottom:8px;">🚫</div>
+            <div>Não foi possível carregar a imagem.</div>
+            <div style="font-size:0.85em; margin-top:4px;">Descrição original: ${query}</div>
+          `;
+      };
+
+      async function fetchFallback() {
+        if (!query) return renderError();
+
+        try {
+          const workerUrl =
+            typeof import.meta !== "undefined" &&
+            import.meta.env?.VITE_WORKER_URL
+              ? import.meta.env.VITE_WORKER_URL
+              : "https://maia-api.touchrefletz.workers.dev";
+          const apiUrl = `${workerUrl}/search-image?q=${encodeURIComponent(query)}`;
+
+          const res = await fetch(apiUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.url) {
+              renderImage(data.url);
+            } else {
+              renderError();
+            }
+          } else {
+            renderError();
+          }
+        } catch (e) {
+          console.error("Erro ao buscar imagem fallback:", e);
+          renderError();
+        }
+      }
+
+      if (definedUrl) {
+        const img = new Image();
+        img.onload = () => renderImage(definedUrl);
+        img.onerror = () => fetchFallback();
+        img.src = definedUrl;
+      } else {
+        await fetchFallback();
+      }
+    },
+  );
+
+  await Promise.all([...hydrationPromises, ...imagePromises]);
 }

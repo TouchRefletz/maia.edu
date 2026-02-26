@@ -37,7 +37,7 @@ export default {
 			return new Response(null, { headers: corsHeaders });
 		}
 
-		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf') {
+		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf' && url.pathname !== '/search-image') {
 			return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 		}
 
@@ -59,6 +59,9 @@ export default {
 
 				case '/pinecone-query':
 					return handlePineconeQuery(request, env);
+
+				case '/search-image':
+					return handleSearchImage(request, env);
 
 				case '/search':
 					return handleGeminiSearch(request, env);
@@ -111,6 +114,77 @@ export default {
 		}
 	},
 };
+
+/**
+ * SERVICE: SEARCH IMAGE API (Google Custom Search + Wikimedia Fallback)
+ */
+async function handleSearchImage(request, env) {
+	const url = new URL(request.url);
+	const query = url.searchParams.get('q');
+
+	if (!query) {
+		return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), {
+			status: 400,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	const googleApiKey = env.GOOGLE_SEARCH_API_KEY;
+	const googleEngineId = env.GOOGLE_SEARCH_ENGINE_ID;
+
+	// 1. Tenta Busca via Google Custom Search API
+	if (googleApiKey && googleEngineId) {
+		try {
+			const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=1`;
+			const googleResp = await fetch(googleUrl);
+
+			if (googleResp.ok) {
+				const data = await googleResp.json();
+				if (data.items && data.items.length > 0 && data.items[0].link) {
+					return new Response(JSON.stringify({ url: data.items[0].link, source: 'google' }), {
+						headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+					});
+				}
+			} else {
+				console.warn('[Image Search] Google API falhou, indo para o fallback:', await googleResp.text());
+			}
+		} catch (error) {
+			console.error('[Image Search] Erro no Google API:', error.message);
+		}
+	}
+
+	// 2. Fallback: Wikimedia Commons API
+	try {
+		console.log(`[Image Search] Fallback: Buscando "${query}" na Wikimedia Commons...`);
+		const wikiUrl = `https://pt.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+
+		const wikiResp = await fetch(wikiUrl);
+		if (wikiResp.ok) {
+			const data = await wikiResp.json();
+			const pages = data.query?.pages;
+
+			if (pages) {
+				// A API retorna um objeto cujas chaves são os page IDs
+				const firstPageId = Object.keys(pages)[0];
+				const imageUrl = pages[firstPageId]?.thumbnail?.source;
+
+				if (imageUrl) {
+					return new Response(JSON.stringify({ url: imageUrl, source: 'wikimedia' }), {
+						headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+					});
+				}
+			}
+		}
+	} catch (error) {
+		console.error('[Image Search] Erro no Wikimedia API Fallback:', error.message);
+	}
+
+	// 3. Nenhuma imagem encontrada
+	return new Response(JSON.stringify({ error: 'Nenhuma imagem encontrada', source: 'none' }), {
+		status: 404,
+		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+	});
+}
 
 /**
  * SERVICE: TRIGGER DEEP SEARCH (GITHUB ACTIONS)
