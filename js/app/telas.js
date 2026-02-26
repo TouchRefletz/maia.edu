@@ -1533,145 +1533,131 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         }
       },
 
+      // Context variable scoped to this message's callbacks
+      currentPhase: "generation",
+
       // Handle intermediate status updates
-      onProcessingStatus: (type, data) => {
+      onProcessingStatus: function (type, data) {
+        const messagesContainer = document.getElementById("chatMessages");
+        if (!messagesContainer) return;
+
         if (type === "loading") {
-          // Update loading text
           const loadingEl = document.getElementById("chatLoading");
           if (loadingEl) {
             const textEl = loadingEl.querySelector(".chat-loading-text");
             if (textEl) {
-              // Keep the dots
               textEl.innerHTML = `${data}<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
             }
           }
-        } else if (type === "memory_found") {
-          // Render Memory Block System Message Live
-          const { title, facts, summary } = data;
-          const messagesContainer = document.getElementById("chatMessages");
-          const loadingEl = document.getElementById("chatLoading");
 
-          if (messagesContainer) {
-            const contentDiv = document.createElement("div");
-            const factsList = Array.isArray(facts)
-              ? facts
-                  .map((f) => {
-                    const similarity = f.score
-                      ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
-                      : "";
-                    return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
-                  })
-                  .join("")
-              : "";
-
-            contentDiv.innerHTML = `
-                        <div style="margin-bottom:12px;">
-                            <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
-                            <div style="font-style:italic; background:var(--color-bg-tertiary, #2a2a2a); padding:8px; border-radius:6px;">"${summary || "Nenhum resumo gerado."}"</div>
-                        </div>
-                        ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
-                   `;
-
-            const statusEl = createExpandableStatusGlobal(title, contentDiv);
-
-            const systemMsg = document.createElement("div");
-            systemMsg.className = "chat-message chat-message--system visible";
-            const msgContent = document.createElement("div");
-            msgContent.className = "chat-message-content";
-            msgContent.style.padding = "0";
-            msgContent.style.background = "transparent";
-            msgContent.style.boxShadow = "none";
-            msgContent.appendChild(statusEl);
-            systemMsg.appendChild(msgContent);
-
-            if (loadingEl) {
-              messagesContainer.insertBefore(systemMsg, loadingEl);
-            } else {
-              messagesContainer.appendChild(systemMsg);
-            }
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          // Pre-create a container if it matches known phases
+          if (data.includes("Recuperando informações")) {
+            this.currentPhase = "memory";
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              "memory",
+              "Recuperando informações...",
+            );
+          } else if (data.includes("Escolhendo modo")) {
+            this.currentPhase = "mode";
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              "mode",
+              "Escolhendo modo de execução...",
+            );
           }
-        } else if (type === "extraction_triggered") {
-          // Gap detector — expandable chip inserted BEFORE the AI response
-          const { title, message: msg } = data;
-          const contentDiv = document.createElement("div");
-          contentDiv.innerHTML = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
-          const statusEl = createExpandableStatusGlobal(
-            title || "🔍 Extração solicitada",
-            contentDiv,
+          return;
+        }
+
+        if (type === "memory_found") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "memory",
+            "Consultando contexto...",
           );
 
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.cssText =
-            "padding:0; background:transparent; box-shadow:none;";
-          msgContent.appendChild(statusEl);
-          systemMsg.appendChild(msgContent);
+          const { title, facts, summary } = data;
+          const factsList = Array.isArray(facts)
+            ? facts
+                .map((f) => {
+                  const similarity = f.score
+                    ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
+                    : "";
+                  return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
+                })
+                .join("")
+            : "";
 
-          // Insert BEFORE the AI response or loading
-          const aiMsg = document.getElementById("currentAiMessage");
-          const loadingEl2 = document.getElementById("chatLoading");
-          const insertBefore = aiMsg || loadingEl2;
-          if (insertBefore && messagesContainer) {
-            messagesContainer.insertBefore(systemMsg, insertBefore);
-          } else if (messagesContainer) {
-            messagesContainer.appendChild(systemMsg);
-          }
-          if (messagesContainer)
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (type === "memory_saving" && messagesContainer) {
-          // Memory saving — spinner chip
-          const { title } = data;
-          const container = document.createElement("div");
-          container.className = "chat-thought-container";
-          container.id = "memorySavingChip";
-
-          const header = document.createElement("div");
-          header.className = "chat-thought-header";
-          header.innerHTML = `
-            <div class="summary-content-wrapper">
-              <img src="logo.png" class="summary-logo-spinner" alt="Saving" style="width:18px; height:18px;">
-              <span class="summary-text">${title || "🧠 Salvando memórias..."}</span>
+          const bodyHtml = `
+            <div style="margin-bottom:12px;">
+                <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
+                <div style="font-style:italic; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">"${summary || "Nenhum resumo gerado."}"</div>
             </div>
+            ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
           `;
-          container.appendChild(header);
 
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.cssText =
-            "padding:0; background:transparent; box-shadow:none;";
-          msgContent.appendChild(container);
-          systemMsg.appendChild(msgContent);
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            title || "Memórias recuperadas",
+            bodyHtml,
+          );
+          this.currentPhase = "generation"; // reset
+        } else if (type === "extraction_triggered") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "extraction",
+            "Verificando base de dados...",
+          );
+          const { title, message: msg } = data;
 
-          messagesContainer.appendChild(systemMsg);
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          const bodyHtml = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            title || "🔍 Extração solicitada",
+            bodyHtml,
+          );
+        } else if (type === "memory_saving") {
+          this.currentPhase = "saving";
+          getOrCreatePhaseContainer(
+            messagesContainer,
+            "saving",
+            data?.title || "🧠 Salvando memórias...",
+          );
         } else if (type === "memory_saved") {
-          // Memory saved — stop spinner, update text, reset send button
-          const chip = document.getElementById("memorySavingChip");
-          if (chip) {
-            const spinner = chip.querySelector(".summary-logo-spinner");
-            if (spinner) {
-              spinner.classList.remove("summary-logo-spinner");
-              spinner.classList.add("summary-logo-static");
-              spinner.style.animation = "none";
-            }
-            const text = chip.querySelector(".summary-text");
-            if (text) text.textContent = data?.title || "🧠 Memórias salvas";
-            chip.removeAttribute("id");
-          }
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "saving",
+            "🧠 Salvando memórias...",
+          );
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            data?.title || "🧠 Memórias salvas",
+            null,
+          );
 
-          // NOW reset send button
+          // Reset send button
           activeGenerationController = null;
           const sendBtn = document.querySelector(".chat-send-btn");
           if (sendBtn) {
             sendBtn.classList.remove("stop-mode");
             sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
           }
+          this.currentPhase = "generation"; // reset
         }
+
+        const activeInner = document.querySelector(
+          ".chat-thoughts-inner:last-of-type",
+        );
+        if (
+          activeInner &&
+          activeInner.scrollHeight > activeInner.clientHeight
+        ) {
+          activeInner.scrollTop = activeInner.scrollHeight;
+        }
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
       },
 
       // Notifica quando o router decide o modo
@@ -1684,10 +1670,8 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           automatico: "Automático",
         };
 
+        // Update loading text
         const loadingEl = document.getElementById("chatLoading");
-        const messagesContainer = document.getElementById("chatMessages");
-
-        // Atualiza o texto do loading para "Iniciando modelo"
         if (loadingEl) {
           const textEl = loadingEl.querySelector(".chat-loading-text");
           if (textEl) {
@@ -1695,42 +1679,22 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           }
         }
 
+        // Add as card to unified container
+        const messagesContainer = document.getElementById("chatMessages");
         if (messagesContainer) {
-          // Cria conteúdo detalhado
-          const contentDiv = document.createElement("div");
-          contentDiv.innerHTML = `
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "mode",
+            "Escolhendo modo...",
+          );
+          const title = `Modo ${modeNames[mode] || mode} selecionado`;
+          const bodyHtml = `
             <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
             <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
             <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
-        `;
-
-          // [UPDATED] Use Global Helper
-          const statusEl = createExpandableStatusGlobal(
-            `Modo ${modeNames[mode] || mode} selecionado`,
-            contentDiv,
-          );
-
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-
-          // Remove padding padrão do card system para abrigar o componente full-width
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.padding = "0";
-          msgContent.style.background = "transparent";
-          msgContent.style.boxShadow = "none";
-          msgContent.appendChild(statusEl);
-
-          systemMsg.appendChild(msgContent);
-
-          // Insere ANTES do loading se ele existir
-          if (loadingEl) {
-            messagesContainer.insertBefore(systemMsg, loadingEl);
-          } else {
-            messagesContainer.appendChild(systemMsg);
-          }
-
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          `;
+          concludePhaseContainer(container, thoughtListEl, title, bodyHtml);
+          this.currentPhase = "generation"; // reset
         }
       },
 
@@ -1777,114 +1741,56 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
       // Callback de Pensamento (Reasoning/Chain of Thought)
       onThought: (thoughtText) => {
-        // 1. Garante que o loading "geral" saiu
+        // Remove loading indicator
         const loading = document.getElementById("chatLoading");
         if (loading) loading.remove();
 
-        let aiMessage = document.getElementById("currentAiMessage");
-        if (!aiMessage) {
-          aiMessage = document.createElement("div");
-          aiMessage.className = "chat-message chat-message--ai visible";
-          aiMessage.id = "currentAiMessage";
-          // Estrutura: Conteúdo vai ser appendado depois
-          aiMessage.innerHTML = `<div class="chat-message-content"></div>`;
-          messagesContainer.appendChild(aiMessage);
-        }
+        // Use the active phase container
+        const messagesContainer = document.getElementById("chatMessages");
+        if (!messagesContainer) return;
 
-        // 2. Garante container de thoughts (DIV customizado, abandonando details/summary)
-        let thoughtsContainer = aiMessage.querySelector(
-          ".chat-thought-container",
+        let phaseTitle = "Processando raciocínio...";
+        if (this.currentPhase === "memory")
+          phaseTitle = "Recuperando informações...";
+        if (this.currentPhase === "mode")
+          phaseTitle = "Escolhendo modo de execução...";
+        if (this.currentPhase === "saving") phaseTitle = "Salvando memórias...";
+
+        const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+          messagesContainer,
+          this.currentPhase,
+          phaseTitle,
         );
-        let thoughtsInner = null;
 
-        if (!thoughtsContainer) {
-          // Wrapper Principal (transparente)
-          thoughtsContainer = document.createElement("div");
-          thoughtsContainer.className = "chat-thought-container";
-          // Começa fechado por padrão (sem classe .open)
-
-          // Header (O "Chip" Azul - sempre visível)
-          const header = document.createElement("div");
-          header.className = "chat-thought-header";
-          header.innerHTML = `
-            <div class="summary-content-wrapper">
-                <img src="logo.png" class="summary-logo-spinner" alt="Thinking">
-                <span class="summary-text">Processando raciocínio...</span>
-            </div>
-        `;
-
-          // Container interno para os cards (O "Negócio Escuro")
-          thoughtsInner = document.createElement("div");
-          thoughtsInner.className = "chat-thoughts-inner";
-          // Inicialmente escondido via CSS (quando container não tem .open)
-
-          // Click handler para Toggle
-          header.addEventListener("click", () => {
-            thoughtsContainer.classList.toggle("open");
-          });
-
-          thoughtsContainer.appendChild(header);
-          thoughtsContainer.appendChild(thoughtsInner);
-
-          // Insere ANTES do conteúdo da resposta
-          aiMessage.prepend(thoughtsContainer);
-
-          // --- INICIALIZA O SKELETON REUTILIZADO ---
-          // Passamos 'thoughtsInner' como o container pai
-          const refs = construirSkeletonLoader(thoughtsInner);
-
-          // Salvamos as referências no elemento DOM para reuso nas próximas chamadas
-          thoughtsContainer._refs = refs;
-        } else {
-          // Recupera referências
-          thoughtsInner = thoughtsContainer.querySelector(
-            ".chat-thoughts-inner",
-          );
-        }
-
-        // Referências do Skeleton
-        const refs = thoughtsContainer._refs;
-        if (!refs || !refs.thoughtListEl) return;
-
-        // 3. Processa o novo pensamento
+        // Process thought
         const { title, body } = splitThought(thoughtText);
 
-        // Atualiza o header com o título do último pensamento
-        const summaryText = thoughtsContainer.querySelector(".summary-text");
+        // Update header with latest thought title
+        const summaryText = container.querySelector(".summary-text");
         if (summaryText) summaryText.textContent = title;
 
-        // Lógica de "Push Thought" adaptada (evita duplicatas e usa DOM manipulado)
-        // Checa se é diferente do último inserido
-        const lastSig = thoughtsContainer._lastThoughtSig;
+        // Dedup check
+        const lastSig = container._lastThoughtSig;
         const currentSig = `${title}||${body}`;
 
         if (body && currentSig !== lastSig) {
-          thoughtsContainer._lastThoughtSig = currentSig;
-
-          // Cria o card visual reutilizando a função original
+          container._lastThoughtSig = currentSig;
           const card = criarElementoCardPensamento(title, body);
 
-          // Insere ANTES do skeleton (igual logika original)
-          // O skeleton loader tem class .maia-thought-card--skeleton
-          const skeletonCard = refs.thoughtListEl.querySelector(
+          // Insert before skeleton
+          const skeletonCard = thoughtListEl?.querySelector(
             ".maia-thought-card--skeleton",
           );
-
           if (skeletonCard) {
-            refs.thoughtListEl.insertBefore(card, skeletonCard);
-          } else {
-            refs.thoughtListEl.appendChild(card);
+            thoughtListEl.insertBefore(card, skeletonCard);
+          } else if (thoughtListEl) {
+            thoughtListEl.appendChild(card);
           }
 
-          // Auto-Scroll no container interno
-          if (thoughtsInner.scrollHeight > thoughtsInner.clientHeight) {
-            thoughtsInner.scrollTop = thoughtsInner.scrollHeight;
+          if (inner && inner.scrollHeight > inner.clientHeight) {
+            inner.scrollTop = inner.scrollHeight;
           }
         }
-
-        // Scroll do chat principal para acompanhar crescimento
-        // messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        // (Opcional, as vezes irrita se scrollar muito, deixar usuario controlar)
       },
 
       // Stream de texto da resposta
@@ -1988,42 +1894,58 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       },
 
       // Callback para atualizações de status (Loading/System Messages)
-      onProcessingStatus: (type, message) => {
-        const loadingEl = document.getElementById("chatLoading");
+      onProcessingStatus: (type, data) => {
         const messagesContainer = document.getElementById("chatMessages");
+        if (!messagesContainer) return;
 
-        if (type === "loading" && loadingEl) {
-          // Atualiza texto do spinner
-          const textEl = loadingEl.querySelector(".chat-loading-text");
-          if (textEl) {
-            textEl.innerHTML = `${message}<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
+        if (type === "loading") {
+          const loadingEl = document.getElementById("chatLoading");
+          if (loadingEl) {
+            const textEl = loadingEl.querySelector(".chat-loading-text");
+            if (textEl) {
+              textEl.innerHTML = `${data}<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
+            }
           }
-        } else if (type === "system_msg" && messagesContainer) {
-          // Insere mensagem de sistema (estilo Badge)
+
+          // Pre-create container for known phases
+          if (data.includes("Recuperando informações")) {
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              "memory",
+              "Recuperando informações...",
+            );
+          } else if (data.includes("Escolhendo modo")) {
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              "mode",
+              "Escolhendo modo de execução...",
+            );
+          }
+          return;
+        }
+
+        if (type === "system_msg") {
+          const loadingEl = document.getElementById("chatLoading");
           const systemMsg = document.createElement("div");
           systemMsg.className = "chat-message chat-message--system visible";
-          systemMsg.innerHTML = `
-            <div class="chat-message-content">
-                <span class="chat-mode-badge">
-                    ${message}
-                </span>
-            </div>
-          `;
-
-          // Insere ANTES do loading se ele existir
+          systemMsg.innerHTML = `<div class="chat-message-content"><span class="chat-mode-badge">${data}</span></div>`;
           if (loadingEl) {
             messagesContainer.insertBefore(systemMsg, loadingEl);
           } else {
             messagesContainer.appendChild(systemMsg);
           }
           messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (type === "memory_found" && messagesContainer) {
-          // Nova implementação para Memória com Detalhes
-          const { title, facts, summary } = message;
+          return;
+        }
 
-          const contentDiv = document.createElement("div");
+        if (type === "memory_found") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "memory",
+            "Consultando contexto...",
+          );
 
-          // Formata fatos
+          const { title, facts, summary } = data;
           const factsList = Array.isArray(facts)
             ? facts
                 .map((f) => {
@@ -2035,114 +1957,55 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 .join("")
             : "";
 
-          contentDiv.innerHTML = `
+          const bodyHtml = `
             <div style="margin-bottom:12px;">
                 <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
-                <div style="font-style:italic; background:var(--color-bg-tertiary); padding:8px; border-radius:6px;">"${summary || "Nenhum resumo gerado."}"</div>
+                <div style="font-style:italic; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">"${summary || "Nenhum resumo gerado."}"</div>
             </div>
-            ${
-              factsList
-                ? `
-            <div>
-                <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div>
-                <ul style="padding-left:20px; margin-top:0;">${factsList}</ul>
-            </div>`
-                : ""
-            }
+            ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
           `;
 
-          const statusEl = createExpandableStatusGlobal(title, contentDiv); // Usando global helper
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            title || "Memórias recuperadas",
+            bodyHtml,
+          );
+        } else if (type === "extraction_triggered") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "extraction",
+            "Verificando base de dados...",
+          );
+          const { title, message: msg } = data;
 
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.padding = "0";
-          msgContent.style.background = "transparent";
-          msgContent.style.boxShadow = "none";
-          msgContent.appendChild(statusEl);
-
-          systemMsg.appendChild(msgContent);
-
-          if (loadingEl) {
-            messagesContainer.insertBefore(systemMsg, loadingEl);
-          } else {
-            messagesContainer.appendChild(systemMsg);
-          }
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (type === "extraction_triggered" && messagesContainer) {
-          // Gap detector — expandable chip inserted BEFORE the AI response
-          const { title, message: msg } = message;
-          const contentDiv = document.createElement("div");
-          contentDiv.innerHTML = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
-          const statusEl = createExpandableStatusGlobal(
+          const bodyHtml = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
             title || "🔍 Extração solicitada",
-            contentDiv,
+            bodyHtml,
+          );
+        } else if (type === "memory_saving") {
+          getOrCreatePhaseContainer(
+            messagesContainer,
+            "saving",
+            data?.title || "🧠 Salvando memórias...",
+          );
+        } else if (type === "memory_saved") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "saving",
+            "🧠 Salvando memórias...",
+          );
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            data?.title || "🧠 Memórias salvas",
+            null,
           );
 
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.cssText =
-            "padding:0; background:transparent; box-shadow:none;";
-          msgContent.appendChild(statusEl);
-          systemMsg.appendChild(msgContent);
-
-          const aiMsg = document.getElementById("currentAiMessage");
-          const loadingEl2 = document.getElementById("chatLoading");
-          const insertBefore = aiMsg || loadingEl2;
-          if (insertBefore) {
-            messagesContainer.insertBefore(systemMsg, insertBefore);
-          } else {
-            messagesContainer.appendChild(systemMsg);
-          }
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (type === "memory_saving" && messagesContainer) {
-          // Memory saving — spinner chip
-          const { title } = message;
-          const container = document.createElement("div");
-          container.className = "chat-thought-container";
-          container.id = "memorySavingChip";
-
-          const header = document.createElement("div");
-          header.className = "chat-thought-header";
-          header.innerHTML = `
-            <div class="summary-content-wrapper">
-              <img src="logo.png" class="summary-logo-spinner" alt="Saving" style="width:18px; height:18px;">
-              <span class="summary-text">${title || "🧠 Salvando memórias..."}</span>
-            </div>
-          `;
-          container.appendChild(header);
-
-          const systemMsg = document.createElement("div");
-          systemMsg.className = "chat-message chat-message--system visible";
-          const msgContent = document.createElement("div");
-          msgContent.className = "chat-message-content";
-          msgContent.style.cssText =
-            "padding:0; background:transparent; box-shadow:none;";
-          msgContent.appendChild(container);
-          systemMsg.appendChild(msgContent);
-
-          messagesContainer.appendChild(systemMsg);
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        } else if (type === "memory_saved") {
-          // Memory saved — stop spinner, update text, reset send button
-          const chip = document.getElementById("memorySavingChip");
-          if (chip) {
-            const spinner = chip.querySelector(".summary-logo-spinner");
-            if (spinner) {
-              spinner.classList.remove("summary-logo-spinner");
-              spinner.classList.add("summary-logo-static");
-              spinner.style.animation = "none";
-            }
-            const text = chip.querySelector(".summary-text");
-            if (text) text.textContent = message?.title || "🧠 Memórias salvas";
-            chip.removeAttribute("id");
-          }
-
-          // NOW reset send button
+          // Reset send button
           activeGenerationController = null;
           const sendBtn = document.querySelector(".chat-send-btn");
           if (sendBtn) {
@@ -2150,6 +2013,17 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
           }
         }
+
+        const activeInner = document.querySelector(
+          ".chat-thoughts-inner:last-of-type",
+        );
+        if (
+          activeInner &&
+          activeInner.scrollHeight > activeInner.clientHeight
+        ) {
+          activeInner.scrollTop = activeInner.scrollHeight;
+        }
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
       },
 
       // Erro
@@ -2228,6 +2102,128 @@ export function createExpandableStatusGlobal(title, contentEl) {
   container.appendChild(inner);
 
   return container;
+}
+/**
+ * Creates or retrieves a phase-specific thought container.
+ */
+function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
+  let container = document.getElementById(`phaseContainer-${phaseId}`);
+
+  if (container) {
+    return {
+      container,
+      inner: container.querySelector(".chat-thoughts-inner"),
+      thoughtListEl:
+        container._refs?.thoughtListEl ||
+        container.querySelector("#maiaThoughts"),
+    };
+  }
+
+  // Create new specific container
+  container = document.createElement("div");
+  container.className = "chat-thought-container";
+  container.id = `phaseContainer-${phaseId}`;
+
+  const header = document.createElement("div");
+  header.className = "chat-thought-header";
+  header.innerHTML = `
+    <div class="summary-content-wrapper">
+      <img src="logo.png" class="summary-logo-spinner" alt="Processing" style="width:18px; height:18px;">
+      <span class="summary-text">${initialTitle}</span>
+    </div>
+  `;
+
+  const inner = document.createElement("div");
+  inner.className = "chat-thoughts-inner";
+
+  header.addEventListener("click", () => {
+    container.classList.toggle("open");
+  });
+
+  container.appendChild(header);
+  container.appendChild(inner);
+
+  // Initialize skeleton loader depending on phase
+  // We only add skeleton for 'generation' phase or phases that stream thoughts.
+  // For others, we just prepend a generic text or nothing, then append the result card.
+  let refs = null;
+  if (phaseId === "generation") {
+    refs = construirSkeletonLoader(inner);
+    container._refs = refs;
+  }
+
+  // Wrap in system message div
+  const systemMsg = document.createElement("div");
+  systemMsg.className = "chat-message chat-message--system visible";
+  const msgContent = document.createElement("div");
+  msgContent.className = "chat-message-content";
+  msgContent.style.cssText =
+    "padding:0; background:transparent; box-shadow:none;";
+  msgContent.appendChild(container);
+  systemMsg.appendChild(msgContent);
+
+  // Insert location logic
+  if (phaseId === "generation") {
+    // Attempt to reuse ai message if needed, but for simplicity keep it system list
+    // Actually generation phase usually goes inside currentAiMessage in original code.
+    const loadingEl = document.getElementById("chatLoading");
+    const insertBefore = loadingEl;
+    if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
+    else messagesContainer.appendChild(systemMsg);
+  } else {
+    // Normal phases go before loading or ai
+    const loadingEl = document.getElementById("chatLoading");
+    const aiMsg = document.getElementById("currentAiMessage");
+    const insertBefore = loadingEl || aiMsg;
+    if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
+    else messagesContainer.appendChild(systemMsg);
+  }
+
+  return {
+    container,
+    inner,
+    thoughtListEl: refs?.thoughtListEl || inner, // fallback to inner if no skeleton
+  };
+}
+
+/**
+ * Concludes a phase container by stopping its spinner and appending the result card.
+ */
+function concludePhaseContainer(
+  container,
+  thoughtListEl,
+  newTitle,
+  resultHtml,
+) {
+  // Update header
+  const summaryText = container.querySelector(".summary-text");
+  if (summaryText) summaryText.textContent = newTitle;
+
+  const spinner = container.querySelector(".summary-logo-spinner");
+  if (spinner) {
+    spinner.classList.remove("summary-logo-spinner");
+    spinner.classList.add("summary-logo-static");
+    spinner.style.animation = "none";
+    spinner.style.opacity = "1";
+    spinner.style.width = "18px";
+    spinner.style.height = "18px";
+  }
+
+  // Remove any remaining skeletons if applicable
+  container
+    .querySelectorAll(".maia-thought-card--skeleton")
+    .forEach((s) => s.remove());
+  const loadStatus = container.querySelector(".loading-status-area");
+  if (loadStatus) loadStatus.remove();
+
+  // Create result card
+  if (resultHtml) {
+    const card = criarElementoCardPensamento(newTitle, "");
+    const bodyEl = card.querySelector(".maia-thought-body");
+    if (bodyEl) bodyEl.innerHTML = resultHtml;
+
+    thoughtListEl.appendChild(card);
+  }
 }
 
 /**

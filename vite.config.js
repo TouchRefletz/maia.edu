@@ -7,6 +7,17 @@ export default defineConfig({
   // Configuração básica existente
   build: {
     target: "esnext",
+    chunkSizeWarningLimit: 1500, // Aumenta o limite para 1500kB (o padrão é 500kB)
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          transformers: ["@xenova/transformers"],
+          pdfjs: ["pdfjs-dist"],
+          tesseract: ["tesseract.js"],
+        },
+      },
+    },
   },
   envPrefix: ["VITE_", "FIREBASE_", "IMGBB_", "GOOGLE_", "PINECONE_"],
   server: {
