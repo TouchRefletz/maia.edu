@@ -1803,7 +1803,14 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           aiMessage.removeAttribute("id");
         }
 
-        // O container de geração agora fica fora da aiMessage (é um system message)
+        // Para TODOS os spinners de TODAS as fases (memory, mode, generation, saving, etc.)
+        const messagesContainerForCleanup =
+          document.getElementById("chatMessages");
+        if (messagesContainerForCleanup) {
+          stopAllPhaseSpinners(messagesContainerForCleanup);
+        }
+
+        // Limpeza específica do container de geração
         const thoughtsContainer = document.getElementById(
           "phaseContainer-generation",
         );
@@ -1817,18 +1824,6 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             ".loading-status-area",
           );
           if (loadStatus) loadStatus.remove();
-
-          const spinner = thoughtsContainer.querySelector(
-            ".summary-logo-spinner",
-          );
-          if (spinner) {
-            spinner.classList.remove("summary-logo-spinner");
-            spinner.classList.add("summary-logo-static");
-            spinner.style.animation = "none";
-            spinner.style.opacity = "1";
-            spinner.style.width = "18px";
-            spinner.style.height = "18px";
-          }
 
           const summaryText = thoughtsContainer.querySelector(".summary-text");
           if (summaryText) {
@@ -1853,6 +1848,10 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         }
 
         activeGenerationController = null;
+
+        // Para TODOS os spinners (safety net em caso de erro)
+        stopAllPhaseSpinners(document);
+
         const sendBtn = document.querySelector(".chat-send-btn");
         if (sendBtn) {
           sendBtn.classList.remove("stop-mode");
@@ -1933,6 +1932,25 @@ export function createExpandableStatusGlobal(title, contentEl) {
 
   return container;
 }
+
+/**
+ * Para TODOS os spinners de todos os phase containers existentes.
+ * Chamada ao criar um novo container (para parar os anteriores)
+ * e no onComplete (para garantir que nenhum fica girando).
+ */
+function stopAllPhaseSpinners(scope) {
+  const root = scope || document;
+  const spinners = root.querySelectorAll(".summary-logo-spinner");
+  spinners.forEach((spinner) => {
+    spinner.classList.remove("summary-logo-spinner");
+    spinner.classList.add("summary-logo-static");
+    spinner.style.animation = "none";
+    spinner.style.opacity = "1";
+    spinner.style.width = "18px";
+    spinner.style.height = "18px";
+  });
+}
+
 /**
  * Creates or retrieves a phase-specific thought container.
  */
@@ -1948,6 +1966,10 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
         container.querySelector(".chat-thoughts-list"),
     };
   }
+
+  // Ao criar um novo container, PARA o spinner de todos os anteriores
+  // (garante que só o container ativo fique girando)
+  stopAllPhaseSpinners(messagesContainer);
 
   // Create new specific container
   container = document.createElement("div");
@@ -4136,6 +4158,9 @@ function extractChatHistory() {
  */
 function handleGenerationAbortUI() {
   console.log("[UI] Lidando com interrupção de geração...");
+
+  // 0. Para TODOS os spinners de fases (memory, mode, generation, saving)
+  stopAllPhaseSpinners(document);
 
   // 1. Resetar Controlador Global e Botão Enviar
   activeGenerationController = null;
