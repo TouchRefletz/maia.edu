@@ -218,6 +218,10 @@ export async function routeMessage(
     // [FIX] Propagar cancelamento para o pipeline parar
     if (error.name === "AbortError") throw error;
 
+    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+      throw new Error("NETWORK_ERROR");
+    }
+
     console.error("[Router] Erro na classificação:", error);
 
     // Fallback: usar RÁPIDO em caso de erro (pedido do usuário)

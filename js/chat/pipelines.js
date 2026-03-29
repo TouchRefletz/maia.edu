@@ -27,6 +27,8 @@ export async function runChatPipeline(
   attachments = [],
   context = {},
 ) {
+  let executionMode = selectedMode;
+  try {
   // 1. === PERSISTENCE & INIT ===
   // Gerencia criação de chat se não existir ID
   let chatId = context.chatId;
@@ -146,6 +148,7 @@ export async function runChatPipeline(
       onThought: context.onThought, // Hook de pensamentos pro router usar
     },
   );
+  executionMode = finalMode;
 
   // LOGICA SCAFFOLDING
   if (finalMode === "scaffolding") {
@@ -276,8 +279,7 @@ export async function runChatPipeline(
     context.onStart({ mode: finalMode });
   }
 
-  try {
-    // Acumulador de pensamentos para persistência
+  // Acumulador de pensamentos para persistência
     let accumulatedThoughts = [];
 
     const fullResponse = await generateChatStreamed({
@@ -373,12 +375,12 @@ export async function runChatPipeline(
       console.log("[Pipeline] 🛑 Execução interrompida pelo usuário.");
       // Repassa o erro de abort para a UI atualizar o estado (botão voltar ao normal)
       if (context.onError) context.onError(error);
-      return { success: false, mode: finalMode, aborted: true };
+      return { success: false, mode: executionMode, aborted: true };
     }
 
     console.error("[Pipeline] Erro:", error);
     if (context.onError) context.onError(error);
-    return { success: false, mode: finalMode, error: error.message };
+    return { success: false, mode: executionMode, error: error.message };
   }
 }
 

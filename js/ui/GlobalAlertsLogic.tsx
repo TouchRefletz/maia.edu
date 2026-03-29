@@ -114,9 +114,12 @@ function ensureMounted() {
 export function customAlert(message: string, duration: number = 5000) {
     ensureMounted();
 
-    // Pequeno delay para garantir que o componente montou e vinculou os setters
-    setTimeout(() => {
-        if (!setAlertStateGlobal) return;
+    // Função interna para tentar mostrar aguardando o mount assíncrono do React 18
+    const attemptShow = (attempts = 0) => {
+        if (!setAlertStateGlobal) {
+            if (attempts < 20) setTimeout(() => attemptShow(attempts + 1), 10);
+            return;
+        }
 
         // 1. Limpa timer anterior
         if (alertTimerGlobal) clearTimeout(alertTimerGlobal);
@@ -149,13 +152,9 @@ export function customAlert(message: string, duration: number = 5000) {
         if (duration > 0) {
             alertTimerGlobal = setTimeout(removeAlert, duration);
         }
+    };
 
-        // Retornamos os métodos de controle (mantendo compatibilidade com o retorno antigo)
-        return {
-            close: removeAlert,
-            update: (newMsg: string) => customAlert(newMsg, duration)
-        };
-    }, 0);
+    attemptShow();
 
     // Retorno imediato síncrono para manter compatibilidade com chamadas que esperam o objeto de controle
     return {
@@ -177,8 +176,11 @@ export function customAlert(message: string, duration: number = 5000) {
 export function showUndoToast(message: string, onUndo: () => void, duration: number = 6000) {
     ensureMounted();
 
-    setTimeout(() => {
-        if (!setToastStateGlobal) return;
+    const attemptShow = (attempts = 0) => {
+        if (!setToastStateGlobal) {
+            if (attempts < 20) setTimeout(() => attemptShow(attempts + 1), 10);
+            return;
+        }
 
         // 1. Limpa timer anterior
         if (toastTimerGlobal) clearTimeout(toastTimerGlobal);
@@ -192,5 +194,7 @@ export function showUndoToast(message: string, onUndo: () => void, duration: num
                 setToastStateGlobal({ message: '', onUndo: null, visible: false });
             }
         }, duration);
-    }, 0);
+    };
+
+    attemptShow();
 }

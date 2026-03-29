@@ -160,6 +160,11 @@ Responda com o JSON estruturado.`;
     };
   } catch (error) {
     if (error.name === "AbortError") throw error;
+
+    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+      throw new Error("NETWORK_ERROR");
+    }
+
     console.warn("[GapDetector] Relevance check error:", error);
     return { relevant: true, reason: "Fallback por erro", needs_more: false };
   }

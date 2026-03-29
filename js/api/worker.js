@@ -64,6 +64,9 @@ export async function callWorker(endpoint, body) {
 
     return await response.json();
   } catch (error) {
+    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+      throw new Error("NETWORK_ERROR");
+    }
     console.error(`Erro ao chamar Worker (${endpoint}):`, error);
     throw error;
   }
@@ -279,6 +282,11 @@ export async function gerarConteudoEmJSONComImagemStream(
       // Se esgotou tentativas ou é outro erro irrelevante para retry automático
       if (error.message === "EMPTY_RESPONSE_ERROR") throw error; // Re-throw para o caller lidar se falhar 3x
 
+      // Detecção de erro de rede
+      if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+        throw new Error("NETWORK_ERROR");
+      }
+
       console.error("Erro no Worker stream:", error);
       throw new Error(`Falha no Worker: ${error.message}`);
     }
@@ -438,6 +446,9 @@ export async function realizarPesquisa(
       rawMetadata: groundingMetadata,
     };
   } catch (error) {
+    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+      throw new Error("NETWORK_ERROR");
+    }
     console.error("Erro na pesquisa streaming:", error);
     throw error;
   }
@@ -501,6 +512,7 @@ export async function gerarGabaritoComPesquisa(
       {
         onStatus: handlers?.onStatus,
         onThought: handlers?.onThought, // Thoughts do pesquisador!
+        signal: handlers?.signal, // CRÍTICO: Passar o signal para abortar o fetch se a rede cair
       },
     );
 

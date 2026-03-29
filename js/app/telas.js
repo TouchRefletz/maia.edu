@@ -677,6 +677,8 @@ function renderInitialUI() {
 
       // [START LOGIC]
       activeGenerationController = new AbortController();
+      window.currentChatAbortController = activeGenerationController;
+
       // Muda ícone para Stop (Quadrado Preenchido e Branco) e adiciona classe stop-mode
       sendBtn.classList.add("stop-mode");
       // Ícone: Rect com fill current color (que será branco via CSS .stop-mode) e sem stroke
@@ -1447,8 +1449,8 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
   }
 
   // 5. Adicionar mensagem do usuário ao container existente
-  // 5. Adicionar mensagem do usuário ao container existente (apenas se houver mensagem nova)
-  if (mensagem || arquivos.length > 0) {
+  // 5. Adicionar mensagem do usuário ao container existente (apenas se houver mensagem nova e não for retry)
+  if ((mensagem || arquivos.length > 0) && !options.isRetry) {
     const userMessage = document.createElement("div");
     userMessage.className = "chat-message chat-message--user";
     // Calculate the message index based on the current number of chat messages
@@ -1838,6 +1840,106 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       onError: (error) => {
         console.warn("[Chat] Pipeline Error/Abort:", error);
 
+        const messagesContainer = document.getElementById("chatMessages");
+
+        // --- LÓGICA DE RETRY AUTOMÁTICO DE REDE ---
+        // DEVE VIR ANTES DO AbortError, pois quando cai a rede, forçamos um abort()
+        // que joga um AbortError genérico (dependendo do browser).
+        if (
+          error.message === "NETWORK_ERROR" ||
+          !navigator.onLine ||
+          (error.name === "AbortError" && !navigator.onLine)
+        ) {
+          if (!messagesContainer) return;
+
+          stopAllPhaseSpinners(document);
+          const loading = document.getElementById("chatLoading");
+          if (loading) loading.remove();
+
+          // Retira completamente a mensagem parcial / pensamentos bugados
+          const currentAiMsg = document.getElementById("currentAiMessage");
+          if (currentAiMsg) {
+            currentAiMsg.remove();
+          }
+
+          // Retira as caixas de "Recuperando informações", "Modo selecionado", etc.
+          // que foram geradas para essa requisição que falhou (tudo após a última mensagem do usuárió)
+          const allSystemMsgs = [
+            ...messagesContainer.querySelectorAll(".chat-message--system"),
+          ];
+          const lastUserMsg = [
+            ...messagesContainer.querySelectorAll(".chat-message--user"),
+          ].pop();
+
+          if (lastUserMsg) {
+            let nextElement = lastUserMsg.nextElementSibling;
+            while (nextElement) {
+              const toRemove = nextElement;
+              nextElement = nextElement.nextElementSibling;
+              
+              const isAiMsg = toRemove.classList && toRemove.classList.contains("chat-message--ai");
+              const isSystemMsg = toRemove.classList && toRemove.classList.contains("chat-message--system");
+              const isLoading = toRemove.classList && toRemove.classList.contains("chat-loading-container");
+              const isThoughtContainer = toRemove.classList && toRemove.classList.contains("chat-thought-container");
+              
+              if (isSystemMsg || isLoading || isAiMsg || isThoughtContainer || toRemove.id === "currentAiMessage") {
+                toRemove.remove();
+              }
+            }
+          } else {
+            // Fallback robusto se a user msg não for detectada perfeitamente
+            const phaseContainers = document.querySelectorAll(
+              '[id^="phaseContainer-"]',
+            );
+            phaseContainers.forEach((container) => {
+              const systemMsg = container.closest(".chat-message--system");
+              if (systemMsg) systemMsg.remove();
+              else container.remove();
+            });
+            const orphanedAi = document.querySelectorAll(".chat-message--ai");
+            orphanedAi.forEach(ai => ai.remove());
+          }
+
+          // Salva os dados pendentes para retry automático no evento "online"
+          // Injeta a flag isRetry para não duplicar o balão do usuário na UI
+          window.pendingChatRetry = {
+            mensagem,
+            arquivos,
+            options: { ...options, isRetry: true },
+          };
+
+          // Remove mensagem provisória anterior se houver
+          const oldWaitMsg = document.getElementById("networkWaitMsg");
+          if (oldWaitMsg) oldWaitMsg.remove();
+
+          // Estilo exato solicitado pelo usuário
+          const waitMessage = document.createElement("div");
+          waitMessage.id = "networkWaitMsg";
+          waitMessage.className = "chat-loading-container";
+          waitMessage.style.cssText = "flex-direction: column;gap: 8px;text-align: left;justify-content: left;align-items: baseline;";
+          waitMessage.innerHTML = `
+            <div style="display: flex;flex-direction: column;/* align-items: center; */justify-content: center;gap: 4px;text-align: center;">
+              <strong style="color: var(--color-warning, #f59e0b);font-size: 1.05em;text-align: left;">⚠️ Conexão perdida</strong>
+              <span class="chat-loading-text" style="color: var(--color-text-secondary); margin-left: 0;">
+                Aguardando a rede voltar para continuar<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+              </span>
+            </div>
+          `;
+          messagesContainer.appendChild(waitMessage);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+          activeGenerationController = null;
+          // Voltar o botão para estado normal
+          const sendBtn = document.querySelector(".chat-send-btn");
+          if (sendBtn) {
+            sendBtn.classList.remove("stop-mode");
+            sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+          }
+          return;
+        }
+        // --- FIM LÓGICA DE REDE ---
+
+        // --- LÓGICA DE ABORT MANUAL (Stop Generation) ---
         if (
           error.name === "AbortError" ||
           error.message?.includes("aborted") ||
@@ -1861,7 +1963,6 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         const loading = document.getElementById("chatLoading");
         if (loading) loading.remove();
 
-        const messagesContainer = document.getElementById("chatMessages");
         if (!messagesContainer) return;
 
         const errorMessage = document.createElement("div");
@@ -4219,3 +4320,62 @@ function handleGenerationAbortUI() {
 
 // Expor globalmente
 window.handleGenerationAbortUI = handleGenerationAbortUI;
+
+// === NETWORK RETRY & TESTING LOGIC ===
+
+window.addEventListener("online", () => {
+  console.log("[Network] Conexão restaurada.");
+  if (window.pendingChatRetry) {
+    console.log("[Network] Retomando geração pendente automaticamente...");
+    const { mensagem, arquivos, options } = window.pendingChatRetry;
+
+    const waitMsg = document.getElementById("networkWaitMsg");
+    if (waitMsg) waitMsg.remove();
+
+    // Dispara novamente o chat
+    transicionarParaModoConversa(mensagem, arquivos, options);
+
+    customAlert("🎉 Online novamente! Tentando novamente...");
+
+    // Limpa estado pendente
+    window.pendingChatRetry = null;
+  }
+});
+
+window.addEventListener("offline", () => {
+  console.log("[Network] Conexão perdida. Forçando parada de pipelines ativas...");
+  if (window.currentChatAbortController) {
+    try {
+      window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
+    } catch(e) {}
+  }
+});
+
+// Funções para teste temporário
+let originalFetch = window.fetch;
+
+window.simulateNetworkDrop = () => {
+  console.warn("⚠️ SIMULANDO REDE OFFLINE (Mock ativado)");
+  window.fetch = function () {
+    return Promise.reject(new TypeError("Failed to fetch"));
+  };
+  Object.defineProperty(navigator, "onLine", {
+    get: () => false,
+    configurable: true,
+  });
+  window.dispatchEvent(new Event("offline"));
+  
+  if (window.currentChatAbortController) {
+    window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
+  }
+};
+
+window.simulateNetworkRestore = () => {
+  console.warn("✅ SIMULANDO REDE ONLINE (Mock desativado)");
+  window.fetch = originalFetch;
+  Object.defineProperty(navigator, "onLine", {
+    get: () => true,
+    configurable: true,
+  });
+  window.dispatchEvent(new Event("online"));
+};
