@@ -29,6 +29,8 @@ interface GabaritoRaw {
   analiseComplexidade?: any;
   fontes_externas?: Array<{ uri: string; title: string }>; // New field
   texto_referencia?: string; // Relatório da pesquisa
+  resposta_modelo?: string;
+  respostaModelo?: string;
 }
 
 interface CreditosData {
@@ -58,6 +60,7 @@ interface GabaritoData {
   complexidadeRaw: any;
   externas: Array<{ uri: string; title: string }>; // Normalized field
   textoReferencia: string;
+  respostaModelo: string;
   questao: any;
 }
 
@@ -104,6 +107,7 @@ export function prepararDadosGabarito(gabarito: GabaritoRaw, questao: any): Gaba
     ),
     externas: (pick(gabarito.fontes_externas, []) as any[]),
     textoReferencia: (pick(gabarito.texto_referencia, '') as string),
+    respostaModelo: (pick(gabarito.resposta_modelo, gabarito.respostaModelo, gabarito.resposta, '') as string),
     questao: questao,
   };
 }
@@ -557,6 +561,12 @@ export const DetalhesTecnicos: React.FC<{
   const toPct = (n: any) => !Number.isNaN(Number(n)) ? `${Math.round(Math.max(0, Math.min(1, Number(n))) * 100)}%` : null;
 
   const coerenciaObs = Array.isArray(coerencia?.observacoes) ? coerencia.observacoes : [];
+  
+  const isDissertativa = dados.questao?.tipo_resposta === 'dissertativa' || (!dados.questao?.alternativas || dados.questao.alternativas.length === 0);
+
+  // Filtra logs inúteis de questões dissertativas gerados pela lógica da IA ou backend
+  const filteredCoerenciaObs = coerenciaObs.filter((o: string) => !o.toLowerCase().includes('questão dissertativa') && !o.toLowerCase().includes('alternativa correta está vazia') && !o.toLowerCase().includes('alternativa_correta está vazia'));
+  const filteredObservacoes = observacoes.filter((o: string) => !o.toLowerCase().includes('questão dissertativa') && !o.toLowerCase().includes('alternativa correta está vazia') && !o.toLowerCase().includes('alternativa_correta está vazia'));
 
   return (
     <details className="gabarito-extra" open={isReviewMode}>
@@ -567,15 +577,15 @@ export const DetalhesTecnicos: React.FC<{
         <div className="field-group">
           <span className="field-label">Coerência (checagens)</span>
           <div className="coerencia-grid">
-            <Chip fieldId="detalhes_coerencia_alt_correta" label="Alternativa correta existe" ok={!!(coerencia.alternativa_correta_existe ?? coerencia.alternativaCorretaExiste)} />
-            <Chip fieldId="detalhes_coerencia_analise_todas" label="Análise para todas" ok={!!(coerencia.tem_analise_para_todas ?? coerencia.temAnaliseParaTodas)} />
-            <Chip fieldId="detalhes_coerencia_observacoes" label="Observações" ok={coerenciaObs.length === 0} okTxt="Nenhuma" badTxt="Há itens" />
+            {!isDissertativa && <Chip fieldId="detalhes_coerencia_alt_correta" label="Alternativa correta existe" ok={!!(coerencia.alternativa_correta_existe ?? coerencia.alternativaCorretaExiste)} />}
+            {!isDissertativa && <Chip fieldId="detalhes_coerencia_analise_todas" label="Análise para todas" ok={!!(coerencia.tem_analise_para_todas ?? coerencia.temAnaliseParaTodas)} />}
+            <Chip fieldId="detalhes_coerencia_observacoes" label="Observações" ok={filteredCoerenciaObs.length === 0} okTxt="Nenhuma" badTxt="Há itens" />
           </div>
-          {coerenciaObs.length ? (
+          {filteredCoerenciaObs.length ? (
             <div className="coerencia-obs">
               <div className="coerencia-obs-title">Observações</div>
               <ul>
-                {coerenciaObs.map((o: string, i: number) => {
+                {filteredCoerenciaObs.map((o: string, i: number) => {
                   const obsFieldId = `detalhes_coerencia_obs_${i}`;
                   const obsState = reviewState?.[obsFieldId] || null;
                   const obsStateClass = obsState === 'approved' ? 'block-approved' : obsState === 'rejected' ? 'block-rejected' : '';
@@ -602,12 +612,12 @@ export const DetalhesTecnicos: React.FC<{
       )}
 
       {/* Observações Gerais */}
-      {observacoes.length > 0 && (
+      {filteredObservacoes.length > 0 && (
         <div className="field-group">
           <span className="field-label">Observações</span>
           <div className="data-box scrollable">
             <ul>
-              {observacoes.map((o, i) => {
+              {filteredObservacoes.map((o: string, i: number) => {
                 const obsFieldId = `detalhes_obs_${i}`;
                 const obsState = reviewState?.[obsFieldId] || null;
                 const obsStateClass = obsState === 'approved' ? 'block-approved' : obsState === 'rejected' ? 'block-rejected' : '';
@@ -1059,6 +1069,8 @@ export const GabaritoCardView: React.FC<{ dados: GabaritoData } & GabaritoReview
   const altState = reviewState?.[altCorretaId] || null;
   const justState = reviewState?.[justificativaId] || null;
 
+  const isDissertativa = questao?.tipo_resposta === 'dissertativa' || (!questao?.alternativas || questao.alternativas.length === 0);
+
   return (
     <>
       <div className="question gabarito-card">
@@ -1068,19 +1080,41 @@ export const GabaritoCardView: React.FC<{ dados: GabaritoData } & GabaritoReview
         </div>
 
         <div className="questionText gabarito-head">
-          {/* Alternativa Correta - Revisável */}
-          {isReviewMode && onApprove && onReject ? (
-            <ReviewableItem
-              fieldId={altCorretaId}
-              state={altState}
-              onApprove={onApprove}
-              onReject={onReject}
-              label="🅰️ Alternativa Correta"
-            >
-              <p style={{ margin: 0 }}><strong>Alternativa correta:</strong> <SafeText text={respostaLetra} /></p>
-            </ReviewableItem>
-          ) : (
-            <p><strong>Alternativa correta:</strong> <SafeText text={respostaLetra} /></p>
+          {/* Alternativa Correta - Revisável (Somente para objetiva) */}
+          {!isDissertativa && (
+            isReviewMode && onApprove && onReject ? (
+              <ReviewableItem
+                fieldId={altCorretaId}
+                state={altState}
+                onApprove={onApprove}
+                onReject={onReject}
+                label="🅰️ Alternativa Correta"
+              >
+                <p style={{ margin: 0 }}><strong>Alternativa correta:</strong> <SafeText text={respostaLetra} /></p>
+              </ReviewableItem>
+            ) : (
+              <p><strong>Alternativa correta:</strong> <SafeText text={respostaLetra} /></p>
+            )
+          )}
+          
+          {/* Resposta Esperada - Revisável (Somente para dissertativa) */}
+          {isDissertativa && dados.respostaModelo && (
+            isReviewMode && onApprove && onReject ? (
+              <ReviewableItem
+                fieldId="gabarito_resposta_modelo"
+                state={reviewState?.['gabarito_resposta_modelo'] || null}
+                onApprove={onApprove}
+                onReject={onReject}
+                label="📝 Resposta Esperada (Critério da IA)"
+              >
+                <div className="gabarito-just markdown-content"><SafeMarkdown text={dados.respostaModelo} /></div>
+              </ReviewableItem>
+            ) : (
+              <div className="gabarito-just" style={{ marginBottom: '15px' }}>
+                <strong>Resposta Esperada: </strong>
+                <div className="markdown-content" style={{ display: 'inline' }}><SafeMarkdown text={dados.respostaModelo} /></div>
+              </div>
+            )
           )}
           
           {/* Justificativa - Revisável */}
@@ -1118,15 +1152,17 @@ export const GabaritoCardView: React.FC<{ dados: GabaritoData } & GabaritoReview
           onApprove={onApprove}
           onReject={onReject}
         />
-        <OpcoesGabarito
-          questao={questao}
-          respostaLetra={respostaLetra}
-          alternativasAnalisadas={alternativasAnalisadas}
-          isReviewMode={isReviewMode}
-          reviewState={reviewState}
-          onApprove={onApprove}
-          onReject={onReject}
-        />
+        {!isDissertativa && (
+          <OpcoesGabarito
+            questao={questao}
+            respostaLetra={respostaLetra}
+            alternativasAnalisadas={alternativasAnalisadas}
+            isReviewMode={isReviewMode}
+            reviewState={reviewState}
+            onApprove={onApprove}
+            onReject={onReject}
+          />
+        )}
       </div>
 
       <PassosExplicacao
@@ -1353,12 +1389,22 @@ export const GabaritoEditorView: React.FC<{ dados: GabaritoData; onSave: () => v
 
   const creditos = creditosNull || {} as CreditosData;
 
+  const isDissertativa = questao?.tipo_resposta === 'dissertativa' || (!questao?.alternativas || questao.alternativas.length === 0);
+
   return (
     <form id="gabaritoEdit">
-      <div className="field-group">
-        <span className="field-label">Alternativa correta</span>
-        <input id="editGabaritoResposta" className="form-control" type="text" defaultValue={safe(respostaLetra)} placeholder="Ex.: A" />
-      </div>
+      {!isDissertativa && (
+        <div className="field-group">
+          <span className="field-label">Alternativa correta</span>
+          <input id="editGabaritoResposta" className="form-control" type="text" defaultValue={safe(respostaLetra)} placeholder="Ex.: A" />
+        </div>
+      )}
+      {isDissertativa && (
+        <div className="field-group">
+          <span className="field-label">Resposta Esperada (Critério da IA)</span>
+          <textarea id="editGabaritoRespostaModelo" className="form-control" rows={4} placeholder="Digite a resposta ou critério principal esperado..." defaultValue={safe(dados.respostaModelo)}></textarea>
+        </div>
+      )}
       <div className="field-group">
         <span className="field-label">Justificativa curta</span>
         <textarea id="editGabaritoJust" className="form-control" rows={3} placeholder="1–2 frases" defaultValue={safe(justificativaCurta || '')}></textarea>
@@ -1372,35 +1418,39 @@ export const GabaritoEditorView: React.FC<{ dados: GabaritoData; onSave: () => v
       <EditorPassos explicacaoArray={explicacaoArray} />
 
       {/* Editor Análise Alternativas */}
-      <div className="field-group">
-        <span className="field-label">Análise por alternativa</span>
-        <div id="editGabaritoAnalises" className="alts-list">
-          {(Array.isArray(questao?.alternativas) ? questao.alternativas : []).map((alt: any, i: number) => {
-            const letra = String(alt?.letra || '').trim().toUpperCase();
-            const analise = (alternativasAnalisadas || []).find((a) => String(a?.letra || '').trim().toUpperCase() === letra);
-            return (
-              <div key={i} className="alt-row alt-edit-row" style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', marginBottom: '6px' }}>
-                <input className="form-control" style={{ width: '60px', textAlign: 'center' }} value={safe(letra)} disabled />
-                <textarea className="form-control gabarito-motivo" data-letra={safe(letra)} rows={2} placeholder="Motivo (correta/errada)" defaultValue={safe(analise?.motivo || '')}></textarea>
-              </div>
-            );
-          })}
+      {!isDissertativa && (
+        <div className="field-group">
+          <span className="field-label">Análise por alternativa</span>
+          <div id="editGabaritoAnalises" className="alts-list">
+            {(Array.isArray(questao?.alternativas) ? questao.alternativas : []).map((alt: any, i: number) => {
+              const letra = String(alt?.letra || '').trim().toUpperCase();
+              const analise = (alternativasAnalisadas || []).find((a) => String(a?.letra || '').trim().toUpperCase() === letra);
+              return (
+                <div key={i} className="alt-row alt-edit-row" style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', marginBottom: '6px' }}>
+                  <input className="form-control" style={{ width: '60px', textAlign: 'center' }} value={safe(letra)} disabled />
+                  <textarea className="form-control gabarito-motivo" data-letra={safe(letra)} rows={2} placeholder="Motivo (correta/errada)" defaultValue={safe(analise?.motivo || '')}></textarea>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Editor Coerência */}
       <div className="field-group">
         <span className="field-label">Coerência (checagens internas)</span>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <input id="editCoerenciaAltExiste" type="checkbox" defaultChecked={!!(coerencia?.alternativa_correta_existe ?? coerencia?.alternativaCorretaExiste)} />
-            <span style={{ fontSize: '12px' }}>Alternativa correta existe</span>
-          </label>
-          <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <input id="editCoerenciaTodasAnalise" type="checkbox" defaultChecked={!!(coerencia?.tem_analise_para_todas ?? coerencia?.temAnaliseParaTodas)} />
-            <span style={{ fontSize: '12px' }}>Tem análise para todas</span>
-          </label>
-        </div>
+        {!isDissertativa && (
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input id="editCoerenciaAltExiste" type="checkbox" defaultChecked={!!(coerencia?.alternativa_correta_existe ?? coerencia?.alternativaCorretaExiste)} />
+              <span style={{ fontSize: '12px' }}>Alternativa correta existe</span>
+            </label>
+            <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input id="editCoerenciaTodasAnalise" type="checkbox" defaultChecked={!!(coerencia?.tem_analise_para_todas ?? coerencia?.temAnaliseParaTodas)} />
+              <span style={{ fontSize: '12px' }}>Tem análise para todas</span>
+            </label>
+          </div>
+        )}
         <textarea id="editCoerenciaObs" className="form-control" rows={3} placeholder="Observações de consistência" defaultValue={safe((Array.isArray(coerencia?.observacoes) ? coerencia.observacoes : []).join('\n'))}></textarea>
       </div>
 

@@ -177,14 +177,33 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
   // 3. Feedback Visual
   customAlert(userMessage, 4000);
 
-  // 4. Se NÃO estiver em modo Tab (Aba), reabre o modal legado
-  // Isso evita que o modal "que não é mais utilizado visualmente" apareça em fluxos novos
-  if (!tabId) {
+  // 4. Tratamento de Aba vs Legado
+  if (tabId) {
+    import("../ui/sidebar-tabs.js").then(({ updateTabStatus, addLogToQuestionTab }) => {
+      updateTabStatus(tabId, { status: "error" }, { suppressRender: true });
+      addLogToQuestionTab(tabId, `❌ **ERRO**: ${userMessage}`);
+      
+      // Remove o spinner visual da aba atual
+      const thoughtListEl = document.getElementById(`maiaThoughts-${tabId}`);
+      if (thoughtListEl) {
+        const skeletons = thoughtListEl.querySelectorAll(".maia-thought-card--skeleton");
+        skeletons.forEach(sk => sk.remove());
+      }
+      
+      // Também avisa ao BatchProcessor que esta aba liberou espaço (se aplicável), senão pode travar a fila
+      window.dispatchEvent(
+        new CustomEvent("question-processing-error", {
+          detail: { tabId, error: error.message }
+        })
+      );
+    });
+  } else {
+    // Se NÃO estiver em modo Tab (Aba), reabre o modal legado
     const modal = document.getElementById("cropConfirmModal");
     if (modal) modal.classList.add("visible");
   }
 
-  // 4. Restaura os botões (Reutilizando a lógica)
+  // 5. Restaura os botões (Reutilizando a lógica)
   restaurarEstadoBotoes(uiState);
 }
 

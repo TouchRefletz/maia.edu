@@ -69,6 +69,7 @@ export const processarSalvamentoGabarito = (container, questao) => {
   const respostaNova = normLetra(
     container.querySelector('#editGabaritoResposta')?.value
   );
+  const respostaModeloNova = container.querySelector('#editGabaritoRespostaModelo')?.value;
   const justNova = container.querySelector('#editGabaritoJust')?.value || '';
   const confRaw = container.querySelector('#editGabaritoConfianca')?.value;
   const confNova = confRaw === '' ? null : Number(confRaw);
@@ -97,6 +98,9 @@ export const processarSalvamentoGabarito = (container, questao) => {
 
   novo.alternativa_correta = respostaNova;
   novo.resposta = respostaNova;
+  if (respostaModeloNova !== undefined) {
+    novo.resposta_modelo = respostaModeloNova;
+  }
   novo.justificativa_curta = justNova;
   novo.confianca = confNova;
   novo.explicacao = passos;

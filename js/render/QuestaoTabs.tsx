@@ -83,9 +83,13 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [isAIChecking, setIsAIChecking] = useState(false);
 
-  // Detecta se é dissertativa
-  const isDissertativa = questao.tipo_resposta === 'dissertativa' || 
-    (!questao.alternativas || questao.alternativas.length === 0);
+  // Estado para dissertativa (modo UI teste/dissertativa)
+  const isQuestaoDefaultDissertativa = questao.tipo_resposta === 'dissertativa' || (!questao.alternativas || questao.alternativas.length === 0);
+  const [tipoRespostaMenu, setTipoRespostaMenu] = useState<'objetiva' | 'dissertativa'>(isQuestaoDefaultDissertativa ? 'dissertativa' : 'objetiva');
+  
+  // Detecta se é dissertativa (depende se está no modo revisão/leitura ou edição)
+  const isDissertativa = isEditing ? tipoRespostaMenu === 'dissertativa' : isQuestaoDefaultDissertativa;
+
 
   // Handler: Check answer via embeddings (default)
   const handleCheckEmbeddings = async () => {
@@ -498,132 +502,56 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             /* === DISSERTATIVA MODE === */
             <div className="field-group dissertativa-section">
               <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ✍️ Resposta Dissertativa
+                ✍️ Questão Dissertativa
                 <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-primary)', color: '#fff', fontWeight: 500 }}>Dissertativa</span>
               </span>
               
-              {/* Input area */}
-              <textarea
-                className="form-control dissertativa-input"
-                placeholder="Digite sua resposta aqui..."
-                value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
-                rows={6}
-                style={{
-                  width: '100%',
-                  resize: 'vertical',
-                  minHeight: '120px',
-                  fontFamily: 'inherit',
-                  fontSize: '14px',
-                  lineHeight: '1.6',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text)',
-                }}
-              />
-              
-              {/* Action buttons */}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={handleCheckEmbeddings}
-                  disabled={isCheckingAnswer || !userAnswer.trim()}
-                  style={{ flex: 1 }}
-                >
-                  {isCheckingAnswer ? '⏳ Verificando...' : '📊 Verificar Resposta'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--outline"
-                  onClick={handleCheckAI}
-                  disabled={isAIChecking || !userAnswer.trim()}
-                  title="Correção detalhada com IA (mais lento)"
-                  style={{ minWidth: '50px' }}
-                >
-                  {isAIChecking ? '⏳' : '🤖'}
-                </button>
-              </div>
-              <small style={{ color: 'var(--color-text-secondary)', fontSize: '11px', display: 'block', marginTop: '4px' }}>
-                📊 Verificação rápida por similaridade · 🤖 Correção detalhada com IA
-              </small>
+              <div style={{
+                marginTop: '10px',
+                padding: '16px',
+                borderRadius: '10px',
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-bg-2)',
+              }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--color-text)' }}>
+                  Esta questão será corrigida baseada nos seguintes <strong>Fatores e Critérios</strong> esperados pela IA:
+                </p>
 
-              {/* Result display */}
-              {answerResult && (
-                <div className="dissertativa-result" style={{
-                  marginTop: '12px',
-                  padding: '16px',
-                  borderRadius: '10px',
-                  border: `1px solid ${answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)'}`,
-                  background: `${answerResult.score >= 70 ? 'rgba(34,197,94,0.08)' : answerResult.score >= 40 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'}`,
-                }}>
-                  {/* Score bar */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '28px', fontWeight: 700, color: answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)' }}>
-                      {answerResult.score}%
-                    </span>
-                    <div style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'var(--color-border)', overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${answerResult.score}%`,
-                        height: '100%',
-                        borderRadius: '4px',
-                        background: answerResult.score >= 70 ? 'var(--color-success, #22c55e)' : answerResult.score >= 40 ? 'var(--color-warning, #f59e0b)' : 'var(--color-error, #ef4444)',
-                        transition: 'width 0.5s ease',
-                      }} />
+                {gabarito?.resposta_modelo && (
+                   <div style={{ marginBottom: '12px' }}>
+                     <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>📝 Resposta Modelo Esperada:</strong>
+                     <div style={{ margin: '4px 0 0 8px', fontSize: '13px', fontStyle: 'italic', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}>
+                       {gabarito.resposta_modelo}
+                     </div>
+                   </div>
+                )}
+                
+                {gabarito?.justificativa_curta && !gabarito?.resposta_modelo && (
+                   <div style={{ marginBottom: '12px' }}>
+                     <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>📝 Critérios Base:</strong>
+                     <div style={{ margin: '4px 0 0 8px', fontSize: '13px', fontStyle: 'italic', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}>
+                       {gabarito.justificativa_curta}
+                     </div>
+                   </div>
+                )}
+
+                {questao.palavras_chave?.length > 0 && (
+                  <div>
+                    <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>🔎 Palavras-Chave de Atenção:</strong>
+                    <div style={{ marginTop: '4px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      {questao.palavras_chave.map((pw: string, i: number) => (
+                        <span key={i} style={{ fontSize: '11px', background: 'rgba(34,197,94,0.1)', color: 'var(--color-success, #22c55e)', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', borderRadius: '20px' }}>
+                          {pw}
+                        </span>
+                      ))}
                     </div>
                   </div>
-
-                  {/* Embedding result */}
-                  {answerResult.method === 'embeddings' && (
-                    <div>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>{answerResult.feedback}</p>
-                      {answerResult.keywordsFound?.length > 0 && (
-                        <div style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)', marginBottom: '4px' }}>
-                          ✅ Conceitos abordados: {answerResult.keywordsFound.join(', ')}
-                        </div>
-                      )}
-                      {answerResult.keywordsMissing?.length > 0 && (
-                        <div style={{ fontSize: '12px', color: 'var(--color-warning, #f59e0b)' }}>
-                          ⚠️ Conceitos ausentes: {answerResult.keywordsMissing.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* AI result */}
-                  {answerResult.method === 'ai' && (
-                    <div>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>{answerResult.feedback_geral}</p>
-                      {answerResult.pontos_fortes?.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ fontSize: '12px', color: 'var(--color-success, #22c55e)' }}>Pontos fortes:</strong>
-                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
-                            {answerResult.pontos_fortes.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {answerResult.pontos_fracos?.length > 0 && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ fontSize: '12px', color: 'var(--color-error, #ef4444)' }}>Pontos a melhorar:</strong>
-                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
-                            {answerResult.pontos_fracos.map((p: string, i: number) => <li key={i}>{p}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                      {answerResult.sugestoes?.length > 0 && (
-                        <div>
-                          <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Sugestões:</strong>
-                          <ul style={{ margin: '4px 0 0 16px', fontSize: '12px' }}>
-                            {answerResult.sugestoes.map((s: string, i: number) => <li key={i}>{s}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+                
+                {(!gabarito?.resposta_modelo && !gabarito?.justificativa_curta && !(questao.palavras_chave?.length > 0)) && (
+                   <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Nenhum critério específico extraído ainda.</span>
+                )}
+              </div>
             </div>
           ) : (
             /* === OBJETIVA MODE (original) === */
@@ -713,58 +641,110 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
               />
             </div>
 
-            <div className="field-group">
-              <span className="field-label">Alternativas</span>
-              <div id="edit_alts" className="alts-list">
-                {(questao.alternativas || []).map((alt, i) => {
-                  const estruturaAlt = Array.isArray(alt.estrutura) ? alt.estrutura : [{ tipo: 'texto', conteudo: String(alt.texto ?? '') }];
-                  const blocosAltHtml = estruturaAlt.map((b) => criarHtmlBlocoEditor(b.tipo, b.conteudo)).join('');
+            {/* TOGGLE TIPO DE RESPOSTA (Objetiva x Dissertativa) */}
+            <div className="field-group" style={{ marginBottom: '15px' }}>
+              <span className="field-label">Tipo de Questão</span>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                {/* Save final state context here */}
+                <input type="hidden" id="edit_tipo_resposta" defaultValue={tipoRespostaMenu} />
+                <button
+                  type="button"
+                  id="btn_toggle_objetiva"
+                  className={`btn ${tipoRespostaMenu === 'objetiva' ? 'btn--primary' : 'btn--outline'}`}
+                  onClick={(e) => {
+                     const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
+                     if (input) input.value = 'objetiva';
+                     e.currentTarget.className = "btn btn--primary";
+                     e.currentTarget.style.fontWeight = "bold";
+                     const btnDiss = document.getElementById('btn_toggle_dissertativa');
+                     if (btnDiss) {
+                       btnDiss.className = "btn btn--outline";
+                       btnDiss.style.fontWeight = "normal";
+                     }
+                     const altsContainer = document.getElementById('edit_alts_container');
+                     if (altsContainer) altsContainer.style.display = 'block';
+                  }}
+                  style={{ flex: 1, fontWeight: tipoRespostaMenu === 'objetiva' ? 'bold' : 'normal' }}
+                >
+                  📝 Questão Teste (Objetiva)
+                </button>
+                <button
+                  type="button"
+                  id="btn_toggle_dissertativa"
+                  className={`btn ${tipoRespostaMenu === 'dissertativa' ? 'btn--primary' : 'btn--outline'}`}
+                  onClick={(e) => {
+                     const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
+                     if (input) input.value = 'dissertativa';
+                     e.currentTarget.className = "btn btn--primary";
+                     e.currentTarget.style.fontWeight = "bold";
+                     const btnObj = document.getElementById('btn_toggle_objetiva');
+                     if (btnObj) {
+                       btnObj.className = "btn btn--outline";
+                       btnObj.style.fontWeight = "normal";
+                     }
+                     const altsContainer = document.getElementById('edit_alts_container');
+                     if (altsContainer) altsContainer.style.display = 'none';
+                  }}
+                  style={{ flex: 1, fontWeight: tipoRespostaMenu === 'dissertativa' ? 'bold' : 'normal' }}
+                >
+                  ✍️ Questão Dissertativa
+                </button>
+              </div>
+            </div>
 
-                  return (
-                    <div key={i} className="alt-row alt-edit-row" data-alt-index={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                        <input className="form-control alt-letter" style={{ width: '60px', textAlign: 'center' }} defaultValue={alt.letra} placeholder="Letra" />
-                        <button type="button" className="btn btn--sm btn--outline btn-remove-alt" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)', minWidth: '30px' }} title="Remover alternativa">✕</button>
-                      </div>
-                      <div className="alt-editor">
-                        <div className="structure-editor-wrapper">
-                          <div className="structure-editor-container alt-drag-container" dangerouslySetInnerHTML={{ __html: blocosAltHtml }}></div>
-                          
-                          {/* MENU DROPDOWN (Nova UI) */}
-                          <div className="structure-toolbar alt-add-buttons" style={{ marginTop: '6px', position: 'relative' }}>
-                             <button type="button" className="btn btn--sm btn--secondary btn-alt-toggle-menu" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '5px', alignItems: 'center' }}>
-                                 <span>+</span> <span>Adicionar Conteúdo</span>
-                             </button>
-                             <div className="alt-add-menu hidden" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', padding: '8px', zIndex: 999, flexDirection: 'column', gap: '4px', marginTop: '5px', display: 'none' }}>
-                                 {['texto', 'equacao', 'imagem'].map(t => (
-                                     <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                         {t === 'texto' ? '📄 Texto' : t === 'equacao' ? '∑ Equação' : '📷 Imagem'}
-                                     </button>
-                                 ))}
-                                 <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
-                                 {['lista', 'tabela', 'codigo', 'citacao', 'destaque'].map(t => (
-                                     <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                         {t === 'lista' ? '≡ Lista' : t === 'tabela' ? '▦ Tabela' : t === 'codigo' ? '{ } Código' : t === 'citacao' ? '“ Citação' : '★ Destaque'}
-                                     </button>
-                                 ))}
-                                 <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
-                                  {['titulo', 'subtitulo', 'separador', 'fonte'].map(t => (
-                                     <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                         {t === 'titulo' ? 'H1 Título' : t === 'subtitulo' ? 'H2 Subtítulo' : t === 'separador' ? '__ Separador' : '© Fonte'}
-                                     </button>
-                                 ))}
-                             </div>
+            {/* Alternativas (Sempre geradas no DOM, visibility controlada) */}
+            <div className="field-group" id="edit_alts_container" style={{ display: tipoRespostaMenu === 'objetiva' ? 'block' : 'none' }}>
+              <span className="field-label">Alternativas da Questão (Testes)</span>
+              <div id="edit_alts" className="alts-list">
+                  {(questao.alternativas || []).map((alt, i) => {
+                    const estruturaAlt = Array.isArray(alt.estrutura) ? alt.estrutura : [{ tipo: 'texto', conteudo: String(alt.texto ?? '') }];
+                    const blocosAltHtml = estruturaAlt.map((b) => criarHtmlBlocoEditor(b.tipo, b.conteudo)).join('');
+  
+                    return (
+                      <div key={i} className="alt-row alt-edit-row" data-alt-index={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                          <input className="form-control alt-letter" style={{ width: '60px', textAlign: 'center' }} defaultValue={alt.letra} placeholder="Letra" />
+                          <button type="button" className="btn btn--sm btn--outline btn-remove-alt" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)', minWidth: '30px' }} title="Remover alternativa">✕</button>
+                        </div>
+                        <div className="alt-editor">
+                          <div className="structure-editor-wrapper">
+                            <div className="structure-editor-container alt-drag-container" dangerouslySetInnerHTML={{ __html: blocosAltHtml }}></div>
+                            
+                            {/* MENU DROPDOWN (Nova UI) */}
+                            <div className="structure-toolbar alt-add-buttons" style={{ marginTop: '6px', position: 'relative' }}>
+                               <button type="button" className="btn btn--sm btn--secondary btn-alt-toggle-menu" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '5px', alignItems: 'center' }}>
+                                   <span>+</span> <span>Adicionar Conteúdo</span>
+                               </button>
+                               <div className="alt-add-menu hidden" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', padding: '8px', zIndex: 999, flexDirection: 'column', gap: '4px', marginTop: '5px', display: 'none' }}>
+                                   {['texto', 'equacao', 'imagem'].map(t => (
+                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
+                                           {t === 'texto' ? '📄 Texto' : t === 'equacao' ? '∑ Equação' : '📷 Imagem'}
+                                       </button>
+                                   ))}
+                                   <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
+                                   {['lista', 'tabela', 'codigo', 'citacao', 'destaque'].map(t => (
+                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
+                                           {t === 'lista' ? '≡ Lista' : t === 'tabela' ? '▦ Tabela' : t === 'codigo' ? '{ } Código' : t === 'citacao' ? '“ Citação' : '★ Destaque'}
+                                       </button>
+                                   ))}
+                                   <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
+                                    {['titulo', 'subtitulo', 'separador', 'fonte'].map(t => (
+                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
+                                           {t === 'titulo' ? 'H1 Título' : t === 'subtitulo' ? 'H2 Subtítulo' : t === 'separador' ? '__ Separador' : '© Fonte'}
+                                       </button>
+                                   ))}
+                               </div>
+                            </div>
+                            
                           </div>
-                          
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <button type="button" className="btn btn--secondary btn--full-width" id="btnAddAlt" style={{ marginTop: '5px' }} onClick={handleAdicionarAlternativa}>
-                + Adicionar Alternativa
-              </button>
+                    );
+                  })}
+                </div>
+                <button type="button" className="btn btn--secondary btn--full-width" id="btnAddAlt" style={{ marginTop: '5px' }} onClick={handleAdicionarAlternativa}>
+                  + Adicionar Alternativa Teste
+                </button>
             </div>
 
             <button type="button" className="btn btn--primary btn--full-width" id="btnSalvarEdicao" style={{ marginTop: '15px' }} onClick={handleSalvarEdicao}>

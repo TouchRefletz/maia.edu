@@ -56,7 +56,14 @@ export const processarSalvamentoQuestao = (container) => {
   const { estrutura, enunciado } = extrairEstruturaEnunciado(container);
 
   // Extrai as alternativas
-  const alternativas = extrairAlternativasDoEditor(container);
+  let alternativas = extrairAlternativasDoEditor(container);
+
+  // Extrai o tipo de questão configurado (Objetiva vs Dissertativa)
+  const tipoResposta = container.querySelector("#edit_tipo_resposta")?.value || "objetiva";
+
+  if (tipoResposta === 'dissertativa') {
+    alternativas = []; // Questões dissertativas não possuem alternativas de teste
+  }
 
   // Extrai metadados (helper reutilizável)
   const extrairLinhas = (sel) =>
@@ -75,6 +82,7 @@ export const processarSalvamentoQuestao = (container) => {
     window.__ultimaQuestaoExtraida.materias_possiveis = materias;
     window.__ultimaQuestaoExtraida.palavras_chave = palavrasChave;
     window.__ultimaQuestaoExtraida.alternativas = alternativas;
+    window.__ultimaQuestaoExtraida.tipo_resposta = tipoResposta || 'objetiva';
 
     // IMPORTANTE: Após edição manual, a questão deixa de ser "Recitation" (modo rascunho)
     // Isso garante que o componente QuestaoTabs inicie no modo de visualização
