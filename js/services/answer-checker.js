@@ -25,6 +25,17 @@ export async function checkAnswerWithEmbeddings(
   questionData,
   apiKey,
 ) {
+  if (!userAnswer || !expectedAnswer) {
+    return {
+      score: 0,
+      similarity: 0,
+      keywordsFound: [],
+      keywordsMissing: [],
+      feedback: "Impossível corrigir (resposta modelo ou do aluno vazia).",
+      method: "error",
+    };
+  }
+
   try {
     // 1. Generate embeddings for both answers in parallel
     const [userEmbedding, expectedEmbedding] = await Promise.all([
@@ -109,6 +120,29 @@ export async function checkAnswerWithAI(userAnswer, fullQuestionJson, apiKey) {
         type: "string",
         description: "Avaliação geral da resposta (2-3 frases)",
       },
+      criterios_avaliados: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            criterio: {
+              type: "string",
+              description: "Ponto/Critério esperado pela questão",
+            },
+            atendido: {
+              type: "boolean",
+              description: "Se o estudante atendeu ou não a esse critério",
+            },
+            feedback: {
+              type: "string",
+              description: "Pequeno comentário justificando se atendeu ou não",
+            }
+          },
+          required: ["criterio", "atendido", "feedback"],
+        },
+        description: "Lista de pontos cobrados na resposta modelo e se o estudante cumpriu",
+      },
       pontos_fortes: {
         type: "array",
         items: { type: "string" },
@@ -129,39 +163,15 @@ export async function checkAnswerWithAI(userAnswer, fullQuestionJson, apiKey) {
         description:
           "Comparação direta entre a resposta do aluno e a resposta modelo",
       },
-      notas_detalhadas: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            criterio: {
-              type: "string",
-              description: "Nome do critério avaliado",
-            },
-            peso: {
-              type: "number",
-              description: "Peso do critério (0-1)",
-            },
-            nota: {
-              type: "number",
-              minimum: 0,
-              maximum: 100,
-              description: "Nota neste critério (0-100)",
-            },
-          },
-          required: ["criterio", "peso", "nota"],
-        },
-      },
     },
     required: [
       "score",
       "feedback_geral",
+      "criterios_avaliados",
       "pontos_fortes",
       "pontos_fracos",
       "sugestoes",
       "comparacao_com_gabarito",
-      "notas_detalhadas",
     ],
   };
 
@@ -175,7 +185,7 @@ RESPOSTA DO ALUNO:
 
 INSTRUÇÕES:
 1. Compare a resposta do aluno com a resposta modelo (resposta_modelo) e a explicação do gabarito.
-2. Avalie critérios como: completude, precisão conceitual, uso de termos técnicos, organização, relevância.
+2. Identifique os critérios que a questão cobra e avalie um por um (em 'criterios_avaliados').
 3. Seja justo mas educativo — destaque o que o aluno acertou antes de apontar erros.
 4. A nota deve refletir proporcionalmente o quanto da resposta modelo foi coberto.
 
@@ -241,11 +251,11 @@ Responda com o JSON estruturado.`;
       score: 0,
       feedback_geral:
         "Erro na correção com IA. Tente novamente ou use a correção por embeddings.",
+      criterios_avaliados: [],
       pontos_fortes: [],
       pontos_fracos: [],
       sugestoes: [],
       comparacao_com_gabarito: "",
-      notas_detalhadas: [],
       method: "error",
     };
   }
@@ -258,7 +268,7 @@ async function generateEmbedding(text, apiKey) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text,
+      texto: text,
       apiKey: apiKey || undefined,
     }),
   });

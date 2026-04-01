@@ -1097,28 +1097,91 @@ export const GabaritoCardView: React.FC<{ dados: GabaritoData } & GabaritoReview
             )
           )}
           
-          {/* Resposta Esperada - Revisável (Somente para dissertativa) */}
-          {isDissertativa && dados.respostaModelo && (
-            isReviewMode && onApprove && onReject ? (
-              <ReviewableItem
-                fieldId="gabarito_resposta_modelo"
-                state={reviewState?.['gabarito_resposta_modelo'] || null}
-                onApprove={onApprove}
-                onReject={onReject}
-                label="📝 Resposta Esperada (Critério da IA)"
-              >
-                <div className="gabarito-just markdown-content"><SafeMarkdown text={dados.respostaModelo} /></div>
-              </ReviewableItem>
-            ) : (
-              <div className="gabarito-just" style={{ marginBottom: '15px' }}>
-                <strong>Resposta Esperada: </strong>
-                <div className="markdown-content" style={{ display: 'inline' }}><SafeMarkdown text={dados.respostaModelo} /></div>
-              </div>
-            )
+          {/* Seção Dissertativa */}
+          {isDissertativa && (
+            <div style={{
+              marginTop: '15px',
+              padding: '16px',
+              borderRadius: '10px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-2)',
+              marginBottom: '15px'
+            }}>
+              <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--color-text)' }}>
+                Esta questão será corrigida baseada nos seguintes <strong>Fatores e Critérios</strong> esperados pela IA:
+              </p>
+
+              {dados.respostaModelo && (
+                isReviewMode && onApprove && onReject ? (
+                  <ReviewableItem
+                    fieldId="gabarito_resposta_modelo"
+                    state={reviewState?.['gabarito_resposta_modelo'] || null}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    label="📝 Resposta Modelo Esperada"
+                  >
+                     <div 
+                       className="markdown-content"
+                       style={{ margin: '4px 0 0 8px', fontSize: '13px', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}
+                     ><SafeMarkdown text={dados.respostaModelo} /></div>
+                  </ReviewableItem>
+                ) : (
+                   <div style={{ marginBottom: '12px' }}>
+                     <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>📝 Resposta Modelo Esperada:</strong>
+                     <div 
+                       className="markdown-content"
+                       style={{ margin: '4px 0 0 8px', fontSize: '13px', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}
+                     ><SafeMarkdown text={dados.respostaModelo} /></div>
+                   </div>
+                )
+              )}
+              
+              {justificativaCurta && (
+                isReviewMode && onApprove && onReject ? (
+                  <ReviewableItem
+                    fieldId={justificativaId}
+                    state={justState}
+                    onApprove={onApprove}
+                    onReject={onReject}
+                    label="📝 Critérios Base"
+                  >
+                     <div 
+                       className="markdown-content"
+                       style={{ margin: '4px 0 0 8px', fontSize: '13px', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}
+                     ><SafeMarkdown text={justificativaCurta} /></div>
+                  </ReviewableItem>
+                ) : (
+                   <div style={{ marginBottom: '12px' }}>
+                     <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>📝 Critérios Base:</strong>
+                     <div 
+                       className="markdown-content"
+                       style={{ margin: '4px 0 0 8px', fontSize: '13px', color: 'var(--color-text)', borderLeft: '3px solid var(--color-primary)', paddingLeft: '8px' }}
+                     ><SafeMarkdown text={justificativaCurta} /></div>
+                   </div>
+                )
+              )}
+
+              {dados.questao?.palavras_chave?.length > 0 && (
+                <div>
+                  <strong style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>🔎 Palavras-Chave de Atenção:</strong>
+                  <div style={{ marginTop: '4px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                    {dados.questao.palavras_chave.map((pw: string, i: number) => (
+                      <span key={i} style={{ fontSize: '11px', background: 'rgba(34,197,94,0.1)', color: 'var(--color-success, #22c55e)', border: '1px solid rgba(34,197,94,0.3)', padding: '2px 8px', borderRadius: '20px' }}>
+                        {pw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {(!dados.respostaModelo && !justificativaCurta && !(dados.questao?.palavras_chave?.length > 0)) && (
+                 <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Nenhum critério específico extraído ainda.</span>
+              )}
+            </div>
           )}
-          
-          {/* Justificativa - Revisável */}
-          {justificativaCurta && (
+
+          {/* Justificativa - Objetiva */}
+          {!isDissertativa && justificativaCurta && (
             isReviewMode && onApprove && onReject ? (
               <ReviewableItem
                 fieldId={justificativaId}

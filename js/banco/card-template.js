@@ -45,46 +45,84 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
     if (letraKey && aa.motivo) motivoMap[letraKey] = aa.motivo;
   });
 
-  const htmlAlts = (q.alternativas || [])
-    .map((alt) => {
-      const letra = alt.letra.trim().toUpperCase();
-      let conteudoHtml = "";
+  const isDissertativa = q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
 
-      if (alt.estrutura) {
-        // MUDANÇA: Passa 'banco' como contexto para desabilitar edição
-        // Assume que renderizar_estrutura_alternativa está no escopo global
-        conteudoHtml = renderizar_estrutura_alternativa(
-          alt.estrutura,
-          letra,
-          [],
-          "banco",
-        );
-      } else {
-        conteudoHtml = alt.texto || "";
-      }
+  let htmlAlts = "";
 
-      // Escapa o motivo para uso seguro no atributo data
-      const motivoRaw = motivoMap[letra] || "";
-      const motivoEscapado = motivoRaw
-        .replace(/"/g, "&quot;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+  if (isDissertativa) {
+    htmlAlts = `
+      <div style="margin-top: 15px;">
+        <textarea 
+          class="q-dissert-input" 
+          placeholder="Esboce ou rascunhe sua resposta dissertativa aqui para compará-la ao final..." 
+          rows="4"
+          style="width: 100%; border-radius: 8px; padding: 12px; border: 1px dashed var(--color-border); background: var(--color-bg-2); color: var(--color-text); font-family: inherit; font-size: 14px; resize: vertical; margin-bottom: 10px;"
+        ></textarea>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button 
+              class="q-opt-btn js-check-dissert-embedding" 
+              data-card-id="${cardId}" 
+              style="flex: 1; justify-content: center; background: var(--color-bg-2); color: var(--color-text); border: 1px solid var(--color-border); font-weight: bold;"
+              title="Correção rápida baseada na presença das palavras-chave esperadas"
+          >
+              🔑 Corrigir Simples (Palavras-Chave)
+          </button>
+          <button 
+              class="q-opt-btn js-check-dissert-ai" 
+              data-card-id="${cardId}" 
+              style="flex: 1; justify-content: center; background: var(--color-primary); color: white; border: none; font-weight: bold;"
+              title="Correção detalhada usando Inteligência Artificial (Gemini)"
+          >
+              🤖 Corrigir Completo (com IA)
+          </button>
+        </div>
 
-      // Gera o botão interativo
-      return `
-        <button 
-            class="q-opt-btn js-verificar-resp" 
-            data-card-id="${cardId}" 
-            data-letra="${letra}" 
-            data-correta="${g.alternativa_correta}"
-            data-motivo="${motivoEscapado}"
-        >
-            <span class="q-opt-letter">${letra})</span>
-            <div class="q-opt-content">${conteudoHtml}</div>
-            <div class="q-opt-motivo" style="display:none;"></div>
-        </button>`;
-    })
-    .join("");
+        <!-- Reservatório para o feedback de avaliação -->
+        <div id="${cardId}_feedback" style="display: none; margin-top: 15px; padding: 15px; border-radius: 8px; background: var(--color-bg-3); border: 1px solid var(--color-border);"></div>
+      </div>`;
+  } else {
+    htmlAlts = (q.alternativas || [])
+      .map((alt) => {
+        const letra = alt.letra.trim().toUpperCase();
+        let conteudoHtml = "";
+
+        if (alt.estrutura) {
+          // MUDANÇA: Passa 'banco' como contexto para desabilitar edição
+          // Assume que renderizar_estrutura_alternativa está no escopo global
+          conteudoHtml = renderizar_estrutura_alternativa(
+            alt.estrutura,
+            letra,
+            [],
+            "banco",
+          );
+        } else {
+          conteudoHtml = alt.texto || "";
+        }
+
+        // Escapa o motivo para uso seguro no atributo data
+        const motivoRaw = motivoMap[letra] || "";
+        const motivoEscapado = motivoRaw
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        // Gera o botão interativo
+        return `
+          <button 
+              class="q-opt-btn js-verificar-resp" 
+              data-card-id="${cardId}" 
+              data-letra="${letra}" 
+              data-correta="${g.alternativa_correta}"
+              data-motivo="${motivoEscapado}"
+          >
+              <span class="q-opt-letter">${letra})</span>
+              <div class="q-opt-content">${conteudoHtml}</div>
+              <div class="q-opt-motivo" style="display:none;"></div>
+          </button>`;
+      })
+      .join("");
+  }
 
   return { card, htmlAlts, cardId };
 }
@@ -245,14 +283,38 @@ export function gerarHtmlResolucao(cardId, gabarito, rawImgsG, jsonImgsG) {
         <div id="${cardId}_res" class="q-resolution" style="display:none;">
             <div class="q-res-header">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="q-res-badge">Gabarito: ${gabarito.alternativa_correta}</span>
+                    <span class="q-res-badge">Gabarito: ${gabarito.alternativa_correta || "Dissertativa"}</span>
                     <span style="font-size:0.8rem; color:var(--color-text-secondary);">
                         Confiança IA: ${confianca}%
                     </span>
                 </div>
             </div>
+            
+          ${(() => {
+              const resModeloRaw = gabarito.resposta_modelo || gabarito.respostaModelo;
+              if (!resModeloRaw) return "";
+              
+              let padronizado = String(resModeloRaw)
+                .replace(/```[a-zA-Z]*\n?/g, '')
+                .replace(/```/g, '');
+              padronizado = padronizado.split('\n').map(l => l.trimStart()).join('\n').trim();
+
+              const safeDataRaw = padronizado
+                .replace(/"/g, "&quot;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+              return `
+                <div class="q-res-section static-render-target">
+                    <span class="q-res-label">Resposta Modelo Esperada</span>
+                    <div class="markdown-content" data-raw="${safeDataRaw}" style="margin:0; line-height:1.5; padding: 10px; background: rgba(34,197,94,0.05); border-left: 3px solid var(--color-success); border-radius: 4px;">
+                    </div>
+                </div>
+              `;
+            })()}
+
             <div class="q-res-section static-render-target">
-                <span class="q-res-label">Justificativa</span>
+                <span class="q-res-label">Justificativa Base</span>
                 <p class="markdown-content" style="margin:0; line-height:1.5;">${justificativa}</p>
             </div>
             

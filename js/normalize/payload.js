@@ -12,8 +12,14 @@ export const _prepararDadosIniciais = (dados) => {
   // A IA às vezes manda o payload embrulhado (resultado/data/etc.)
   const root = pick(dados?.resultado, dados?.data, dados?.payload, dados) ?? {};
 
-  // Detecta se é Gabarito baseado nos campos do dado, não mais no modo
-  const isGabaritoData = root?.alternativa_correta || root?.resposta;
+  // Detecta se é Gabarito baseado nos campos do dado, não no modo e usando 'in' para evitar falsos negativos com strings vazias
+  const isGabaritoData = 
+    ('alternativa_correta' in root) || 
+    ('resposta' in root) || 
+    ('justificativa_curta' in root) || 
+    ('resposta_modelo' in root) || 
+    ('explicacao' in root) || 
+    ('analise_complexidade' in root);
 
   return {
     root,
@@ -163,6 +169,7 @@ export const _processarQuestao = (root) => {
     palavras_chave: asArray(
       pick(root?.palavras_chave, root?.palavraschave, []),
     ).map(String),
+    tipo_resposta: String(pick(root?.tipo_resposta, root?.tiporesposta, "objetiva")),
     alternativas: alternativasProcessadas,
     fotos_originais: asArray(pick(root?.fotos_originais, [])),
   };
@@ -212,17 +219,14 @@ export const _injetarImagensEmEstrutura = (estrutura, imagensDisponiveis) => {
 
 /**
  * Gerencia a atualização das variáveis globais de estado.
- * Verifica se é edição (mesma referência) ou dado novo (IA).
+ * Salva no global de gabarito ou de questão dependendo do tipo do dado.
  */
-export const _atualizarEstadoGlobal = (dados, dadosNorm) => {
-  // Verifica referências para saber se é edição
-  const isEdicaoQuestao = dados === window.__ultimaQuestaoExtraida;
-
-  if (isEdicaoQuestao) {
-    // Se estamos salvando uma edição da Questão
-    window.__ultimaQuestaoExtraida = safeClone(dadosNorm);
+export const _atualizarEstadoGlobal = (dados, dadosNorm, isGabaritoData) => {
+  if (isGabaritoData) {
+    // É Gabarito, atualiza a variável global do gabarito
+    window.__ultimoGabaritoExtraido = safeClone(dadosNorm);
   } else {
-    // Se não é edição, é DADO NOVO vindo da IA
+    // É Questão, atualiza a variável global da questão
     window.__ultimaQuestaoExtraida = safeClone(dadosNorm);
   }
 };

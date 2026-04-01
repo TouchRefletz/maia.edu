@@ -65,6 +65,7 @@ interface GabaritoProps {
     confianca: number;
     alternativa_correta: string;
     justificativa_curta: string;
+    resposta_modelo?: string;
     analise_complexidade: any;
     creditos: any;
     texto_referencia?: string;
@@ -352,41 +353,70 @@ export const PainelQuestao: React.FC<QuestaoProps> = ({ q, tituloMaterial, image
         </div>
       </div>
 
-      <div className="field-group" style={{ marginTop: '15px' }}>
-        <span className="field-label">Alternativas</span>
-        <div className="alts-list">
-          <ListaAlternativas alternativas={q.alternativas} />
+      {q.alternativas && q.alternativas.length > 0 ? (
+        <div className="field-group" style={{ marginTop: '15px' }}>
+          <span className="field-label">Alternativas</span>
+          <div className="alts-list">
+            <ListaAlternativas alternativas={q.alternativas} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="field-group dissertativa-section" style={{ marginTop: '15px' }}>
+          <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            ✍️ Questão Dissertativa
+            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-primary)', color: '#fff', fontWeight: 500 }}>Dissertativa</span>
+          </span>
+          <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-bg-2)' }}>
+            Esta é uma questão dissertativa estruturada. A forma de avaliação e a <strong>resposta modelo esperada</strong> encontram-se disponíveis e detalhadas no painel do <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>Gabarito</span>.
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export const PainelGabarito: React.FC<GabaritoProps> = ({ g, imagensFinais, explicacaoArray }) => {
+  const isDissertativa = !g.alternativa_correta && (g.resposta_modelo || g.justificativa_curta);
+
   return (
     <div className="extraction-result" style={{ border: 'none', padding: 0, background: 'transparent' }}>
       <div className="result-header" style={{ background: 'var(--color-bg-2)', padding: '10px', borderRadius: '8px', marginBottom: '15px', border: '1px solid var(--color-warning)' }}>
         <div>
-          <h3 style={{ color: 'var(--color-warning)', margin: 0, fontSize: '16px' }}>GABARITO</h3>
+          <h3 style={{ color: 'var(--color-warning)', margin: 0, fontSize: '16px' }}>
+            {isDissertativa ? 'GABARITO (DISSERTATIVA)' : 'GABARITO'}
+          </h3>
           <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
             Confiança IA: <strong>{Math.round((g.confianca || 0) * 100)}%</strong>
           </div>
         </div>
-        <span className="badge" style={{ background: 'var(--color-success)', color: 'white', fontSize: '14px', padding: '4px 10px' }}>
-          LETRA {safe(g.alternativa_correta)}
+        <span className="badge" style={{ background: isDissertativa ? 'var(--color-primary)' : 'var(--color-success)', color: 'white', fontSize: '14px', padding: '4px 10px' }}>
+          {isDissertativa ? 'DISSERTATIVA' : `LETRA ${safe(g.alternativa_correta)}`}
         </span>
       </div>
 
       <ImgsLimpas lista={imagensFinais.g_suporte} titulo="Imagens de Suporte (Gabarito)" />
 
-      <div className="field-group">
-        <span className="field-label">Resumo / Justificativa</span>
-        <div
-          className="data-box markdown-content"
-          style={{ background: 'var(--color-background)', fontSize: '13px' }}
-          dangerouslySetInnerHTML={{ __html: safeMarkdown(g.justificativa_curta) }}
-        />
-      </div>
+      {isDissertativa && g.resposta_modelo && (
+        <div className="field-group">
+          <span className="field-label">Resposta Modelo Esperada</span>
+          <div
+            className="data-box markdown-content"
+            style={{ background: 'var(--color-background)', fontSize: '13px', borderLeft: '3px solid var(--color-primary)' }}
+            dangerouslySetInnerHTML={{ __html: safeMarkdown(g.resposta_modelo) }}
+          />
+        </div>
+      )}
+
+      {g.justificativa_curta && (
+        <div className="field-group">
+          <span className="field-label">{isDissertativa ? 'Critérios Base / Justificativa' : 'Resumo / Justificativa'}</span>
+          <div
+            className="data-box markdown-content"
+            style={{ background: 'var(--color-background)', fontSize: '13px' }}
+            dangerouslySetInnerHTML={{ __html: safeMarkdown(g.justificativa_curta) }}
+          />
+        </div>
+      )}
 
       <ComplexidadeVisual comp={g.analise_complexidade} />
 

@@ -64,7 +64,7 @@ export function renderizarQuestaoController(
 
   // 2. Processamento de Payload e Estado Global
   dadosNorm = _processarDadosPayload(root, isGabaritoData);
-  _atualizarEstadoGlobal(dados, dadosNorm);
+  _atualizarEstadoGlobal(dados, dadosNorm, isGabaritoData);
 
   // 3. Preparação da Interface Básica (DOM Nodes)
   const interfaceBasica = _prepararInterfaceBasica(dadosNorm);

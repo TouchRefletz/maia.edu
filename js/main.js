@@ -41,6 +41,7 @@ import {
   abrirScanOriginal,
   toggleGabarito,
   verificarRespostaBanco,
+  avaliarRespostaDissertativa,
 } from "./banco/interacoes.js";
 import { cancelarRecorte } from "./cropper/cropper-core.js";
 import { CropperState } from "./cropper/cropper-state.js";
@@ -356,6 +357,22 @@ if (!window.__globalListenerRegistered) {
 
       // Chama a funÃ§Ã£o lÃ³gica passando o elemento (gatilhoResposta) e os dados
       verificarRespostaBanco(gatilhoResposta, cardId, letra, correta);
+      return;
+    }
+
+    // --- NOVO CASO 12.1: Verificar Resposta (Dissertativa Simples) ---
+    const gatilhoDissertativaE = e.target.closest(".js-check-dissert-embedding");
+    if (gatilhoDissertativaE) {
+      const cardId = gatilhoDissertativaE.dataset.cardId;
+      avaliarRespostaDissertativa(gatilhoDissertativaE, cardId, 'embedding');
+      return;
+    }
+
+    // --- NOVO CASO 12.2: Verificar Resposta (Dissertativa IA) ---
+    const gatilhoDissertativaIA = e.target.closest(".js-check-dissert-ai");
+    if (gatilhoDissertativaIA) {
+      const cardId = gatilhoDissertativaIA.dataset.cardId;
+      avaliarRespostaDissertativa(gatilhoDissertativaIA, cardId, 'ai');
       return;
     }
 
