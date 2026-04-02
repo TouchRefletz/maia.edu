@@ -1,4 +1,5 @@
 import { exibirModalOriginais } from "../render/final/OriginaisModal.tsx";
+import { showConfirmModal } from "../ui/modal-confirm.js";
 
 export function toggleGabarito(cardId) {
   const el = document.getElementById(cardId + "_res");
@@ -11,6 +12,29 @@ export function toggleGabarito(cardId) {
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   } else {
     el.style.display = "none";
+  }
+}
+
+export async function toggleKeywordsDissertativa(btn, cardId) {
+  const keywordsContainer = document.getElementById(cardId + "_keywords");
+  if (!keywordsContainer) return;
+
+  if (keywordsContainer.style.display === "none") {
+    const message = 'Estas palavras-chave compõem a "resposta esperada" da questão. Recomendamos tentar responder à questão antes de visualizá-las para testar seu conhecimento. Deseja mostrar assim mesmo?';
+    
+    // Utilize the site's native custom modal
+    const confirmed = await showConfirmModal(
+      "Atenção",
+      message,
+      "Mostrar Palavras-Chave",
+      "Cancelar",
+      false // false = negative/warning action (usually red button style)
+    );
+
+    if (confirmed) {
+      keywordsContainer.style.display = "flex";
+      btn.style.display = "none";
+    }
   }
 }
 

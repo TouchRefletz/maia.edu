@@ -380,3 +380,167 @@ export function showTitleConfirmationModal(currentTitle) {
     };
   });
 }
+
+/**
+ * Exibe um modal para gerenciar o link do PDF embed.
+ * @param {string|null} currentUrl - A URL atual do PDF (pode ser null/vazio).
+ * @returns {Promise<{action: 'set'|'remove'|'cancel', url?: string}>}
+ *   - action='set': O usuário definiu/trocou a URL (url contém a nova URL)
+ *   - action='remove': O usuário removeu a URL
+ *   - action='cancel': O usuário cancelou
+ */
+export function showPdfUrlModal(currentUrl = null) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay custom-confirm-overlay hidden";
+
+    const content = document.createElement("div");
+    content.className = "modal-content custom-confirm-content";
+    content.style.maxWidth = "480px";
+
+    // Header
+    const header = document.createElement("div");
+    header.className = "modal-header";
+    header.innerHTML = `<h2>🔗 Link do PDF</h2>`;
+
+    // Body
+    const body = document.createElement("div");
+    body.className = "modal-body";
+
+    // Descrição
+    const desc = document.createElement("p");
+    desc.innerText = currentUrl
+      ? "Você pode trocar ou remover o link do PDF utilizado para visualização."
+      : "Cole abaixo o link de um arquivo PDF para visualizar diretamente.";
+    desc.style.marginBottom = "16px";
+    desc.style.fontSize = "0.9rem";
+    body.appendChild(desc);
+
+    // URL atual (se existir)
+    if (currentUrl) {
+      const currentBox = document.createElement("div");
+      currentBox.style.cssText = `
+        padding: 10px 14px; margin-bottom: 14px;
+        background: var(--color-surface-alt, rgba(0,0,0,0.15));
+        border: 1px solid var(--color-border);
+        border-radius: 8px; font-size: 0.8rem;
+        word-break: break-all; color: var(--color-text-secondary);
+        display: flex; flex-direction: column; gap: 4px;
+      `;
+      const currentLabel = document.createElement("span");
+      currentLabel.innerText = "Link atual:";
+      currentLabel.style.cssText = "font-weight: 600; font-size: 0.75rem; color: var(--color-text); opacity: 0.7;";
+      const currentLink = document.createElement("span");
+      currentLink.innerText = currentUrl.length > 80 ? currentUrl.substring(0, 80) + "…" : currentUrl;
+      currentLink.style.cssText = "color: var(--color-primary); font-size: 0.8rem;";
+      currentBox.appendChild(currentLabel);
+      currentBox.appendChild(currentLink);
+      body.appendChild(currentBox);
+    }
+
+    // Input group
+    const inputGroup = document.createElement("div");
+    inputGroup.className = "form-group";
+    inputGroup.style.marginBottom = "6px";
+
+    const label = document.createElement("label");
+    label.className = "form-label";
+    label.innerText = currentUrl ? "Novo link (deixe vazio para manter)" : "Link do PDF";
+    label.style.fontSize = "0.85rem";
+
+    const input = document.createElement("input");
+    input.type = "url";
+    input.className = "form-control";
+    input.placeholder = "https://exemplo.com/arquivo.pdf";
+    input.style.fontSize = "0.85rem";
+    setTimeout(() => input.focus(), 150);
+
+    inputGroup.appendChild(label);
+    inputGroup.appendChild(input);
+    body.appendChild(inputGroup);
+
+    // Footer
+    const footer = document.createElement("div");
+    footer.className = "modal-footer";
+    footer.style.display = "flex";
+    footer.style.justifyContent = "flex-end";
+    footer.style.gap = "10px";
+    footer.style.flexWrap = "wrap";
+
+    // Botão Remover (só aparece se já tem URL)
+    if (currentUrl) {
+      const btnRemove = document.createElement("button");
+      btnRemove.className = "btn btn--outline";
+      btnRemove.innerText = "🗑️ Remover Link";
+      btnRemove.style.cssText = `
+        margin-right: auto; color: var(--color-error);
+        border-color: var(--color-error); font-size: 0.8rem;
+      `;
+      btnRemove.onclick = () => close({ action: "remove" });
+      footer.appendChild(btnRemove);
+    }
+
+    const btnCancel = document.createElement("button");
+    btnCancel.className = "btn btn--outline";
+    btnCancel.innerText = "Cancelar";
+
+    const btnConfirm = document.createElement("button");
+    btnConfirm.className = "btn btn--primary";
+    btnConfirm.style.backgroundColor = "var(--color-primary)";
+    btnConfirm.style.borderColor = "var(--color-primary)";
+    btnConfirm.innerText = currentUrl ? "🔄 Trocar" : "✅ Definir";
+
+    footer.appendChild(btnCancel);
+    footer.appendChild(btnConfirm);
+
+    // Montagem
+    content.appendChild(header);
+    content.appendChild(body);
+    content.appendChild(footer);
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(() => {
+      overlay.classList.remove("hidden");
+    });
+
+    const close = (value) => {
+      overlay.style.opacity = "0";
+      setTimeout(() => {
+        if (document.body.contains(overlay)) {
+          document.body.removeChild(overlay);
+        }
+        resolve(value);
+      }, 300);
+    };
+
+    btnCancel.onclick = () => close({ action: "cancel" });
+
+    btnConfirm.onclick = () => {
+      const newUrl = input.value.trim();
+      if (!newUrl) {
+        // Se não digitou nada, cancela (mantém o que tinha)
+        close({ action: "cancel" });
+        return;
+      }
+      if (!newUrl.startsWith("http://") && !newUrl.startsWith("https://")) {
+        input.style.borderColor = "var(--color-error)";
+        input.style.boxShadow = "0 0 0 2px rgba(239,68,68,0.3)";
+        return;
+      }
+      close({ action: "set", url: newUrl });
+    };
+
+    overlay.onclick = (e) => {
+      if (e.target === overlay) close({ action: "cancel" });
+    };
+
+    input.onkeyup = (e) => {
+      // Reset error style on typing
+      input.style.borderColor = "";
+      input.style.boxShadow = "";
+      if (e.key === "Enter") btnConfirm.click();
+      if (e.key === "Escape") btnCancel.click();
+    };
+  });
+}

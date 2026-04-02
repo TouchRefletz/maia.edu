@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visualizador PDF — Maia.edu</title>
+
+  <!-- PDF.js (mesma versão do app principal) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Puter SDK (para puter.fetch bypass CORS) -->
+  <script src="https://js.puter.com/v2/"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --border-color: rgba(148, 163, 184, 0.15);
+      --text-primary: rgba(226, 232, 240, 0.95);
+      --text-secondary: rgba(148, 163, 184, 0.7);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.3);
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    html, body {
+      width: 100%;
+      overflow: hidden;
+      background: var(--bg-primary);
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--text-primary);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* === LOADING STATE === */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-primary);
+      z-index: 1000;
+      gap: 16px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #loading-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .loading-subtext {
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.4);
+      max-width: 300px;
+      text-align: center;
+    }
+
+    /* === ERROR STATE === */
+    #error-container {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+      gap: 16px;
+      text-align: center;
+      min-height: 200px;
+    }
+    #error-container.visible { display: flex; }
+
+    .error-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .error-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .error-detail {
+      font-size: 12px;
+      color: var(--text-secondary);
+      max-width: 400px;
+      line-height: 1.5;
+    }
+
+    /* === CANVAS AREA === */
+    #canvas-container {
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+    }
+
+    #pdf-canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      background: #fff;
+    }
+
+    /* === COPYRIGHT DISCLAIMER (always below the image) === */
+    #copyright-disclaimer {
+      width: 100%;
+      padding: 10px 16px;
+      background: rgba(245, 158, 11, 0.06);
+      border-top: 1px solid rgba(245, 158, 11, 0.15);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .copyright-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .copyright-text {
+      font-size: 10px;
+      line-height: 1.5;
+      color: rgba(245, 158, 11, 0.85);
+      flex: 1;
+    }
+
+    .copyright-text strong {
+      color: rgba(245, 158, 11, 1);
+    }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 600px) {
+      .copyright-text { font-size: 9px; }
+      .loading-text { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Carregando documento...</div>
+    <div class="loading-subtext">Obtendo PDF via proxy seguro. Isso pode levar alguns segundos.</div>
+  </div>
+
+  <!-- Error Container -->
+  <div id="error-container">
+    <div class="error-icon">⚠️</div>
+    <div class="error-title" id="error-title">Erro ao carregar</div>
+    <div class="error-detail" id="error-detail">Não foi possível obter o documento.</div>
+  </div>
+
+  <!-- Canvas Container (scrollable) -->
+  <div id="canvas-container">
+    <canvas id="pdf-canvas"></canvas>
+  </div>
+
+  <!-- Copyright Disclaimer (below the image, always visible after render) -->
+  <div id="copyright-disclaimer" style="display: none;">
+    <span class="copyright-icon">⚠️</span>
+    <div class="copyright-text">
+      <strong>Aviso Legal:</strong> Este conteúdo foi obtido de fontes externas e é exibido exclusivamente para fins educacionais e de estudo pessoal.
+      Todos os direitos autorais pertencem aos seus respectivos titulares.
+      A reprodução, distribuição ou uso comercial sem autorização expressa dos detentores dos direitos é proibida e pode violar a Lei nº 9.610/98 (Lei de Direitos Autorais).
+      Caso seja titular dos direitos e deseje a remoção deste conteúdo, entre em contato.
+    </div>
+  </div>
+
+  <script>
+    (async function() {
+      // === 1. PARSE URL PARAMS ===
+      const params = new URLSearchParams(window.location.search);
+
+      const pdfUrl    = params.get('url');
+      const pageNum   = parseInt(params.get('page') || '1', 10);
+      // Crop params (PDF.js coordinate system)
+      const sourceW   = parseFloat(params.get('sourceW') || '0');
+      const sourceH   = parseFloat(params.get('sourceH') || '0');
+      const cropX     = parseFloat(params.get('x') || '0');
+      const cropY     = parseFloat(params.get('y') || '0');
+      const cropW     = parseFloat(params.get('cropW') || '0');
+      const cropH     = parseFloat(params.get('cropH') || '0');
+      // Legacy embed coords (fallback)
+      const legacyLeft   = parseFloat(params.get('left') || '0');
+      const legacyTop    = parseFloat(params.get('top') || '0');
+      const legacyWidth  = parseFloat(params.get('width') || '0');
+      const legacyHeight = parseFloat(params.get('height') || '0');
+
+      const hasCrop = cropW > 0 && cropH > 0;
+
+      const loadingEl = document.getElementById('loading-overlay');
+      const errorEl   = document.getElementById('error-container');
+      const canvasEl  = document.getElementById('pdf-canvas');
+      const copyrightEl = document.getElementById('copyright-disclaimer');
+
+      // === 2. VALIDATE ===
+      if (!pdfUrl) {
+        showError('URL não fornecida', 'Nenhuma URL de PDF foi especificada nos parâmetros.');
+        return;
+      }
+
+      // === 3. FETCH PDF VIA PUTER ===
+      try {
+        updateLoading('Obtendo documento via proxy...');
+
+        let arrayBuffer;
+
+        // Tenta puter.fetch primeiro (bypass CORS)
+        if (typeof puter !== 'undefined' && puter.fetch) {
+          try {
+            const response = await puter.fetch(pdfUrl);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            arrayBuffer = await blob.arrayBuffer();
+          } catch (puterErr) {
+            console.warn('[PDFViewer] puter.fetch falhou, tentando fetch nativo:', puterErr);
+            // Fallback para fetch nativo (pode funcionar se same-origin ou CORS habilitado)
+            const response = await fetch(pdfUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            arrayBuffer = await response.arrayBuffer();
+          }
+        } else {
+          // Sem Puter SDK — fetch direto
+          console.warn('[PDFViewer] Puter SDK não disponível, usando fetch nativo');
+          const response = await fetch(pdfUrl);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          arrayBuffer = await response.arrayBuffer();
+        }
+
+        // === 4. RENDER COM PDF.JS ===
+        updateLoading('Renderizando página...');
+
+        const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page   = await pdfDoc.getPage(pageNum);
+        const canvas = canvasEl;
+        const ctx    = canvas.getContext('2d');
+
+        const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+        let finalWidth, finalHeight, offsetX, offsetY, scale;
+
+        if (hasCrop && sourceW > 0) {
+          // === MODO CROP (recorta região específica da página) ===
+          scale = sourceW / unscaledViewport.width;
+          finalWidth  = cropW;
+          finalHeight = cropH;
+          offsetX = cropX;
+          offsetY = cropY;
+        } else {
+          // === MODO PÁGINA COMPLETA ===
+          // Responsivo: usa a largura disponível do container
+          const containerWidth = document.getElementById('canvas-container').clientWidth;
+          const targetWidth = Math.min(containerWidth, 1200); // Max 1200px
+          scale = targetWidth / unscaledViewport.width;
+          const viewport = page.getViewport({ scale });
+          finalWidth  = viewport.width;
+          finalHeight = viewport.height;
+          offsetX = 0;
+          offsetY = 0;
+        }
+
+        const viewport = page.getViewport({ scale });
+
+        canvas.width  = finalWidth;
+        canvas.height = finalHeight;
+
+        // Background branco
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, finalWidth, finalHeight);
+
+        // Aplica crop via translate
+        ctx.save();
+        if (hasCrop && sourceW > 0) {
+          ctx.translate(-offsetX, -offsetY);
+        }
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        ctx.restore();
+
+        // === 5. SUCESSO — MOSTRAR RESULTADO ===
+        loadingEl.classList.add('hidden');
+        copyrightEl.style.display = 'flex';
+
+        // Aguarda o layout estabilizar para medir dimensões reais
+        requestAnimationFrame(() => {
+          // A largura exibida do canvas (pode ser menor que canvas.width se max-width:100% atuou)
+          const displayedCanvasWidth = canvasEl.offsetWidth;
+          const displayedCanvasHeight = canvasEl.offsetHeight;
+          const disclaimerH = copyrightEl.offsetHeight;
+
+          const totalWidth = displayedCanvasWidth;
+          const totalHeight = displayedCanvasHeight + disclaimerH;
+
+          console.log('[PDFViewer] Dimensões finais:', { displayedCanvasWidth, displayedCanvasHeight, disclaimerH, totalWidth, totalHeight });
+
+          // Notifica o pai (iframe parent) com as dimensões exatas
+          try {
+            window.parent.postMessage({
+              type: 'pdfViewerReady',
+              success: true,
+              contentWidth: totalWidth,
+              contentHeight: totalHeight
+            }, '*');
+          } catch(e) {}
+        });
+
+      } catch (err) {
+        console.error('[PDFViewer] Erro fatal:', err);
+        showError(
+          'Falha ao carregar o PDF',
+          `Não foi possível obter ou renderizar o documento. Verifique se a URL é acessível.\n\nDetalhes: ${err.message}`
+        );
+
+        // Notifica o pai sobre a falha
+        try {
+          window.parent.postMessage({ type: 'pdfViewerReady', success: false, error: err.message }, '*');
+        } catch(e) {}
+      }
+
+      // === HELPERS ===
+      function updateLoading(text) {
+        const el = document.querySelector('.loading-text');
+        if (el) el.textContent = text;
+      }
+
+      function showError(title, detail) {
+        loadingEl.classList.add('hidden');
+        errorEl.classList.add('visible');
+        document.getElementById('error-title').textContent = title;
+        document.getElementById('error-detail').textContent = detail;
+      }
+    })();
+  </script>
+</body>
+</html>

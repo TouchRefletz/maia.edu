@@ -256,19 +256,38 @@ export function gerarHtmlHeader(id, fullData) {
 /**
  * Gera a seção de tags (matérias e palavras-chave).
  */
-export function gerarHtmlTags(questao) {
+export function gerarHtmlTags(questao, cardId = "card_unknown") {
   const materias = (questao.materias_possiveis || [])
     .map((m) => `<span class="q-tag highlight">${m}</span>`)
     .join("");
 
-  const keywords = (questao.palavras_chave || [])
-    .map((t) => `<span class="q-tag">${t}</span>`)
-    .join("");
+  const isDissertativa = questao.tipo_resposta === "dissertativa" || !questao.alternativas || questao.alternativas.length === 0;
+  const rawKeywords = questao.palavras_chave || [];
+  
+  let keywordsHtml = "";
+
+  if (rawKeywords.length > 0) {
+    if (isDissertativa) {
+        const keywordsBody = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join("");
+        keywordsHtml = `
+            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <button class="q-tag js-toggle-kw-dissert" data-card-id="${cardId}" style="cursor: pointer; border: 1px dashed var(--color-border); background: transparent; font-weight: bold;" title="Mostrar palavras-chave">
+                    👁️ Mostrar Palavras-Chave
+                </button>
+                <div id="${cardId}_keywords" style="display: none; align-items: center; gap: 8px;">
+                    ${keywordsBody}
+                </div>
+            </div>
+        `;
+    } else {
+        keywordsHtml = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join("");
+    }
+  }
 
   return `
         <div class="q-tags">
             ${materias}
-            ${keywords}
+            ${keywordsHtml}
         </div>`;
 }
 
@@ -389,7 +408,7 @@ export function criarCardTecnico(idFirebase, fullData) {
   // ALTERADO: Passa fullData para gerarHtmlHeader
   card.innerHTML = [
     gerarHtmlHeader(idFirebase, fullData),
-    gerarHtmlTags(q),
+    gerarHtmlTags(q, cardId),
     `<div class="q-body">${htmlCorpoQuestao}</div>`,
     `<div class="q-options" id="${cardId}_opts">${htmlAlts}</div>`,
     gerarHtmlResolucao(cardId, g, rawImgsG, jsonImgsG),

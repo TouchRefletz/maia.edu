@@ -40,6 +40,7 @@ import { aplicarFiltrosBanco, limparFiltros } from "./banco/filtros-ui.js";
 import {
   abrirScanOriginal,
   toggleGabarito,
+  toggleKeywordsDissertativa,
   verificarRespostaBanco,
   avaliarRespostaDissertativa,
 } from "./banco/interacoes.js";
@@ -374,6 +375,14 @@ if (!window.__globalListenerRegistered) {
       const cardId = gatilhoDissertativaIA.dataset.cardId;
       avaliarRespostaDissertativa(gatilhoDissertativaIA, cardId, 'ai');
       return;
+    }
+
+    // --- NOVO CASO 12.3: Toggle Keywords Dissertativa ---
+    const gatilhoKwDissertativa = e.target.closest(".js-toggle-kw-dissert");
+    if (gatilhoKwDissertativa) {
+        const cardId = gatilhoKwDissertativa.dataset.cardId;
+        toggleKeywordsDissertativa(gatilhoKwDissertativa, cardId);
+        return;
     }
 
     // --- NOVO CASO 13: Ver Scan Original (Enunciado ou Gabarito) ---

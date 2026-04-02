@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { showPdfUrlModal } from './modal-confirm';
 
 // DECLARAÇÃO GLOBAL DO PDF.JS (já carregado no index.html globalmente)
 declare const pdfjsLib: any;
@@ -50,17 +51,18 @@ interface PdfEmbedRendererProps {
   scaleToFit?: boolean;
   
   // Força um render mode específico (para debug/toggle)
-  forceRenderMode?: 'embed' | 'pdfjs' | 'auto';
+  forceRenderMode?: 'embed' | 'pdfjs' | 'puter' | 'auto';
 
   // Se true, não usa arquivo automático do viewer (prova que está aberta)
   readOnly?: boolean;
 }
 
 /**
- * Renderizador Híbrido com Toggle:
- * 1. Modo 'embed': Usa <embed> nativo (Chrome/Edge) para fidelidade 100%.
- * 2. Modo 'pdfjs': Usa <canvas> (PDF.js) com suporte a Proxy List para contornar CORS.
- * 3. Modo 'auto': Escolhe automaticamente baseado no navegador.
+ * Renderizador Híbrido com Toggle (3 modos):
+ * 1. Modo 'puter' (PADRÃO): Usa iframe + puter.fetch() para bypass CORS universal.
+ * 2. Modo 'embed': Usa <embed> nativo (Chrome/Edge) para fidelidade 100%.
+ * 3. Modo 'pdfjs': Usa <canvas> (PDF.js) local com suporte a upload manual.
+ * Fallback automático: puter → embed → pdfjs
  */
 export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   // 1. Normalize Props
@@ -93,16 +95,26 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   // [ROBUSTNESS] Global URL override logic
   // @ts-ignore
   const globalPdfUrl = typeof window !== 'undefined' ? (window.__pdfOriginalUrl || window.__pdfDownloadUrl) : null;
-  const effectiveUrl = (fileUrl && typeof fileUrl === 'string' && fileUrl.startsWith('blob:') && globalPdfUrl) ? globalPdfUrl : fileUrl;
+  const baseUrl = (fileUrl && typeof fileUrl === 'string' && fileUrl.startsWith('blob:') && globalPdfUrl) ? globalPdfUrl : fileUrl;
+  
+  // [NEW] URL manual fornecida pelo usuário (prioridade sobre tudo)
+  const [manualPdfUrl, setManualPdfUrl] = useState<string>('');
+  const [manualUrlInput, setManualUrlInput] = useState<string>('');
+  const effectiveUrl = manualPdfUrl || baseUrl;
 
-  // Estado do toggle - inicia com 'auto' se não forçado
-  // [FIX] Em Chrome/Edge, inicia em embed (mesmo sem URL, para mostrar "Visualização não disponível")
-  // Em outros navegadores, inicia em pdfjs
-  const [renderMode, setRenderMode] = useState<'embed' | 'pdfjs'>(
+  // Estado do toggle - inicia com 'puter' como padrão quando há URL
+  // Fallback: puter → embed (Chrome/Edge) → pdfjs
+  const [renderMode, setRenderMode] = useState<'puter' | 'embed' | 'pdfjs'>(
     props.forceRenderMode === 'pdfjs' ? 'pdfjs' :
     props.forceRenderMode === 'embed' ? 'embed' :
-    (isChromeOrEdge ? 'embed' : 'pdfjs')
+    props.forceRenderMode === 'puter' ? 'puter' :
+    'puter' // Default: sempre tenta puter primeiro
   );
+  
+  // [NEW] Estado para rastrear falha do modo Puter (iframe)
+  const [puterFailed, setPuterFailed] = useState(false);
+  // [NEW] Dimensões reais do conteúdo do iframe (reportadas pelo viewer)
+  const [puterIframeHeight, setPuterIframeHeight] = useState<number | null>(null);
 
   const [fallbackError, setFallbackError] = useState<string | null>(null);
   const [embedFailed, setEmbedFailed] = useState(false); // [NEW] Detecta falha do embed
@@ -168,7 +180,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     };
   }, [scaleToFit, origWidth]);
 
-  // Reset isRendered when switching to pdfjs mode
+  // Reset isRendered when switching modes
   useEffect(() => {
     if (renderMode === 'pdfjs') {
       setIsRendered(false);
@@ -178,7 +190,36 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     if (renderMode === 'embed') {
       setEmbedFailed(false);
     }
+    if (renderMode === 'puter') {
+      setPuterFailed(false);
+    }
   }, [renderMode]);
+
+  // [NEW] Listener para mensagens do iframe do puter viewer
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'pdfViewerReady') {
+        if (event.data.success) {
+          // Sucesso — atualiza dimensões exatas do iframe
+          if (event.data.contentHeight) {
+            console.log('[PdfEmbed] Recebeu dimensões do viewer:', event.data.contentWidth, 'x', event.data.contentHeight);
+            setPuterIframeHeight(event.data.contentHeight);
+          }
+        } else {
+          console.warn('[PdfEmbed] Puter viewer falhou, fazendo fallback...');
+          setPuterFailed(true);
+          // Fallback: puter → embed (Chrome/Edge) → pdfjs
+          if (isChromeOrEdge) {
+            setRenderMode('embed');
+          } else {
+            setRenderMode('pdfjs');
+          }
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isChromeOrEdge]);
 
   // [FIX] Listener para detectar quando window.__pdfLocalFile é carregado externamente
   useEffect(() => {
@@ -545,6 +586,17 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   }, [effectiveUrl, pageNum, c.left, c.top, renderMode, isRendered, props.readOnly, hasUploadedFile, retryRender, externalFileVersion]);
 
   // --- TOGGLE BUTTON STYLE ---
+  const modeColors: Record<string, string> = {
+    puter: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    embed: 'linear-gradient(135deg, #667eea, #764ba2)',
+    pdfjs: 'linear-gradient(135deg, #22c55e, #16a34a)',
+  };
+  const modeLabels: Record<string, string> = {
+    puter: '🌐 Puter',
+    embed: '📄 Embed',
+    pdfjs: '🎨 PDF.js',
+  };
+
   const toggleButtonStyle: React.CSSProperties = {
     position: 'absolute',
     top: '4px',
@@ -556,17 +608,186 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
-    background: renderMode === 'embed' 
-      ? 'linear-gradient(135deg, #667eea, #764ba2)' 
-      : 'linear-gradient(135deg, #22c55e, #16a34a)',
+    background: modeColors[renderMode] || modeColors.puter,
     color: '#fff',
     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
     transition: 'all 0.2s ease',
   };
 
+  // Cicla: puter → embed → pdfjs → puter
   const toggleRenderMode = () => {
-    setRenderMode(prev => prev === 'embed' ? 'pdfjs' : 'embed');
+    setRenderMode(prev => {
+      if (prev === 'puter') return 'embed';
+      if (prev === 'embed') return 'pdfjs';
+      return 'puter'; // pdfjs → puter
+    });
   };
+
+  // --- BOTÃO EDITAR LINK DO PDF ---
+  const editLinkButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: '4px',
+    right: '68px', // Colado ao lado esquerdo do toggle (4px gap)
+    zIndex: 100,
+    padding: '4px 8px',
+    fontSize: '10px',
+    fontWeight: 'bold',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    background: manualPdfUrl 
+      ? 'linear-gradient(135deg, #06b6d4, #0891b2)' // Cyan quando tem URL manual
+      : 'linear-gradient(135deg, rgba(148,163,184,0.5), rgba(100,116,139,0.5))', // Cinza sutil quando é URL original
+    color: '#fff',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+    transition: 'all 0.2s ease',
+  };
+
+  const handleEditLink = async () => {
+    const currentActive = effectiveUrl || null;
+    const result = await showPdfUrlModal(currentActive);
+
+    if (result.action === 'set' && result.url) {
+      setPuterIframeHeight(null); // Reset para recalcular
+      setManualPdfUrl(result.url);
+      setManualUrlInput(result.url); // Sincroniza o input inline também
+    } else if (result.action === 'remove') {
+      setPuterIframeHeight(null);
+      setManualPdfUrl('');
+      setManualUrlInput('');
+    }
+    // 'cancel' = não faz nada
+  };
+
+  // Botão de editar link — SÓ aparece quando há URL ativa (senão é redundante com o placeholder)
+  const editLinkButton = effectiveUrl ? (
+    <button
+      style={editLinkButtonStyle}
+      onClick={handleEditLink}
+      title="Trocar ou remover link do PDF"
+    >
+      🔗 Editar
+    </button>
+  ) : null;
+
+  // --- RENDER PUTER (iframe) --- [NEW DEFAULT]
+  if (renderMode === 'puter') {
+    // Handler para o usuário submeter URL manual
+    const handleManualUrlSubmit = () => {
+      const trimmed = manualUrlInput.trim();
+      if (trimmed && (trimmed.startsWith('http://') || trimmed.startsWith('https://'))) {
+        setPuterIframeHeight(null); // Reset height para recalcular
+        setManualPdfUrl(trimmed);
+      }
+    };
+
+    // Campo de input de URL (aparece quando não tem URL ou sempre como opção)
+    const urlInputBar = (
+      <div style={{
+        display: 'flex', gap: '6px', width: '100%', maxWidth: '500px',
+        padding: '0 8px', marginTop: '4px',
+      }}>
+        <input
+          type="url"
+          placeholder="Cole o link do PDF aqui..."
+          value={manualUrlInput}
+          onChange={(e) => setManualUrlInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleManualUrlSubmit(); }}
+          style={{
+            flex: 1, padding: '8px 12px', fontSize: '11px',
+            background: 'var(--color-bg-1, #1e293b)', color: 'var(--color-text, #e2e8f0)',
+            border: '1px solid var(--color-border, rgba(148,163,184,0.2))',
+            borderRadius: '6px', outline: 'none',
+            fontFamily: 'inherit',
+          }}
+        />
+        <button
+          onClick={handleManualUrlSubmit}
+          style={{
+            padding: '8px 14px', fontSize: '11px', fontWeight: 600,
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            color: '#fff', border: 'none', borderRadius: '6px',
+            cursor: 'pointer', whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', gap: '4px',
+          }}
+        >
+          🌐 Carregar
+        </button>
+      </div>
+    );
+
+    if (!effectiveUrl) {
+      // Sem URL, mostra placeholder com campo de input
+      return (
+        <div ref={containerRef} style={{ position: 'relative', width: '100%', minHeight: '120px' }}>
+          <button style={toggleButtonStyle} onClick={toggleRenderMode} title="Alternar modo de visualização">
+            {modeLabels[renderMode]}
+          </button>
+          {editLinkButton}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '24px 16px', background: 'var(--color-surface)', borderRadius: '12px',
+            border: '1px solid var(--color-border)', gap: '12px', minHeight: '100px',
+          }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(var(--color-primary-rgb), 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>📄</div>
+            <span style={{ fontSize: '13px', color: 'var(--color-text)', fontWeight: 500, textAlign: 'center' }}>Visualização não disponível</span>
+            <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)', textAlign: 'center' }}>Nenhum link de PDF encontrado — cole abaixo para visualizar</span>
+            {urlInputBar}
+          </div>
+        </div>
+      );
+    }
+
+    // Construir URL do viewer com todos os parâmetros
+    const viewerParams = new URLSearchParams();
+    viewerParams.set('url', effectiveUrl);
+    viewerParams.set('page', String(pageNum));
+    if (c.sW) viewerParams.set('sourceW', String(c.sW));
+    if (c.sH) viewerParams.set('sourceH', String(c.sH));
+    if (c.X) viewerParams.set('x', String(c.X));
+    if (c.Y) viewerParams.set('y', String(c.Y));
+    if (c.cW) viewerParams.set('cropW', String(c.cW));
+    if (c.cH) viewerParams.set('cropH', String(c.cH));
+    if (c.left) viewerParams.set('left', String(c.left));
+    if (c.top) viewerParams.set('top', String(c.top));
+    
+    const viewerSrc = `/pdf-viewer.html?${viewerParams.toString()}`;
+
+    // Calcula dimensões para o iframe
+    // Estimativa inicial — capped at 100vh
+    const maxVh = typeof window !== 'undefined' ? window.innerHeight : 900;
+    const estimatedHeight = Math.min(origHeight + 42, maxVh);
+    // Dimensões reais já recebidas: também capped at 100vh
+    const finalIframeHeight = puterIframeHeight 
+      ? Math.min(puterIframeHeight, maxVh) 
+      : estimatedHeight;
+
+    return (
+      <div ref={containerRef} style={{ position: 'relative', width: '100%', maxWidth: `${origWidth}px` }}>
+        <button style={toggleButtonStyle} onClick={toggleRenderMode} title="Alternar modo de visualização">
+          {modeLabels[renderMode]}
+        </button>
+        {editLinkButton}
+        <iframe
+          src={viewerSrc}
+          style={{
+            width: '100%',
+            height: `${finalIframeHeight}px`,
+            maxHeight: '100vh',
+            border: 'none',
+            borderRadius: '8px',
+            background: '#0f172a',
+            display: 'block',
+            overflow: 'hidden',
+            transition: puterIframeHeight ? 'height 0.3s ease' : 'none',
+          }}
+          sandbox="allow-scripts allow-same-origin"
+          title="Visualizador PDF via Puter"
+          scrolling="no"
+        />
+      </div>
+    );
+  }
 
   // --- RENDER EMBED ---
   // [RESTORED] Embed logic MUST use scale() to preserve the viewport relative to the crop
@@ -600,10 +821,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
           <button 
             style={toggleButtonStyle} 
             onClick={toggleRenderMode}
-            title="Alternar entre Embed e PDF.js"
+            title="Alternar modo de visualização"
           >
-            📄 Embed
+            {modeLabels[renderMode]}
           </button>
+          {editLinkButton}
           <div style={noUrlContentStyle}>
             <div style={{
               width: '48px',
@@ -729,10 +951,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
           <button 
             style={toggleButtonStyle} 
             onClick={toggleRenderMode}
-            title="Alternar para PDF.js"
+            title="Alternar modo de visualização"
           >
-            📄 Embed
+            {modeLabels[renderMode]}
           </button>
+          {editLinkButton}
           <div style={embedFailedOverlay}>
             <div style={{
               width: '48px',
@@ -811,10 +1034,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         <button 
           style={toggleButtonStyle} 
           onClick={toggleRenderMode}
-          title="Alternar entre Embed e PDF.js"
+          title="Alternar modo de visualização"
         >
-          📄 Embed
+          {modeLabels[renderMode]}
         </button>
+        {editLinkButton}
         <div style={activeWrapperStyle} title="Visualização via PDF Embed">
           <embed 
             key={embedSrc} 
@@ -962,10 +1186,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
              <button 
                 style={toggleButtonStyle} 
                 onClick={toggleRenderMode}
-                title="Alternar entre Embed e PDF.js"
+                title="Alternar modo de visualização"
               >
-                🎨 PDF.js
+                {modeLabels[renderMode]}
               </button>
+              {editLinkButton}
               
               <div style={{...pdfJsWrapperStyle, height: 'auto', paddingBottom: 0}}>
                   <div style={uploadContainerStyle}>
@@ -1098,10 +1323,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         <button 
           style={toggleButtonStyle} 
           onClick={toggleRenderMode}
-          title="Alternar entre Embed e PDF.js"
+          title="Alternar modo de visualização"
         >
-          🎨 PDF.js
+          {modeLabels[renderMode]}
         </button>
+        {editLinkButton}
         <div style={errorContainerStyle}>
           <div style={{
             width: '40px',
@@ -1154,10 +1380,11 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         <button 
           style={toggleButtonStyle} 
           onClick={toggleRenderMode}
-          title="Alternar entre Embed e PDF.js"
+          title="Alternar modo de visualização"
         >
-          🎨 PDF.js
+          {modeLabels[renderMode]}
         </button>
+        {editLinkButton}
         <div style={pdfJsWrapperStyle}>
             <canvas ref={canvasRef} style={canvasStyle} />
             {/* [FIX] Loading overlay sobre o canvas - canvas permanece montado */}
