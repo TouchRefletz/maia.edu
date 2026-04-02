@@ -30,6 +30,11 @@ export async function runChatPipeline(
   let executionMode = selectedMode;
   try {
   // 1. === PERSISTENCE & INIT ===
+  const oldActive = document.getElementById("stepsAccordion");
+  if (oldActive) {
+      oldActive.removeAttribute("id");
+  }
+
   // Gerencia criação de chat se não existir ID
   let chatId = context.chatId;
   let isNewChat = false;

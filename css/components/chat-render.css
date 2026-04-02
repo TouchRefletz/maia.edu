@@ -872,7 +872,431 @@
     gap: 16px;
 }
 
-/* 2. Timeline Thoughts (Custom Div Implementation) */
+/* =========================================
+   2. STEPS ACCORDION — "Concluiu N etapas" Pattern
+   ========================================= */
+
+/* --- Parent Accordion Wrapper --- */
+.steps-accordion {
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+/* Accordion Header — "Concluiu N etapas ⌵" */
+.steps-accordion-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px;
+    user-select: none;
+    font-family: var(--font-family-base);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    transition: color 0.2s ease;
+}
+
+.steps-accordion-header:hover {
+    color: var(--color-text);
+}
+
+.steps-accordion-header .steps-accordion-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    transition: transform 0.25s ease;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.steps-accordion.open .steps-accordion-header .steps-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.steps-accordion-count {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+/* Accordion Body — holds all step rows */
+.steps-accordion-body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.3s ease;
+    padding-left: 4px;
+}
+
+.steps-accordion.open .steps-accordion-body {
+    max-height: 3000px;
+    opacity: 1;
+}
+
+/* During processing — accordion is open and steps appear live */
+.steps-accordion.processing .steps-accordion-body {
+    max-height: 3000px;
+    opacity: 1;
+}
+
+/* --- Individual Step Row --- */
+.step-row {
+    display: flex;
+    flex-direction: column;
+    animation: stepFadeIn 0.35s ease-out forwards;
+}
+
+@keyframes stepFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Step Row Header (clickable trigger) */
+.step-row-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease, color 0.2s ease;
+    border-radius: var(--radius-sm);
+    position: relative;
+    width: 100%;
+}
+
+.step-row-header::after {
+    content: '';
+    flex: 1; /* Ensures the hover box fills the remaining space */
+}
+
+.step-row-header:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Step Icon */
+.step-row-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    opacity: 0.8;
+}
+
+/* SVG icon inside step-row-icon */
+.step-row-icon svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Check icon for completed steps */
+.step-row-icon.completed {
+    color: var(--color-success);
+    opacity: 1;
+}
+
+/* Monochrome Logo Spinner for active generation phase */
+.monochrome-spinner {
+    width: 16px;
+    height: 16px;
+    animation: spin-slow 2.5s linear infinite;
+    opacity: 0.8;
+}
+
+[data-color-scheme='light'] .monochrome-spinner,
+:root:not([data-color-scheme='dark']) .monochrome-spinner {
+    filter: invert(1);
+}
+
+/* Step Title */
+.step-row-title {
+    font-family: var(--font-family-base);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s;
+}
+
+.step-row-header:hover .step-row-title {
+    color: var(--color-text);
+}
+
+/* Active step has slightly brighter title */
+.step-row.active .step-row-title {
+    color: var(--color-text);
+}
+
+/* Step Chevron (expand arrow) */
+.step-row-chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+    opacity: 0.5;
+    transition: transform 0.25s ease, opacity 0.2s;
+}
+
+.step-row-chevron svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.step-row-header:hover .step-row-chevron {
+    opacity: 0.8;
+}
+
+.step-row.open .step-row-chevron {
+    transform: rotate(90deg);
+    opacity: 0.8;
+}
+
+/* --- Step Row Content (expanded area) --- */
+.step-row-content {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease,
+                padding 0.25s ease;
+    padding: 0 8px 0 38px; /* Aligns with title (icon width + gap) */
+}
+
+.step-row.open .step-row-content {
+    max-height: 600px;
+    opacity: 1;
+    overflow-y: auto;
+    padding: 4px 8px 12px 38px;
+}
+
+/* Custom Scrollbar for step content */
+.step-row-content::-webkit-scrollbar {
+    width: 3px;
+}
+
+.step-row-content::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 3px;
+}
+
+/* --- Step Content Inner Styling --- */
+.step-row-body {
+    font-family: var(--font-family-base);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    border-left: 2px solid rgba(var(--color-primary-rgb), 0.2);
+    padding-left: 12px;
+}
+
+.step-row-body strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+/* Terminal-style box inside step content */
+.step-terminal-box {
+    background: rgba(10, 10, 15, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-top: 8px;
+    font-family: var(--font-family-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.step-terminal-box .step-terminal-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.step-terminal-box .step-terminal-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-success);
+    box-shadow: 0 0 4px var(--color-success);
+}
+
+/* Document attachment inside step */
+.step-document-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.15);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--color-primary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.step-document-chip:hover {
+    background: rgba(var(--color-primary-rgb), 0.12);
+    border-color: rgba(var(--color-primary-rgb), 0.25);
+}
+
+.step-document-chip .doc-icon {
+    font-size: 16px;
+}
+
+.step-document-chip .doc-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.step-document-chip .doc-name {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.step-document-chip .doc-type {
+    font-size: 10px;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+/* --- Thought Cards inside Step Content --- */
+/* Reuse existing thought card styles but adapted for step context */
+.step-row-content .chat-thoughts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.step-row-content .maia-thought-card {
+    display: flex;
+    gap: 10px;
+    padding: 6px 0;
+    margin: 0;
+    animation: fadeIn 0.3s ease;
+}
+
+.step-row-content .maia-thought-logo-wrap {
+    width: 18px;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.step-row-content .maia-thought-logo {
+    width: 14px;
+    height: 14px;
+    opacity: 0.6;
+}
+
+.step-row-content .maia-thought-card:last-child .maia-thought-logo {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+}
+
+/* Timeline dots between thought cards in step content */
+.step-row-content .maia-thought-card:not(:last-child) .maia-thought-logo {
+    opacity: 0;
+}
+
+.step-row-content .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    width: 6px;
+    height: 6px;
+    background: var(--color-text-secondary);
+    border-radius: 50%;
+    z-index: 1;
+    opacity: 0.4;
+}
+
+.step-row-content .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    transform: translateX(-50%);
+    width: 1.5px;
+    height: calc(100% + 8px);
+    background: rgba(var(--color-primary-rgb), 0.2);
+    border-radius: 2px;
+}
+
+.step-row-content .maia-thought-title {
+    font-size: 12px;
+    color: var(--color-text);
+    font-weight: 600;
+    margin-bottom: 1px;
+}
+
+.step-row-content .maia-thought-body {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
+
+/* Skeleton overrides inside step content */
+.step-row-content .skeleton-wrapper {
+    border-top: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.step-row-content .maia-thoughts {
+    margin: 0 !important;
+}
+
+.step-row-content .loading-status-area {
+    display: none !important;
+}
+
+/* --- LEGACY COMPAT: chat-thought-container still works for loadChat --- */
+/* Map old classes to new design seamlessly */
 .chat-thought-container {
     margin-bottom: 8px;
     background: transparent;
@@ -880,13 +1304,11 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    /* Alinha o chip a esquerda */
 }
 
-/* Header/Trigger Styles */
 .chat-thought-header {
     cursor: pointer;
-    font-family: var(--font-family-mono);
+    font-family: var(--font-family-base);
     font-size: 13px;
     font-weight: 500;
     color: var(--color-text-secondary);
@@ -894,49 +1316,25 @@
     align-items: center;
     user-select: none;
     width: fit-content;
-    /* O chip ocupa só o tamanho necessário */
     z-index: 2;
-    /* Fica acima do container de conteúdo se sobrepor */
     position: relative;
 }
 
-/* Wrapper interno do summary para alinhar logo e texto (O CHIP AZUL) */
 .summary-content-wrapper {
     display: flex;
     align-items: center;
-    gap: 12px;
-    background: rgba(30, 30, 35, 0.6);
-    /* Default dark styling */
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    gap: 10px;
+    background: transparent;
+    padding: 8px 4px;
+    border-radius: 0;
+    border: none;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.chat-thought-container.open .summary-content-wrapper {
-    /* Quando aberto, o chip ganha destaque ou conecta com o box de baixo? */
-    /* User pediu "Blue Chip" - vamos deixar azulado quando aberto ou sempre? 
-       O 'azul' do design system geralmente vem do primary ou surface active. 
-    */
-    background: rgba(var(--color-primary-rgb), 0.15);
-    border-color: rgba(var(--color-primary-rgb), 0.3);
-    color: var(--color-primary);
-    border-bottom-left-radius: 4px;
-    /* Conecta com o box */
-    border-bottom-right-radius: 4px;
-}
-
-/* Hover effect */
 .summary-content-wrapper:hover {
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text);
 }
 
-.chat-thought-container.open .summary-content-wrapper:hover {
-    background: rgba(var(--color-primary-rgb), 0.2);
-}
-
-/* Logo Girando */
 .summary-logo-spinner {
     width: 18px;
     height: 18px;
@@ -945,100 +1343,108 @@
     animation: spin-slow 3s linear infinite;
 }
 
+.summary-logo-static {
+    color: var(--color-success);
+}
+
 .summary-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 300px;
+    max-width: 400px;
 }
 
-/* Seta discreta */
+/* Chevron for legacy containers */
 .summary-content-wrapper::after {
-    content: '▼';
-    font-size: 8px;
-    margin-left: 8px;
+    content: '';
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
     opacity: 0.5;
-    transition: transform 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'%3E%3C/polyline%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: transform 0.25s ease;
 }
 
 .chat-thought-container.open .summary-content-wrapper::after {
-    transform: rotate(180deg);
+    transform: rotate(90deg);
 }
 
-/* Container Interno dos Cards (O "DARK THING") */
+/* Inner content panel */
 .chat-thoughts-inner {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    /* Hide scrollbar when closed */
     margin-top: 0;
-    /* Styles for the "box" */
-    background: rgba(10, 10, 15, 0.4);
-    border-radius: 0 12px 12px 12px;
-    /* Top-left connects with chip */
-    border: 1px solid transparent;
-
-    transition: max-height 0.4s ease-out, opacity 0.3s ease, margin-top 0.3s ease, padding 0.3s ease;
-    padding: 0;
-    /* Ocupa largura da mensagem */
+    background: transparent;
+    border-radius: var(--radius-sm);
+    border: none;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease,
+                margin-top 0.2s ease,
+                padding 0.2s ease;
+    padding: 0 0 0 28px;
 }
 
 .chat-thought-container.open .chat-thoughts-inner {
     max-height: 500px;
-    /* Altura máxima arbitrária para animar */
     opacity: 1;
-    margin-top: 4px;
-    /* Espaçamento interno */
-    border-color: rgba(var(--color-primary-rgb), 0.1);
-
-    /* Scroll only when open */
+    margin-top: 2px;
     overflow-y: auto;
+    padding: 4px 0 8px 28px;
 }
 
 /* Custom Scrollbar */
 .chat-thoughts-inner::-webkit-scrollbar {
-    width: 4px;
+    width: 3px;
 }
 
 .chat-thoughts-inner::-webkit-scrollbar-thumb {
     background-color: var(--color-border);
-    border-radius: 4px;
+    border-radius: 3px;
 }
 
-/* --- Timeline Overrides for Reused Components --- */
+/* Thought card overrides inside legacy container */
+.chat-thoughts-inner .maia-thought-card {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    animation: fadeIn 0.3s ease;
+}
 
-/* Esconde o loader wrapper border top que vem do construirSkeletonLoader */
-.chat-thoughts-inner .skeleton-wrapper {
-    border-top: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
+.chat-thoughts-inner .maia-thought-logo-wrap {
+    width: 18px;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .chat-thoughts-inner .maia-thought-card:last-child .maia-thought-logo {
     opacity: 1;
-    filter: drop-shadow(0 0 5px rgba(var(--color-primary-rgb), 0.5));
+    filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
 }
 
 .chat-thoughts-inner .maia-thought-card .maia-thought-content {
     text-align: left;
 }
 
-/* PAST CARDS: Esconde Logo, Mostra Dot */
 .chat-thoughts-inner .maia-thought-card:not(:last-child) .maia-thought-logo {
     opacity: 0;
 }
 
-/* Dot replacement for past cards */
 .chat-thoughts-inner .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::before {
     content: '';
     position: absolute;
-    top: 5px;
-    width: 8px;
-    height: 8px;
+    top: 4px;
+    width: 6px;
+    height: 6px;
     background: var(--color-text-secondary);
     border-radius: 50%;
     z-index: 1;
-    opacity: 0.5;
+    opacity: 0.4;
 }
 
 .chat-thoughts-inner .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::after {
@@ -1047,41 +1453,25 @@
     left: 50%;
     top: 10px;
     transform: translateX(-50%);
-    width: 2px;
-    height: calc(100% + var(--thought-gap) + 20px - 20px);
-    background: rgba(33, 128, 141, 0.35);
+    width: 1.5px;
+    height: calc(100% + 16px);
+    background: rgba(var(--color-primary-rgb), 0.2);
     border-radius: 2px;
 }
 
-.chat-thoughts-inner .maia-thought-card .maia-thought-logo-wrap {
-    width: 24px;
-    /* Garante largura fixa */
-    display: flex;
-    justify-content: center;
-}
-
-/* Título e Texto dos Cards */
-.chat-thoughts-inner .maia-thought-card {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-    animation: fadeIn 0.3s ease;
-}
-
 .chat-thoughts-inner .maia-thought-title {
-    font-size: 13px;
-    color: var(--color-text-primary);
+    font-size: 12px;
+    color: var(--color-text);
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .chat-thoughts-inner .maia-thought-body {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--color-text-secondary);
-    line-height: 1.5;
+    line-height: 1.4;
 }
 
-/* Skeleton overrides inside chat */
 .chat-thoughts-inner .skeleton-wrapper {
     border-top: none !important;
     padding: 0 !important;
@@ -1392,30 +1782,42 @@
     background: rgba(0, 0, 0, 0.02);
 }
 
-/* Summary Content Wrapper (Thought Chip) */
+/* Summary Content Wrapper (Legacy Thought Container) */
 [data-color-scheme='light'] .summary-content-wrapper,
 :root:not([data-color-scheme='dark']) .summary-content-wrapper {
-    background: rgba(240, 240, 245, 0.9);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    background: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 [data-color-scheme='light'] .summary-content-wrapper:hover,
 :root:not([data-color-scheme='dark']) .summary-content-wrapper:hover {
-    background: rgba(230, 230, 235, 0.95);
+    color: var(--color-text);
 }
 
-[data-color-scheme='light'] .chat-thought-container.open .summary-content-wrapper,
-:root:not([data-color-scheme='dark']) .chat-thought-container.open .summary-content-wrapper {
-    background: rgba(var(--color-primary-rgb), 0.1);
-    border-color: rgba(var(--color-primary-rgb), 0.25);
-}
-
-/* chat-thoughts-inner (Dark Box for thoughts) */
+/* chat-thoughts-inner (Legacy) */
 [data-color-scheme='light'] .chat-thoughts-inner,
 :root:not([data-color-scheme='dark']) .chat-thoughts-inner {
+    background: transparent;
+    border: none;
+}
+
+/* Steps Accordion Light Mode */
+[data-color-scheme='light'] .step-row-header:hover,
+:root:not([data-color-scheme='dark']) .step-row-header:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-color-scheme='light'] .step-terminal-box,
+:root:not([data-color-scheme='dark']) .step-terminal-box {
     background: rgba(245, 245, 248, 0.95);
     border: 1px solid rgba(0, 0, 0, 0.08);
+    color: var(--color-text-secondary);
+}
+
+[data-color-scheme='light'] .step-row-body,
+:root:not([data-color-scheme='dark']) .step-row-body {
+    border-left-color: rgba(var(--color-primary-rgb), 0.25);
 }
 
 /* Slot container panels in multi-column layouts */

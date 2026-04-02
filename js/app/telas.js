@@ -1059,6 +1059,56 @@ window.loadChat = async function (chatId) {
   const messagesContainer = document.getElementById("chatMessages");
   if (messagesContainer) messagesContainer.innerHTML = "";
 
+  // Helper local para loadChat
+  function createHistoricalAccordion() {
+    const accordion = document.createElement("div");
+    accordion.className = "steps-accordion"; // Fechado por padrão no histórico
+    accordion._stepCount = 0;
+    
+    const header = document.createElement("div");
+    header.className = "steps-accordion-header";
+    header.innerHTML = `
+      <span class="steps-accordion-count">Concluiu 0 etapas</span>
+      <span class="steps-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
+    `;
+    
+    const body = document.createElement("div");
+    body.className = "steps-accordion-body";
+    
+    header.addEventListener("click", () => accordion.classList.toggle("open"));
+    accordion.appendChild(header);
+    accordion.appendChild(body);
+    
+    const systemMsg = document.createElement("div");
+    systemMsg.className = "chat-message chat-message--system visible";
+    const msgContent = document.createElement("div");
+    msgContent.className = "chat-message-content";
+    msgContent.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+    msgContent.appendChild(accordion);
+    systemMsg.appendChild(msgContent);
+    
+    return { accordion, body, systemMsg, headerCount: header.querySelector('.steps-accordion-count') };
+  }
+
+  let currentHistoricalAccordion = null;
+
+  function finalizeHistoricalAccordion() {
+      if (!currentHistoricalAccordion) return;
+      if (currentHistoricalAccordion.accordion && currentHistoricalAccordion.accordion._stepCount <= 1) {
+         const body = currentHistoricalAccordion.body;
+         const onlyStep = body ? body.firstElementChild : null;
+         if (onlyStep && currentHistoricalAccordion.systemMsg) {
+             currentHistoricalAccordion.systemMsg.innerHTML = "";
+             const content = document.createElement("div");
+             content.className = "chat-message-content";
+             content.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+             content.appendChild(onlyStep);
+             currentHistoricalAccordion.systemMsg.appendChild(content);
+         }
+      }
+      currentHistoricalAccordion = null;
+  }
+
   // 3. Renderiza Histórico
   chat.messages.forEach((msg, index) => {
     // [FILTER] Ignora mensagens vazias/corrompidas (fix empty bubble)
@@ -1071,6 +1121,8 @@ window.loadChat = async function (chatId) {
       return;
 
     if (msg.role === "user") {
+      finalizeHistoricalAccordion(); // Reinicia agrupamento para novo ciclo
+
       // Render User Message
       const userMessage = document.createElement("div");
       userMessage.className = "chat-message chat-message--user visible";
@@ -1091,7 +1143,80 @@ window.loadChat = async function (chatId) {
       }
       userMessage.innerHTML = `<div class="chat-message-content">${filesHtml}<p>${escapeHtml(msg.content)}</p></div>`;
       messagesContainer.appendChild(userMessage);
-    } else if (msg.role === "model") {
+
+    } else if (msg.role === "system") {
+      // [RENDER SYSTEM EVENTS] Memória, Modo, etc.
+      let renderedContent = null;
+      let phaseId = "generation";
+
+      if (msg.content && msg.content.type === "memory_found") {
+        const { title, facts, summary } = msg.content;
+        phaseId = "memory";
+        const contentDiv = document.createElement("div");
+        const factsList = Array.isArray(facts)
+          ? facts
+              .map((f) => {
+                const similarity = f.score
+                  ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
+                  : "";
+                return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
+              })
+              .join("")
+          : "";
+
+        contentDiv.innerHTML = `
+                <div style="margin-bottom:12px;">
+                    <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
+                    <div style="font-style:italic; background:var(--color-bg-tertiary); padding:8px; border-radius:6px;">"${summary || "Nenhum resumo gerado."}"</div>
+                </div>
+                ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
+            `;
+        renderedContent = createExpandableStatusGlobal(title || "Memórias recuperadas", contentDiv, phaseId);
+      } else if (msg.content && msg.content.type === "mode_selected") {
+        const { mode, reason, confidence } = msg.content;
+        phaseId = "mode";
+        const modeNames = {
+          rapido: "Rápido",
+          raciocinio: "Raciocínio",
+          automatico: "Automático",
+        };
+
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = `
+                <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
+                <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
+                <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
+            `;
+        renderedContent = createExpandableStatusGlobal(
+          `Modo ${modeNames[mode] || mode} selecionado`,
+          contentDiv,
+          phaseId
+        );
+      } else if (msg.content && msg.content.type === "extraction_triggered") {
+        phaseId = "extraction";
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = `
+          <div style="font-size:13px; line-height:1.5;">${msg.content.message || "Extração de questões solicitada para completar lacunas no banco de dados."}</div>
+        `;
+        renderedContent = createExpandableStatusGlobal(
+          "🔍 Extração de questões solicitada",
+          contentDiv,
+          phaseId
+        );
+      }
+
+      if (renderedContent) {
+        if (!currentHistoricalAccordion) {
+            currentHistoricalAccordion = createHistoricalAccordion();
+            messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
+        }
+        currentHistoricalAccordion.body.appendChild(renderedContent);
+        currentHistoricalAccordion.accordion._stepCount++;
+        const total = currentHistoricalAccordion.accordion._stepCount;
+        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
+      }
+
+    } else if (msg.role === "model" || msg.role === "ai") {
       // Render AI Message
       const aiMessage = document.createElement("div");
       aiMessage.className = "chat-message chat-message--ai visible";
@@ -1104,43 +1229,30 @@ window.loadChat = async function (chatId) {
         msg.content._thoughts &&
         Array.isArray(msg.content._thoughts)
       ) {
-        // Reconstroi container de pensamentos
-        const thoughtsContainer = document.createElement("div");
-        thoughtsContainer.className = "chat-thought-container";
+        if (!currentHistoricalAccordion) {
+            currentHistoricalAccordion = createHistoricalAccordion();
+            messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
+        }
 
-        const header = document.createElement("div");
-        header.className = "chat-thought-header";
-        // Estado concluído
-        header.innerHTML = `
-            <div class="summary-content-wrapper">
-                 <div class="summary-logo-static" style="width:18px; height:18px; opacity:1; display:flex; align-items:center; justify-content:center;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                 </div>
-                 <span class="summary-text">Raciocínio concluído</span>
-            </div>
-          `;
-
-        const inner = document.createElement("div");
-        inner.className = "chat-thoughts-inner";
+        const contentDiv = document.createElement("div");
         const list = document.createElement("div");
         list.className = "chat-thoughts-list";
 
         msg.content._thoughts.forEach((thoughtText) => {
           const { title, body } = splitThought(thoughtText);
-          const card = criarElementoCardPensamento(title, body);
-          list.appendChild(card);
+          list.appendChild(criarElementoCardPensamento(title, body));
         });
+        
+        contentDiv.appendChild(list);
 
-        inner.appendChild(list);
-        thoughtsContainer.appendChild(header);
-        thoughtsContainer.appendChild(inner);
-
-        header.addEventListener("click", () => {
-          thoughtsContainer.classList.toggle("open");
-        });
-
-        aiMessage.appendChild(thoughtsContainer);
+        const genStep = createExpandableStatusGlobal("Raciocínio concluído", contentDiv, "generation");
+        currentHistoricalAccordion.body.appendChild(genStep);
+        currentHistoricalAccordion.accordion._stepCount++;
+        const total = currentHistoricalAccordion.accordion._stepCount;
+        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
       }
+      
+      finalizeHistoricalAccordion(); // Reinicia agrupamento
 
       const contentContainer = document.createElement("div");
       contentContainer.className = "chat-message-content";
@@ -1172,76 +1284,10 @@ window.loadChat = async function (chatId) {
             .forEach((el) => renderLatexIn(el));
         });
       }, 0);
-    } else if (msg.role === "system") {
-      // [RENDER SYSTEM EVENTS] Memória, Modo, etc.
-      const systemMsg = document.createElement("div");
-      systemMsg.className = "chat-message chat-message--system visible";
-
-      let renderedContent = null;
-
-      if (msg.content && msg.content.type === "memory_found") {
-        const { title, facts, summary } = msg.content;
-        const contentDiv = document.createElement("div");
-        const factsList = Array.isArray(facts)
-          ? facts
-              .map((f) => {
-                const similarity = f.score
-                  ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
-                  : "";
-                return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
-              })
-              .join("")
-          : "";
-
-        contentDiv.innerHTML = `
-                <div style="margin-bottom:12px;">
-                    <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
-                    <div style="font-style:italic; background:var(--color-bg-tertiary); padding:8px; border-radius:6px;">"${summary || "Nenhum resumo gerado."}"</div>
-                </div>
-                ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
-            `;
-        renderedContent = createExpandableStatusGlobal(title, contentDiv); // Usando helper global
-      } else if (msg.content && msg.content.type === "mode_selected") {
-        const { mode, reason, confidence } = msg.content;
-        const modeNames = {
-          rapido: "Rápido",
-          raciocinio: "Raciocínio",
-          automatico: "Automático",
-        };
-
-        const contentDiv = document.createElement("div");
-        contentDiv.innerHTML = `
-                <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
-                <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
-                <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
-            `;
-        renderedContent = createExpandableStatusGlobal(
-          `Modo ${modeNames[mode] || mode} selecionado`,
-          contentDiv,
-        );
-      } else if (msg.content && msg.content.type === "extraction_triggered") {
-        const contentDiv = document.createElement("div");
-        contentDiv.innerHTML = `
-          <div style="font-size:13px; line-height:1.5;">${msg.content.message || "Extração de questões solicitada para completar lacunas no banco de dados."}</div>
-        `;
-        renderedContent = createExpandableStatusGlobal(
-          "🔍 Extração de questões solicitada",
-          contentDiv,
-        );
-      }
-
-      if (renderedContent) {
-        const msgContent = document.createElement("div");
-        msgContent.className = "chat-message-content";
-        msgContent.style.padding = "0";
-        msgContent.style.background = "transparent";
-        msgContent.style.boxShadow = "none";
-        msgContent.appendChild(renderedContent);
-        systemMsg.appendChild(msgContent);
-        messagesContainer.appendChild(systemMsg);
-      }
     }
   });
+
+  finalizeHistoricalAccordion(); // Garante fechar agapamento no fim do loop
 
   // 4. Update Header Title
   updateChatFloatingHeader(chat.title);
@@ -1661,7 +1707,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         }
 
         const activeInner = document.querySelector(
-          ".chat-thoughts-inner:last-of-type",
+          ".step-row.active .step-row-content, .chat-thoughts-inner:last-of-type",
         );
         if (
           activeInner &&
@@ -1827,12 +1873,46 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           );
           if (loadStatus) loadStatus.remove();
 
+          // Update title for new design
+          const stepTitle = thoughtsContainer.querySelector(".step-row-title");
+          if (stepTitle) stepTitle.textContent = "Raciocínio concluído";
+
+          // Legacy compat
           const summaryText = thoughtsContainer.querySelector(".summary-text");
           if (summaryText) {
             summaryText.textContent = "Raciocínio concluído";
           }
 
           thoughtsContainer._cleaned = true;
+        }
+
+        // Close accordion and update counter
+        const accordion = document.getElementById("stepsAccordion");
+        if (accordion) {
+          accordion.classList.remove("processing");
+          
+          if (accordion._completedCount <= 1 && accordion._stepCount <= 1) {
+             // Unwrap phase if there's only 1 step
+             setTimeout(() => {
+                const body = accordion.querySelector(".steps-accordion-body");
+                const firstStep = body ? body.firstElementChild : null;
+                const wrapper = accordion.closest(".chat-message--system");
+                if (firstStep && wrapper) {
+                    wrapper.innerHTML = "";
+                    const content = document.createElement("div");
+                    content.className = "chat-message-content";
+                    content.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+                    content.appendChild(firstStep);
+                    wrapper.appendChild(content);
+                }
+             }, 800);
+          } else {
+             setTimeout(() => {
+               accordion.classList.remove("open");
+             }, 800);
+             // Force final counter update
+             updateAccordionCounter(accordion);
+          }
         }
       },
 
@@ -1881,8 +1961,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               const isSystemMsg = toRemove.classList && toRemove.classList.contains("chat-message--system");
               const isLoading = toRemove.classList && toRemove.classList.contains("chat-loading-container");
               const isThoughtContainer = toRemove.classList && toRemove.classList.contains("chat-thought-container");
+              const isStepsAccordion = toRemove.id === "stepsAccordionWrapper";
               
-              if (isSystemMsg || isLoading || isAiMsg || isThoughtContainer || toRemove.id === "currentAiMessage") {
+              if (isSystemMsg || isLoading || isAiMsg || isThoughtContainer || isStepsAccordion || toRemove.id === "currentAiMessage") {
                 toRemove.remove();
               }
             }
@@ -1991,47 +2072,67 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
 // === GLOBAL HELPERS (Move to module scope) ===
 
+// --- SVG Icon definitions for step rows ---
+const STEP_ICONS = {
+  memory: `<svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 15H8a4 4 0 0 0-4 4v2h16v-2a4 4 0 0 0-4-4z"/><path d="M9 7h6" opacity=".5"/></svg>`,
+  mode: `<svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
+  generation: `<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+  saving: `<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  extraction: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+};
+
+const STEP_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
+const STEP_CHEVRON_SVG = `<svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>`;
+const ACCORDION_CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+
 /**
- * Global Helper para criar status expansível (Estilo "Pensamento")
- * Disponível para loadChat e transicionarParaModoConversa
+ * Global Helper para criar status expansível (Estilo "Step Row")
+ * Usado pelo loadChat para renderizar eventos de sistema salvos.
+ * Compatível com o novo design de steps.
  */
 export function createExpandableStatusGlobal(title, contentEl) {
-  const container = document.createElement("div");
-  container.className = "chat-thought-container"; // Reusa estilo do container de pensamento
+  // Cria um step-row standalone (para uso em loadChat onde não temos o accordion pai)
+  const stepRow = document.createElement("div");
+  stepRow.className = "step-row";
 
   const header = document.createElement("div");
-  header.className = "chat-thought-header";
-  header.innerHTML = `
-        <div class="summary-content-wrapper">
-             <div class="summary-logo-static" style="width:18px; height:18px; opacity:1; display:flex; align-items:center; justify-content:center;">
-                <!-- Ícone Check -->
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-             </div>
-             <span class="summary-text">${title}</span>
-        </div>
-    `;
+  header.className = "step-row-header";
 
-  const inner = document.createElement("div");
-  inner.className = "chat-thoughts-inner";
+  // Icon (check completed)
+  const iconEl = document.createElement("div");
+  iconEl.className = "step-row-icon completed";
+  iconEl.innerHTML = STEP_CHECK_SVG;
 
-  const contentWrapper = document.createElement("div");
-  contentWrapper.className = "maia-thought-content";
-  contentWrapper.style.padding = "10px 16px 16px 16px";
-  contentWrapper.style.fontSize = "0.9em";
-  contentWrapper.style.lineHeight = "1.5";
-  contentWrapper.style.color = "var(--color-text-secondary)";
+  // Title
+  const titleEl = document.createElement("span");
+  titleEl.className = "step-row-title";
+  titleEl.textContent = title;
 
-  contentWrapper.appendChild(contentEl);
-  inner.appendChild(contentWrapper);
+  // Chevron
+  const chevronEl = document.createElement("div");
+  chevronEl.className = "step-row-chevron";
+  chevronEl.innerHTML = STEP_CHEVRON_SVG;
+
+  header.appendChild(iconEl);
+  header.appendChild(titleEl);
+  header.appendChild(chevronEl);
+
+  // Content
+  const content = document.createElement("div");
+  content.className = "step-row-content";
+  const body = document.createElement("div");
+  body.className = "step-row-body";
+  body.appendChild(contentEl);
+  content.appendChild(body);
 
   header.addEventListener("click", () => {
-    container.classList.toggle("open");
+    stepRow.classList.toggle("open");
   });
 
-  container.appendChild(header);
-  container.appendChild(inner);
+  stepRow.appendChild(header);
+  stepRow.appendChild(content);
 
-  return container;
+  return stepRow;
 }
 
 /**
@@ -2041,6 +2142,17 @@ export function createExpandableStatusGlobal(title, contentEl) {
  */
 function stopAllPhaseSpinners(scope) {
   const root = scope || document;
+  // New design spinners
+  root.querySelectorAll(".step-row-icon.processing").forEach((icon) => {
+    icon.classList.remove("processing");
+    icon.classList.add("completed");
+    icon.innerHTML = STEP_CHECK_SVG;
+  });
+  // Also mark steps as non-active
+  root.querySelectorAll(".step-row.active").forEach((row) => {
+    row.classList.remove("active");
+  });
+  // Legacy spinners
   const spinners = root.querySelectorAll(".summary-logo-spinner");
   spinners.forEach((spinner) => {
     spinner.classList.remove("summary-logo-spinner");
@@ -2053,100 +2165,174 @@ function stopAllPhaseSpinners(scope) {
 }
 
 /**
- * Creates or retrieves a phase-specific thought container.
+ * Gets or creates the parent Steps Accordion wrapper.
+ * All phase containers (steps) go inside this.
  */
-function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
-  let container = document.getElementById(`phaseContainer-${phaseId}`);
+function getOrCreateStepsAccordion(messagesContainer) {
+  let accordion = document.getElementById("stepsAccordion");
+  if (accordion) return accordion;
 
-  if (container) {
-    return {
-      container,
-      inner: container.querySelector(".chat-thoughts-inner"),
-      thoughtListEl:
-        container._refs?.thoughtListEl ||
-        container.querySelector(".chat-thoughts-list"),
-    };
-  }
+  // Create accordion
+  accordion = document.createElement("div");
+  accordion.className = "steps-accordion processing open";
+  accordion.id = "stepsAccordion";
+  accordion._stepCount = 0;
+  accordion._completedCount = 0;
 
-  // Ao criar um novo container, PARA o spinner de todos os anteriores
-  // (garante que só o container ativo fique girando)
-  stopAllPhaseSpinners(messagesContainer);
-
-  // Create new specific container
-  container = document.createElement("div");
-  container.className = "chat-thought-container";
-  container.id = `phaseContainer-${phaseId}`;
-
+  // Header
   const header = document.createElement("div");
-  header.className = "chat-thought-header";
+  header.className = "steps-accordion-header";
   header.innerHTML = `
-    <div class="summary-content-wrapper">
-      <div class="summary-logo-static" style="width:18px; height:18px; opacity:1; display:flex; align-items:center; justify-content:center;">
-          <img src="logo.png" class="summary-logo-spinner" alt="Processing" style="width:18px; height:18px;">
-      </div>
-      <span class="summary-text">${initialTitle}</span>
-    </div>
+    <img src="/docs/public/monocromatic_logo.png" class="monochrome-spinner accordion-spinner" style="width:14px; height:14px; margin-right:4px;" alt="maia">
+    <span class="steps-accordion-count">Processando etapas</span>
+    <span class="steps-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
   `;
 
-  const inner = document.createElement("div");
-  inner.className = "chat-thoughts-inner";
-  const thoughtListEl = document.createElement("div");
-  thoughtListEl.className = "chat-thoughts-list";
-  inner.appendChild(thoughtListEl);
+  // Body
+  const body = document.createElement("div");
+  body.className = "steps-accordion-body";
 
   header.addEventListener("click", () => {
-    container.classList.toggle("open");
+    accordion.classList.toggle("open");
   });
 
-  container.appendChild(header);
-  container.appendChild(inner);
+  accordion.appendChild(header);
+  accordion.appendChild(body);
 
-  // Wrap in system message div
+  // Wrap in system message
   const systemMsg = document.createElement("div");
   systemMsg.className = "chat-message chat-message--system visible";
+  systemMsg.id = "stepsAccordionWrapper";
   const msgContent = document.createElement("div");
   msgContent.className = "chat-message-content";
-  msgContent.style.cssText =
-    "padding:0; background:transparent; box-shadow:none;";
-  msgContent.appendChild(container);
+  msgContent.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+  msgContent.appendChild(accordion);
   systemMsg.appendChild(msgContent);
 
-  // Insert location logic
-  if (phaseId === "generation") {
-    // A fase de geração SEMPRE fica o mais perto possível da mensagem da IA
-    const loadingEl = document.getElementById("chatLoading");
-    const aiMsg = document.getElementById("currentAiMessage");
-    const insertBefore = loadingEl || aiMsg;
-    if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
-    else messagesContainer.appendChild(systemMsg);
-  } else {
-    // Fases normais (memória, extração) vão ANTES do loading, da aiMsg, E ANTES da geração
-    const loadingEl = document.getElementById("chatLoading");
-    const aiMsg = document.getElementById("currentAiMessage");
-    const genContainer = document.getElementById("phaseContainer-generation");
-    const genSystemMsg = genContainer
-      ? genContainer.closest(".chat-message")
-      : null;
+  // Insert before loading or AI message
+  const loadingEl = document.getElementById("chatLoading");
+  const aiMsg = document.getElementById("currentAiMessage");
+  const insertBefore = loadingEl || aiMsg;
+  if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
+  else messagesContainer.appendChild(systemMsg);
 
-    const insertBefore = genSystemMsg || loadingEl || aiMsg;
-    if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
-    else messagesContainer.appendChild(systemMsg);
-  }
-
-  // Obedecendo o usuário: remover a mensagem genérica de "Iniciando modelo..."
-  // se houver "bagulho em cima" (um container específico da fase sendo exibido)
+  // Remove loading indicator since we have the accordion now
   const chatLoading = document.getElementById("chatLoading");
   if (chatLoading) chatLoading.remove();
 
+  return accordion;
+}
+
+/**
+ * Creates or retrieves a phase-specific step row inside the accordion.
+ */
+function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
+  let stepRow = document.getElementById(`phaseContainer-${phaseId}`);
+
+  if (stepRow) {
+    return {
+      container: stepRow,
+      inner: stepRow.querySelector(".step-row-content"),
+      thoughtListEl:
+        stepRow._refs?.thoughtListEl ||
+        stepRow.querySelector(".chat-thoughts-list"),
+    };
+  }
+
+  // Stop spinners on previous steps
+  stopAllPhaseSpinners(messagesContainer);
+
+  const accordion = getOrCreateStepsAccordion(messagesContainer);
+  const body = accordion.querySelector(".steps-accordion-body");
+
+  // Create step row
+  stepRow = document.createElement("div");
+  stepRow.className = "step-row active";
+  stepRow.id = `phaseContainer-${phaseId}`;
+
+  // Header
+  const header = document.createElement("div");
+  header.className = "step-row-header";
+
+  // Icon (static SVG while processing, turns to check mark when done)
+  const iconEl = document.createElement("div");
+  iconEl.className = "step-row-icon processing";
+  
+  if (phaseId === "generation") {
+    iconEl.innerHTML = `<img src="/docs/public/monocromatic_logo.png" class="monochrome-spinner" alt="pensando">`;
+  } else {
+    const iconSvg = STEP_ICONS[phaseId] || STEP_ICONS.generation;
+    iconEl.innerHTML = `<span>${iconSvg}</span>`;
+  }
+
+  // Title
+  const titleEl = document.createElement("span");
+  titleEl.className = "step-row-title";
+  titleEl.textContent = initialTitle;
+
+  // Chevron
+  const chevronEl = document.createElement("div");
+  chevronEl.className = "step-row-chevron";
+  chevronEl.innerHTML = STEP_CHEVRON_SVG;
+
+  header.appendChild(iconEl);
+  header.appendChild(titleEl);
+  header.appendChild(chevronEl);
+
+  // Content area
+  const content = document.createElement("div");
+  content.className = "step-row-content";
+  const thoughtListEl = document.createElement("div");
+  thoughtListEl.className = "chat-thoughts-list";
+  content.appendChild(thoughtListEl);
+
+  // Store ref
+  stepRow._refs = { thoughtListEl };
+
+  // Click to expand this step
+  header.addEventListener("click", () => {
+    stepRow.classList.toggle("open");
+  });
+
+  stepRow.appendChild(header);
+  stepRow.appendChild(content);
+
+  body.appendChild(stepRow);
+
+  // Update counter
+  accordion._stepCount = (accordion._stepCount || 0) + 1;
+  updateAccordionCounter(accordion);
+
   return {
-    container,
-    inner,
+    container: stepRow,
+    inner: content,
     thoughtListEl,
   };
 }
 
 /**
- * Concludes a phase container by stopping its spinner and appending the result card.
+ * Updates the accordion header counter text.
+ */
+function updateAccordionCounter(accordion) {
+  const countEl = accordion.querySelector(".steps-accordion-count");
+  if (!countEl) return;
+
+  const total = accordion._stepCount || 0;
+  const completed = accordion._completedCount || 0;
+  
+  const spinner = accordion.querySelector(".accordion-spinner");
+
+  if (completed >= total && total > 0) {
+    countEl.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
+    if (spinner) spinner.style.display = "none";
+  } else {
+    countEl.textContent = `Processando etapas`;
+    if (spinner) spinner.style.display = "inline-block";
+  }
+}
+
+/**
+ * Concludes a phase container by stopping its spinner and appending the result.
  */
 function concludePhaseContainer(
   container,
@@ -2154,10 +2340,23 @@ function concludePhaseContainer(
   newTitle,
   resultHtml,
 ) {
-  // Update header
+  // Update title
+  const titleEl = container.querySelector(".step-row-title");
+  if (titleEl) titleEl.textContent = newTitle;
+
+  // Also update legacy summary-text if present
   const summaryText = container.querySelector(".summary-text");
   if (summaryText) summaryText.textContent = newTitle;
 
+  // Stop spinner → show check
+  const iconEl = container.querySelector(".step-row-icon");
+  if (iconEl) {
+    iconEl.classList.remove("processing");
+    iconEl.classList.add("completed");
+    iconEl.innerHTML = STEP_CHECK_SVG;
+  }
+
+  // Legacy spinner
   const spinner = container.querySelector(".summary-logo-spinner");
   if (spinner) {
     spinner.classList.remove("summary-logo-spinner");
@@ -2168,20 +2367,27 @@ function concludePhaseContainer(
     spinner.style.height = "18px";
   }
 
-  // Remove any remaining skeletons if applicable
-  container
-    .querySelectorAll(".maia-thought-card--skeleton")
-    .forEach((s) => s.remove());
+  // Remove active state
+  container.classList.remove("active");
+
+  // Remove skeletons
+  container.querySelectorAll(".maia-thought-card--skeleton").forEach((s) => s.remove());
   const loadStatus = container.querySelector(".loading-status-area");
   if (loadStatus) loadStatus.remove();
 
-  // Create result card
-  if (resultHtml) {
-    const card = criarElementoCardPensamento(newTitle, "");
-    const bodyEl = card.querySelector(".maia-thought-body");
-    if (bodyEl) bodyEl.innerHTML = resultHtml;
+  // Create result content
+  if (resultHtml && thoughtListEl) {
+    const bodyDiv = document.createElement("div");
+    bodyDiv.className = "step-row-body";
+    bodyDiv.innerHTML = resultHtml;
+    thoughtListEl.appendChild(bodyDiv);
+  }
 
-    thoughtListEl.appendChild(card);
+  // Update accordion counter
+  const accordion = document.getElementById("stepsAccordion");
+  if (accordion) {
+    accordion._completedCount = (accordion._completedCount || 0) + 1;
+    updateAccordionCounter(accordion);
   }
 }
 
@@ -2193,6 +2399,116 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+window.testNewDesign = function() {
+  const msgContainer = document.getElementById("chatMessages");
+  if (!msgContainer) {
+    console.log("Mude para uma aba de chat vazio primeiro ou envie uma mensagem isolada para ver o container!");
+    return;
+  }
+  msgContainer.innerHTML = ""; // Prepare for test
+
+  // Inject a fake current ai message structure
+  let aiMessage = document.getElementById("currentAiMessage");
+  if (!aiMessage) {
+    aiMessage = document.createElement("div");
+    aiMessage.className = "chat-message chat-message--ai visible";
+    aiMessage.id = "currentAiMessage";
+    aiMessage.innerHTML = `<div class="chat-message-content"></div>`;
+    msgContainer.appendChild(aiMessage);
+  }
+
+  console.log("Iniciando mock de processamento...");
+  
+  // Fake phase 1: Memory
+  const memPhase = getOrCreatePhaseContainer(msgContainer, "memory", "Recuperando informações");
+  setTimeout(() => {
+    concludePhaseContainer(
+      memPhase.container, 
+      memPhase.thoughtListEl, 
+      "Memórias recuperadas",
+      `
+      <div style="margin-bottom:12px;">
+          <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
+          <div style="font-style:italic; background:var(--color-bg-tertiary, rgba(255,255,255,0.03)); padding:8px; border-radius:6px;">"O usuário perguntou sobre fotossíntese. Documentos relacionados foram encontrados e resumidos."</div>
+      </div>
+      <div>
+        <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (2):</div>
+        <ul style="padding-left:20px; margin-top:0;">
+          <li>A fotossíntese converte CO2 e água em glicose.</li>
+          <li>Esse processo ocorre nos cloroplastos.</li>
+        </ul>
+      </div>
+      `
+    );
+  }, 1500);
+
+  // Fake phase 2: Mode
+  setTimeout(() => {
+    const modePhase = getOrCreatePhaseContainer(msgContainer, "mode", "Escolhendo modo de execução");
+    
+    setTimeout(() => {
+      concludePhaseContainer(
+        modePhase.container, 
+        modePhase.thoughtListEl, 
+        "Modo Automático selecionado",
+        `
+        <div style="margin-bottom:8px;"><strong>Decisão:</strong> Automático</div>
+        <div style="margin-bottom:8px;"><strong>Motivo:</strong> Requisição complexa demandando análise técnica.</div>
+        <div><strong>Confiança:</strong> 95%</div>
+        <div class="step-terminal-box">
+          <div class="step-terminal-label">Router Trace</div>
+          [Router] Intenção mapeada: question_answering
+          [Router] Histórico analisado: Nenhum
+          [Router] Requisito de profundidade: Alto
+        </div>
+        `
+      );
+    }, 1500);
+  }, 1800);
+
+  // Fake phase 3: Generation (Thoughts)
+  setTimeout(() => {
+    const genPhase = getOrCreatePhaseContainer(msgContainer, "generation", "Processando raciocínio...");
+    
+    // Mock thought cards
+    const thoughtRows = [
+      { t: "Analisando formato", b: "A resposta deve conter citações exatas dos documentos recuperados e explicar com termos acessíveis." },
+      { t: "Cruzando dados", b: "Comparando o conceito de Cloroplasto do documento A com o processo C3 do documento B." },
+      { t: "Verificando base de dados", b: "Tentando extrair relatórios adicionais." },
+      { t: "Montando rascunho", b: "A síntese da resposta está quase pronta." }
+    ];
+
+    let tIndex = 0;
+    const interval = setInterval(() => {
+      if (tIndex >= thoughtRows.length) {
+        clearInterval(interval);
+        concludePhaseContainer(genPhase.container, genPhase.thoughtListEl, "Raciocínio concluído", "");
+        
+        // Finalize accordion manually for the test
+        const accordion = document.getElementById("stepsAccordion");
+        if (accordion) {
+          accordion.classList.remove("processing");
+          setTimeout(() => accordion.classList.remove("open"), 800);
+          accordion.removeAttribute("id");
+        }
+        
+        aiMessage.querySelector('.chat-message-content').innerHTML = `
+          <div class="chat-block chat-text visible">
+            E aqui estaria a resposta final da inteligência artificial gerada no bloco.
+          </div>
+        `;
+        aiMessage.removeAttribute("id");
+      } else {
+        const {t, b} = thoughtRows[tIndex++];
+        const card = criarElementoCardPensamento(t, b);
+        genPhase.thoughtListEl.appendChild(card);
+      }
+    }, 1200);
+
+  }, 4000);
+};
+
 
 export function iniciarFluxoPesquisa() {
   window.iniciarFluxoPesquisa();
