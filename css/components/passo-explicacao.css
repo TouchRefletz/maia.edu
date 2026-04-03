@@ -3,15 +3,12 @@
   margin-bottom: var(--space-32);
   animation: fadeIn 0.5s ease-out forwards;
   width: 100%;
-  max-width: 850px;
   border-radius: var(--radius-lg);
   background-color: var(--color-surface);
-  background-image: linear-gradient(
-    90deg,
-    var(--color-surface) 0%,
-    var(--color-secondary) 50%,
-    var(--color-surface) 100%
-  );
+  background-image: linear-gradient(90deg,
+      var(--color-surface) 0%,
+      var(--color-secondary) 50%,
+      var(--color-surface) 100%);
   background-size: 200% 100%;
   display: flex;
   flex-direction: column;
@@ -27,12 +24,10 @@
   margin-bottom: var(--space-20);
   width: 95%;
   background-color: var(--color-secondary);
-  background-image: linear-gradient(
-    90deg,
-    var(--color-secondary) 0%,
-    var(--color-secondary-hover) 50%,
-    var(--color-secondary) 100%
-  );
+  background-image: linear-gradient(90deg,
+      var(--color-secondary) 0%,
+      var(--color-secondary-hover) 50%,
+      var(--color-secondary) 100%);
   background-size: 200% 100%;
   border-radius: var(--radius-md);
   display: flex;
@@ -57,12 +52,12 @@
   position: relative;
 }
 
-.explicacao > h3,
-.explicacao > p {
+.explicacao>h3,
+.explicacao>p {
   filter: blur(10px);
 }
 
-.explicacao > h1 {
+.explicacao>h1 {
   font-size: var(--font-size-xl);
   width: 75%;
   color: var(--color-primary);

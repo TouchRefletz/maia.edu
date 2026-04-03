@@ -1,0 +1,79 @@
+/* =========================================
+   TOP HORIZONTAL SCROLLBAR (Mirror)
+   ─────────────────────────────────────────
+   Matches the premium vertical scrollbar style.
+   ========================================= */
+
+/* The Scroll Track - Sits at the top of the chat */
+.chat-top-scroll-track {
+    position: fixed;
+    top: 68px; /* Below the floating header title */
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 40px);
+    max-width: 1000px;
+    height: 6px;
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-radius: 0 0 10px 10px;
+    z-index: 1100; /* Above messages and floating header */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, height 0.2s ease;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border-bottom: 1px solid rgba(var(--color-white-rgb), 0.05);
+}
+
+/* Visibility based on overflow */
+.chat-top-scroll-track.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Expand on interaction for easier grab */
+.chat-top-scroll-track:hover,
+.chat-top-scroll-track.dragging {
+    height: 10px;
+}
+
+/* The Draggable Thumb */
+.chat-top-scroll-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 10px;
+    cursor: grab;
+    transition: background 0.2s ease, transform 0.1s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.chat-top-scroll-thumb:hover {
+    background: var(--color-primary-active);
+    transform: scaleY(1.3);
+}
+
+.chat-top-scroll-thumb:active,
+.chat-top-scroll-thumb.dragging {
+    cursor: grabbing;
+    background: var(--color-accent) !important;
+    transform: scaleY(1.5);
+}
+
+/* Hide native horizontal scrollbar but keep functionality */
+.chat-messages {
+    scrollbar-width: thin; /* Firefox */
+}
+
+@media (max-width: 900px) {
+    .chat-top-scroll-track {
+        top: 54px; /* Mobile header positioning */
+        width: calc(100% - 20px);
+    }
+
+    .chat-messages::-webkit-scrollbar:horizontal {
+        height: 0px !important;
+        background: transparent !important;
+    }
+}

@@ -52,304 +52,354 @@
 .chat-layout--linear {
     display: flex !important;
     flex-direction: column;
-    gap: var(--chat-block-spacing);
+    gap: 4px;
+}
+
+/* --- LINEAR FLOW: Blocks flow as clean text, not individual cards --- */
+.chat-layout--linear>.chat-block {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 4px 0;
+    border-radius: 0;
+}
+
+.chat-layout--linear>.chat-block::after {
+    display: none;
+}
+
+/* Exceptions: These blocks KEEP card styling in linear */
+.chat-layout--linear>.chat-destaque,
+.chat-layout--linear>.chat-codigo,
+.chat-layout--linear>.chat-equacao,
+.chat-layout--linear>.chat-tabela,
+.chat-layout--linear>.chat-dynamic-image-placeholder {
+    background: linear-gradient(180deg, rgba(30, 30, 35, 0.7) 0%, rgba(20, 20, 25, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--chat-card-radius);
+    padding: 20px;
+    margin: 8px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+[data-color-scheme='light'] .chat-layout--linear>.chat-destaque,
+[data-color-scheme='light'] .chat-layout--linear>.chat-codigo,
+[data-color-scheme='light'] .chat-layout--linear>.chat-equacao,
+[data-color-scheme='light'] .chat-layout--linear>.chat-tabela,
+[data-color-scheme='light'] .chat-layout--linear>.chat-dynamic-image-placeholder,
+:root:not([data-color-scheme='dark']) .chat-layout--linear>.chat-destaque,
+:root:not([data-color-scheme='dark']) .chat-layout--linear>.chat-codigo,
+:root:not([data-color-scheme='dark']) .chat-layout--linear>.chat-equacao,
+:root:not([data-color-scheme='dark']) .chat-layout--linear>.chat-tabela,
+:root:not([data-color-scheme='dark']) .chat-layout--linear>.chat-dynamic-image-placeholder {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 248, 248, 0.7) 100%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Citacao keeps its left-border styling */
+.chat-layout--linear>.chat-citacao {
+    padding: 16px 20px;
+    margin: 8px 0;
 }
 
 .hljs {
     background: #1d1e20 !important;
 }
 
-/* --- Layouts Specifics (Desktop) --- */
-@media (min-width: 768px) {
+/* --- Layouts Specifics (Preserve Desktop Design Globally) --- */
+/* Removed media query wrapper to keep desktop design on mobile */
 
-    /* 1. Two Column: Sidebar Left (Fixed 240px), Slot mapping */
-    .chat-layout--two_column {
-        grid-template-columns: 240px 1fr;
-        grid-template-areas: "sidebar main";
-        align-items: stretch;
-    }
 
-    .slot-sidebar {
-        grid-area: sidebar;
-    }
-
-    .slot-main {
-        grid-area: main;
-    }
-
-    /* 2. Split Screen: 50/50 */
-    .chat-layout--split_screen {
-        grid-template-columns: 1fr 1fr;
-        grid-template-areas: "left right";
-        align-items: stretch;
-        /* Ensure both columns match height */
-    }
-
-    /* --- SHARED PANEL STYLE FOR MULTI-COLUMN LAYOUTS --- */
-    /* This ensures "sides" fill the height and look like unified panels */
-    .chat-layout--two_column .slot-container,
-    .chat-layout--split_screen .slot-container,
-    .chat-layout--three_column .slot-container,
-    .chat-layout--asymmetrical .slot-container,
-    .chat-layout--f_shape .slot-container,
-    .chat-layout--magazine .slot-container {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--chat-card-radius);
-        padding: 24px;
-        /* More padding for panels */
-        box-shadow: var(--chat-shadow-sm);
-    }
-
-    /* Children in Panels lose individual card styling (merge into panel) */
-    .chat-layout--two_column .slot-container>.chat-block,
-    .chat-layout--split_screen .slot-container>.chat-block,
-    .chat-layout--three_column .slot-container>.chat-block,
-    .chat-layout--asymmetrical .slot-container>.chat-block,
-    .chat-layout--f_shape .slot-container>.chat-block,
-    .chat-layout--magazine .slot-container>.chat-block {
-        flex-grow: 0;
-        height: auto;
-        box-shadow: none;
-        border: none;
-        background: transparent;
-        padding: 0;
-        margin-bottom: 16px;
-    }
-
-    /* Last item in panel shouldn't have margin unless it needs it */
-    .chat-layout--two_column .slot-container>.chat-block:last-child,
-    .chat-layout--split_screen .slot-container>.chat-block:last-child {
-        margin-bottom: 0;
-    }
-
-    /* EXCEPTIONS: Restore Styling for Specific Inner Blocks */
-
-    /* Code Blocks: Keep their dark box look */
-    .chat-layout--two_column .slot-container>.chat-codigo,
-    .chat-layout--split_screen .slot-container>.chat-codigo,
-    .chat-layout--three_column .slot-container>.chat-codigo,
-    .chat-layout--asymmetrical .slot-container>.chat-codigo {
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 8px !important;
-        /* Code usually wants to fill space */
-    }
-
-    /* Callouts/Highlights: Keep their color box */
-    .chat-layout--two_column .slot-container>.chat-destaque,
-    .chat-layout--split_screen .slot-container>.chat-destaque,
-    .chat-layout--three_column .slot-container>.chat-destaque,
-    .chat-layout--asymmetrical .slot-container>.chat-destaque {
-        background: rgba(var(--color-primary-rgb), 0.1) !important;
-        border: 1px solid rgba(var(--color-primary-rgb), 0.2) !important;
-        padding: 16px !important;
-        border-radius: 8px !important;
-    }
-
-    /* Quotes: Keep left border style */
-    .chat-layout--two_column .slot-container>.chat-citacao,
-    .chat-layout--split_screen .slot-container>.chat-citacao {
-        padding: 16px 24px !important;
-        background: rgba(255, 255, 255, 0.03) !important;
-    }
-
-    .slot-left,
-    .slot-code {
-        grid-area: left;
-    }
-
-    .slot-right,
-    .slot-preview {
-        grid-area: right;
-    }
-
-    /* 3. Three Column */
-    .chat-layout--three_column {
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 16px;
-    }
-
-    /* FIX: Allow three column to collapse if container is too small (like inside a nested F-shape content) */
-    @container (max-width: 600px) {
-        .chat-layout--three_column {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Global media query helper as fallback if container queries aren't fully supported via polyfill setup
-       or if the user resized the window */
-    @media (max-width: 1100px) {
-
-        /* When F-Shape is active, the content area is smaller, so nested 3-col should likely stack */
-        .chat-layout--f_shape .chat-layout--three_column {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .slot-col1 {
-        grid-column: 1;
-    }
-
-    .slot-col2 {
-        grid-column: 2;
-    }
-
-    .slot-col3 {
-        grid-column: 3;
-    }
-
-    /* 4. Asymmetrical (Main + Aside) */
-    .chat-layout--asymmetrical {
-        grid-template-columns: 2fr 1fr;
-        grid-template-areas: "main aside";
-        gap: 24px;
-        align-items: stretch;
-    }
-
-    .chat-layout--asymmetrical>.chat-block:nth-child(2) {
-        /* Support column styling */
-        background: rgba(var(--color-primary-rgb), 0.05);
-        border: 1px dashed var(--color-primary);
-        border-radius: var(--chat-card-radius);
-    }
-
-    /* 5. F-Shape: Header (Full), then Sidebar + Content */
-    /* Ideal for: Dashboard-like views, Report summary */
-    .chat-layout--f_shape {
-        grid-template-columns: 250px 1fr;
-        align-items: stretch;
-    }
-
-    /* FIX: Target .slot-container for layout placement, not .chat-block */
-    /* Assumes order: 1. Header, 2. Sidebar, 3. Content */
-
-    .chat-layout--f_shape>.slot-container:nth-child(1) {
-        grid-column: 1 / -1;
-        /* Header spans full width */
-        border-bottom: 1px solid var(--color-border);
-        margin-bottom: 8px;
-        flex-direction: row !important;
-        /* Header items horizontal */
-        align-items: center;
-        justify-content: space-between;
-        min-height: auto !important;
-        /* Don't force huge height on header */
-        padding: 16px !important;
-    }
-
-    /* Force linear flow inside header panel */
-    .chat-layout--f_shape>.slot-container:nth-child(1)>.chat-block {
-        margin: 0 !important;
-        background: transparent !important;
-        border: none !important;
-        padding: 0 16px 0 0 !important;
-        box-shadow: none !important;
-        flex-grow: 1;
-    }
-
-    .chat-layout--f_shape>.slot-container:nth-child(2) {
-        /* Sidebar items */
-        border-right: 1px solid var(--color-border);
-        grid-row: 2;
-        grid-column: 1;
-    }
-
-    .chat-layout--f_shape>.slot-container:nth-child(3) {
-        /* Main Content */
-        grid-row: 2;
-        grid-column: 2;
-    }
-
-    /* 5. Z-Shape: Zig-Zag Pattern */
-    /* Ideal for: Storytelling, Alternating heavy content */
-    /* 5. Z-Shape: Alternating Pattern */
-    .chat-layout--z_shape {
-        grid-template-columns: 1fr;
-        gap: 32px;
-    }
-
-    /* Alternating rows for desktop visual interest */
-    .chat-layout--z_shape>.chat-block:nth-child(odd) {
-        margin-right: 20%;
-        border-left: 4px solid var(--color-primary);
-    }
-
-    .chat-layout--z_shape>.chat-block:nth-child(even) {
-        margin-left: 20%;
-        border-right: 4px solid var(--color-accent);
-        text-align: right;
-    }
-
-    /* 6. Featured Media: Hero Image + Text below */
-    .chat-layout--featured_media {
-        grid-template-columns: 1fr;
-    }
-
-    .chat-layout--featured_media>.chat-block:first-child {
-        /* Assume first child is image/hero */
-        aspect-ratio: 21/9;
-        object-fit: cover;
-        width: 100%;
-        border-radius: var(--chat-card-radius);
-    }
-
-    /* 7. Masonry (Simulated with columns) */
-    .chat-layout--masonry {
-        column-count: 1;
-    }
-
-    /* 8. Magazine (Complex Grid) */
-    .chat-layout--magazine {
-        grid-template-columns: 1.5fr 1.2fr 1fr;
-        grid-template-areas:
-            "headline headline sidebar"
-            "featured feed sidebar";
-        align-items: stretch;
-        gap: 16px;
-    }
-
-    .chat-layout--magazine .slot-headline {
-        grid-area: headline;
-    }
-
-    .chat-layout--magazine .slot-featured {
-        grid-area: featured;
-    }
-
-    .chat-layout--magazine .slot-feed {
-        grid-area: feed;
-    }
-
-    .chat-layout--magazine .slot-sidebar {
-        grid-area: sidebar;
-        background: rgba(var(--color-primary-rgb), 0.05);
-        /* Slight tint for sidebar */
-    }
+/* 1. Two Column: Sidebar Left (Fixed 240px), Slot mapping */
+.chat-layout--two_column {
+    grid-template-columns: 240px 1fr;
+    grid-template-areas: "sidebar main";
+    align-items: stretch;
 }
+
+.slot-sidebar {
+    grid-area: sidebar;
+}
+
+.slot-main {
+    grid-area: main;
+}
+
+/* 2. Split Screen: 50/50 */
+.chat-layout--split_screen {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "left right";
+    align-items: stretch;
+    /* Ensure both columns match height */
+}
+
+/* --- SHARED PANEL STYLE FOR MULTI-COLUMN LAYOUTS --- */
+/* This ensures "sides" fill the height and look like unified panels */
+.chat-layout--two_column .slot-container,
+.chat-layout--split_screen .slot-container,
+.chat-layout--three_column .slot-container,
+.chat-layout--asymmetrical .slot-container,
+.chat-layout--f_shape .slot-container,
+.chat-layout--magazine .slot-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--chat-card-radius);
+    padding: 24px;
+    /* More padding for panels */
+    box-shadow: var(--chat-shadow-sm);
+}
+
+/* Children in Panels lose individual card styling (merge into panel) */
+.chat-layout--two_column .slot-container>.chat-block,
+.chat-layout--split_screen .slot-container>.chat-block,
+.chat-layout--three_column .slot-container>.chat-block,
+.chat-layout--asymmetrical .slot-container>.chat-block,
+.chat-layout--f_shape .slot-container>.chat-block,
+.chat-layout--magazine .slot-container>.chat-block {
+    flex-grow: 0;
+    height: auto;
+    box-shadow: none;
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin-bottom: 16px;
+}
+
+/* Last item in panel shouldn't have margin unless it needs it */
+.chat-layout--two_column .slot-container>.chat-block:last-child,
+.chat-layout--split_screen .slot-container>.chat-block:last-child {
+    margin-bottom: 0;
+}
+
+/* EXCEPTIONS: Restore Styling for Specific Inner Blocks */
+
+/* Code Blocks: Keep their dark box look */
+.chat-layout--two_column .slot-container>.chat-codigo,
+.chat-layout--split_screen .slot-container>.chat-codigo,
+.chat-layout--three_column .slot-container>.chat-codigo,
+.chat-layout--asymmetrical .slot-container>.chat-codigo {
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+    /* Code usually wants to fill space */
+}
+
+/* Callouts/Highlights: Keep their color box */
+.chat-layout--two_column .slot-container>.chat-destaque,
+.chat-layout--split_screen .slot-container>.chat-destaque,
+.chat-layout--three_column .slot-container>.chat-destaque,
+.chat-layout--asymmetrical .slot-container>.chat-destaque {
+    background: rgba(var(--color-primary-rgb), 0.1) !important;
+    border: 1px solid rgba(var(--color-primary-rgb), 0.2) !important;
+    padding: 16px !important;
+    border-radius: 8px !important;
+}
+
+/* Quotes: Keep left border style */
+.chat-layout--two_column .slot-container>.chat-citacao,
+.chat-layout--split_screen .slot-container>.chat-citacao {
+    padding: 16px 24px !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+.slot-left,
+.slot-code {
+    grid-area: left;
+}
+
+.slot-right,
+.slot-preview {
+    grid-area: right;
+}
+
+/* 3. Three Column */
+.chat-layout--three_column {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+/* [REMOVED] nested 3-col no longer stacks via container query to maintain horizontal scroll design */
+/* @container (max-width: 600px) {
+    .chat-layout--three_column {
+        grid-template-columns: 1fr;
+    }
+} */
+
+/* Global media query helper as fallback if container queries aren't fully supported via polyfill setup
+       or if the user resized the window */
+@media (max-width: 1100px) {
+    /* [REMOVED] nested 3-col no longer stacks to maintain horizontal scroll design */
+}
+
+.slot-col1 {
+    grid-column: 1;
+}
+
+.slot-col2 {
+    grid-column: 2;
+}
+
+.slot-col3 {
+    grid-column: 3;
+}
+
+/* 4. Asymmetrical (Main + Aside) */
+.chat-layout--asymmetrical {
+    grid-template-columns: 2fr 1fr;
+    grid-template-areas: "main aside";
+    gap: 24px;
+    align-items: stretch;
+}
+
+.chat-layout--asymmetrical>.chat-block:nth-child(2) {
+    /* Support column styling */
+    background: rgba(var(--color-primary-rgb), 0.05);
+    border: 1px dashed var(--color-primary);
+    border-radius: var(--chat-card-radius);
+}
+
+/* 5. F-Shape: Header (Full), then Sidebar + Content */
+/* Ideal for: Dashboard-like views, Report summary */
+.chat-layout--f_shape {
+    grid-template-columns: 250px 1fr;
+    align-items: stretch;
+}
+
+/* FIX: Target .slot-container for layout placement, not .chat-block */
+/* Assumes order: 1. Header, 2. Sidebar, 3. Content */
+
+.chat-layout--f_shape>.slot-container:nth-child(1) {
+    grid-column: 1 / -1;
+    /* Header spans full width */
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 8px;
+    flex-direction: row !important;
+    /* Header items horizontal */
+    align-items: center;
+    justify-content: space-between;
+    min-height: auto !important;
+    /* Don't force huge height on header */
+    padding: 16px !important;
+}
+
+/* Force linear flow inside header panel */
+.chat-layout--f_shape>.slot-container:nth-child(1)>.chat-block {
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 16px 0 0 !important;
+    box-shadow: none !important;
+    flex-grow: 1;
+}
+
+.chat-layout--f_shape>.slot-container:nth-child(2) {
+    /* Sidebar items */
+    border-right: 1px solid var(--color-border);
+    grid-row: 2;
+    grid-column: 1;
+}
+
+.chat-layout--f_shape>.slot-container:nth-child(3) {
+    /* Main Content */
+    grid-row: 2;
+    grid-column: 2;
+}
+
+/* 5. Z-Shape: Zig-Zag Pattern */
+/* Ideal for: Storytelling, Alternating heavy content */
+/* 5. Z-Shape: Alternating Pattern */
+.chat-layout--z_shape {
+    grid-template-columns: 1fr;
+    gap: 32px;
+}
+
+/* Alternating rows for desktop visual interest */
+.chat-layout--z_shape>.chat-block:nth-child(odd) {
+    margin-right: 20%;
+    border-left: 4px solid var(--color-primary);
+}
+
+.chat-layout--z_shape>.chat-block:nth-child(even) {
+    margin-left: 20%;
+    border-right: 4px solid var(--color-accent);
+    text-align: right;
+}
+
+/* 6. Featured Media: Hero Image + Text below */
+.chat-layout--featured_media {
+    grid-template-columns: 1fr;
+}
+
+.chat-layout--featured_media>.chat-block:first-child {
+    /* Assume first child is image/hero */
+    aspect-ratio: 21/9;
+    object-fit: cover;
+    width: 100%;
+    border-radius: var(--chat-card-radius);
+}
+
+/* 7. Masonry (Simulated with columns) */
+.chat-layout--masonry {
+    column-count: 1;
+}
+
+/* 8. Magazine (Complex Grid) */
+.chat-layout--magazine {
+    grid-template-columns: 1.5fr 1.2fr 1fr;
+    grid-template-areas:
+        "headline headline sidebar"
+        "featured feed sidebar";
+    align-items: stretch;
+    gap: 16px;
+}
+
+.chat-layout--magazine .slot-headline {
+    grid-area: headline;
+}
+
+.chat-layout--magazine .slot-featured {
+    grid-area: featured;
+}
+
+.chat-layout--magazine .slot-feed {
+    grid-area: feed;
+}
+
+.chat-layout--magazine .slot-sidebar {
+    grid-area: sidebar;
+    background: rgba(var(--color-primary-rgb), 0.05);
+    /* Slight tint for sidebar */
+}
+
+
 
 /* Ends the main media query from line 23 */
 
 /* Additional specific overrides that don't need media query nesting or need their own */
-@media (min-width: 768px) {
-    .chat-layout--masonry {
-        display: block !important;
-        column-count: 3;
-        column-gap: 16px;
-    }
+/* Masonry Layout */
 
-    .chat-layout--masonry>.chat-block {
-        break-inside: avoid;
-        margin-bottom: 16px;
-    }
-
-    .chat-layout--masonry>.chat-block {
-        break-inside: avoid;
-        margin-bottom: 16px;
-    }
+.chat-layout--masonry {
+    display: block !important;
+    column-count: 3;
+    column-gap: 16px;
 }
+
+.chat-layout--masonry>.chat-block {
+    break-inside: avoid;
+    margin-bottom: 16px;
+}
+
+.chat-layout--masonry>.chat-block {
+    break-inside: avoid;
+    margin-bottom: 16px;
+}
+
+
 
 /* --- QUESTION BLOCK ISOLATION --- */
 /* Forces the question block to break out of columns and take full width */
@@ -362,159 +412,11 @@
     max-width: 100% !important;
 }
 
-/* =========================================
-   MOBILE LAYOUT RESPONSIVENESS
-   =========================================
-   All multi-column layouts collapse to single column on mobile.
-   This ensures readability and proper touch interaction.
-   ========================================= */
-
-@media (max-width: 767px) {
-
-    /* BASE: Force all layouts to single column */
-    .chat-layout {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: var(--chat-block-spacing) !important;
-    }
-
-    /* Reset grid-template areas to not confuse mobile stacking */
-    .chat-layout--two_column,
-    .chat-layout--split_screen,
-    .chat-layout--three_column,
-    .chat-layout--asymmetrical,
-    .chat-layout--f_shape,
-    .chat-layout--magazine,
-    .chat-layout--z_shape,
-    .chat-layout--featured_media,
-    .chat-layout--masonry,
-    .chat-layout--card_block {
-        display: flex !important;
-        flex-direction: column !important;
-        grid-template-columns: 1fr !important;
-        grid-template-areas: none !important;
-    }
-
-    /* SLOT CONTAINERS: Full width, stack naturally */
-    .slot-container {
-        width: 100% !important;
-        height: auto !important;
-        grid-column: auto !important;
-        grid-row: auto !important;
-    }
-
-    /* Remove panel styling that makes sense for side-by-side but not stacked */
-    .chat-layout--two_column .slot-container,
-    .chat-layout--split_screen .slot-container,
-    .chat-layout--three_column .slot-container,
-    .chat-layout--asymmetrical .slot-container,
-    .chat-layout--f_shape .slot-container,
-    .chat-layout--magazine .slot-container {
-        background: transparent !important;
-        border: none !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-    }
-
-    /* Restore individual chat-block styling when stacked */
-    .chat-layout--two_column .slot-container>.chat-block,
-    .chat-layout--split_screen .slot-container>.chat-block,
-    .chat-layout--three_column .slot-container>.chat-block,
-    .chat-layout--asymmetrical .slot-container>.chat-block,
-    .chat-layout--f_shape .slot-container>.chat-block,
-    .chat-layout--magazine .slot-container>.chat-block {
-        margin-bottom: 0 !important;
-        /* Let gap handle spacing */
-    }
-
-    /* F-SHAPE: Header becomes normal block */
-    .chat-layout--f_shape>.slot-container:nth-child(1) {
-        flex-direction: column !important;
-        border-bottom: none !important;
-        margin-bottom: 0 !important;
-        padding: 0 !important;
-        min-height: auto !important;
-    }
-
-    .chat-layout--f_shape>.slot-container:nth-child(1)>.chat-block {
-        padding: 10px !important;
-    }
-
-    .chat-layout--f_shape>.slot-container:nth-child(2) {
-        border-right: none !important;
-    }
-
-    /* Z-SHAPE: Remove alternating margins */
-    .chat-layout--z_shape>.chat-block:nth-child(odd),
-    .chat-layout--z_shape>.chat-block:nth-child(even) {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        text-align: left !important;
-        border-left: none !important;
-        border-right: none !important;
-    }
-
-    /* MASONRY: Single column */
-    .chat-layout--masonry {
-        column-count: 1 !important;
-    }
-
-    /* CARD BLOCK: Single column but PRESERVE card styling */
-    .chat-layout--card_block .slot-container {
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 12px !important;
-    }
-
-    .chat-layout--card_block .chat-block {
-        min-height: auto !important;
-        /* Explicitly preserve card styling on mobile */
-        background: var(--color-surface) !important;
-        border: 1px solid var(--color-border) !important;
-        border-radius: 12px !important;
-        padding: 16px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-        text-align: center !important;
-    }
-
-    .chat-layout--card_block .chat-block:hover {
-        background: rgba(var(--color-primary-rgb), 0.08) !important;
-        border-color: var(--color-primary) !important;
-    }
-
-    /* ASYMMETRICAL: Remove special styling for aside */
-    .chat-layout--asymmetrical>.chat-block:nth-child(2),
-    .chat-layout--asymmetrical>.slot-container:nth-child(2) {
-        background: transparent !important;
-        border: none !important;
-    }
-
-    /* FEATURED MEDIA: Adjust aspect ratio for mobile */
-    .chat-layout--featured_media>.chat-block:first-child {
-        aspect-ratio: 16/9 !important;
-        /* More portrait-friendly */
-    }
-
-    /* THREE COLUMN: Stack instead of grid */
-    .slot-col1,
-    .slot-col2,
-    .slot-col3 {
-        grid-column: auto !important;
-    }
-
-    /* Keep hover effects minimal */
-    .chat-block.chat-text:hover,
-    .chat-block.chat-paragrafo:hover {
-        transform: none !important;
-        background: transparent !important;
-    }
-
-    /* TITLES: No card styling on mobile */
-    .chat-block.chat-titulo,
-    .chat-block.chat-subtitulo {
-        padding: 0 !important;
-        margin: 12px 0 8px 0 !important;
+/* Freeze: below 1000px the entire chat stays at desktop width.
+   The scroll container (.chat-messages overflow-x:auto) handles navigation. */
+@media (max-width: 1000px) {
+    .chat-message {
+        min-width: 1000px;
     }
 }
 
@@ -555,25 +457,8 @@
 
 /* Reduced motion/glitch safe hover */
 .chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover {
-    transform: translateY(-2px);
-    box-shadow:
-        0 8px 12px -2px rgba(0, 0, 0, 0.2),
-        0 4px 6px -2px rgba(0, 0, 0, 0.1),
-        0 0 0 1px rgba(var(--color-primary-rgb), 0.2);
-
-    border-color: rgba(var(--color-primary-rgb), 0.4);
-    /* Slightly lighter background mix */
-    background: linear-gradient(180deg,
-            rgba(40, 40, 45, 0.8) 0%,
-            rgba(30, 30, 35, 0.5) 100%);
-}
-
-/* Reduced motion/glitch safe hover */
-.slot-container>.chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover {
-    box-shadow: none !important;
-    border-color: none !important;
-    /* Slightly lighter background mix */
-    background: transparent !important;
+    /* Deixa o elemento 5% mais claro (ou use 0.95 para deixar mais escuro) */
+    filter: brightness(1.05);
 }
 
 .slot-container>.chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover::after {
@@ -740,7 +625,8 @@
     padding: 0 !important;
     background: linear-gradient(90deg, transparent, var(--color-border), transparent);
     width: 100%;
-    border: 1px dashed var(--color-primary) !important;
+    border: none !important;
+    margin: 12px 0;
 }
 
 .chat-image-placeholder {
@@ -839,13 +725,6 @@
     transition: all 0.2s ease;
 }
 
-.chat-layout--card_block .chat-block:hover {
-    background: rgba(var(--color-primary-rgb), 0.1);
-    border-color: var(--color-primary);
-    transform: translateY(-2px);
-    cursor: pointer;
-}
-
 /* --- New Chat UI Styles (Timeline Thoughts & Card Responses) --- */
 
 /* 1. Response Cards (Split Chat) */
@@ -878,27 +757,31 @@
 
 /* --- Parent Accordion Wrapper --- */
 .steps-accordion {
-    margin-bottom: 12px;
     width: 100%;
 }
 
 /* Accordion Header — "Concluiu N etapas ⌵" */
 .steps-accordion-header {
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 4px;
+    padding: 8px 14px;
     user-select: none;
     font-family: var(--font-family-base);
     font-size: 13px;
     font-weight: 500;
     color: var(--color-text-secondary);
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, background 0.2s ease;
+    border-radius: var(--radius-full);
+    background: rgba(var(--color-primary-rgb), 0.06);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.1);
 }
 
 .steps-accordion-header:hover {
     color: var(--color-text);
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-color: rgba(var(--color-primary-rgb), 0.2);
 }
 
 .steps-accordion-header .steps-accordion-chevron {
@@ -907,7 +790,7 @@
     justify-content: center;
     width: 16px;
     height: 16px;
-    transition: transform 0.25s ease;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     opacity: 0.6;
     flex-shrink: 0;
 }
@@ -927,19 +810,22 @@
     opacity: 0;
     overflow: hidden;
     transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.3s ease;
+        opacity 0.3s ease;
     padding-left: 4px;
+    margin-top: 0;
 }
 
 .steps-accordion.open .steps-accordion-body {
     max-height: 3000px;
     opacity: 1;
+    margin-top: 8px;
 }
 
 /* During processing — accordion is open and steps appear live */
 .steps-accordion.processing .steps-accordion-body {
     max-height: 3000px;
     opacity: 1;
+    margin-top: 8px;
 }
 
 /* --- Individual Step Row --- */
@@ -947,6 +833,12 @@
     display: flex;
     flex-direction: column;
     animation: stepFadeIn 0.35s ease-out forwards;
+    border-left: 2px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+.step-row.active {
+    border-left-color: rgba(var(--color-primary-rgb), 0.4);
 }
 
 @keyframes stepFadeIn {
@@ -954,6 +846,7 @@
         opacity: 0;
         transform: translateY(6px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -965,28 +858,29 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 8px;
+    padding: 10px 10px;
     cursor: pointer;
     user-select: none;
     transition: background 0.2s ease, color 0.2s ease;
     border-radius: var(--radius-sm);
     position: relative;
     width: 100%;
+    min-height: 40px;
 }
 
 .step-row-header::after {
     content: '';
-    flex: 1; /* Ensures the hover box fills the remaining space */
+    flex: 1;
 }
 
 .step-row-header:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--color-primary-rgb), 0.04);
 }
 
 /* Step Icon */
 .step-row-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -994,12 +888,15 @@
     font-size: 14px;
     color: var(--color-text-secondary);
     opacity: 0.8;
+    border-radius: var(--radius-full);
+    background: rgba(var(--color-primary-rgb), 0.06);
+    padding: 3px;
 }
 
 /* SVG icon inside step-row-icon */
 .step-row-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     stroke: currentColor;
     fill: none;
     stroke-width: 2;
@@ -1011,6 +908,24 @@
 .step-row-icon.completed {
     color: var(--color-success);
     opacity: 1;
+    background: rgba(var(--color-success-rgb), 0.1);
+}
+
+/* Processing icon — subtle pulse */
+.step-row-icon.processing {
+    animation: stepIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes stepIconPulse {
+
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 1;
+    }
 }
 
 /* Monochrome Logo Spinner for active generation phase */
@@ -1045,6 +960,7 @@
 /* Active step has slightly brighter title */
 .step-row.active .step-row-title {
     color: var(--color-text);
+    font-weight: 600;
 }
 
 /* Step Chevron (expand arrow) */
@@ -1052,12 +968,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
     color: var(--color-text-secondary);
-    opacity: 0.5;
-    transition: transform 0.25s ease, opacity 0.2s;
+    opacity: 0.4;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
 }
 
 .step-row-chevron svg {
@@ -1071,7 +987,7 @@
 }
 
 .step-row-header:hover .step-row-chevron {
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
 .step-row.open .step-row-chevron {
@@ -1085,16 +1001,17 @@
     opacity: 0;
     overflow: hidden;
     transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.25s ease,
-                padding 0.25s ease;
-    padding: 0 8px 0 38px; /* Aligns with title (icon width + gap) */
+        opacity 0.25s ease,
+        padding 0.25s ease;
+    padding: 0 10px 0 42px;
+    /* Aligns with title (icon + gap) */
 }
 
 .step-row.open .step-row-content {
     max-height: 600px;
     opacity: 1;
     overflow-y: auto;
-    padding: 4px 8px 12px 38px;
+    padding: 4px 10px 14px 42px;
 }
 
 /* Custom Scrollbar for step content */
@@ -1111,10 +1028,11 @@
 .step-row-body {
     font-family: var(--font-family-base);
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.65;
     color: var(--color-text-secondary);
-    border-left: 2px solid rgba(var(--color-primary-rgb), 0.2);
-    padding-left: 12px;
+    border-left: 2px solid rgba(var(--color-primary-rgb), 0.15);
+    padding-left: 14px;
+    margin-left: 2px;
 }
 
 .step-row-body strong {
@@ -1126,9 +1044,9 @@
 .step-terminal-box {
     background: rgba(10, 10, 15, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    margin-top: 8px;
+    border-radius: var(--radius-base);
+    padding: 14px 16px;
+    margin-top: 10px;
     font-family: var(--font-family-mono);
     font-size: 12px;
     line-height: 1.5;
@@ -1208,19 +1126,19 @@
 .step-row-content .chat-thoughts-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
 .step-row-content .maia-thought-card {
     display: flex;
-    gap: 10px;
-    padding: 6px 0;
+    gap: 12px;
+    padding: 8px 0;
     margin: 0;
     animation: fadeIn 0.3s ease;
 }
 
 .step-row-content .maia-thought-logo-wrap {
-    width: 18px;
+    width: 20px;
     display: flex;
     justify-content: center;
     flex-shrink: 0;
@@ -1228,14 +1146,14 @@
 }
 
 .step-row-content .maia-thought-logo {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     opacity: 0.6;
 }
 
 .step-row-content .maia-thought-card:last-child .maia-thought-logo {
     opacity: 1;
-    filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+    filter: drop-shadow(0 0 5px rgba(var(--color-primary-rgb), 0.5));
 }
 
 /* Timeline dots between thought cards in step content */
@@ -1246,38 +1164,39 @@
 .step-row-content .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::before {
     content: '';
     position: absolute;
-    top: 4px;
-    width: 6px;
-    height: 6px;
-    background: var(--color-text-secondary);
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    height: 7px;
+    background: rgba(var(--color-primary-rgb), 0.35);
     border-radius: 50%;
     z-index: 1;
-    opacity: 0.4;
 }
 
 .step-row-content .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::after {
     content: '';
     position: absolute;
     left: 50%;
-    top: 10px;
+    top: 12px;
     transform: translateX(-50%);
-    width: 1.5px;
-    height: calc(100% + 8px);
-    background: rgba(var(--color-primary-rgb), 0.2);
+    width: 2px;
+    height: calc(100% + 4px);
+    background: linear-gradient(to bottom, rgba(var(--color-primary-rgb), 0.2), rgba(var(--color-primary-rgb), 0.06));
     border-radius: 2px;
 }
 
 .step-row-content .maia-thought-title {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--color-text);
     font-weight: 600;
-    margin-bottom: 1px;
+    margin-bottom: 2px;
 }
 
 .step-row-content .maia-thought-body {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text-secondary);
-    line-height: 1.4;
+    line-height: 1.55;
 }
 
 /* Skeleton overrides inside step content */
@@ -1321,23 +1240,25 @@
 }
 
 .summary-content-wrapper {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 10px;
-    background: transparent;
-    padding: 8px 4px;
-    border-radius: 0;
-    border: none;
+    background: rgba(var(--color-primary-rgb), 0.06);
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.1);
     transition: all 0.2s ease;
 }
 
 .summary-content-wrapper:hover {
     color: var(--color-text);
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border-color: rgba(var(--color-primary-rgb), 0.2);
 }
 
 .summary-logo-spinner {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     object-fit: contain;
     opacity: 0.8;
     animation: spin-slow 3s linear infinite;
@@ -1365,7 +1286,7 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 18 15 12 9 6'%3E%3C/polyline%3E%3C/svg%3E");
     background-size: contain;
     background-repeat: no-repeat;
-    transition: transform 0.25s ease;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .chat-thought-container.open .summary-content-wrapper::after {
@@ -1382,16 +1303,16 @@
     border-radius: var(--radius-sm);
     border: none;
     transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.25s ease,
-                margin-top 0.2s ease,
-                padding 0.2s ease;
+        opacity 0.25s ease,
+        margin-top 0.2s ease,
+        padding 0.2s ease;
     padding: 0 0 0 28px;
 }
 
 .chat-thought-container.open .chat-thoughts-inner {
     max-height: 500px;
     opacity: 1;
-    margin-top: 2px;
+    margin-top: 6px;
     overflow-y: auto;
     padding: 4px 0 8px 28px;
 }
@@ -1409,13 +1330,13 @@
 /* Thought card overrides inside legacy container */
 .chat-thoughts-inner .maia-thought-card {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 12px;
     animation: fadeIn 0.3s ease;
 }
 
 .chat-thoughts-inner .maia-thought-logo-wrap {
-    width: 18px;
+    width: 20px;
     display: flex;
     justify-content: center;
     flex-shrink: 0;
@@ -1424,7 +1345,7 @@
 
 .chat-thoughts-inner .maia-thought-card:last-child .maia-thought-logo {
     opacity: 1;
-    filter: drop-shadow(0 0 4px rgba(var(--color-primary-rgb), 0.4));
+    filter: drop-shadow(0 0 5px rgba(var(--color-primary-rgb), 0.5));
 }
 
 .chat-thoughts-inner .maia-thought-card .maia-thought-content {
@@ -1438,38 +1359,39 @@
 .chat-thoughts-inner .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::before {
     content: '';
     position: absolute;
-    top: 4px;
-    width: 6px;
-    height: 6px;
-    background: var(--color-text-secondary);
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 7px;
+    height: 7px;
+    background: rgba(var(--color-primary-rgb), 0.35);
     border-radius: 50%;
     z-index: 1;
-    opacity: 0.4;
 }
 
 .chat-thoughts-inner .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::after {
     content: '';
     position: absolute;
     left: 50%;
-    top: 10px;
+    top: 12px;
     transform: translateX(-50%);
-    width: 1.5px;
+    width: 2px;
     height: calc(100% + 16px);
-    background: rgba(var(--color-primary-rgb), 0.2);
+    background: linear-gradient(to bottom, rgba(var(--color-primary-rgb), 0.2), rgba(var(--color-primary-rgb), 0.06));
     border-radius: 2px;
 }
 
 .chat-thoughts-inner .maia-thought-title {
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--color-text);
     font-weight: 600;
-    margin-bottom: 1px;
+    margin-bottom: 2px;
 }
 
 .chat-thoughts-inner .maia-thought-body {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--color-text-secondary);
-    line-height: 1.4;
+    line-height: 1.55;
 }
 
 .chat-thoughts-inner .skeleton-wrapper {
@@ -1637,10 +1559,7 @@
 /* User requested fix for hover on slides */
 /* "reduced motion/glitch safe hover" */
 .carousel-slide>.chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover {
-    box-shadow: none !important;
-    border-color: transparent !important;
-    background: transparent !important;
-    transform: none !important;
+    transform: none;
 }
 
 .carousel-slide>.chat-block:not(.chat-titulo):not(.chat-subtitulo):not(.chat-separador):hover::after {

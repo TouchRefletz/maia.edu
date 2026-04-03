@@ -81,7 +81,7 @@
         grid-template-columns: 1fr;
     }
 
-    /* BUG FIX: Prevent horizontal scroll on mobile */
+    /* Page body stays locked — only #chatMessages scrolls horizontally */
     html,
     body {
         overflow-x: hidden !important;

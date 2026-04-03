@@ -1,0 +1,72 @@
+/* =========================================
+   HORIZONTAL SCROLL HINT
+   Shows a gradient fade + arrow on the right edge of
+   .chat-messages when there's more content to scroll.
+   ========================================= */
+
+/* Right-edge gradient fade — appears when .has-h-overflow is set */
+.chat-messages.has-h-overflow::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    min-height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    background: linear-gradient(to left,
+        var(--color-background, #0d0d0f) 0%,
+        transparent 100%);
+    flex-shrink: 0;
+    align-self: stretch;
+}
+
+/* Floating scroll arrow — bounces to catch attention */
+.chat-messages.has-h-overflow::before {
+    content: '→';
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 11;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+
+    /* Glassmorphic pill */
+    background: rgba(var(--color-primary-rgb), 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.25);
+    color: var(--color-primary);
+    font-size: 16px;
+    font-weight: bold;
+
+    /* Gentle bounce */
+    animation: scrollHintBounce 1.5s ease-in-out infinite;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+@keyframes scrollHintBounce {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(6px); }
+}
+
+/* Hide both hints when there's no overflow or user scrolled to end */
+.chat-messages:not(.has-h-overflow)::after,
+.chat-messages:not(.has-h-overflow)::before {
+    display: none;
+}
+
+/* Light mode adjustment */
+[data-color-scheme='light'] .chat-messages.has-h-overflow::after,
+:root:not([data-color-scheme='dark']) .chat-messages.has-h-overflow::after {
+    background: linear-gradient(to left,
+        var(--color-background, #f8f8f8) 0%,
+        transparent 100%);
+}

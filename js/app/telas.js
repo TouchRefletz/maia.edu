@@ -44,10 +44,16 @@ import {
   updateThemeIcon,
 } from "../services/theme-service.js";
 import {
+  initTopScrollSync,
+  destroyTopScrollSync,
+} from "../ui/top-scroll-sync.js";
+import "../../css/responsivity/top-scrollbar.css";
+import {
   initCustomChatScrollbar,
   destroyCustomChatScrollbar,
   updateChatScrollbar,
 } from "../ui/custom-chat-scrollbar.js";
+
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
@@ -464,12 +470,7 @@ function renderInitialUI() {
     return icons[ext] || "📎";
   }
 
-  // Função para formatar tamanho do arquivo
-  function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-  }
+  // Moved formatFileSize to outer scope (shared)
 
   // Função para criar chip visual do arquivo
   function createAttachmentChip(file, index) {
@@ -1028,7 +1029,7 @@ window.startNewChat = function () {
   window.history.replaceState({}, document.title, url);
 
   // Destroy custom scrollbar
-  destroyCustomChatScrollbar();
+  destroyTopScrollSync();
 
   // Reconstrói a UI inicial (SPA Reset)
   renderInitialUI();
@@ -1128,18 +1129,11 @@ window.loadChat = async function (chatId) {
       userMessage.className = "chat-message chat-message--user visible";
       userMessage.dataset.msgIndex = index; // Para persistência de Scaffolding
 
-      // Recria anexos se houver (visual apenas, sem blob data se foi limpo)
+      // Recria anexos se houver
       let filesHtml = "";
       if (msg.attachments && msg.attachments.length > 0) {
-        filesHtml = `<div class="message-files">${msg.attachments
-          .map(
-            (f) => `
-                    <div class="message-file-chip">
-                        <span class="message-file-icon">📎</span>
-                        <span class="message-file-name">${f.name || "Anexo"}</span>
-                    </div>`,
-          )
-          .join("")}</div>`;
+        const fileCards = msg.attachments.map(f => renderFileAttachment(f)).join("");
+        filesHtml = `<div class="message-files">${fileCards}</div>`;
       }
       userMessage.innerHTML = `<div class="chat-message-content">${filesHtml}<p>${escapeHtml(msg.content)}</p></div>`;
       messagesContainer.appendChild(userMessage);
@@ -1302,8 +1296,11 @@ window.loadChat = async function (chatId) {
   // 7. Hydrate Scaffolding (agora passa o ID do chat para o contexto)
   hydrateScaffoldingBlocks(messagesContainer);
 
-  // 8. Initialize custom scrollbar for mobile
-  setTimeout(() => initCustomChatScrollbar(), 100);
+  // 8. Initialize custom scrollbars for mobile and horizontal sync
+  setTimeout(() => {
+    initCustomChatScrollbar();
+    initTopScrollSync();
+  }, 100);
 };
 
 export function updateChatFloatingHeader(title) {
@@ -1445,53 +1442,18 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       inputWrapper.parentNode.insertBefore(messagesContainer, inputWrapper);
     }
 
-    // Initialize custom scrollbar for mobile
-    setTimeout(() => initCustomChatScrollbar(), 100);
+    // Initialize custom scrollbars for mobile/small screens
+    setTimeout(() => {
+      initCustomChatScrollbar();
+      initTopScrollSync();
+    }, 100);
   }
 
-  // 4. Criar HTML dos arquivos anexados (se houver)
+  // 4. Criar HTML dos arquivos anexados (Design Premium)
   let filesHtml = "";
   if (arquivos.length > 0) {
-    const fileChips = arquivos
-      .map((file) => {
-        const isImage = file.type.startsWith("image/");
-        const ext = file.name.split(".").pop().toLowerCase();
-        const icons = {
-          pdf: "📄",
-          doc: "📝",
-          docx: "📝",
-          txt: "📃",
-          png: "🖼️",
-          jpg: "🖼️",
-          jpeg: "🖼️",
-          gif: "🖼️",
-          webp: "🖼️",
-          mp3: "🎵",
-          wav: "🎵",
-          mp4: "🎬",
-          webm: "🎬",
-          js: "💻",
-          py: "💻",
-          html: "🌐",
-          css: "🎨",
-          json: "📋",
-        };
-        const icon = icons[ext] || "📎";
-
-        if (isImage) {
-          const url = URL.createObjectURL(file);
-          return `<div class="message-file-chip message-file-chip--image">
-          <img src="${url}" alt="${file.name}" class="message-file-preview">
-        </div>`;
-        }
-        return `<div class="message-file-chip">
-        <span class="message-file-icon">${icon}</span>
-        <span class="message-file-name">${file.name}</span>
-      </div>`;
-      })
-      .join("");
-
-    filesHtml = `<div class="message-files">${fileChips}</div>`;
+    const fileCards = arquivos.map(file => renderFileAttachment(file)).join("");
+    filesHtml = `<div class="message-files">${fileCards}</div>`;
   }
 
   // 5. Adicionar mensagem do usuário ao container existente
@@ -4695,3 +4657,136 @@ window.simulateNetworkRestore = () => {
   });
   window.dispatchEvent(new Event("online"));
 };
+
+/**
+ * FUNÇÃO DE TESTE: Simula uma mensagem com arquivos para visualizar o design.
+ * Pode ser chamada via console: window.testFileMessage()
+ */
+window.testFileMessage = function() {
+    const messagesContainer = document.getElementById("chatMessages");
+    if (!messagesContainer) {
+        console.warn("Container de mensagens não encontrado. Certifique-se de estar no modo chat.");
+        return;
+    }
+
+    const testMsg = document.createElement("div");
+    testMsg.className = "chat-message chat-message--user visible";
+    
+    const content = document.createElement("div");
+    content.className = "chat-message-content";
+    
+    // Mock de Arquivos usando o novo renderizador
+    const mockFiles = [
+        { name: "Plano_de_Aula_2026.pdf", size: 1250000, type: "application/pdf" },
+        { 
+            name: "brainstorm.png", 
+            size: 450000, 
+            type: "image/png", 
+            url: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&h=200" 
+        }
+    ];
+    
+    const fileCards = mockFiles.map(f => renderFileAttachment(f)).join("");
+    const filesHtml = `
+        <div class="message-files">${fileCards}</div>
+        <p>Olá! Este é um teste do novo design de anexos padronizados. Todos os cards têm o mesmo tamanho e comportamento!</p>
+    `;
+    
+    content.innerHTML = filesHtml;
+    testMsg.appendChild(content);
+    messagesContainer.appendChild(testMsg);
+    
+    messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: 'smooth'
+    });
+    
+    console.log("Mensagem de teste (Premium) com arquivos adicionada!");
+};
+
+/**
+ * HELPER: Formata tamanho do arquivo
+ */
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+/**
+ * HELPER: Abre anexo em nova aba
+ */
+window.openAttachment = function(url, name) {
+    if (!url || url === "#") {
+        customAlert(`Visualização não disponível para este arquivo simulado (${name}).`);
+        return;
+    }
+    window.open(url, '_blank');
+};
+
+/**
+ * RENDERER: Gera HTML para cartão de anexo premium
+ */
+function renderFileAttachment(file) {
+    const ext = (file.name || "").split(".").pop().toLowerCase();
+    const isImage = file.type?.startsWith("image/") || ["png", "jpg", "jpeg", "webp"].includes(ext);
+    
+    const categories = {
+        pdf: "Documento PDF",
+        doc: "Documento Office",
+        docx: "Documento Office",
+        json: "Dados Estruturados",
+        js: "Script JavaScript",
+        py: "Script Python",
+        txt: "Arquivo de Texto",
+        png: "Imagem PNG",
+        jpg: "Imagem JPEG",
+        jpeg: "Imagem JPEG",
+        webp: "Imagem WebP"
+    };
+
+    const icons = {
+        pdf: "📕",
+        doc: "📘",
+        docx: "📘",
+        json: "📦",
+        js: "💛",
+        py: "💙",
+        txt: "📄",
+        png: "🖼️",
+        jpg: "🖼️",
+        jpeg: "🖼️",
+        webp: "🖼️"
+    };
+
+    const category = categories[ext] || "Arquivo";
+    const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : "";
+    
+    let iconContent = `<span class="message-file-icon">${icons[ext] || "📎"}</span>`;
+    let onClickUrl = file.url || "#";
+
+    // Se for um objeto File real (blob local)
+    if (file instanceof File) {
+        onClickUrl = URL.createObjectURL(file);
+    }
+
+    if (isImage) {
+        const thumbUrl = onClickUrl !== "#" ? onClickUrl : "logo.png";
+        iconContent = `<img src="${thumbUrl}" alt="${file.name}" class="message-file-preview">`;
+    }
+
+    return `
+        <div class="message-file-card" onclick="window.openAttachment('${onClickUrl}', '${(file.name || "Sem nome").replace(/'/g, "\\'")}')">
+            <div class="message-file-icon-wrapper">
+                ${iconContent}
+            </div>
+            <div class="message-file-info">
+                <div class="message-file-name" title="${file.name}">${file.name}</div>
+                <div class="message-file-meta">${category}${sizeStr}</div>
+            </div>
+            <div class="message-file-action" title="Abrir">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            </div>
+        </div>
+    `;
+}

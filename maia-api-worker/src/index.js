@@ -117,6 +117,7 @@ export default {
 
 /**
  * SERVICE: SEARCH IMAGE API (Google Custom Search + Wikimedia Fallback)
+ * Suporta parâmetro `exclude` (JSON array de URLs) para pular imagens que falharam no client (403, CORS, etc.)
  */
 async function handleSearchImage(request, env) {
 	const url = new URL(request.url);
@@ -129,21 +130,41 @@ async function handleSearchImage(request, env) {
 		});
 	}
 
+	// Parse URLs excluídas (imagens que deram erro no client)
+	let excludedUrls = new Set();
+	const excludeParam = url.searchParams.get('exclude');
+	if (excludeParam) {
+		try {
+			const parsed = JSON.parse(excludeParam);
+			if (Array.isArray(parsed)) {
+				excludedUrls = new Set(parsed);
+				console.log(`[Image Search] Excluindo ${excludedUrls.size} URL(s) que falharam no client`);
+			}
+		} catch (e) {
+			console.warn('[Image Search] Falha ao parsear exclude param:', e.message);
+		}
+	}
+
 	const googleApiKey = env.GOOGLE_SEARCH_API_KEY;
 	const googleEngineId = env.GOOGLE_SEARCH_ENGINE_ID;
 
-	// 1. Tenta Busca via Google Custom Search API
+	// 1. Tenta Busca via Google Custom Search API (pede até 5 resultados para ter alternativas)
 	if (googleApiKey && googleEngineId) {
 		try {
-			const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=1`;
+			const googleUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleEngineId}&q=${encodeURIComponent(query)}&searchType=image&num=5`;
 			const googleResp = await fetch(googleUrl);
 
 			if (googleResp.ok) {
 				const data = await googleResp.json();
-				if (data.items && data.items.length > 0 && data.items[0].link) {
-					return new Response(JSON.stringify({ url: data.items[0].link, source: 'google' }), {
-						headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-					});
+				if (data.items && data.items.length > 0) {
+					// Filtra itens excluídos e retorna o primeiro válido
+					const validItem = data.items.find(item => item.link && !excludedUrls.has(item.link));
+					if (validItem) {
+						return new Response(JSON.stringify({ url: validItem.link, source: 'google' }), {
+							headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+						});
+					}
+					console.warn('[Image Search] Todos os resultados do Google estão na lista de excluídos');
 				}
 			} else {
 				console.warn('[Image Search] Google API falhou, indo para o fallback:', await googleResp.text());
@@ -153,10 +174,10 @@ async function handleSearchImage(request, env) {
 		}
 	}
 
-	// 2. Fallback: Wikimedia Commons API
+	// 2. Fallback: Wikimedia Commons API (pede até 5 resultados)
 	try {
 		console.log(`[Image Search] Fallback: Buscando "${query}" na Wikimedia Commons...`);
-		const wikiUrl = `https://pt.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=1&prop=pageimages&pithumbsize=800&format=json&origin=*`;
+		const wikiUrl = `https://pt.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=5&prop=pageimages&pithumbsize=800&format=json&origin=*`;
 
 		const wikiResp = await fetch(wikiUrl);
 		if (wikiResp.ok) {
@@ -165,14 +186,17 @@ async function handleSearchImage(request, env) {
 
 			if (pages) {
 				// A API retorna um objeto cujas chaves são os page IDs
-				const firstPageId = Object.keys(pages)[0];
-				const imageUrl = pages[firstPageId]?.thumbnail?.source;
-
-				if (imageUrl) {
-					return new Response(JSON.stringify({ url: imageUrl, source: 'wikimedia' }), {
-						headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-					});
+				// Itera todos os resultados e pega o primeiro com thumbnail que não está excluído
+				const pageIds = Object.keys(pages);
+				for (const pageId of pageIds) {
+					const imageUrl = pages[pageId]?.thumbnail?.source;
+					if (imageUrl && !excludedUrls.has(imageUrl)) {
+						return new Response(JSON.stringify({ url: imageUrl, source: 'wikimedia' }), {
+							headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+						});
+					}
 				}
+				console.warn('[Image Search] Todos os resultados do Wikimedia estão na lista de excluídos');
 			}
 		}
 	} catch (error) {

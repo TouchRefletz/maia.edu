@@ -39,16 +39,7 @@ export function initCustomChatScrollbar() {
   const messagesContainer = getScrollableContainer();
   if (!messagesContainer) return;
 
-  // If already initialized with same container, just update
-  if (scrollbarInitialized && currentContainer === messagesContainer) {
-    updateThumbPosition();
-    return;
-  }
-
-  // Store reference
-  currentContainer = messagesContainer;
-
-  // Create scroll track element
+  // Initialize track and thumb early to avoid ReferenceError in hoisted updateThumbPosition
   let scrollTrack = document.querySelector(".chat-scroll-track");
   if (!scrollTrack) {
     scrollTrack = document.createElement("div");
@@ -62,6 +53,15 @@ export function initCustomChatScrollbar() {
   }
 
   const scrollThumb = scrollTrack.querySelector(".chat-scroll-thumb");
+
+  // If already initialized with same container, just update
+  if (scrollbarInitialized && currentContainer === messagesContainer) {
+    updateThumbPosition();
+    return;
+  }
+
+  // Store reference
+  currentContainer = messagesContainer;
 
   // === Sync thumb with scroll position ===
   function updateThumbPosition() {

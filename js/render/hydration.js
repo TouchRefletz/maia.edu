@@ -91,6 +91,20 @@ export async function hydrateAllChatContent(container) {
       const definedUrl = placeholder.dataset.url;
       const query = placeholder.dataset.query;
 
+      // URLs que já falharam para este placeholder (evita loop infinito)
+      const failedUrls = new Set();
+      let fallbackRetries = 0;
+      const MAX_FALLBACK_RETRIES = 3;
+
+      const renderLoadingState = (msg = "Buscando imagem...") => {
+        placeholder.innerHTML = `
+          <div style="width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); border-radius:12px; border:1px dashed var(--color-border, #444); gap:10px;">
+            <div class="maia-spinner" style="width:20px; height:20px; border:2px solid var(--color-primary, #2db7c6); border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
+            <span style="font-size:0.8em; color:var(--color-text-secondary);">${msg}</span>
+          </div>
+        `;
+      };
+
       const renderImage = (imgUrl) => {
         placeholder.style.padding = "0";
         placeholder.style.border = "none";
@@ -101,15 +115,38 @@ export async function hydrateAllChatContent(container) {
         placeholder.style.overflow = "hidden";
         placeholder.style.display = "flex";
         placeholder.style.flexDirection = "column";
+        placeholder.style.borderRadius = "12px";
 
         placeholder.innerHTML = `
-            <img class="chat-dynamic-img-expandable" src="${imgUrl}" alt="${query}" style="width:100%; height:100%; object-fit:cover; display:block; cursor:pointer;" />
-            <div style="font-size:0.85em; color:var(--color-text-secondary, #b0b0b0); background: var(--color-surface, rgba(0,0,0,0.8)); border: 1px solid var(--color-border, #333); padding:4px 8px; position:absolute; bottom:8px; left:8px; border-radius:6px; max-width:calc(100% - 16px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">${query}</div>
+            <img class="chat-dynamic-img-expandable" src="${imgUrl}" alt="${query || 'imagem'}" style="width:100%; height:100%; object-fit:cover; display:block; cursor:pointer;" />
+            <div style="font-size:0.85em; color:var(--color-text-secondary, #b0b0b0); background: var(--color-surface, rgba(0,0,0,0.8)); border: 1px solid var(--color-border, #333); padding:4px 8px; position:absolute; bottom:8px; left:8px; border-radius:6px; max-width:calc(100% - 16px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">${query || 'Visualização'}</div>
           `;
 
-        // Click action: Popup / Lightbox
+        // Fallback automático: se a imagem falhar no DOM (403, CORS, etc.), busca outra
         const imgEl = placeholder.querySelector(".chat-dynamic-img-expandable");
         if (imgEl) {
+          imgEl.addEventListener("error", () => {
+            console.warn(
+              `[Hydration] ⚠️ Imagem bloqueada/indisponível no DOM: ${imgUrl}`,
+            );
+            failedUrls.add(imgUrl);
+            
+            if (fallbackRetries < MAX_FALLBACK_RETRIES) {
+                fallbackRetries++;
+                // Mostra estado de busca na UI
+                renderLoadingState(`Buscando alternativa (${fallbackRetries}/${MAX_FALLBACK_RETRIES})...`);
+                
+                // Limpa a URL salva no dataset (que é inválida)
+                placeholder.dataset.url = "";
+                
+                // Pequeno delay para não sobrecarregar
+                setTimeout(() => fetchFallback(), 500);
+            } else {
+                console.error(`[Hydration] ❌ Limite de fallbacks atingido para: ${query}`);
+                renderError();
+            }
+          }, { once: true });
+
           imgEl.addEventListener("click", () => {
             const overlay = document.createElement("div");
             overlay.style.position = "fixed";
@@ -117,7 +154,7 @@ export async function hydrateAllChatContent(container) {
             overlay.style.left = "0";
             overlay.style.width = "100%";
             overlay.style.height = "100%";
-            overlay.style.backgroundColor = "rgba(10, 10, 12, 0.85)"; // Use a dark theme base
+            overlay.style.backgroundColor = "rgba(10, 10, 12, 0.85)"; 
             overlay.style.zIndex = "99999";
             overlay.style.display = "flex";
             overlay.style.alignItems = "center";
@@ -298,12 +335,17 @@ export async function hydrateAllChatContent(container) {
             import.meta.env?.VITE_WORKER_URL
               ? import.meta.env.VITE_WORKER_URL
               : "https://maia-api.touchrefletz.workers.dev";
-          const apiUrl = `${workerUrl}/search-image?q=${encodeURIComponent(query)}`;
+
+          // Envia URLs que já falharam para o worker excluí-las da busca
+          const excludeParam = failedUrls.size > 0
+            ? `&exclude=${encodeURIComponent(JSON.stringify([...failedUrls]))}`
+            : "";
+          const apiUrl = `${workerUrl}/search-image?q=${encodeURIComponent(query)}${excludeParam}`;
 
           const res = await fetch(apiUrl);
           if (res.ok) {
             const data = await res.json();
-            if (data.url) {
+            if (data.url && !failedUrls.has(data.url)) {
               renderImage(data.url);
               await saveImageMetadataToHistory(data.url);
             } else {
@@ -321,9 +363,16 @@ export async function hydrateAllChatContent(container) {
       if (definedUrl) {
         const img = new Image();
         img.onload = () => renderImage(definedUrl);
-        img.onerror = () => fetchFallback();
+        img.onerror = () => {
+          console.warn(`[Hydration] ⚠️ Pre-check falhou para: ${definedUrl}`);
+          failedUrls.add(definedUrl);
+          fallbackRetries++;
+          renderLoadingState(`Buscando alternativa (${fallbackRetries}/${MAX_FALLBACK_RETRIES})...`);
+          fetchFallback();
+        };
         img.src = definedUrl;
       } else {
+        renderLoadingState();
         await fetchFallback();
       }
     },
