@@ -53,6 +53,12 @@ import {
   destroyCustomChatScrollbar,
   updateChatScrollbar,
 } from "../ui/custom-chat-scrollbar.js";
+import {
+  initQuestionsTopScrollSync,
+  destroyQuestionsTopScrollSync,
+} from "../ui/questions-top-scroll-sync.js";
+import "../../css/responsivity/questions-top-scrollbar.css";
+import "../../css/responsivity/questions-responsivity.css";
 
 
 let activeGenerationController = null;
@@ -2512,8 +2518,12 @@ export async function iniciarModoEstudante() {
   await carregarBancoDados();
 
   // 5. Configura Scroll Infinito
-  // 5. Configura Scroll Infinito
   configurarObserverScroll();
+
+  // 6. Inicializa o Scroll Horizontal Superior (Premium Mobile)
+  setTimeout(() => {
+    initQuestionsTopScrollSync();
+  }, 100);
 
   // Persist Floating Terminal
   checkAndRestoreFloatingTerminal();

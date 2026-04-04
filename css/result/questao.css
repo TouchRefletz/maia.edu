@@ -69,6 +69,8 @@
 
 .q-support-img {
   max-width: 100%;
+  max-height: 80vh !important; /* Cap height to 80% of viewport */
+  object-fit: contain; /* Maintain ratio while capping */
   border: 1px solid var(--color-border);
   border-radius: 4px;
   margin: 15px 0;

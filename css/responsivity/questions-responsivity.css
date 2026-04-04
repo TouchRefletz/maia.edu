@@ -1,0 +1,80 @@
+/* --- RESPONSIVIDADE DO BANCO DE QUESTÕES (FINAL FIX V2) --- */
+
+@media (max-width: 1000px) {
+    /* O pai (layout) é o PORTAL */
+    .bank-layout {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: auto !important; 
+        overflow-y: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        position: relative;
+        
+        /* STRICTLY HIDE NATIVE SCROLLBARS */
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+
+    .bank-layout::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* O CONTEÚDO real (filtros e stream) */
+    .filters-panel,
+    .bank-stream,
+    #sentinelaScroll {
+        width: 1000px !important;
+        min-width: 1000px !important;
+        max-width: 1000px !important;
+        flex-shrink: 0;
+    }
+
+    .bank-stream {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        padding: 20px !important;
+        min-height: 200px;
+    }
+
+    .q-card {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* =========================================
+       HORIZONTAL SCROLL HINTS (GLOW)
+       ========================================= */
+    
+    /* Left Glow */
+    .bank-layout.has-h-glow-left::before {
+        content: '';
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 40px;
+        z-index: 99999;
+        pointer-events: none;
+        background: linear-gradient(to right, rgba(var(--color-primary-rgb), 0.2), transparent);
+        opacity: 0.8;
+    }
+
+    /* Right Glow */
+    .bank-layout.has-h-glow-right::after {
+        content: '';
+        position: fixed;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 40px;
+        z-index: 99999;
+        pointer-events: none;
+        background: linear-gradient(to left, rgba(var(--color-primary-rgb), 0.2), transparent);
+        opacity: 0.8;
+    }
+}

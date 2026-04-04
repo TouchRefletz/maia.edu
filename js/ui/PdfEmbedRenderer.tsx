@@ -156,13 +156,16 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       const parentWidth = parent.clientWidth;
       const availableWidth = parentWidth - 24; // Margin safety
       
-      // [FIX] Also check for height constraints (80vh)
-      const maxAllowedHeight = window.innerHeight * 0.8;
-      
+      // [FIX] Proportional scaling for both dimensions
       const widthScale = availableWidth < origWidth ? availableWidth / origWidth : 1;
-      const heightScale = maxAllowedHeight < origHeight ? maxAllowedHeight / origHeight : 1;
       
-      setDynamicScale(Math.min(widthScale, heightScale, 1)); 
+      // Calculate height after width scaling
+      // [FIX] Added even more padding (120px) to ensure disclaimer has breathing room
+      const heightAfterWidthScale = (origHeight + 120) * widthScale;
+      const maxAllowedHeight = window.innerHeight * 0.8;
+      const heightScale = heightAfterWidthScale > maxAllowedHeight ? maxAllowedHeight / heightAfterWidthScale : 1;
+      
+      setDynamicScale(widthScale * heightScale); 
     };
 
     calculateScale();
@@ -178,7 +181,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', calculateScale);
     };
-  }, [scaleToFit, origWidth]);
+  }, [scaleToFit, origWidth, puterIframeHeight]);
 
   // Reset isRendered when switching modes
   useEffect(() => {
@@ -597,13 +600,22 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     pdfjs: '🎨 PDF.js',
   };
 
-  const toggleButtonStyle: React.CSSProperties = {
+  const controlsContainerStyle: React.CSSProperties = {
     position: 'absolute',
     top: '4px',
     right: '4px',
     zIndex: 100,
-    padding: '4px 8px',
-    fontSize: '10px',
+    display: 'flex',
+    gap: '4px',
+    alignItems: 'center',
+    transform: `scale(${dynamicScale*3})`,
+    transformOrigin: 'top right',
+    pointerEvents: 'none',
+  };
+
+  const toggleButtonStyle: React.CSSProperties = {
+    padding: '2px 6px',
+    fontSize: '8.5px',
     fontWeight: 'bold',
     border: 'none',
     borderRadius: '4px',
@@ -612,6 +624,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     color: '#fff',
     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
     transition: 'all 0.2s ease',
+    pointerEvents: 'auto',
   };
 
   // Cicla: puter → embed → pdfjs → puter
@@ -625,22 +638,20 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
   // --- BOTÃO EDITAR LINK DO PDF ---
   const editLinkButtonStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '4px',
-    right: '68px', // Colado ao lado esquerdo do toggle (4px gap)
-    zIndex: 100,
-    padding: '4px 8px',
-    fontSize: '10px',
+    padding: '2px 6px',
+    fontSize: '8.5px',
     fontWeight: 'bold',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
     background: manualPdfUrl 
-      ? 'linear-gradient(135deg, #06b6d4, #0891b2)' // Cyan quando tem URL manual
-      : 'linear-gradient(135deg, rgba(148,163,184,0.5), rgba(100,116,139,0.5))', // Cinza sutil quando é URL original
+      ? 'linear-gradient(135deg, #06b6d4, #0891b2)'
+      : 'linear-gradient(135deg, rgba(148,163,184,0.5), rgba(100,116,139,0.5))',
     color: '#fff',
     boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
     transition: 'all 0.2s ease',
+    width: '53px',
+    pointerEvents: 'auto',
   };
 
   const handleEditLink = async () => {
@@ -660,15 +671,27 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   };
 
   // Botão de editar link — SÓ aparece quando há URL ativa (senão é redundante com o placeholder)
-  const editLinkButton = effectiveUrl ? (
-    <button
-      style={editLinkButtonStyle}
-      onClick={handleEditLink}
-      title="Trocar ou remover link do PDF"
-    >
-      🔗 Editar
-    </button>
-  ) : null;
+  // --- AGRUPAMENTO DOS CONTROLES (RECURSIVO/DINÂMICO) ---
+  const renderControls = () => (
+    <div style={controlsContainerStyle}>
+      {effectiveUrl && (
+        <button
+          style={editLinkButtonStyle}
+          onClick={handleEditLink}
+          title="Trocar ou remover link do PDF"
+        >
+          🔗 Editar
+        </button>
+      )}
+      <button 
+        style={toggleButtonStyle} 
+        onClick={toggleRenderMode} 
+        title="Alternar modo de visualização"
+      >
+        {modeLabels[renderMode]}
+      </button>
+    </div>
+  );
 
   // --- RENDER PUTER (iframe) --- [NEW DEFAULT]
   if (renderMode === 'puter') {
@@ -720,10 +743,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       // Sem URL, mostra placeholder com campo de input
       return (
         <div ref={containerRef} style={{ position: 'relative', width: '100%', minHeight: '120px' }}>
-          <button style={toggleButtonStyle} onClick={toggleRenderMode} title="Alternar modo de visualização">
-            {modeLabels[renderMode]}
-          </button>
-          {editLinkButton}
+          {renderControls()}
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
             padding: '24px 16px', background: 'var(--color-surface)', borderRadius: '12px',
@@ -754,37 +774,54 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     const viewerSrc = `/pdf-viewer.html?${viewerParams.toString()}`;
 
     // Calcula dimensões para o iframe
-    // Estimativa inicial — capped at 100vh
-    const maxVh = typeof window !== 'undefined' ? window.innerHeight : 900;
+    // Estimativa inicial — capped at 80vh para evitar sumiço
+    const maxVh = typeof window !== 'undefined' ? window.innerHeight * 0.8 : 720;
     const estimatedHeight = Math.min(origHeight + 42, maxVh);
-    // Dimensões reais já recebidas: também capped at 100vh
+    // Dimensões reais já recebidas: também capped at 80vh
     const finalIframeHeight = puterIframeHeight 
       ? Math.min(puterIframeHeight, maxVh) 
       : estimatedHeight;
 
+    // Final container height calculation
+    const currentRealHeight = puterIframeHeight || (origHeight + 42);
+    const containerHeight = currentRealHeight * dynamicScale;
+
     return (
-      <div ref={containerRef} style={{ position: 'relative', width: '100%', maxWidth: `${origWidth}px` }}>
-        <button style={toggleButtonStyle} onClick={toggleRenderMode} title="Alternar modo de visualização">
-          {modeLabels[renderMode]}
-        </button>
-        {editLinkButton}
-        <iframe
-          src={viewerSrc}
-          style={{
-            width: '100%',
-            height: `${finalIframeHeight}px`,
-            maxHeight: '100vh',
-            border: 'none',
-            borderRadius: '8px',
-            background: '#0f172a',
-            display: 'block',
-            overflow: 'hidden',
-            transition: puterIframeHeight ? 'height 0.3s ease' : 'none',
-          }}
-          sandbox="allow-scripts allow-same-origin"
-          title="Visualizador PDF via Puter"
-          scrolling="no"
-        />
+      <div 
+        ref={containerRef} 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          maxWidth: `${origWidth * dynamicScale}px`,
+          height: `${containerHeight}px`,
+        }}
+      >
+        {/* Buttons now outside the scaled div to remain proportional and properly spaced */}
+        {renderControls()}
+
+        <div style={{
+          width: `${origWidth}px`,
+          height: `${currentRealHeight}px`,
+          transform: `scale(${dynamicScale})`,
+          transformOrigin: 'top left',
+          borderRadius: '8px',
+          background: '#0f172a',
+          overflow: 'hidden'
+        }}>
+          <iframe
+            src={viewerSrc}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              display: 'block',
+              overflow: 'hidden',
+            }}
+            sandbox="allow-scripts allow-same-origin"
+            title="Visualizador PDF via Puter"
+            scrolling="no"
+          />
+        </div>
       </div>
     );
   }
@@ -818,14 +855,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
       return (
         <div ref={containerRef} style={noUrlOuterStyle}>
-          <button 
-            style={toggleButtonStyle} 
-            onClick={toggleRenderMode}
-            title="Alternar modo de visualização"
-          >
-            {modeLabels[renderMode]}
-          </button>
-          {editLinkButton}
+          {renderControls()}
           <div style={noUrlContentStyle}>
             <div style={{
               width: '48px',
@@ -948,14 +978,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
       return (
         <div ref={containerRef} style={{...activeOuterStyle, minHeight: '140px'}}>
-          <button 
-            style={toggleButtonStyle} 
-            onClick={toggleRenderMode}
-            title="Alternar modo de visualização"
-          >
-            {modeLabels[renderMode]}
-          </button>
-          {editLinkButton}
+          {renderControls()}
           <div style={embedFailedOverlay}>
             <div style={{
               width: '48px',
@@ -1031,14 +1054,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
     return (
       <div ref={containerRef} style={activeOuterStyle}>
-        <button 
-          style={toggleButtonStyle} 
-          onClick={toggleRenderMode}
-          title="Alternar modo de visualização"
-        >
-          {modeLabels[renderMode]}
-        </button>
-        {editLinkButton}
+        {renderControls()}
         <div style={activeWrapperStyle} title="Visualização via PDF Embed">
           <embed 
             key={embedSrc} 
@@ -1183,14 +1199,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
       return (
           <div ref={containerRef} style={pdfJsOuterStyle}>
-             <button 
-                style={toggleButtonStyle} 
-                onClick={toggleRenderMode}
-                title="Alternar modo de visualização"
-              >
-                {modeLabels[renderMode]}
-              </button>
-              {editLinkButton}
+             {renderControls()}
               
               <div style={{...pdfJsWrapperStyle, height: 'auto', paddingBottom: 0}}>
                   <div style={uploadContainerStyle}>
@@ -1320,14 +1329,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
     return (
       <div ref={containerRef} style={pdfJsOuterStyle}>
-        <button 
-          style={toggleButtonStyle} 
-          onClick={toggleRenderMode}
-          title="Alternar modo de visualização"
-        >
-          {modeLabels[renderMode]}
-        </button>
-        {editLinkButton}
+        {renderControls()}
         <div style={errorContainerStyle}>
           <div style={{
             width: '40px',
@@ -1377,14 +1379,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
   return (
     <div ref={containerRef} style={pdfJsOuterStyle}>
-        <button 
-          style={toggleButtonStyle} 
-          onClick={toggleRenderMode}
-          title="Alternar modo de visualização"
-        >
-          {modeLabels[renderMode]}
-        </button>
-        {editLinkButton}
+        {renderControls()}
         <div style={pdfJsWrapperStyle}>
             <canvas ref={canvasRef} style={canvasStyle} />
             {/* [FIX] Loading overlay sobre o canvas - canvas permanece montado */}

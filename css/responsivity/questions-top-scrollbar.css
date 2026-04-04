@@ -1,0 +1,85 @@
+/* =========================================
+   QUESTIONS CUSTOM SCROLLBARS (Mirroring Chat)
+   ───────────────────────────────────────── */
+
+/* 1. TOP HORIZONTAL MIRROR SCROLLBAR */
+.questions-top-scroll-track {
+    position: fixed;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 30px);
+    max-width: 960px;
+    height: 7px;
+    background: rgba(var(--color-primary-rgb), 0.25); /* More visible blue */
+    border-radius: 10px;
+    z-index: 100000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, height 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.3);
+    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.4); /* The blue glow effect */
+}
+
+.questions-top-scroll-track.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.questions-top-scroll-track:hover,
+.questions-top-scroll-track.dragging {
+    height: 10px;
+}
+
+.questions-top-scroll-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 10px;
+}
+
+/* 2. VERTICAL SIDE SCROLLBAR (MATCHING CHAT) */
+.questions-vertical-scroll-track {
+    display: none;
+}
+
+@media (max-width: 1000px) {
+    .questions-vertical-scroll-track {
+        display: block !important;
+        position: fixed !important;
+        right: 4px !important;
+        top: 50px !important;
+        bottom: 20px !important;
+        width: 6px !important;
+        background: rgba(var(--color-primary-rgb), 0.15) !important;
+        border-radius: 10px !important;
+        z-index: 99999 !important;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease;
+    }
+
+    .questions-vertical-scroll-track.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .questions-vertical-scroll-thumb {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background: var(--color-primary);
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    
+    .questions-vertical-scroll-track:hover,
+    .questions-vertical-scroll-track.dragging {
+        width: 10px !important;
+    }
+}
