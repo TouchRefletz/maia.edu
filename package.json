@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run docs:dev\"",
-    "build": "vite build && vitepress build docs",
+    "build": "vite build && vitepress build docs && cp -r docs/.vitepress/dist dist/docs",
     "docs:dev": "vitepress dev docs",
     "preview": "vite preview"
   },

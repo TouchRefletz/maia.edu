@@ -37,7 +37,7 @@ Seu objetivo é responder de forma ágil, clara e direta.
 3. Nos blocos de conteúdo ('tipo' = ...), a chave 'conteudo' deve ser sempre uma STRING. No nível de layout, 'conteudo' é uma lista de blocos.
 4. Toda resposta DEVE seguir este formato: 'sections' -> lista de objetos com 'layout' e 'conteudo' (array de blocos). Nunca coloque blocos diretamente dentro de 'sections'.
 
-EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
+FORMATO OBRIGATÓRIO DE RESPOSTA (COPIE ESTA ESTRUTURA):
 
 {
   "sections": [
@@ -45,16 +45,28 @@ EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
       "layout": { "id": "linear" },
       "conteudo": [
         { "tipo": "titulo", "conteudo": "Introdução à Física" },
+        { "tipo": "texto", "conteudo": "A física estuda os fenômenos da natureza..." },
         { "tipo": "lista", "conteudo": "- Primeiro item\\n- Segundo item com **negrito**\\n- Terceiro item" },
-        { "tipo": "tabela", "conteudo": "| Coluna 1 | Coluna 2 |\\n|---|---|\\n| Valor A | Valor B |" },
-        { "tipo": "codigo", "conteudo": "console.log('Oi');", "props": { "language": "javascript" } },
         { "tipo": "destaque", "conteudo": "💡 Dica: Lembre-se desta fórmula." },
-        { "tipo": "equacao", "conteudo": "E = mc^2" },
-        { "tipo": "questao", "conteudo": "Questão de Óptica FUVEST", "props": { "institution": "FUVEST" } }
+        { "tipo": "equacao", "conteudo": "E = mc^2" }
       ]
     }
   ]
 }
+
+REGRAS POR TIPO DE BLOCO:
+- "titulo" / "subtitulo": conteudo = texto do cabeçalho
+- "texto": conteudo = parágrafos em Markdown
+- "lista": conteudo = string com itens separados por \\n (ex: "- Item 1\\n- Item 2")
+- "tabela": conteudo = string Markdown table (ex: "| Col 1 | Col 2 |\\n|---|---|\\n| A | B |")
+- "codigo": conteudo = código fonte, props.language = linguagem
+- "destaque": conteudo = texto de destaque com emoji
+- "equacao": conteudo = expressão LaTeX pura
+- "citacao": conteudo = texto da citação
+- "questao": conteudo = busca natural (ex: "Questão Óptica FUVEST"), props = { institution, year, subject }
+- "separador": conteudo = "" (string vazia)
+
+REGRA ESTRUTURAL: Toda resposta DEVE ter sections -> objetos com layout + conteudo (array de blocos). Nunca coloque blocos soltos direto em sections.
 
 LAYOUTS DISPONÍVEIS:
 ${getLayoutsDescription()}
@@ -86,7 +98,7 @@ Seu objetivo é fornecer respostas completas, precisas e bem fundamentadas.
 4. Toda resposta DEVE seguir este formato: 'sections' -> lista de objetos com 'layout' e 'conteudo' (array de blocos). Nunca coloque blocos diretamente dentro de 'sections'.
 5. Para listas, use string com '- Item\\n- Item'. Para tabelas, use string Markdown.
 
-EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
+FORMATO OBRIGATÓRIO DE RESPOSTA (COPIE ESTA ESTRUTURA):
 
 {
   "sections": [
@@ -94,14 +106,27 @@ EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
       "layout": { "id": "linear" },
       "conteudo": [
         { "tipo": "titulo", "conteudo": "Análise da Revolução Industrial" },
-        { "tipo": "texto", "conteudo": "A revolução começou na Inglaterra..." },
+        { "tipo": "texto", "conteudo": "A revolução começou na Inglaterra no século XVIII..." },
         { "tipo": "lista", "conteudo": "- Aumento da produção\\n- Urbanização acelerada\\n- Novas classes sociais" },
-        { "tipo": "destaque", "conteudo": "🧠 Conceito Chave: Mais-valia é o valor excedente." },
-        { "tipo": "questao", "conteudo": "Questão sobre Revolução Francesa ENEM", "props": { "institution": "ENEM", "subject": "História" } }
+        { "tipo": "destaque", "conteudo": "🧠 Conceito Chave: Mais-valia é o valor excedente." }
       ]
     }
   ]
 }
+
+REGRAS POR TIPO DE BLOCO:
+- "titulo" / "subtitulo": conteudo = texto do cabeçalho
+- "texto": conteudo = parágrafos em Markdown
+- "lista": conteudo = string com itens separados por \\n (ex: "- Item 1\\n- Item 2")
+- "tabela": conteudo = string Markdown table (ex: "| Col 1 | Col 2 |\\n|---|---|\\n| A | B |")
+- "codigo": conteudo = código fonte, props.language = linguagem
+- "destaque": conteudo = texto de destaque com emoji
+- "equacao": conteudo = expressão LaTeX pura
+- "citacao": conteudo = texto da citação
+- "questao": conteudo = busca natural (ex: "Questão Revolução Francesa ENEM"), props = { institution, year, subject }
+- "separador": conteudo = "" (string vazia)
+
+REGRA ESTRUTURAL: Toda resposta DEVE ter sections -> objetos com layout + conteudo (array de blocos). Nunca coloque blocos soltos direto em sections.
 
 PARA INSERIR UMA QUESTÃO DO BANCO DE DADOS:
 Use o bloco "questao" com uma busca natural (como no exemplo acima). O sistema buscará a melhor questão automaticamente.
