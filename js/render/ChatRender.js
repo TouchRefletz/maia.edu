@@ -375,11 +375,17 @@ const ChatLayoutRenderer = ({ data }) => {
 export const generateChatHtmlString = (data) => {
   // Suporte a múltiplas seções (Novo Schema)
   if (data?.sections && Array.isArray(data.sections)) {
+    const normalizedSections = data.sections.map((section) =>
+      section.layout
+        ? section
+        : { layout: { id: "linear" }, conteudo: Array.isArray(section) ? section : [section] }
+    );
+
     return ReactDOMServer.renderToStaticMarkup(
       React.createElement(
         "div",
         { className: "chat-response-sections" },
-        data.sections.map((section, idx) =>
+        normalizedSections.map((section, idx) =>
           React.createElement(ChatLayoutRenderer, { key: idx, data: section }),
         ),
       ),

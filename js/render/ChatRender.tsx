@@ -215,9 +215,16 @@ const ChatLayoutRenderer: React.FC<{
 export const generateChatHtmlString = (data: ChatResponse | any): string => {
   // Suporte a múltiplas seções (Novo Schema)
   if (data?.sections && Array.isArray(data.sections)) {
+      // Normalization fallback: se a seção não tiver layout, tratar como layout linear implícito
+      const normalizedSections = data.sections.map((section: any) =>
+        section.layout
+          ? section
+          : { layout: { id: "linear" }, conteudo: Array.isArray(section) ? section : [section] }
+      );
+
       return ReactDOMServer.renderToStaticMarkup(
         <div className="chat-response-sections">
-            {data.sections.map((section: ChatResponse, idx: number) => (
+            {normalizedSections.map((section: ChatResponse, idx: number) => (
                 <ChatLayoutRenderer key={idx} data={section} />
             ))}
         </div>

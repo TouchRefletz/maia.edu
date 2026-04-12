@@ -34,30 +34,27 @@ Seu objetivo é responder de forma ágil, clara e direta.
 ⚠️ REGRAS CRÍTICAS DE JSON (OBSERVE RIGOROSAMENTE):
 1. Responda APENAS com o JSON válido, iniciada por { "sections": ... }.
 2. NUNCA invente tipos (ex: não use 'cabecalho', 'secao'). Use APENAS: "titulo", "subtitulo", "texto", "lista", "tabela", "imagem", "citacao", "codigo", "destaque", "equacao", "separador", "questao".
-3. A chave 'conteudo' deve ser SEMPRE UMA STRING. Não use arrays para listas ou objetos para tabelas.
+3. Nos blocos de conteúdo ('tipo' = ...), a chave 'conteudo' deve ser sempre uma STRING. No nível de layout, 'conteudo' é uma lista de blocos.
+4. Toda resposta DEVE seguir este formato: 'sections' -> lista de objetos com 'layout' e 'conteudo' (array de blocos). Nunca coloque blocos diretamente dentro de 'sections'.
 
 EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
 
-Para Títulos:
-{ "tipo": "titulo", "conteudo": "Introdução à Física" }
-
-Para Listas (Use quebras de linha \\n):
-{ "tipo": "lista", "conteudo": "- Primeiro item\\n- Segundo item com **negrito**\\n- Terceiro item" }
-
-Para Tabelas (Use Markdown):
-{ "tipo": "tabela", "conteudo": "| Coluna 1 | Coluna 2 |\\n|---|---|\\n| Valor A | Valor B |" }
-
-Para Código:
-{ "tipo": "codigo", "conteudo": "console.log('Oi');", "props": { "language": "javascript" } }
-
-Para Destaques (Box Colorido):
-{ "tipo": "destaque", "conteudo": "💡 Dica: Lembre-se desta fórmula." }
-
-Para Equações (LaTeX):
-{ "tipo": "equacao", "conteudo": "E = mc^2" }
-
-Para Questões de Vestibular (Busca no Banco):
-{ "tipo": "questao", "conteudo": "Questão de Óptica FUVEST", "props": { "institution": "FUVEST" } }
+{
+  "sections": [
+    {
+      "layout": { "id": "linear" },
+      "conteudo": [
+        { "tipo": "titulo", "conteudo": "Introdução à Física" },
+        { "tipo": "lista", "conteudo": "- Primeiro item\\n- Segundo item com **negrito**\\n- Terceiro item" },
+        { "tipo": "tabela", "conteudo": "| Coluna 1 | Coluna 2 |\\n|---|---|\\n| Valor A | Valor B |" },
+        { "tipo": "codigo", "conteudo": "console.log('Oi');", "props": { "language": "javascript" } },
+        { "tipo": "destaque", "conteudo": "💡 Dica: Lembre-se desta fórmula." },
+        { "tipo": "equacao", "conteudo": "E = mc^2" },
+        { "tipo": "questao", "conteudo": "Questão de Óptica FUVEST", "props": { "institution": "FUVEST" } }
+      ]
+    }
+  ]
+}
 
 LAYOUTS DISPONÍVEIS:
 ${getLayoutsDescription()}
@@ -85,19 +82,29 @@ Seu objetivo é fornecer respostas completas, precisas e bem fundamentadas.
 ⚠️ REGRAS CRÍTICAS DE JSON (OBSERVE RIGOROSAMENTE):
 1. Responda APENAS com o JSON válido, iniciada por { "sections": ... }.
 2. NUNCA invente tipos (ex: não use 'cabecalho', 'secao'). Use APENAS: "titulo", "subtitulo", "texto", "lista", "tabela", "imagem", "citacao", "codigo", "destaque", "equacao", "separador", "questao".
-3. A chave 'conteudo' deve ser SEMPRE UMA STRING.
-4. Para listas, use string com '- Item\\n- Item'. Para tabelas, use string Markdown.
+3. Nos blocos de conteúdo ('tipo' = ...), a chave 'conteudo' deve ser SEMPRE UMA STRING. No nível de layout, 'conteudo' é uma lista de blocos.
+4. Toda resposta DEVE seguir este formato: 'sections' -> lista de objetos com 'layout' e 'conteudo' (array de blocos). Nunca coloque blocos diretamente dentro de 'sections'.
+5. Para listas, use string com '- Item\\n- Item'. Para tabelas, use string Markdown.
 
 EXEMPLOS OBRIGATÓRIOS (COPIE A ESTRUTURA):
 
-{ "tipo": "titulo", "conteudo": "Análise da Revolução Industrial" }
-{ "tipo": "texto", "conteudo": "A revolução começou na Inglaterra..." }
-{ "tipo": "lista", "conteudo": "- Aumento da produção\\n- Urbanização acelerada\\n- Novas classes sociais" }
-{ "tipo": "destaque", "conteudo": "🧠 Conceito Chave: Mais-valia é o valor excedente." }
+{
+  "sections": [
+    {
+      "layout": { "id": "linear" },
+      "conteudo": [
+        { "tipo": "titulo", "conteudo": "Análise da Revolução Industrial" },
+        { "tipo": "texto", "conteudo": "A revolução começou na Inglaterra..." },
+        { "tipo": "lista", "conteudo": "- Aumento da produção\\n- Urbanização acelerada\\n- Novas classes sociais" },
+        { "tipo": "destaque", "conteudo": "🧠 Conceito Chave: Mais-valia é o valor excedente." },
+        { "tipo": "questao", "conteudo": "Questão sobre Revolução Francesa ENEM", "props": { "institution": "ENEM", "subject": "História" } }
+      ]
+    }
+  ]
+}
 
 PARA INSERIR UMA QUESTÃO DO BANCO DE DADOS:
-Use o bloco "questao" com uma busca natural. O sistema buscará a melhor questão automaticamente.
-{ "tipo": "questao", "conteudo": "Questão sobre Revolução Francesa ENEM", "props": { "institution": "ENEM", "subject": "História" } }
+Use o bloco "questao" com uma busca natural (como no exemplo acima). O sistema buscará a melhor questão automaticamente.
 
 LAYOUTS DISPONÍVEIS:
 ${getLayoutsDescription()}

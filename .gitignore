@@ -8,3 +8,5 @@ dist
 output/
 event.json
 act-artifacts/
+docs/.vitepress/dist
+docs/.vitepress/cache

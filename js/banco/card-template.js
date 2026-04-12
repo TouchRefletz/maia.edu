@@ -51,35 +51,32 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
 
   if (isDissertativa) {
     htmlAlts = `
-      <div style="margin-top: 15px;">
+      <div class="q-dissert-container">
         <textarea 
           class="q-dissert-input" 
           placeholder="Esboce ou rascunhe sua resposta dissertativa aqui para compará-la ao final..." 
           rows="4"
-          style="width: 100%; border-radius: 8px; padding: 12px; border: 1px dashed var(--color-border); background: var(--color-bg-2); color: var(--color-text); font-family: inherit; font-size: 14px; resize: vertical; margin-bottom: 10px;"
         ></textarea>
         
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <div class="q-dissert-actions">
           <button 
-              class="q-opt-btn js-check-dissert-embedding" 
+              class="q-dissert-btn q-dissert-btn-simple js-check-dissert-embedding" 
               data-card-id="${cardId}" 
-              style="flex: 1; justify-content: center; background: var(--color-bg-2); color: var(--color-text); border: 1px solid var(--color-border); font-weight: bold;"
               title="Correção rápida baseada na presença das palavras-chave esperadas"
           >
-              🔑 Corrigir Simples (Palavras-Chave)
+              <span class="btn-icon">🔑</span> Corrigir Simples (Palavras-Chave)
           </button>
           <button 
-              class="q-opt-btn js-check-dissert-ai" 
+              class="q-dissert-btn q-dissert-btn-ai js-check-dissert-ai" 
               data-card-id="${cardId}" 
-              style="flex: 1; justify-content: center; background: var(--color-primary); color: white; border: none; font-weight: bold;"
               title="Correção detalhada usando Inteligência Artificial (Gemini)"
           >
-              🤖 Corrigir Completo (com IA)
+              <span class="btn-icon">🤖</span> Corrigir Completo (com IA)
           </button>
         </div>
 
         <!-- Reservatório para o feedback de avaliação -->
-        <div id="${cardId}_feedback" style="display: none; margin-top: 15px; padding: 15px; border-radius: 8px; background: var(--color-bg-3); border: 1px solid var(--color-border);"></div>
+        <div id="${cardId}_feedback" class="q-dissert-feedback" style="display: none;"></div>
       </div>`;
   } else {
     htmlAlts = (q.alternativas || [])

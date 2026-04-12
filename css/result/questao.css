@@ -69,8 +69,10 @@
 
 .q-support-img {
   max-width: 100%;
-  max-height: 80vh !important; /* Cap height to 80% of viewport */
-  object-fit: contain; /* Maintain ratio while capping */
+  max-height: 80vh !important;
+  /* Cap height to 80% of viewport */
+  object-fit: contain;
+  /* Maintain ratio while capping */
   border: 1px solid var(--color-border);
   border-radius: 4px;
   margin: 15px 0;
@@ -175,4 +177,153 @@
 .q-action-link:hover {
   opacity: 1;
   color: var(--color-primary);
+}
+
+/* ==================================================
+   DESIGN DA QUESTÃO DISSERTATIVA (RESPOSTA E CORREÇÃO)
+   ================================================== */
+
+.q-dissert-container {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Área de Texto Premium */
+.q-dissert-input {
+  width: 100%;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+  font-size: 1.05rem;
+  resize: vertical;
+  min-height: 120px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+  line-height: var(--line-height-normal);
+}
+
+.q-dissert-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-background);
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.15), var(--shadow-sm);
+}
+
+.q-dissert-input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.7;
+}
+
+/* Ações/Botões */
+.q-dissert-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.q-dissert-btn {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+  user-select: none;
+}
+
+.q-dissert-btn .btn-icon {
+  font-size: 1.1rem;
+}
+
+/* Botão Simples */
+.q-dissert-btn-simple {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xs);
+}
+
+.q-dissert-btn-simple:hover {
+  background: var(--color-secondary);
+  border-color: rgba(var(--color-brown-600-rgb), 0.4);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.q-dissert-btn-simple:active {
+  transform: translateY(1px);
+}
+
+/* Botão Completo com IA - Gradiente Dinâmico */
+.q-dissert-btn-ai {
+  background: linear-gradient(135deg, var(--color-primary), #0ea5e9);
+  color: var(--color-btn-primary-text);
+  border: none;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.25);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Efeito de brilho hover */
+.q-dissert-btn-ai::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  transition: all 0.5s ease;
+}
+
+.q-dissert-btn-ai:hover {
+  box-shadow: 0 6px 16px rgba(var(--color-primary-rgb), 0.35);
+  background: linear-gradient(135deg, var(--color-primary-hover), #0284c7);
+}
+
+.q-dissert-btn-ai:hover::after {
+  left: 150%;
+}
+
+.q-dissert-btn-ai:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.2);
+}
+
+/* Feedback Box */
+.q-dissert-feedback {
+  margin-top: 10px;
+  padding: 20px;
+  border-radius: 10px;
+  background: var(--color-bg-3);
+  border: 1px solid rgba(var(--color-success-rgb), 0.3);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  animation: slideDownFade 0.3s ease-out forwards;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
