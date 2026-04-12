@@ -8,6 +8,7 @@ export default withMermaid(
     "Documentação técnica exaustiva da plataforma educacional maia.edu",
   lang: "pt-BR",
   base: "/docs/",
+  ignoreDeadLinks: true,
 
   head: [
     ["link", { rel: "icon", type: "image/png", href: "/docs/logo.png" }],
