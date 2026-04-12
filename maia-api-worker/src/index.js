@@ -158,7 +158,7 @@ async function handleSearchImage(request, env) {
 				const data = await googleResp.json();
 				if (data.items && data.items.length > 0) {
 					// Filtra itens excluídos e retorna o primeiro válido
-					const validItem = data.items.find(item => item.link && !excludedUrls.has(item.link));
+					const validItem = data.items.find((item) => item.link && !excludedUrls.has(item.link));
 					if (validItem) {
 						return new Response(JSON.stringify({ url: validItem.link, source: 'google' }), {
 							headers: { ...corsHeaders, 'Content-Type': 'application/json' },

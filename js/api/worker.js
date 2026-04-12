@@ -226,7 +226,7 @@ export async function gerarConteudoEmJSONComImagemStream(
                 msg.status === 429 ||
                 msg.status === 503
               ) {
-                console.warn("⚠️ Rate Limit / Sobrecarga detectado.");
+                console.error("⚠️ Worker Error:", msg.code, msg.message, msg.attempts);
                 throw new Error("RATE_LIMIT_ERROR");
               }
 
@@ -245,6 +245,7 @@ export async function gerarConteudoEmJSONComImagemStream(
             }
           } catch (e) {
             if (e.message === "RECITATION_ERROR") throw e;
+            if (e.message === "RATE_LIMIT_ERROR") throw e;
             console.warn("Erro ao parsear chunk do worker:", line, e);
           }
         }
@@ -269,6 +270,7 @@ export async function gerarConteudoEmJSONComImagemStream(
     } catch (error) {
       if (error.name === "AbortError") throw error;
       if (error.message === "RECITATION_ERROR") throw error;
+      if (error.message === "RATE_LIMIT_ERROR") throw error;
 
       if (error.message === "EMPTY_RESPONSE_ERROR") {
         if (attempt < MAX_RETRIES) {
