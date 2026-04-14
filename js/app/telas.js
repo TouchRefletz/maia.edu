@@ -2146,7 +2146,7 @@ function getOrCreateStepsAccordion(messagesContainer) {
   const header = document.createElement("div");
   header.className = "steps-accordion-header";
   header.innerHTML = `
-    <img src="/docs/public/monocromatic_logo.png" class="monochrome-spinner accordion-spinner" style="width:14px; height:14px; margin-right:4px;" alt="maia">
+    <img src="/monocromatic_logo.png" class="monochrome-spinner accordion-spinner" style="width:14px; height:14px; margin-right:4px;" alt="maia">
     <span class="steps-accordion-count">Processando etapas</span>
     <span class="steps-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
   `;
@@ -2222,7 +2222,7 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   iconEl.className = "step-row-icon processing";
   
   if (phaseId === "generation") {
-    iconEl.innerHTML = `<img src="/docs/public/monocromatic_logo.png" class="monochrome-spinner" alt="pensando">`;
+    iconEl.innerHTML = `<img src="/monocromatic_logo.png" class="monochrome-spinner" alt="pensando">`;
   } else {
     const iconSvg = STEP_ICONS[phaseId] || STEP_ICONS.generation;
     iconEl.innerHTML = `<span>${iconSvg}</span>`;
