@@ -17,6 +17,7 @@ export const CONTENT_BLOCK_TYPE = [
   "tabela",
   "questao",
   "scaffolding",
+  "block_slide",
 ];
 
 export const LAYOUT_TYPE = [
@@ -178,141 +179,54 @@ export const CHAT_RESPONSE_SCHEMA = {
     },
     block: {
       type: "object",
-      oneOf: [
-        { $ref: "#/definitions/block_standard" },
-        { $ref: "#/definitions/block_question" },
-        { $ref: "#/definitions/block_slide" },
-        { $ref: "#/definitions/block_scaffolding" },
-      ],
-    },
-    block_standard: {
-      // Bloco de Conteúdo Padrão
       properties: {
         tipo: {
           type: "string",
-          enum: CONTENT_BLOCK_TYPE.filter(
-            (t) => t !== "questao" && t !== "scaffolding",
-          ),
+          enum: CONTENT_BLOCK_TYPE,
           description: "O tipo de conteúdo deste bloco.",
         },
+        // 📦 ESCOPO 1: Padrão e Questão (Usam conteudo/props)
         conteudo: {
           type: "string",
           description:
-            "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
+            "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque/titulo/subtitulo/lista/equacao/codigo/imagem/separador/fonte/tabela/questao).",
         },
         props: {
           type: "object",
           description: "Propriedades extras opcionais para o bloco.",
           additionalProperties: true,
         },
-      },
-      required: ["tipo", "conteudo"],
-      additionalProperties: false,
-    },
-    block_question: {
-      // Bloco de Questão (Busca Dinâmica) - ESTRUTURA ESTRITA
-      properties: {
-        tipo: {
-          type: "string",
-          const: "questao",
-          description: "Bloco para exibir a questão fornecida pelo sistema.",
+        // 📦 ESCOPO 2: Scaffolding (Totalmente isolado no JSON Schema para evitar ambiguidades)
+        scaffolding_data: {
+          type: "object",
+          properties: {
+            raciocinio_adaptativo: { type: "string" },
+            status: { type: "string", enum: ["em_progresso", "concluido"] },
+            tipo_pergunta: { type: "string", enum: ["verdadeiro_ou_falso"] },
+            enunciado: { type: "string" },
+            resposta_correta: { type: "string", enum: ["Verdadeiro", "Falso"] },
+            feedback_v: { type: "string" },
+            feedback_f: { type: "string" },
+            dica: { type: "string" },
+          },
+          required: [
+            "status",
+            "tipo_pergunta",
+            "enunciado",
+            "resposta_correta",
+            "feedback_v",
+            "feedback_f",
+          ],
+          additionalProperties: false,
         },
-        conteudo: {
-          type: "string",
-          maxLength: 100,
-          pattern: "^[a-zA-Z0-9_\\-\\s\\.]+$",
-          description:
-            "ID da questão (ex: 'ENEM_2021_Q45'). OBRIGATÓRIO: Apenas string simples. PROIBIDO: Objetos, JSON ou Arrays.",
-        },
-        props: { $ref: "#/definitions/props_question" },
-      },
-      required: ["tipo", "conteudo"],
-      additionalProperties: false,
-    },
-    props_question: {
-      type: "object",
-      properties: {
-        institution: {
-          type: "string",
-          description: "Filtro opcional: Instituição (ex: 'ENEM').",
-        },
-        year: {
-          type: "string",
-          description: "Filtro opcional: Ano (ex: '2021').",
-        },
-        subject: {
-          type: "string",
-          description: "Filtro opcional: Matéria (ex: 'Física').",
-        },
-      },
-      additionalProperties: false,
-    },
-    block_slide: {
-      // Bloco Container de Slide (para Carousel)
-      properties: {
-        content: {
+        // 📦 ESCOPO 3: Slides (Para layouts de Carousel)
+        slide_data: {
           type: "array",
-          description: "Lista de blocos de conteúdo dentro de um único slide.",
           items: { $ref: "#/definitions/block" },
+          description: "Lista de blocos de conteúdo dentro de um único slide.",
         },
       },
-      required: ["content"],
-      additionalProperties: false,
-    },
-    block_scaffolding: {
-      // Bloco de Scaffolding (Verdadeiro/Falso) - ESTRUTURA ESTRITA
-      properties: {
-        tipo: {
-          type: "string",
-          const: "scaffolding",
-          description: "Bloco para interação de Verdadeiro ou Falso.",
-        },
-        raciocinio_adaptativo: {
-          type: "string",
-          description:
-            "Raciocínio sobre o desempenho anterior e escolha deste passo.",
-        },
-        status: {
-          type: "string",
-          enum: ["em_progresso", "concluido"],
-          description: "Status do processo de scaffolding.",
-        },
-        tipo_pergunta: {
-          type: "string",
-          enum: ["verdadeiro_ou_falso"],
-          description: "Tipo do exercício.",
-        },
-        enunciado: {
-          type: "string",
-          description: "A afirmação que o usuário deve julgar.",
-        },
-        resposta_correta: {
-          type: "string",
-          enum: ["Verdadeiro", "Falso"],
-          description: "A resposta correta da afirmação.",
-        },
-        feedback_v: {
-          type: "string",
-          description: "Feedback se o usuário responder Verdadeiro.",
-        },
-        feedback_f: {
-          type: "string",
-          description: "Feedback se o usuário responder Falso.",
-        },
-        dica: {
-          type: "string",
-          description: "Uma dica útil para ajudar o usuário.",
-        },
-      },
-      required: [
-        "tipo",
-        "status",
-        "tipo_pergunta",
-        "enunciado",
-        "resposta_correta",
-        "feedback_v",
-        "feedback_f",
-      ],
+      required: ["tipo"],
       additionalProperties: false,
     },
   },

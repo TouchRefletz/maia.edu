@@ -19,6 +19,80 @@ import {
 import { ChatStorageService } from "../services/chat-storage.js"; // Import Persistence Service
 
 /**
+ * NORMALIZAÇÃO (STAGE 3 / TRANSFORMER)
+ * Transforma a estrutura altamente estável do Gemini (nested objects)
+ * de volta para a estrutura que o frontend espera (flat objects/props).
+ */
+function normalizarBlocos(blocos) {
+  if (!Array.isArray(blocos)) return blocos;
+
+  return blocos.flatMap((b) => {
+    // 0. Auto-Splitter de LaTeX: Corrige quando a IA esquece de usar o bloco 'equacao'
+    if (
+      ["texto", "lista", "destaque", "citacao"].includes(b.tipo) &&
+      typeof b.conteudo === "string"
+    ) {
+      const regex = /(\\\[[\s\S]*?\\\]|\\\(.*?\\\)|(?:\$\$[\s\S]*?\$\$))/g;
+      if (regex.test(b.conteudo)) {
+        const parts = b.conteudo.split(regex);
+        return parts
+          .map((part) => {
+            if (!part) return null;
+            if (part.startsWith("\\[") && part.endsWith("\\]")) {
+              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
+            } else if (part.startsWith("\\(") && part.endsWith("\\)")) {
+              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
+            } else if (part.startsWith("$$") && part.endsWith("$$")) {
+              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
+            }
+            return { ...b, conteudo: part }; // Mantém o tipo original para partes de texto
+          })
+          .filter(Boolean);
+      }
+    }
+
+    // 1. Scaffolding: Move scaffolding_data para o root
+    if (b.tipo === "scaffolding" && b.scaffolding_data) {
+      const { scaffolding_data, ...resto } = b;
+      return [{ ...resto, ...scaffolding_data }];
+    }
+    // 2. Slides: Renomeia slide_data para content e normaliza recursivamente
+    if (b.tipo === "block_slide" && b.slide_data) {
+      const { slide_data, ...resto } = b;
+      return [{ ...resto, content: normalizarBlocos(slide_data) }];
+    }
+    return [b];
+  });
+}
+
+function normalizarResposta(raw) {
+  if (!raw || typeof raw !== "object") return raw;
+  if (!raw.sections || !Array.isArray(raw.sections)) return raw;
+
+  return {
+    ...raw,
+    sections: raw.sections.map((sec) => {
+      // Normaliza 'slots' se existirem
+      const slots = sec.slots || {};
+      const novosSlots = {};
+      let temSlots = false;
+
+      Object.entries(slots).forEach(([key, blocks]) => {
+        novosSlots[key] = normalizarBlocos(blocks);
+        temSlots = true;
+      });
+
+      return {
+        ...sec,
+        slots: temSlots ? novosSlots : undefined,
+        // Normaliza 'conteudo' linear se existir
+        conteudo: sec.conteudo ? normalizarBlocos(sec.conteudo) : undefined,
+      };
+    }),
+  };
+}
+
+/**
  * Pipeline principal - escolhe e executa o pipeline correto
  */
 export async function runChatPipeline(
@@ -495,10 +569,12 @@ async function generateChatStreamed(params) {
 
       // Se conseguiu extrair um objeto válido (mesmo que parcial)
       if (currentParsedAnswer) {
+        // APLICA NORMALIZAÇÃO NO STREAM (Para UI não quebrar)
+        const normalizedAnswer = normalizarResposta(currentParsedAnswer);
+
         // Envia o objeto COMPLETO para a UI a cada update
-        // (UI deve ser reativa e redesenhar baseada no estado atual)
-        if (onStream) onStream(currentParsedAnswer);
-        lastParsedJson = currentParsedAnswer;
+        if (onStream) onStream(normalizedAnswer);
+        lastParsedJson = normalizedAnswer;
       }
     },
     signal, // Pass signal to worker handlers
@@ -525,7 +601,8 @@ async function generateChatStreamed(params) {
     options,
   );
 
-  return finalJSON;
+  // APLICA NORMALIZAÇÃO FINAL
+  return normalizarResposta(finalJSON);
 }
 
 // fileToBase64 imported from utils

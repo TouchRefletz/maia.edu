@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@babycommando/entity-db": "^1.0.11",
+    "@google/genai": "^1.49.0",
     "@napi-rs/canvas": "^0.1.88",
     "@xenova/transformers": "^2.17.2",
     "best-effort-json-parser": "^1.2.1",

@@ -1819,39 +1819,34 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           aiMessage.removeAttribute("id");
         }
 
+        // Limpeza e conclusão do container de geração (raciocínio)
+        const thoughtsContainer = document.getElementById(
+          "phaseContainer-generation",
+        );
+        if (thoughtsContainer && !thoughtsContainer._cleaned) {
+          const thoughtList = thoughtsContainer.querySelector(".chat-thoughts-list");
+          concludePhaseContainer(
+            thoughtsContainer,
+            thoughtList,
+            "Raciocínio concluído",
+            null,
+          );
+          thoughtsContainer._cleaned = true;
+        }
+
+        // Reset do botão de envio e do controlador (Bug "Never Finishing")
+        activeGenerationController = null;
+        const sendBtn = document.querySelector(".chat-send-btn");
+        if (sendBtn) {
+          sendBtn.classList.remove("stop-mode");
+          sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
+        }
+
         // Para TODOS os spinners de TODAS as fases (memory, mode, generation, saving, etc.)
         const messagesContainerForCleanup =
           document.getElementById("chatMessages");
         if (messagesContainerForCleanup) {
           stopAllPhaseSpinners(messagesContainerForCleanup);
-        }
-
-        // Limpeza específica do container de geração
-        const thoughtsContainer = document.getElementById(
-          "phaseContainer-generation",
-        );
-        if (thoughtsContainer) {
-          const skeletons = thoughtsContainer.querySelectorAll(
-            ".maia-thought-card--skeleton",
-          );
-          skeletons.forEach((s) => s.remove());
-
-          const loadStatus = thoughtsContainer.querySelector(
-            ".loading-status-area",
-          );
-          if (loadStatus) loadStatus.remove();
-
-          // Update title for new design
-          const stepTitle = thoughtsContainer.querySelector(".step-row-title");
-          if (stepTitle) stepTitle.textContent = "Raciocínio concluído";
-
-          // Legacy compat
-          const summaryText = thoughtsContainer.querySelector(".summary-text");
-          if (summaryText) {
-            summaryText.textContent = "Raciocínio concluído";
-          }
-
-          thoughtsContainer._cleaned = true;
         }
 
         // Close accordion and update counter
@@ -3309,7 +3304,7 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
                      <p>${props.explicacao || props.raciocinio_adaptativo || "Agora você está pronto para responder a questão principal."}</p>
                 </div>
                 <div class="passoButton" style="display: flex; gap: 12px; flex-wrap: wrap;">
-                     <button class="guessButton backPassoButton" style="flex: 1; min-width: 140px; background: transparent; border: 1px solid var(--color-border);">← Ver Passos Anteriores</button>
+                     ${stepNumber > 1 ? `<button class="guessButton backPassoButton" style="flex: 1; min-width: 140px; background: transparent; border: 1px solid var(--color-border);">← Ver Passos Anteriores</button>` : ""}
                      <button class="guessButton finishButton" style="flex: 2; min-width: 180px;">Ir para Questão Principal 🚀</button>
                 </div>
             </div>

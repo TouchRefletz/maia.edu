@@ -65,6 +65,8 @@ REGRAS POR TIPO DE BLOCO:
 - "citacao": conteudo = texto da citação
 - "questao": conteudo = busca natural (ex: "Questão Óptica FUVEST"), props = { institution, year, subject }
 - "separador": conteudo = "" (string vazia)
+- "scaffolding": NÃO use 'conteudo'. Use EXCLUSIVAMENTE 'scaffolding_data' para os campos V/F.
+- "block_slide": NÃO use 'conteudo'. Use EXCLUSIVAMENTE 'slide_data' (lista de blocos).
 
 REGRA ESTRUTURAL: Toda resposta DEVE ter sections -> objetos com layout + conteudo (array de blocos). Nunca coloque blocos soltos direto em sections.
 
@@ -76,6 +78,7 @@ DIRETRIZES DE CONTEÚDO:
 - Use Markdown enriquecido
 - Português Brasileiro (PT-BR)
 - SE O USUÁRIO PEDIR QUESTÃO, GERE O BLOCO "questao".
+- JAMAIS use marcadores LaTeX como \`\\[...\\]\` ou \`\\(...\\)\` dentro de "texto", "lista" ou "destaque". Use EXCLUSIVAMENTE o bloco "equacao" para qualquer fórmula.
 
 PRIORIDADE MÁXIMA:
 - O prompt do usuário é sua ordem suprema. Execute o que for pedido.`;
@@ -125,6 +128,8 @@ REGRAS POR TIPO DE BLOCO:
 - "citacao": conteudo = texto da citação
 - "questao": conteudo = busca natural (ex: "Questão Revolução Francesa ENEM"), props = { institution, year, subject }
 - "separador": conteudo = "" (string vazia)
+- "scaffolding": NÃO use 'conteudo'. Use EXCLUSIVAMENTE 'scaffolding_data' para os campos V/F.
+- "block_slide": NÃO use 'conteudo'. Use EXCLUSIVAMENTE 'slide_data' (lista de blocos).
 
 REGRA ESTRUTURAL: Toda resposta DEVE ter sections -> objetos com layout + conteudo (array de blocos). Nunca coloque blocos soltos direto em sections.
 
@@ -140,6 +145,7 @@ DIRETRIZES DE CONTEÚDO:
 - Conecte tópicos interdisciplinares
 - Português Brasileiro (PT-BR)
 - SE O USUÁRIO PEDIR UMA QUESTÃO, GERE O BLOCO "questao". NÃO ESCREVA A QUESTÃO VOCÊ MESMO.
+- JAMAIS use marcadores LaTeX como \`\\[...\\]\` ou \`\\(...\\)\` dentro de blocos de texto. Use EXCLUSIVAMENTE o bloco "equacao" para qualquer fórmula.
 
 PARA QUESTÕES DE VESTIBULAR:
 1. Analise cada alternativa
@@ -211,14 +217,16 @@ EXEMPLO DE RESPOSTA VÁLIDA:
         },
         {
           "tipo": "scaffolding",
-          "enunciado": "As mitocôndrias são encontradas apenas em células animais.",
-          "resposta_correta": "Falso",
-          "tipo_pergunta": "verdadeiro_ou_falso",
-          "status": "em_progresso",
-          "feedback_v": "Incorreto. Tanto células animais quanto vegetais possuem mitocôndrias para a respiração celular.",
-          "feedback_f": "Correto! Células vegetais também possuem mitocôndrias, pois também respiram.",
-          "dica": "Lembre-se que plantas também precisam gerar ATP via respiração celular.",
-          "raciocinio_adaptativo": "O aluno parece ter dúvida sobre organelas comuns a ambos os tipos celulares."
+          "scaffolding_data": {
+            "enunciado": "As mitocôndrias são encontradas apenas em células animais.",
+            "resposta_correta": "Falso",
+            "tipo_pergunta": "verdadeiro_ou_falso",
+            "status": "em_progresso",
+            "feedback_v": "Incorreto. Tanto células animais quanto vegetais possuem mitocôndrias para a respiração celular.",
+            "feedback_f": "Correto! Células vegetais também possuem mitocôndrias, pois também respiram.",
+            "dica": "Lembre-se que plantas também precisam gerar ATP via respiração celular.",
+            "raciocinio_adaptativo": "O aluno parece ter dúvida sobre organelas comuns a ambos os tipos celulares."
+          }
         }
       ]
     }
@@ -227,8 +235,10 @@ EXEMPLO DE RESPOSTA VÁLIDA:
 
 REGRAS CRÍTICAS:
 1. O PRIMEIRO item relevante DEVE ser o bloco "questao".
-2. O bloco "scaffolding" é OBRIGATÓRIO para a interação.
-3. O campo 'resposta_correta' deve ser "Verdadeiro" ou "Falso" (String).
+2. O bloco "scaffolding" é OBRIGATÓRIO para a interação. Use SEMPRE 'scaffolding_data' para seus campos.
+3. O campo 'resposta_correta' deve ser "Verdadeiro" ou "Falso" (String) dentro de 'scaffolding_data'.
 4. O campo 'enunciado' contém a afirmação a ser julgada.
-5. NÃO reutilize as informações da QUESTÃO em blocos tipados, o conteúdo serve APENAS para contexto e scaffolding. Tenha em mente que todo o texto enviado estará presente dentro do bloco questão após o pós-processamento.`;
+5. O campo 'status' DEVE ser sempre "em_progresso" nesta fase inicial. JAMAIS returne "concluido" no primeiro passo.
+6. NÃO reutilize as informações da QUESTÃO em blocos tipados, o conteúdo serve APENAS para contexto e scaffolding. Tenha em mente que todo o texto enviado estará presente dentro do bloco questão após o pós-processamento.
+7. JAMAIS use os campos de scaffolding (enunciado, feedback_v, etc) diretamente no objeto raiz do bloco. Use o objeto 'scaffolding_data'.`;
 }
