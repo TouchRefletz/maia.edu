@@ -64,7 +64,12 @@ export async function callWorker(endpoint, body) {
 
     return await response.json();
   } catch (error) {
-    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+    if (
+      !navigator.onLine ||
+      (error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")) ||
+      error.message === "NETWORK_ERROR"
+    ) {
       throw new Error("NETWORK_ERROR");
     }
     console.error(`Erro ao chamar Worker (${endpoint}):`, error);
@@ -226,7 +231,12 @@ export async function gerarConteudoEmJSONComImagemStream(
                 msg.status === 429 ||
                 msg.status === 503
               ) {
-                console.error("⚠️ Worker Error:", msg.code, msg.message, msg.attempts);
+                console.error(
+                  "⚠️ Worker Error:",
+                  msg.code,
+                  msg.message,
+                  msg.attempts,
+                );
                 throw new Error("RATE_LIMIT_ERROR");
               }
 
@@ -285,7 +295,12 @@ export async function gerarConteudoEmJSONComImagemStream(
       if (error.message === "EMPTY_RESPONSE_ERROR") throw error; // Re-throw para o caller lidar se falhar 3x
 
       // Detecção de erro de rede
-      if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+      if (
+        !navigator.onLine ||
+        (error.name === "TypeError" &&
+          error.message.includes("Failed to fetch")) ||
+        error.message === "NETWORK_ERROR"
+      ) {
         throw new Error("NETWORK_ERROR");
       }
 
@@ -353,6 +368,102 @@ export async function queryPineconeWorker(
     target,
     namespace,
   });
+}
+
+/**
+ * Tenta extrair a URL original de URIs que podem ser proxies (Google, Vertex, etc.)
+ * Resolve o problema de domínios "vertexaisearch" e falta de favicons.
+ */
+function resolveOriginalSourceUrl(uri, title) {
+  if (!uri) return null;
+  try {
+    // Se o título já for uma URL, é a fonte mais direta
+    if (
+      title &&
+      (title.startsWith("http://") || title.startsWith("https://"))
+    ) {
+      return title;
+    }
+
+    const url = new URL(uri);
+
+    // 1. Tratamento para Google Search Proxy
+    if (
+      url.hostname.includes("google.com") &&
+      (url.pathname.includes("/url") || url.pathname.includes("/search"))
+    ) {
+      const target = url.searchParams.get("url") || url.searchParams.get("q");
+      if (target && target.startsWith("http")) return target;
+    }
+
+    // 2. Tratamento para Vertex AI Search
+    if (
+      url.hostname.includes("vertexaisearch.googleapis.com") ||
+      url.hostname.includes("vertexaisearch.cloud.google.com")
+    ) {
+      const target =
+        url.searchParams.get("url") ||
+        url.searchParams.get("link") ||
+        url.searchParams.get("uri");
+      if (target && target.startsWith("http")) return target;
+    }
+
+    return uri;
+  } catch (e) {
+    // Se falhar o parse do URL, retorna original ou tenta regex simples se for Vertex
+    if (uri.includes("url=http")) {
+      const match = uri.match(/url=(https?%3A%2F%2F[^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+    return uri;
+  }
+}
+
+// Cache local para evitar múltiplas requisições para o mesmo link no mesmo carregamento
+const urlResolutionCache = new Map();
+
+/**
+ * Resolve um link original via worker (on-demand)
+ * Útil para limpar links de redirecionamento do Google Search Grounding.
+ */
+export async function resolveLinkOnDemand(uri) {
+  if (!uri || !uri.startsWith("http")) return uri;
+
+  // 1. Tenta limpeza local rápida primeiro
+  const fastResolve = resolveOriginalSourceUrl(uri);
+  if (fastResolve !== uri) return fastResolve;
+
+  // 2. Verifica se o domínio é um alvo que precisa de resolução remota
+  const needsRemote =
+    uri.includes("vertexaisearch.cloud.google.com") ||
+    uri.includes("google.com/url");
+
+  if (!needsRemote) return uri;
+
+  // 3. Cache
+  if (urlResolutionCache.has(uri)) return urlResolutionCache.get(uri);
+
+  try {
+    const workerUrl =
+      typeof import.meta !== "undefined" && import.meta.env?.VITE_WORKER_URL
+        ? import.meta.env.VITE_WORKER_URL
+        : "https://maia-api.touchrefletz.workers.dev";
+
+    const apiUrl = `${workerUrl}/resolve-link?url=${encodeURIComponent(uri)}`;
+    const res = await fetch(apiUrl);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.resolved) {
+        urlResolutionCache.set(uri, data.resolved);
+        return data.resolved;
+      }
+    }
+  } catch (e) {
+    console.warn("[Worker API] Erro ao resolver link:", e);
+  }
+
+  return uri;
 }
 
 /**
@@ -440,7 +551,16 @@ export async function realizarPesquisa(
       groundingMetadata?.groundingChunks ||
       groundingMetadata?.grounding_chunks ||
       [];
-    const sources = chunks.map((c) => c.web).filter((w) => w && w.uri); // Relaxado: exige apenas URI, título opcional
+
+    const sources = chunks
+      .map((c) => {
+        if (!c.web) return null;
+        return {
+          uri: resolveOriginalSourceUrl(c.web.uri, c.web.title),
+          title: c.web.title,
+        };
+      })
+      .filter((w) => w && w.uri);
 
     return {
       report: reportText,
@@ -448,7 +568,12 @@ export async function realizarPesquisa(
       rawMetadata: groundingMetadata,
     };
   } catch (error) {
-    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
+    if (
+      !navigator.onLine ||
+      (error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")) ||
+      error.message === "NETWORK_ERROR"
+    ) {
       throw new Error("NETWORK_ERROR");
     }
     console.error("Erro na pesquisa streaming:", error);
@@ -456,8 +581,122 @@ export async function realizarPesquisa(
   }
 }
 
+/**
+ * CLONE de realizarPesquisa para uso geral no roteador.
+ * Realiza uma pesquisa via Worker (usando Google Search Grounding)
+ * Suporta STREAMING para exibir Thoughts.
+ */
+export async function realizarPesquisaGeral(
+  texto,
+  listaImagensBase64 = [],
+  handlers = {},
+  schema = null,
+) {
+  handlers?.onStatus?.("Conectando ao sistema de pesquisa profunda...");
+
+  try {
+    const response = await fetch(`${WORKER_URL}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: handlers?.signal,
+      body: JSON.stringify({
+        apiKey:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+            : undefined,
+        texto,
+        listaImagensBase64,
+        schema,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Erro HTTP ${response.status}`);
+    }
+
+    if (!response.body) throw new Error("Resposta sem corpo (stream)");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    let reportText = "";
+    let groundingMetadata = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      let parts = buffer.split("\n");
+      buffer = parts.pop() || "";
+
+      for (const line of parts) {
+        if (!line.trim()) continue;
+        try {
+          const msg = JSON.parse(line);
+
+          if (msg.type === "thought") {
+            handlers?.onThought?.(msg.text);
+          } else if (msg.type === "answer") {
+            reportText += msg.text;
+          } else if (msg.type === "grounding") {
+            groundingMetadata = msg.metadata;
+          } else if (msg.type === "error") {
+            throw new Error(msg.message || "Erro no worker de pesquisa");
+          } else if (msg.type === "reset") {
+            reportText = "";
+            handlers?.onStatus?.(
+              "Recitation detectado na pesquisa. Tentando novo modelo...",
+            );
+          }
+        } catch (e) {
+          console.warn("Erro parse stream pesquisa:", e);
+        }
+      }
+    }
+
+    const chunks =
+      groundingMetadata?.groundingChunks ||
+      groundingMetadata?.grounding_chunks ||
+      [];
+    const sources = chunks
+      .map((c) => {
+        if (!c.web) return null;
+        return {
+          uri: resolveOriginalSourceUrl(c.web.uri, c.web.title),
+          title: c.web.title,
+        };
+      })
+      .filter((w) => w && w.uri);
+
+    return {
+      report: reportText,
+      sources: sources,
+      rawMetadata: groundingMetadata,
+    };
+  } catch (error) {
+    if (
+      !navigator.onLine ||
+      (error.name === "TypeError" &&
+        error.message.includes("Failed to fetch")) ||
+      error.message === "NETWORK_ERROR"
+    ) {
+      throw new Error("NETWORK_ERROR");
+    }
+    console.error("Erro na pesquisa profunda:", error);
+    throw error;
+  }
+}
+
 const PROMPT_PESQUISADOR = `Role: Você é um Pesquisador Sênior em Conteúdo Educacional (Vestibulares e Concursos).
-Objetivo: Eu tenho uma imagem de uma questão e preciso que você encontre a resolução original dela na internet e escreva um RELATÓRIO TÉCNICO DE RESOLUÇÃO (Não use "Exaustiva", seja objetivo e técnico).
+Objetivo: Eu tenho uma imagem de uma questão e preciso que você encontre a resolução original dela na internet e escreva um RELATÓRIO TÉCNICO DE RESOLUÇÃO.
+
+REGRAS DE OURO:
+1. RESPONDA SEMPRE EM MARKDOWN: Use títulos, listas e negrito para organizar o conhecimento de forma didática.
+2. CITAÇÕES DIRETAS E CLARAS: Você OBRIGATORIAMENTE deve usar expressões como "De acordo com o site X", "Segundo o gabarito oficial da Y", "O professor Z explica que..." ao longo do relatório. Isso é vital para a precisão técnica.
+
 Suas Instruções de Pesquisa (Search Tools):
 OBRIGATÓRIO: Você DEVE usar a ferramenta de busca (Google Search) para validar o texto da questão e encontrar a fonte original. Execute buscas múltiplas se necessário.
 Encontre a Questão: Use o texto da imagem para achar a prova original (Ex: Fuvest 2021, ENEM 2018, Banca Vunesp).

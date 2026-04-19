@@ -10,6 +10,10 @@ import {
   runChatPipeline,
   generateSilentScaffoldingStep,
 } from "../chat/index.js";
+import {
+  getMetodologiasByCategory,
+  getMetodologia,
+} from "../chat/metodologias-config.js";
 import { ScaffoldingService } from "../chat/services/scaffolding-service.js"; // Import ScaffoldingService
 import { renderLatexIn } from "../libs/loader";
 import { auth, bancoState, logoutUser, onAuthStateChanged } from "../main.js";
@@ -43,6 +47,8 @@ import {
   toggleTheme,
   updateThemeIcon,
 } from "../services/theme-service.js";
+import { safeMarkdown } from "../normalize/primitives.js";
+import { resolveLinkOnDemand } from "../api/worker.js";
 import {
   initTopScrollSync,
   destroyTopScrollSync,
@@ -59,7 +65,6 @@ import {
 } from "../ui/questions-top-scroll-sync.js";
 import "../../css/responsivity/questions-top-scrollbar.css";
 import "../../css/responsivity/questions-responsivity.css";
-
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
@@ -215,6 +220,56 @@ function renderInitialUI() {
                                     <span class="model-item-desc">Importe exercícios para treinamento</span>
                                 </div>
                             </button>
+
+                            <!-- Item 3: Metodologia (Cascading Sub-menu) -->
+                            <div class="model-menu-item metodologia-trigger" id="metodologiaTrigger" style="justify-content: flex-start; gap: 12px; position: relative;">
+                                <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    📖
+                                </div>
+                                <div class="model-item-content" style="flex:1;">
+                                    <span class="model-item-title">Metodologia</span>
+                                    <span class="model-item-desc">Escolha o estilo de aprendizagem</span>
+                                </div>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; flex-shrink: 0;">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+
+                                <!-- Sub-menu Cascading de Metodologias -->
+                                <div class="metodologia-submenu" id="metodologiaSubmenu">
+                                    ${getMetodologiasByCategory()
+                                      .map(
+                                        ({ category, items }) => `
+                                        <div class="metodologia-category">
+                                            <div class="metodologia-category-header">${category.icon} ${category.label}</div>
+                                            ${items
+                                              .map(
+                                                (m) => `
+                                                <div class="metodologia-item" data-metodologia-id="${m.id}" data-metodologia-label="${m.label}" data-metodologia-icon="${m.icon}">
+                                                    <span class="metodologia-item-icon">${m.icon}</span>
+                                                    <div class="metodologia-item-content">
+                                                        <span class="metodologia-item-title">${m.label}</span>
+                                                        <span class="metodologia-item-desc">${m.description}</span>
+                                                    </div>
+                                                </div>
+                                            `,
+                                              )
+                                              .join("")}
+                                        </div>
+                                    `,
+                                      )
+                                      .join("")}
+                                </div>
+                            </div>
+                            <!-- Item 4: Pesquisa (Ativar Deep Search) -->
+                            <button class="model-menu-item" id="chatSearchToggleBtn" style="justify-content: flex-start; gap: 12px;">
+                                <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    🔍
+                                </div>
+                                <div class="model-item-content">
+                                    <span class="model-item-title">Pesquisa (Beta)</span>
+                                    <span class="model-item-desc">Ativa busca profunda para fundamentar resposta</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
 
@@ -261,6 +316,20 @@ function renderInitialUI() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Chip de Metodologia Ativa (estilo Gemini Canvas) -->
+                    <div class="metodologia-chip" id="metodologiaChip" style="display: none;">
+                        <span class="metodologia-chip-icon" id="metodologiaChipIcon">📖</span>
+                        <span class="metodologia-chip-label" id="metodologiaChipLabel">Feynman</span>
+                        <button class="metodologia-chip-close" id="metodologiaChipClose" title="Remover metodologia">&times;</button>
+                    </div>
+
+                    <!-- Chip de Pesquisa Ativa -->
+                    <div class="metodologia-chip research-chip" id="researchChip" style="display: none; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
+                        <span class="metodologia-chip-icon">🔍</span>
+                        <span class="metodologia-chip-label">Pesquisa Ativa</span>
+                        <button class="metodologia-chip-close" id="researchChipClose" title="Desativar pesquisa">&times;</button>
                     </div>
                 </div>
                 
@@ -362,6 +431,112 @@ function renderInitialUI() {
       e.stopPropagation();
     });
   });
+
+  // === SISTEMA DE METODOLOGIAS ===
+  window.selectedMetodologia = "automatico"; // Default
+
+  const metodologiaTrigger = document.getElementById("metodologiaTrigger");
+  const metodologiaSubmenu = document.getElementById("metodologiaSubmenu");
+  const metodologiaChip = document.getElementById("metodologiaChip");
+  const metodologiaChipLabel = document.getElementById("metodologiaChipLabel");
+  const metodologiaChipIcon = document.getElementById("metodologiaChipIcon");
+  const metodologiaChipClose = document.getElementById("metodologiaChipClose");
+
+  // Hover para abrir sub-menu com bridge de tolerância (impede fechamento no gap)
+  if (metodologiaTrigger && metodologiaSubmenu) {
+    let submenuTimeout;
+
+    metodologiaTrigger.addEventListener("mouseenter", () => {
+      clearTimeout(submenuTimeout);
+      metodologiaSubmenu.classList.add("active");
+    });
+
+    metodologiaTrigger.addEventListener("mouseleave", () => {
+      submenuTimeout = setTimeout(() => {
+        metodologiaSubmenu.classList.remove("active");
+      }, 150);
+    });
+
+    metodologiaSubmenu.addEventListener("mouseenter", () => {
+      clearTimeout(submenuTimeout);
+    });
+
+    metodologiaSubmenu.addEventListener("mouseleave", () => {
+      submenuTimeout = setTimeout(() => {
+        metodologiaSubmenu.classList.remove("active");
+      }, 150);
+    });
+
+    // Seleção de item
+    metodologiaSubmenu.querySelectorAll(".metodologia-item").forEach((item) => {
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = item.dataset.metodologiaId;
+        const label = item.dataset.metodologiaLabel;
+        const icon = item.dataset.metodologiaIcon;
+
+        window.selectedMetodologia = id;
+
+        // Mostra chip
+        if (metodologiaChip) {
+          metodologiaChipLabel.textContent = label;
+          metodologiaChipIcon.textContent = icon;
+          metodologiaChip.style.display = "flex";
+          metodologiaChip.classList.add("chip-enter");
+          setTimeout(() => metodologiaChip.classList.remove("chip-enter"), 300);
+        }
+
+        console.log("Metodologia selecionada:", id);
+        closeAllMenus();
+        metodologiaSubmenu.classList.remove("active");
+      });
+    });
+  }
+
+  // Fechar chip (resetar para automático)
+  if (metodologiaChipClose) {
+    metodologiaChipClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.selectedMetodologia = "automatico";
+      if (metodologiaChip) {
+        metodologiaChip.style.display = "none";
+      }
+      console.log("Metodologia resetada para: automatico");
+    });
+  }
+
+  // === SISTEMA DE PESQUISA (RESEARCH) ===
+  window.researchEnabled = false;
+  const searchToggleBtn = document.getElementById("chatSearchToggleBtn");
+  const researchChip = document.getElementById("researchChip");
+  const researchChipClose = document.getElementById("researchChipClose");
+
+  if (searchToggleBtn) {
+    searchToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.researchEnabled = !window.researchEnabled;
+
+      if (researchChip) {
+        researchChip.style.display = window.researchEnabled ? "flex" : "none";
+        if (window.researchEnabled) {
+          researchChip.classList.add("chip-enter");
+          setTimeout(() => researchChip.classList.remove("chip-enter"), 300);
+        }
+      }
+
+      console.log("Pesquisa ativada:", window.researchEnabled);
+      closeAllMenus();
+    });
+  }
+
+  if (researchChipClose) {
+    researchChipClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.researchEnabled = false;
+      if (researchChip) researchChip.style.display = "none";
+      console.log("Pesquisa desativada");
+    });
+  }
 
   // Persist Floating Terminal
   checkAndRestoreFloatingTerminal();
@@ -1071,49 +1246,59 @@ window.loadChat = async function (chatId) {
     const accordion = document.createElement("div");
     accordion.className = "steps-accordion"; // Fechado por padrão no histórico
     accordion._stepCount = 0;
-    
+
     const header = document.createElement("div");
     header.className = "steps-accordion-header";
     header.innerHTML = `
       <span class="steps-accordion-count">Concluiu 0 etapas</span>
       <span class="steps-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
     `;
-    
+
     const body = document.createElement("div");
     body.className = "steps-accordion-body";
-    
+
     header.addEventListener("click", () => accordion.classList.toggle("open"));
     accordion.appendChild(header);
     accordion.appendChild(body);
-    
+
     const systemMsg = document.createElement("div");
     systemMsg.className = "chat-message chat-message--system visible";
     const msgContent = document.createElement("div");
     msgContent.className = "chat-message-content";
-    msgContent.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+    msgContent.style.cssText =
+      "padding:0; background:transparent; box-shadow:none;";
     msgContent.appendChild(accordion);
     systemMsg.appendChild(msgContent);
-    
-    return { accordion, body, systemMsg, headerCount: header.querySelector('.steps-accordion-count') };
+
+    return {
+      accordion,
+      body,
+      systemMsg,
+      headerCount: header.querySelector(".steps-accordion-count"),
+    };
   }
 
   let currentHistoricalAccordion = null;
 
   function finalizeHistoricalAccordion() {
-      if (!currentHistoricalAccordion) return;
-      if (currentHistoricalAccordion.accordion && currentHistoricalAccordion.accordion._stepCount <= 1) {
-         const body = currentHistoricalAccordion.body;
-         const onlyStep = body ? body.firstElementChild : null;
-         if (onlyStep && currentHistoricalAccordion.systemMsg) {
-             currentHistoricalAccordion.systemMsg.innerHTML = "";
-             const content = document.createElement("div");
-             content.className = "chat-message-content";
-             content.style.cssText = "padding:0; background:transparent; box-shadow:none;";
-             content.appendChild(onlyStep);
-             currentHistoricalAccordion.systemMsg.appendChild(content);
-         }
+    if (!currentHistoricalAccordion) return;
+    if (
+      currentHistoricalAccordion.accordion &&
+      currentHistoricalAccordion.accordion._stepCount <= 1
+    ) {
+      const body = currentHistoricalAccordion.body;
+      const onlyStep = body ? body.firstElementChild : null;
+      if (onlyStep && currentHistoricalAccordion.systemMsg) {
+        currentHistoricalAccordion.systemMsg.innerHTML = "";
+        const content = document.createElement("div");
+        content.className = "chat-message-content";
+        content.style.cssText =
+          "padding:0; background:transparent; box-shadow:none;";
+        content.appendChild(onlyStep);
+        currentHistoricalAccordion.systemMsg.appendChild(content);
       }
-      currentHistoricalAccordion = null;
+    }
+    currentHistoricalAccordion = null;
   }
 
   // 3. Renderiza Histórico
@@ -1138,12 +1323,13 @@ window.loadChat = async function (chatId) {
       // Recria anexos se houver
       let filesHtml = "";
       if (msg.attachments && msg.attachments.length > 0) {
-        const fileCards = msg.attachments.map(f => renderFileAttachment(f)).join("");
+        const fileCards = msg.attachments
+          .map((f) => renderFileAttachment(f))
+          .join("");
         filesHtml = `<div class="message-files">${fileCards}</div>`;
       }
       userMessage.innerHTML = `<div class="chat-message-content">${filesHtml}<p>${escapeHtml(msg.content)}</p></div>`;
       messagesContainer.appendChild(userMessage);
-
     } else if (msg.role === "system") {
       // [RENDER SYSTEM EVENTS] Memória, Modo, etc.
       let renderedContent = null;
@@ -1171,7 +1357,11 @@ window.loadChat = async function (chatId) {
                 </div>
                 ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
             `;
-        renderedContent = createExpandableStatusGlobal(title || "Memórias recuperadas", contentDiv, phaseId);
+        renderedContent = createExpandableStatusGlobal(
+          title || "Memórias recuperadas",
+          contentDiv,
+          phaseId,
+        );
       } else if (msg.content && msg.content.type === "mode_selected") {
         const { mode, reason, confidence } = msg.content;
         phaseId = "mode";
@@ -1190,9 +1380,32 @@ window.loadChat = async function (chatId) {
         renderedContent = createExpandableStatusGlobal(
           `Modo ${modeNames[mode] || mode} selecionado`,
           contentDiv,
-          phaseId
+          phaseId,
+        );
+      } else if (msg.content && msg.content.type === "research_results") {
+        const { report, sources } = msg.content;
+        phaseId = "research";
+        const contentDiv = document.createElement("div");
+        contentDiv.innerHTML = `
+                <div class="research-report-preview markdown-content" style="max-height: 200px; overflow: hidden; position: relative; margin-bottom: 12px; font-size: 0.9em; line-height: 1.5; color: var(--color-text-secondary);">
+                    ${safeMarkdown(report || "")}
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; background: linear-gradient(transparent, var(--color-bg-tertiary));"></div>
+                </div>
+                <div style="font-weight: 600; margin-bottom: 8px;">${sources?.length || 0} fontes utilizadas na pesquisa.</div>
+                <button class="maia-btn maia-btn--premium maia-btn--premium-sm" onclick="window.showResearchReport(this)" 
+                        data-report="${encodeURIComponent(report || "")}" 
+                        data-sources="${encodeURIComponent(JSON.stringify(sources || []))}">
+                    <span style="font-size: 1.1em; margin-right: 4px;">📂</span> Ver Relatório Completo
+                </button>
+
+            `;
+        renderedContent = createExpandableStatusGlobal(
+          "Pesquisa profunda concluída",
+          contentDiv,
+          phaseId,
         );
       } else if (msg.content && msg.content.type === "extraction_triggered") {
+
         phaseId = "extraction";
         const contentDiv = document.createElement("div");
         contentDiv.innerHTML = `
@@ -1201,21 +1414,20 @@ window.loadChat = async function (chatId) {
         renderedContent = createExpandableStatusGlobal(
           "🔍 Extração de questões solicitada",
           contentDiv,
-          phaseId
+          phaseId,
         );
       }
 
       if (renderedContent) {
         if (!currentHistoricalAccordion) {
-            currentHistoricalAccordion = createHistoricalAccordion();
-            messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
+          currentHistoricalAccordion = createHistoricalAccordion();
+          messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
         }
         currentHistoricalAccordion.body.appendChild(renderedContent);
         currentHistoricalAccordion.accordion._stepCount++;
         const total = currentHistoricalAccordion.accordion._stepCount;
         currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
       }
-
     } else if (msg.role === "model" || msg.role === "ai") {
       // Render AI Message
       const aiMessage = document.createElement("div");
@@ -1230,8 +1442,8 @@ window.loadChat = async function (chatId) {
         Array.isArray(msg.content._thoughts)
       ) {
         if (!currentHistoricalAccordion) {
-            currentHistoricalAccordion = createHistoricalAccordion();
-            messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
+          currentHistoricalAccordion = createHistoricalAccordion();
+          messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
         }
 
         const contentDiv = document.createElement("div");
@@ -1242,16 +1454,20 @@ window.loadChat = async function (chatId) {
           const { title, body } = splitThought(thoughtText);
           list.appendChild(criarElementoCardPensamento(title, body));
         });
-        
+
         contentDiv.appendChild(list);
 
-        const genStep = createExpandableStatusGlobal("Raciocínio concluído", contentDiv, "generation");
+        const genStep = createExpandableStatusGlobal(
+          "Raciocínio concluído",
+          contentDiv,
+          "generation",
+        );
         currentHistoricalAccordion.body.appendChild(genStep);
         currentHistoricalAccordion.accordion._stepCount++;
         const total = currentHistoricalAccordion.accordion._stepCount;
         currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
       }
-      
+
       finalizeHistoricalAccordion(); // Reinicia agrupamento
 
       const contentContainer = document.createElement("div");
@@ -1458,7 +1674,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
   // 4. Criar HTML dos arquivos anexados (Design Premium)
   let filesHtml = "";
   if (arquivos.length > 0) {
-    const fileCards = arquivos.map(file => renderFileAttachment(file)).join("");
+    const fileCards = arquivos
+      .map((file) => renderFileAttachment(file))
+      .join("");
     filesHtml = `<div class="message-files">${fileCards}</div>`;
   }
 
@@ -1538,6 +1756,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       chatId: window.currentChatId, // Passa ID atual (null se novo)
       history: extractChatHistory(), // Passa histórico recuperado do DOM (contexto imediato)
       signal: options.signal, // Pass AbortSignal passed from Send Button
+      selectedMetodologia: window.selectedMetodologia || "automatico", // Metodologia ativa
 
       // Callbacks de Persistência
       onChatCreated: (chat) => {
@@ -1588,6 +1807,13 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               messagesContainer,
               "mode",
               "Escolhendo modo de execução...",
+            );
+          } else if (data.includes("Realizando pesquisa")) {
+            window._currentChatPhase = "research";
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              "research",
+              "Pesquisando na web...",
             );
           }
           return;
@@ -1666,11 +1892,54 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
           // Reset send button
           activeGenerationController = null;
-          const sendBtn = document.querySelector(".chat-send-btn");
-          if (sendBtn) {
-            sendBtn.classList.remove("stop-mode");
-            sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
-          }
+        } else if (type === "research_done") {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "research",
+            "Buscando base de conhecimento...",
+          );
+
+          const { report, sources } = data;
+          const sourcesPills =
+            Array.isArray(sources) && sources.length > 0
+              ? `<div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding: 12px; background: rgba(var(--color-primary-rgb), 0.04); border-radius: 12px; border: 1px solid rgba(var(--color-primary-rgb), 0.1);">
+                ${sources
+                  .slice(0, 8)
+                  .map((s) => {
+                    const domain = s.uri
+                      ? new URL(s.uri).hostname.replace("www.", "")
+                      : "Fonte";
+                    return `<span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(var(--color-surface-rgb), 0.8); color:var(--color-primary); border-radius:8px; border:1px solid var(--color-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${s.title}">${domain}</span>`;
+                  })
+                  .join("")}
+                ${sources.length > 8 ? `<span style="font-size:11px; opacity:0.6; padding-top:6px; font-weight:600; color:var(--color-text-secondary);">+${sources.length - 8} fontes</span>` : ""}
+               </div>`
+              : "";
+
+          const bodyHtml = `
+            <div style="margin-bottom:12px;">
+                <div style="font-size:13.5px; color:var(--color-text); line-height:1.6; display:flex; align-items:flex-start; gap:10px;">
+                   <div style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; background:rgba(var(--color-success-rgb), 0.15); border-radius:50%; flex-shrink:0; margin-top:2px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-success)"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                   </div>
+                   <span>Pesquisa concluída! Encontramos <strong>${sources?.length || 0} fontes</strong> relevantes para fundamentar esta resposta.</span>
+                </div>
+                ${sourcesPills}
+            </div>
+            <div style="margin-top:14px; display:flex; gap:10px;">
+              <button class="chat-view-report-btn secondary" onclick="window.showResearchReport(this)" data-report="${encodeURIComponent(report || "")}" style="padding: 8px 16px; font-size: 0.85em; font-weight:600; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; color: var(--color-text); box-shadow: var(--chat-shadow-sm);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                Relatório Técnico & Diagramas
+              </button>
+            </div>
+          `;
+
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            "Busca de evidências finalizada",
+            bodyHtml,
+          );
           window._currentChatPhase = "generation"; // reset
         }
 
@@ -1687,8 +1956,16 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       },
 
       // Notifica quando o router decide o modo
-      onModeDecided: ({ mode, reason, confidence }) => {
-        console.log(`[Router] Modo decidido: ${mode} - ${reason}`);
+      onModeDecided: ({
+        mode,
+        reason,
+        confidence,
+        metodologia,
+        metodologiaLabel,
+      }) => {
+        console.log(
+          `[Router] Modo decidido: ${mode} - ${reason} | Metodologia: ${metodologia}`,
+        );
 
         const modeNames = {
           rapido: "Rápido",
@@ -1712,10 +1989,14 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             "Escolhendo modo...",
           );
           const title = `Modo ${modeNames[mode] || mode} selecionado`;
+          const metodologiaInfo = metodologiaLabel
+            ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);"><strong>📖 Metodologia:</strong> ${metodologiaLabel}</div>`
+            : "";
           const bodyHtml = `
             <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
             <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
             <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
+            ${metodologiaInfo}
           `;
           concludePhaseContainer(container, thoughtListEl, title, bodyHtml);
           window._currentChatPhase = "generation"; // reset
@@ -1804,12 +2085,33 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       },
 
-      // Conclusão
       onComplete: (dataObj) => {
         // dataObj pode ser o { mode, response } ou fallback antigo
-        console.log(`[Chat] Resposta completa`);
+        const finalData = dataObj?.response || dataObj;
+        console.log(`[Chat] Resposta completa.`, finalData);
+
         const messagesContainer = document.getElementById("chatMessages");
         if (messagesContainer) {
+          // Garante que o conteúdo final (incluindo fontes injetadas no pipeline) seja renderizado
+          const aiMessage = document.getElementById("currentAiMessage");
+          const contentContainer = aiMessage?.querySelector(
+            ".chat-message-content",
+          );
+
+          if (contentContainer && finalData) {
+            console.log("[Chat] Re-renderizando mensagem final com fontes...");
+            contentContainer.innerHTML = generateChatHtmlString(finalData);
+            renderLatexIn(contentContainer);
+            contentContainer.querySelectorAll("pre code").forEach((el) => {
+              if (window.hljs) window.hljs.highlightElement(el);
+            });
+            hydrateAllChatContent(contentContainer);
+          }
+
+          const loading = document.getElementById("chatLoading");
+          if (loading) loading.remove();
+
+          // Hidratação final obrigatória
           hydrateQuestionBlocks(messagesContainer);
           hydrateScaffoldingBlocks(messagesContainer);
         }
@@ -1824,7 +2126,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           "phaseContainer-generation",
         );
         if (thoughtsContainer && !thoughtsContainer._cleaned) {
-          const thoughtList = thoughtsContainer.querySelector(".chat-thoughts-list");
+          const thoughtList = thoughtsContainer.querySelector(
+            ".chat-thoughts-list",
+          );
           concludePhaseContainer(
             thoughtsContainer,
             thoughtList,
@@ -1853,28 +2157,30 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         const accordion = document.getElementById("stepsAccordion");
         if (accordion) {
           accordion.classList.remove("processing");
-          
+          accordion._completedCount = accordion._stepCount; // Garante contagem sincronizada ao finalizar
+
           if (accordion._completedCount <= 1 && accordion._stepCount <= 1) {
-             // Unwrap phase if there's only 1 step
-             setTimeout(() => {
-                const body = accordion.querySelector(".steps-accordion-body");
-                const firstStep = body ? body.firstElementChild : null;
-                const wrapper = accordion.closest(".chat-message--system");
-                if (firstStep && wrapper) {
-                    wrapper.innerHTML = "";
-                    const content = document.createElement("div");
-                    content.className = "chat-message-content";
-                    content.style.cssText = "padding:0; background:transparent; box-shadow:none;";
-                    content.appendChild(firstStep);
-                    wrapper.appendChild(content);
-                }
-             }, 800);
+            // Unwrap phase if there's only 1 step
+            setTimeout(() => {
+              const body = accordion.querySelector(".steps-accordion-body");
+              const firstStep = body ? body.firstElementChild : null;
+              const wrapper = accordion.closest(".chat-message--system");
+              if (firstStep && wrapper) {
+                wrapper.innerHTML = "";
+                const content = document.createElement("div");
+                content.className = "chat-message-content";
+                content.style.cssText =
+                  "padding:0; background:transparent; box-shadow:none;";
+                content.appendChild(firstStep);
+                wrapper.appendChild(content);
+              }
+            }, 800);
           } else {
-             setTimeout(() => {
-               accordion.classList.remove("open");
-             }, 800);
-             // Force final counter update
-             updateAccordionCounter(accordion);
+            setTimeout(() => {
+              accordion.classList.remove("open");
+            }, 800);
+            // Force final counter update
+            updateAccordionCounter(accordion);
           }
         }
       },
@@ -1919,14 +2225,29 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             while (nextElement) {
               const toRemove = nextElement;
               nextElement = nextElement.nextElementSibling;
-              
-              const isAiMsg = toRemove.classList && toRemove.classList.contains("chat-message--ai");
-              const isSystemMsg = toRemove.classList && toRemove.classList.contains("chat-message--system");
-              const isLoading = toRemove.classList && toRemove.classList.contains("chat-loading-container");
-              const isThoughtContainer = toRemove.classList && toRemove.classList.contains("chat-thought-container");
+
+              const isAiMsg =
+                toRemove.classList &&
+                toRemove.classList.contains("chat-message--ai");
+              const isSystemMsg =
+                toRemove.classList &&
+                toRemove.classList.contains("chat-message--system");
+              const isLoading =
+                toRemove.classList &&
+                toRemove.classList.contains("chat-loading-container");
+              const isThoughtContainer =
+                toRemove.classList &&
+                toRemove.classList.contains("chat-thought-container");
               const isStepsAccordion = toRemove.id === "stepsAccordionWrapper";
-              
-              if (isSystemMsg || isLoading || isAiMsg || isThoughtContainer || isStepsAccordion || toRemove.id === "currentAiMessage") {
+
+              if (
+                isSystemMsg ||
+                isLoading ||
+                isAiMsg ||
+                isThoughtContainer ||
+                isStepsAccordion ||
+                toRemove.id === "currentAiMessage"
+              ) {
                 toRemove.remove();
               }
             }
@@ -1941,7 +2262,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               else container.remove();
             });
             const orphanedAi = document.querySelectorAll(".chat-message--ai");
-            orphanedAi.forEach(ai => ai.remove());
+            orphanedAi.forEach((ai) => ai.remove());
           }
 
           // Salva os dados pendentes para retry automático no evento "online"
@@ -1960,7 +2281,8 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           const waitMessage = document.createElement("div");
           waitMessage.id = "networkWaitMsg";
           waitMessage.className = "chat-loading-container";
-          waitMessage.style.cssText = "flex-direction: column;gap: 8px;text-align: left;justify-content: left;align-items: baseline;";
+          waitMessage.style.cssText =
+            "flex-direction: column;gap: 8px;text-align: left;justify-content: left;align-items: baseline;";
           waitMessage.innerHTML = `
             <div style="display: flex;flex-direction: column;/* align-items: center; */justify-content: center;gap: 4px;text-align: center;">
               <strong style="color: var(--color-warning, #f59e0b);font-size: 1.05em;text-align: left;">⚠️ Conexão perdida</strong>
@@ -2042,6 +2364,7 @@ const STEP_ICONS = {
   generation: `<svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
   saving: `<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
   extraction: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  research: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v6M8 11h6" opacity=".5"/></svg>`,
 };
 
 const STEP_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -2168,7 +2491,8 @@ function getOrCreateStepsAccordion(messagesContainer) {
   systemMsg.id = "stepsAccordionWrapper";
   const msgContent = document.createElement("div");
   msgContent.className = "chat-message-content";
-  msgContent.style.cssText = "padding:0; background:transparent; box-shadow:none;";
+  msgContent.style.cssText =
+    "padding:0; background:transparent; box-shadow:none;";
   msgContent.appendChild(accordion);
   systemMsg.appendChild(msgContent);
 
@@ -2220,7 +2544,7 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   // Icon (static SVG while processing, turns to check mark when done)
   const iconEl = document.createElement("div");
   iconEl.className = "step-row-icon processing";
-  
+
   if (phaseId === "generation") {
     iconEl.innerHTML = `<img src="/monocromatic_logo.png" class="monochrome-spinner" alt="pensando">`;
   } else {
@@ -2282,7 +2606,7 @@ function updateAccordionCounter(accordion) {
 
   const total = accordion._stepCount || 0;
   const completed = accordion._completedCount || 0;
-  
+
   const spinner = accordion.querySelector(".accordion-spinner");
 
   if (completed >= total && total > 0) {
@@ -2334,7 +2658,9 @@ function concludePhaseContainer(
   container.classList.remove("active");
 
   // Remove skeletons
-  container.querySelectorAll(".maia-thought-card--skeleton").forEach((s) => s.remove());
+  container
+    .querySelectorAll(".maia-thought-card--skeleton")
+    .forEach((s) => s.remove());
   const loadStatus = container.querySelector(".loading-status-area");
   if (loadStatus) loadStatus.remove();
 
@@ -2363,10 +2689,12 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-window.testNewDesign = function() {
+window.testNewDesign = function () {
   const msgContainer = document.getElementById("chatMessages");
   if (!msgContainer) {
-    console.log("Mude para uma aba de chat vazio primeiro ou envie uma mensagem isolada para ver o container!");
+    console.log(
+      "Mude para uma aba de chat vazio primeiro ou envie uma mensagem isolada para ver o container!",
+    );
     return;
   }
   msgContainer.innerHTML = ""; // Prepare for test
@@ -2382,13 +2710,17 @@ window.testNewDesign = function() {
   }
 
   console.log("Iniciando mock de processamento...");
-  
+
   // Fake phase 1: Memory
-  const memPhase = getOrCreatePhaseContainer(msgContainer, "memory", "Recuperando informações");
+  const memPhase = getOrCreatePhaseContainer(
+    msgContainer,
+    "memory",
+    "Recuperando informações",
+  );
   setTimeout(() => {
     concludePhaseContainer(
-      memPhase.container, 
-      memPhase.thoughtListEl, 
+      memPhase.container,
+      memPhase.thoughtListEl,
       "Memórias recuperadas",
       `
       <div style="margin-bottom:12px;">
@@ -2402,18 +2734,22 @@ window.testNewDesign = function() {
           <li>Esse processo ocorre nos cloroplastos.</li>
         </ul>
       </div>
-      `
+      `,
     );
   }, 1500);
 
   // Fake phase 2: Mode
   setTimeout(() => {
-    const modePhase = getOrCreatePhaseContainer(msgContainer, "mode", "Escolhendo modo de execução");
-    
+    const modePhase = getOrCreatePhaseContainer(
+      msgContainer,
+      "mode",
+      "Escolhendo modo de execução",
+    );
+
     setTimeout(() => {
       concludePhaseContainer(
-        modePhase.container, 
-        modePhase.thoughtListEl, 
+        modePhase.container,
+        modePhase.thoughtListEl,
         "Modo Automático selecionado",
         `
         <div style="margin-bottom:8px;"><strong>Decisão:</strong> Automático</div>
@@ -2425,29 +2761,47 @@ window.testNewDesign = function() {
           [Router] Histórico analisado: Nenhum
           [Router] Requisito de profundidade: Alto
         </div>
-        `
+        `,
       );
     }, 1500);
   }, 1800);
 
   // Fake phase 3: Generation (Thoughts)
   setTimeout(() => {
-    const genPhase = getOrCreatePhaseContainer(msgContainer, "generation", "Processando raciocínio...");
-    
+    const genPhase = getOrCreatePhaseContainer(
+      msgContainer,
+      "generation",
+      "Processando raciocínio...",
+    );
+
     // Mock thought cards
     const thoughtRows = [
-      { t: "Analisando formato", b: "A resposta deve conter citações exatas dos documentos recuperados e explicar com termos acessíveis." },
-      { t: "Cruzando dados", b: "Comparando o conceito de Cloroplasto do documento A com o processo C3 do documento B." },
-      { t: "Verificando base de dados", b: "Tentando extrair relatórios adicionais." },
-      { t: "Montando rascunho", b: "A síntese da resposta está quase pronta." }
+      {
+        t: "Analisando formato",
+        b: "A resposta deve conter citações exatas dos documentos recuperados e explicar com termos acessíveis.",
+      },
+      {
+        t: "Cruzando dados",
+        b: "Comparando o conceito de Cloroplasto do documento A com o processo C3 do documento B.",
+      },
+      {
+        t: "Verificando base de dados",
+        b: "Tentando extrair relatórios adicionais.",
+      },
+      { t: "Montando rascunho", b: "A síntese da resposta está quase pronta." },
     ];
 
     let tIndex = 0;
     const interval = setInterval(() => {
       if (tIndex >= thoughtRows.length) {
         clearInterval(interval);
-        concludePhaseContainer(genPhase.container, genPhase.thoughtListEl, "Raciocínio concluído", "");
-        
+        concludePhaseContainer(
+          genPhase.container,
+          genPhase.thoughtListEl,
+          "Raciocínio concluído",
+          "",
+        );
+
         // Finalize accordion manually for the test
         const accordion = document.getElementById("stepsAccordion");
         if (accordion) {
@@ -2455,23 +2809,21 @@ window.testNewDesign = function() {
           setTimeout(() => accordion.classList.remove("open"), 800);
           accordion.removeAttribute("id");
         }
-        
-        aiMessage.querySelector('.chat-message-content').innerHTML = `
+
+        aiMessage.querySelector(".chat-message-content").innerHTML = `
           <div class="chat-block chat-text visible">
             E aqui estaria a resposta final da inteligência artificial gerada no bloco.
           </div>
         `;
         aiMessage.removeAttribute("id");
       } else {
-        const {t, b} = thoughtRows[tIndex++];
+        const { t, b } = thoughtRows[tIndex++];
         const card = criarElementoCardPensamento(t, b);
         genPhase.thoughtListEl.appendChild(card);
       }
     }, 1200);
-
   }, 4000);
 };
-
 
 export function iniciarFluxoPesquisa() {
   window.iniciarFluxoPesquisa();
@@ -4455,6 +4807,242 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 }
 
 /**
+ * Exibe o relatório de pesquisa detalhado em um modal
+ * @param {HTMLElement} btn - Botão que disparou a ação
+ */
+async function showResearchReport(btn) {
+  const reportAttr = btn.getAttribute("data-report") || btn.dataset.report;
+  let report = "";
+
+  if (reportAttr) {
+    report = decodeURIComponent(reportAttr);
+  } else {
+    // Fallback: tentar pegar do footer da mensagem pai
+    const footer = btn
+      .closest(".chat-message--ai")
+      ?.querySelector("[data-report]");
+    if (footer?.dataset?.report)
+      report = decodeURIComponent(footer.dataset.report);
+  }
+
+  if (!report) {
+    customAlert("Conteúdo do relatório não encontrado.");
+    return;
+  }
+
+  const { showGenericModal } = await import("../ui/modal-generic.js");
+  const container = document.createElement("div");
+  container.className = "research-report-modal-root";
+  container.style.cssText =
+    "display:flex; flex-direction:column; gap:20px; width:100%; height:100%; color: var(--color-text);";
+
+  // Sanitização: Remove espaços iniciais antes de hashes (#) que podem quebrar o markdown
+  const sanitizedReport = report.replace(/^\s+(?=#+)/gm, "");
+
+  // Processamento do Markdown para a aba formatada
+  const reportHtml = safeMarkdown
+    ? safeMarkdown(sanitizedReport)
+    : `<pre style="white-space:pre-wrap;">${sanitizedReport}</pre>`;
+
+  container.innerHTML = `
+    <div class="research-report-header" style="border-bottom: 2px solid var(--color-primary); padding-bottom: 15px; margin-bottom: 5px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <div style="flex:1;">
+                <h2 style="margin:0; font-size:1.5rem; display:flex; align-items:center; gap:12px; color: var(--color-text);">
+                    <span style="font-size:1.8rem;">🔍</span> Relatório de Pesquisa
+                </h2>
+                <p style="margin:5px 0 0 0; opacity:0.8; font-size:0.85rem; color: var(--color-text-secondary);">
+                    Síntese técnica baseada em evidências colhidas.
+                </p>
+            </div>
+            
+            <!-- Barra de Abas -->
+            <div class="report-tab-bar" style="display:flex; gap:8px; background: rgba(var(--color-surface-rgb), 0.5); padding: 4px; border-radius: 12px; border: 1px solid var(--color-border);">
+                <button class="report-tab-btn active" data-tab="formatted" style="padding: 8px 16px; border-radius: 8px; border:none; background: var(--color-primary); color: white; cursor:pointer; font-weight:600; font-size:0.85rem; transition: all 0.2s;">
+                    Relatório
+                </button>
+                <button class="report-tab-btn" data-tab="raw" style="padding: 8px 16px; border-radius: 8px; border:none; background: transparent; color: var(--color-text-secondary); cursor:pointer; font-weight:600; font-size:0.85rem; transition: all 0.2s;">
+                    Resposta Bruta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container do Conteúdo com Abas -->
+    <div class="report-panes-container" style="flex:1; position:relative; min-height: 400px; display:flex; flex-direction:column;">
+        
+        <!-- Aba 1: Formatada -->
+        <div id="pane-formatted" class="report-pane active" style="flex:1; display:block;">
+            <div class="markdown-content research-report-content" id="reportContentArea" style="height:100%; background: rgba(var(--color-surface-rgb), 0.2); backdrop-filter: blur(10px); padding: 28px; border-radius: 16px; border: 1px solid var(--color-border); overflow-y: auto; max-height: calc(85vh - 220px); color: var(--color-text);">
+                ${reportHtml}
+            </div>
+        </div>
+
+        <!-- Aba 2: Bruta -->
+        <div id="pane-raw" class="report-pane" style="flex:1; display:none;">
+            <div class="research-report-raw" style="height:100%; background: #0c0c0e; font-family:var(--font-mono); padding: 24px; border-radius: 16px; border: 1px solid var(--color-border); overflow-y: auto; max-height: calc(85vh - 220px); color: #cfcfcf; font-size:0.9rem; line-height:1.5; white-space:pre-wrap;">${report}</div>
+        </div>
+    </div>
+
+    <div class="research-report-footer" style="padding-top:10px; border-top:1px solid var(--color-border); text-align:right; font-size:0.8rem; opacity:0.6; color: var(--color-text-secondary);">
+        Maia Intelligence &bull; Protocolo de Pesquisa &bull; ${new Date().toLocaleDateString("pt-BR")}
+    </div>
+  `;
+
+  // Lógica de Troca de Abas
+  const tabBtns = container.querySelectorAll(".report-tab-btn");
+  const panes = container.querySelectorAll(".report-pane");
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      
+      // Update Buttons
+      tabBtns.forEach((b) => {
+        b.classList.remove("active");
+        b.style.background = "transparent";
+        b.style.color = "var(--color-text-secondary)";
+      });
+      btn.classList.add("active");
+      btn.style.background = "var(--color-primary)";
+      btn.style.color = "white";
+
+      // Update Panes
+      panes.forEach((p) => (p.style.display = "none"));
+      container.querySelector(`#pane-${tab}`).style.display = "block";
+    });
+  });
+
+  // Renderização e Hidratação de elementos dinâmicos (Sem Timeout artificial para evitar flicker)
+  const hydrate = async () => {
+    // Mantém renderLatexIn como solicitado
+    if (typeof renderLatexIn === "function") renderLatexIn(container);
+
+    const contentArea = container.querySelector("#reportContentArea");
+    if (contentArea) {
+      // Converte blocos de código mermaid
+      const codeBlocks = contentArea.querySelectorAll("code.language-mermaid");
+      codeBlocks.forEach((code) => {
+        const pre = code.parentElement;
+        const chartCode = code.textContent.trim();
+        const placeholder = document.createElement("div");
+        placeholder.className = "chat-mermaid-placeholder";
+        placeholder.dataset.chart = chartCode;
+        placeholder.style.margin = "20px 0";
+        pre.replaceWith(placeholder);
+      });
+
+      await hydrateAllChatContent(contentArea);
+    }
+  };
+
+  // Executa hidratação
+  hydrate();
+
+  showGenericModal({
+    title: "Relatório de Pesquisa",
+    content: container,
+    maxWidth: "1150px",
+  });
+}
+
+/**
+ * Exibe o modal de fontes detalhado
+ * @param {HTMLElement} btn - Botão que disparou a ação
+ */
+async function showSourcesModal(btn) {
+  // Fix: Search for data attributes on the button OR its parents (in case of nested clicks)
+  const target = btn.closest("[data-sources]");
+  if (!target) return;
+  
+  const sourcesAttr = target.getAttribute("data-sources") || target.dataset.sources;
+  const reportAttr = target.getAttribute("data-report") || target.dataset.report;
+
+  if (!sourcesAttr) return;
+
+  const sources = JSON.parse(decodeURIComponent(sourcesAttr));
+  const { showGenericModal } = await import("../ui/modal-generic.js");
+
+  const container = document.createElement("div");
+  container.className = "sources-modal-root";
+
+  let sourcesHtml = sources
+    .map((src, idx) => {
+      const urlObj = src.uri ? new URL(src.uri) : { hostname: "Fonte externa" };
+      const hostname = urlObj.hostname;
+      const faviconUrl = src.uri
+        ? `https://icons.duckduckgo.com/ip3/${hostname}.ico`
+        : null;
+      // Open Graph thumbnail via microlink.io (free, no key needed)
+      const ogThumb = src.uri
+        ? `https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(src.uri)}&size=128`
+        : null;
+      const screenshotUrl = src.uri
+        ? `https://api.microlink.io/?url=${encodeURIComponent(src.uri)}&screenshot=true&meta=false&embed=screenshot.url`
+        : null;
+
+      const elementId = `source-item-${idx}`;
+
+      return `
+      <div class="source-card-premium resolving" id="${elementId}" data-uri="${src.uri}" onclick="window.open('${src.uri}', '_blank')">
+        <div class="source-card-thumb">
+          <img src="${screenshotUrl || ''}" alt="" class="source-card-thumb-img" onerror="this.onerror=null;this.src='${ogThumb || ''}';this.style.objectFit='contain';this.style.padding='20px';">
+        </div>
+        <div class="source-card-body">
+          <div class="source-card-title">${src.title || hostname}</div>
+          <div class="source-card-description">${(src.snippet || src.description || "Carregando detalhes...").substring(0, 200)}</div>
+          <div class="source-card-link-wrapper">
+             <div style="display:flex; align-items:center; gap:8px;">
+                ${faviconUrl ? `<img src="${faviconUrl}" class="source-card-favicon" style="width:18px; height:18px; border-radius:4px;" onerror="this.onerror=function(){this.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${hostname}&sz=64';">` : ""}
+                <span class="source-card-hostname">${hostname}</span>
+             </div>
+             <span class="source-card-arrow">→</span>
+          </div>
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+
+  container.innerHTML = `
+    <div class="chat-sources-expanded-list">
+      ${sourcesHtml}
+    </div>
+    ${
+      reportAttr
+        ? `
+      <div class="sources-modal-footer">
+        <button class="chat-view-report-btn" data-report="${reportAttr}" onclick="window.showResearchReport(this)">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">
+            <span class="nav-title">Ver Relatórios e Diagramas Completos</span>
+            <span class="nav-desc">Acesse insights detalhados e visualizações geradas</span>
+          </span>
+        </button>
+      </div>
+    `
+        : ""
+    }
+  `;
+
+  // Resolução Assíncrona via Hydration Engine (Batch de 5 em 5)
+  setTimeout(async () => {
+    const { hydrateSources } = await import("../render/hydration.js");
+    await hydrateSources(container);
+  }, 100);
+
+  showGenericModal({
+    title: `Fontes Investigadas (${sources.length})`,
+    content: container,
+    maxWidth: "850px",
+  });
+}
+
+// Exportação explícita para o escopo Global (essencial para onclick atributos)
+window.showResearchReport = showResearchReport;
+window.showSourcesModal = showSourcesModal;
+
+/**
  * Injeta uma mensagem de sistema invisível no DOM do chat
  * Isso permite que 'extractChatHistory' pegue o contexto para as próximas interações do usuário.
  */
@@ -4626,11 +5214,13 @@ window.addEventListener("online", () => {
 });
 
 window.addEventListener("offline", () => {
-  console.log("[Network] Conexão perdida. Forçando parada de pipelines ativas...");
+  console.log(
+    "[Network] Conexão perdida. Forçando parada de pipelines ativas...",
+  );
   if (window.currentChatAbortController) {
     try {
       window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
-    } catch(e) {}
+    } catch (e) {}
   }
 });
 
@@ -4647,7 +5237,7 @@ window.simulateNetworkDrop = () => {
     configurable: true,
   });
   window.dispatchEvent(new Event("offline"));
-  
+
   if (window.currentChatAbortController) {
     window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
   }
@@ -4667,120 +5257,126 @@ window.simulateNetworkRestore = () => {
  * FUNÇÃO DE TESTE: Simula uma mensagem com arquivos para visualizar o design.
  * Pode ser chamada via console: window.testFileMessage()
  */
-window.testFileMessage = function() {
-    const messagesContainer = document.getElementById("chatMessages");
-    if (!messagesContainer) {
-        console.warn("Container de mensagens não encontrado. Certifique-se de estar no modo chat.");
-        return;
-    }
+window.testFileMessage = function () {
+  const messagesContainer = document.getElementById("chatMessages");
+  if (!messagesContainer) {
+    console.warn(
+      "Container de mensagens não encontrado. Certifique-se de estar no modo chat.",
+    );
+    return;
+  }
 
-    const testMsg = document.createElement("div");
-    testMsg.className = "chat-message chat-message--user visible";
-    
-    const content = document.createElement("div");
-    content.className = "chat-message-content";
-    
-    // Mock de Arquivos usando o novo renderizador
-    const mockFiles = [
-        { name: "Plano_de_Aula_2026.pdf", size: 1250000, type: "application/pdf" },
-        { 
-            name: "brainstorm.png", 
-            size: 450000, 
-            type: "image/png", 
-            url: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&h=200" 
-        }
-    ];
-    
-    const fileCards = mockFiles.map(f => renderFileAttachment(f)).join("");
-    const filesHtml = `
+  const testMsg = document.createElement("div");
+  testMsg.className = "chat-message chat-message--user visible";
+
+  const content = document.createElement("div");
+  content.className = "chat-message-content";
+
+  // Mock de Arquivos usando o novo renderizador
+  const mockFiles = [
+    { name: "Plano_de_Aula_2026.pdf", size: 1250000, type: "application/pdf" },
+    {
+      name: "brainstorm.png",
+      size: 450000,
+      type: "image/png",
+      url: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&h=200",
+    },
+  ];
+
+  const fileCards = mockFiles.map((f) => renderFileAttachment(f)).join("");
+  const filesHtml = `
         <div class="message-files">${fileCards}</div>
         <p>Olá! Este é um teste do novo design de anexos padronizados. Todos os cards têm o mesmo tamanho e comportamento!</p>
     `;
-    
-    content.innerHTML = filesHtml;
-    testMsg.appendChild(content);
-    messagesContainer.appendChild(testMsg);
-    
-    messagesContainer.scrollTo({
-        top: messagesContainer.scrollHeight,
-        behavior: 'smooth'
-    });
-    
-    console.log("Mensagem de teste (Premium) com arquivos adicionada!");
+
+  content.innerHTML = filesHtml;
+  testMsg.appendChild(content);
+  messagesContainer.appendChild(testMsg);
+
+  messagesContainer.scrollTo({
+    top: messagesContainer.scrollHeight,
+    behavior: "smooth",
+  });
+
+  console.log("Mensagem de teste (Premium) com arquivos adicionada!");
 };
 
 /**
  * HELPER: Formata tamanho do arquivo
  */
 function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
 /**
  * HELPER: Abre anexo em nova aba
  */
-window.openAttachment = function(url, name) {
-    if (!url || url === "#") {
-        customAlert(`Visualização não disponível para este arquivo simulado (${name}).`);
-        return;
-    }
-    window.open(url, '_blank');
+window.openAttachment = function (url, name) {
+  if (!url || url === "#") {
+    customAlert(
+      `Visualização não disponível para este arquivo simulado (${name}).`,
+    );
+    return;
+  }
+  window.open(url, "_blank");
 };
 
 /**
  * RENDERER: Gera HTML para cartão de anexo premium
  */
 function renderFileAttachment(file) {
-    const ext = (file.name || "").split(".").pop().toLowerCase();
-    const isImage = file.type?.startsWith("image/") || ["png", "jpg", "jpeg", "webp"].includes(ext);
-    
-    const categories = {
-        pdf: "Documento PDF",
-        doc: "Documento Office",
-        docx: "Documento Office",
-        json: "Dados Estruturados",
-        js: "Script JavaScript",
-        py: "Script Python",
-        txt: "Arquivo de Texto",
-        png: "Imagem PNG",
-        jpg: "Imagem JPEG",
-        jpeg: "Imagem JPEG",
-        webp: "Imagem WebP"
-    };
+  const ext = (file.name || "").split(".").pop().toLowerCase();
+  const isImage =
+    file.type?.startsWith("image/") ||
+    ["png", "jpg", "jpeg", "webp"].includes(ext);
 
-    const icons = {
-        pdf: "📕",
-        doc: "📘",
-        docx: "📘",
-        json: "📦",
-        js: "💛",
-        py: "💙",
-        txt: "📄",
-        png: "🖼️",
-        jpg: "🖼️",
-        jpeg: "🖼️",
-        webp: "🖼️"
-    };
+  const categories = {
+    pdf: "Documento PDF",
+    doc: "Documento Office",
+    docx: "Documento Office",
+    json: "Dados Estruturados",
+    js: "Script JavaScript",
+    py: "Script Python",
+    txt: "Arquivo de Texto",
+    png: "Imagem PNG",
+    jpg: "Imagem JPEG",
+    jpeg: "Imagem JPEG",
+    webp: "Imagem WebP",
+  };
 
-    const category = categories[ext] || "Arquivo";
-    const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : "";
-    
-    let iconContent = `<span class="message-file-icon">${icons[ext] || "📎"}</span>`;
-    let onClickUrl = file.url || "#";
+  const icons = {
+    pdf: "📕",
+    doc: "📘",
+    docx: "📘",
+    json: "📦",
+    js: "💛",
+    py: "💙",
+    txt: "📄",
+    png: "🖼️",
+    jpg: "🖼️",
+    jpeg: "🖼️",
+    webp: "🖼️",
+  };
 
-    // Se for um objeto File real (blob local)
-    if (file instanceof File) {
-        onClickUrl = URL.createObjectURL(file);
-    }
+  const category = categories[ext] || "Arquivo";
+  const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : "";
 
-    if (isImage) {
-        const thumbUrl = onClickUrl !== "#" ? onClickUrl : "logo.png";
-        iconContent = `<img src="${thumbUrl}" alt="${file.name}" class="message-file-preview">`;
-    }
+  let iconContent = `<span class="message-file-icon">${icons[ext] || "📎"}</span>`;
+  let onClickUrl = file.url || "#";
 
-    return `
+  // Se for um objeto File real (blob local)
+  if (file instanceof File) {
+    onClickUrl = URL.createObjectURL(file);
+  }
+
+  if (isImage) {
+    const thumbUrl = onClickUrl !== "#" ? onClickUrl : "logo.png";
+    iconContent = `<img src="${thumbUrl}" alt="${file.name}" class="message-file-preview">`;
+  }
+
+  return `
         <div class="message-file-card" onclick="window.openAttachment('${onClickUrl}', '${(file.name || "Sem nome").replace(/'/g, "\\'")}')">
             <div class="message-file-icon-wrapper">
                 ${iconContent}

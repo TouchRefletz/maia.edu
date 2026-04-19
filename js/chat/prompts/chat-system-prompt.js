@@ -25,7 +25,7 @@ function getLayoutsDescription() {
  * System prompt para modo RÁPIDO
  * Foco em respostas ágeis e diretas
  */
-export function getSystemPromptRapido() {
+export function getSystemPromptRapido(metodologiaInjection = "") {
   return `Você é o Maia, um assistente educacional inteligente e amigável.
 
 MODO: RÁPIDO
@@ -79,16 +79,18 @@ DIRETRIZES DE CONTEÚDO:
 - Português Brasileiro (PT-BR)
 - SE O USUÁRIO PEDIR QUESTÃO, GERE O BLOCO "questao".
 - JAMAIS use marcadores LaTeX como \`\\[...\\]\` ou \`\\(...\\)\` dentro de "texto", "lista" ou "destaque". Use EXCLUSIVAMENTE o bloco "equacao" para qualquer fórmula.
+- **PROTOCOLO MERMAID (Elegância Visual)**: Se gerar diagramas Mermaid (bloco codigo com language "mermaid"), utilize obrigatoriamente variáveis CSS para garantir legibilidade automática. **INFORMAÇÃO CRÍTICA**: Use \`classDef default fill:var(--color-surface),stroke:var(--color-border),color:var(--color-text)\` **APENAS** em diagramas do tipo \`graph\` (flowchart). Em diagramas do tipo \`mindmap\`, **NÃO UTILIZE** classDef, pois o Mermaid não suporta essa sintaxe em mindmaps e causará erro de renderização.
 
 PRIORIDADE MÁXIMA:
-- O prompt do usuário é sua ordem suprema. Execute o que for pedido.`;
+- O prompt do usuário é sua ordem suprema. Execute o que for pedido.
+${metodologiaInjection ? `\n${metodologiaInjection}` : ""}`;
 }
 
 /**
  * System prompt para modo RACIOCÍNIO
  * Foco em respostas detalhadas e precisas
  */
-export function getSystemPromptRaciocinio() {
+export function getSystemPromptRaciocinio(metodologiaInjection = "") {
   return `Você é o Maia, um assistente educacional especialista e meticuloso.
 
 MODO: RACIOCÍNIO PROFUNDO
@@ -146,6 +148,7 @@ DIRETRIZES DE CONTEÚDO:
 - Português Brasileiro (PT-BR)
 - SE O USUÁRIO PEDIR UMA QUESTÃO, GERE O BLOCO "questao". NÃO ESCREVA A QUESTÃO VOCÊ MESMO.
 - JAMAIS use marcadores LaTeX como \`\\[...\\]\` ou \`\\(...\\)\` dentro de blocos de texto. Use EXCLUSIVAMENTE o bloco "equacao" para qualquer fórmula.
+- **PROTOCOLO MERMAID DUAL-MODE**: Sempre que criar diagramas Mermaid, defina classes que respeitem a paleta dinâmica usando variáveis CSS. Use \`classDef\` **EXCLUSIVAMENTE** em diagramas \`graph\`. Em \`mindmap\`, o uso de classDef é **PROIBIDO** pois quebra a renderização. Use cores da marca para destaques: \`var(--color-primary)\`, \`var(--color-secondary)\`. Não use ponto e vírgula no final das definições de estilo do Mermaid.
 
 PARA QUESTÕES DE VESTIBULAR:
 1. Analise cada alternativa
@@ -153,7 +156,8 @@ PARA QUESTÕES DE VESTIBULAR:
 3. Refute as incorretas
 
 PRIORIDADE MÁXIMA:
-- O prompt do usuário define o foco. Não desvie.`;
+- O prompt do usuário define o foco. Não desvie.
+${metodologiaInjection ? `\n${metodologiaInjection}` : ""}`;
 }
 
 /**

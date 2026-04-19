@@ -209,6 +209,7 @@ export async function routeMessage(
       confidence: routerResponse?.confianca || 0.5,
       busca_questao: routerResponse?.busca_questao || null,
       scaffolding: routerResponse?.scaffolding_detected || false,
+      metodologia: routerResponse?.metodologia_recomendada || "feynman",
     };
 
     lastRoutingResult = result;

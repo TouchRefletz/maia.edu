@@ -37,7 +37,7 @@ export default {
 			return new Response(null, { headers: corsHeaders });
 		}
 
-		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf' && url.pathname !== '/search-image') {
+		if (request.method !== 'POST' && url.pathname !== '/proxy-pdf' && url.pathname !== '/search-image' && url.pathname !== '/resolve-link') {
 			return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
 		}
 
@@ -92,6 +92,9 @@ export default {
 
 				case '/canonical-slug':
 					return handleCanonicalSlug(request, env);
+
+				case '/resolve-link':
+					return handleResolveLink(request, env);
 
 				// --- EXTRACTION PIPELINE ---
 				case '/trigger-extraction':
@@ -2533,4 +2536,76 @@ function buildSemanticText(questao, gabarito) {
 	}
 
 	return txtQ + txtS + txtC;
+}
+/**
+ * SERVICE: RESOLVE LINK (Follow redirects and return final URL)
+ */
+async function handleResolveLink(request, env) {
+	const urlObj = new URL(request.url);
+	const targetUrl = urlObj.searchParams.get('url');
+
+	if (!targetUrl) {
+		return new Response(JSON.stringify({ error: 'URL parameter is required' }), {
+			status: 400,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+
+	try {
+		// vertexaisearch links often require following redirects to get to the destination
+		const response = await fetch(targetUrl, {
+			method: 'GET',
+			redirect: 'follow',
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+			},
+		});
+
+		const finalUrl = response.url;
+		const finalHostname = new URL(finalUrl).hostname;
+
+		// Metadata Extraction
+		let title = '';
+		let description = '';
+
+		try {
+			// Pegar apenas os primeiros 50KB para evitar estourar memória com páginas gigantes
+			const reader = response.body.getReader();
+			let { value, done } = await reader.read();
+			let content = '';
+			const decoder = new TextDecoder();
+			
+			// Lemos apenas o suficiente para pegar o <head>
+			if (value) content = decoder.decode(value);
+			reader.cancel(); // Para o download
+
+			// Extração via Regex (Simples e Rápido)
+			const titleMatch = content.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+			if (titleMatch) title = titleMatch[1].trim();
+
+			const descMatch = content.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i) ||
+							 content.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["'][^>]*>/i) ||
+							 content.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([\s\S]*?)["'][^>]*>/i);
+			
+			if (descMatch) description = descMatch[1].trim();
+		} catch (e) {
+			console.warn('[Resolve Meta Error]', e.message);
+		}
+
+		return new Response(JSON.stringify({
+			original: targetUrl,
+			resolved: finalUrl,
+			hostname: finalHostname,
+			title: title || finalHostname,
+			description: description || ''
+		}), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		console.error('[Resolve Link Error]', error);
+		return new Response(JSON.stringify({ error: error.message, original: targetUrl }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
 }

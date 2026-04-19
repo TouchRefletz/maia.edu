@@ -1,7 +1,10 @@
 /**
  * Prompt do Router - gemma-3-27b-it
  * Classifica a complexidade da tarefa do usuário para escolher o modelo adequado
+ * e recomenda uma metodologia pedagógica otimizada.
  */
+
+import { getMetodologiaIds } from "../metodologias-config.js";
 
 export const ROUTER_RESPONSE_SCHEMA = {
   type: "object",
@@ -66,17 +69,56 @@ export const ROUTER_RESPONSE_SCHEMA = {
       required: ["tipo", "conteudo"],
       additionalProperties: false,
     },
+    // NOVO: Recomendação de Metodologia Pedagógica
+    metodologia_recomendada: {
+      type: "string",
+      enum: getMetodologiaIds(),
+      description:
+        "A metodologia pedagógica mais adequada para esta interação. Analise a intenção, domínio e contexto para escolher.",
+    },
+    // NOVO: Necessidade de Pesquisa (Grounding)
+    necessidade_pesquisa: {
+      type: "boolean",
+      description: "True se for necessário realizar pesquisa na internet para evitar alucinações sobre fatos reais, notícias recentes ou temas técnicos profundos.",
+    },
+    instrucao_pesquisa: {
+      type: "string",
+      description: "Instrução específica do que pesquisar caso 'necessidade_pesquisa' seja true (ex: 'Pesquise sobre as últimas atualizações da BNCC').",
+    },
   },
-  required: ["complexidade", "motivo", "confianca"],
+  required: ["complexidade", "motivo", "confianca", "necessidade_pesquisa"],
 };
 
-export const ROUTER_SYSTEM_PROMPT = `Você é um classificador de complexidade de tarefas. 
-Sua função é analisar a mensagem do usuário e determinar se a tarefa exige POUCO ou MUITO esforço cognitivo.
+export const ROUTER_SYSTEM_PROMPT = `Você é um classificador de complexidade de tarefas E um seletor de metodologia pedagógica.
+Sua função é analisar a mensagem do usuário e:
+1. Determinar se a tarefa exige POUCO ou MUITO esforço cognitivo.
+2. Recomendar a melhor METODOLOGIA PEDAGÓGICA para a resposta.
 
-CLASSIFICAÇÃO:
+CLASSIFICAÇÃO DE COMPLEXIDADE:
 - BAIXA: Perguntas simples, factuais, conversas casuais, traduções simples, definições
 - ALTA: Problemas matemáticos, raciocínio lógico, análise de textos, interpretação, questões de vestibular
 - SCAFFOLDING: Intenções de "treino", "aprender passo a passo", "brincar de verdadeiro ou falso" - CRIE O CAMPO 'json_mode_scaffolding': true NO JSON DE RETORNO SE DETECTAR ISSO.
+
+METODOLOGIAS DISPONÍVEIS (escolha UMA para 'metodologia_recomendada'):
+- "feynman": Pedidos de "explique de forma simples", "como se eu fosse criança", temas complexos que precisam de analogias rasteiras.
+- "socratico": Pedidos de "me ajude a entender", "guie meu raciocínio", quando o aluno precisa construir a resposta sozinho.
+- "dual-coding": Temas com muitas interconexões (Biologia, Química, Sistemas), onde diagramas visuais ajudam a compreensão.
+- "elaboracao": Quando o contexto de memória mostra conceitos prévios que podem ser conectados ao novo conteúdo.
+- "metacognicao": Scanner emocional indica dificuldade constante, ou o aluno pede "por que não consigo entender".
+- "pratica-distribuida": Conversas longas onde conceitos antigos precisam ser revisitados.
+- "intercalacao": Pedidos de prática mista, exercícios variados, ou quando o aluno mistura temas na mesma pergunta.
+- "teste-memoria": Pedidos de "me teste", "quiz", "quero praticar", "complete a lacuna".
+- "analogias": Temas abstratos (Economia, Filosofia, Física Teórica) onde analogias extensas facilitam.
+- "mapas-mentais": Pedidos de "resuma", "organize", "mapa mental", ou temas com muitas ramificações.
+- "gamificacao": Aluno aparenta desmotivado no contexto, ou pede "torne divertido", respostas com engajamento lúdico.
+- "pbl": Pedidos de aplicação prática, "use no mundo real", problemas de caso.
+- "storytelling": Matérias de cronologia/decoreba (História, Biologia descritiva), ou pedidos de "me conte como uma história".
+
+HEURÍSTICAS DE SELEÇÃO:
+1. INTENÇÃO: "Me ensine" → feynman. "Me guie" → socratico. "Me teste" → teste-memoria.
+2. DOMÍNIO: Matemática Exata Avançada → dual-coding/intercalacao. História/Biologia → storytelling/mapas-mentais.
+3. CONTEXTO: Dificuldade detectada na memória → elaboracao/metacognicao. Aluno motivado → gamificacao.
+4. DEFAULT: Se nada se encaixar claramente, use "feynman" (abordagem segura e universal).
 
 EXEMPLOS BAIXA:
 - "Qual a capital do Brasil?"
@@ -102,11 +144,19 @@ REGRAS DE BUSCA (CRÍTICO):
 2. **QUERY LIMPA**: O campo 'conteudo' da busca deve conter APENAS PALAVRAS-CHAVE (Ex: "Ondulatória", "Função Afim"). NUNCA coloque a pergunta inteira ou frases longas.
 3. **FILTROS**: Use Apenas 'institution', 'year', 'subject' se o usuário especificar.
 
+REGRAS DE PESQUISA (PARA 'necessidade_pesquisa'):
+1. **Fatos Reais**: Perguntas sobre quem é alguém, datas históricas, acontecimentos atuais, ou qualquer coisa que mude com o tempo.
+2. **Temas Técnicos**: Quando o assunto é muito específico e exige precisão documental (leis, normas de saúde, artigos científicos).
+3. **Prevenção de Alucinação**: Se o usuário pedir para você ensinar algo que você não "domina" 100% com dados internos, PESQUISE.
+4. **Instrução**: No campo 'instrucao_pesquisa', escreva uma diretiva curta para a IA de busca (ex: "Buscar biografia de X", "Regras atuais do Y").
+
 REGRAS GERAIS:
 1. Se houver anexos de imagem/PDF, sempre classifique como ALTA
 2. Se mencionar "questão", "exercício", "prova", "vestibular", classifique como ALTA
 3. Se pedido explícito de "Verdadeiro ou Falso" ou "Treino interativo", classifique como ALTA mas adicione a flag: "scaffolding_detected": true
 4. Na dúvida, classifique como ALTA (melhor ser conservador)
+5. SEMPRE preencha 'metodologia_recomendada' com uma das opções listadas acima.
+6. SEMPRE avalie se precisa de pesquisa. Se for algo puramente lógico ou criativo, mantenha como false.
 
 FORMATO DE RESPOSTA (OBRIGATÓRIO):
 Responda APENAS com um JSON válido seguindo este schema, sem markdown ou explicações adicionais fora do JSON:

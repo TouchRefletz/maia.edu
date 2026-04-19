@@ -334,6 +334,31 @@ export const ChatStorageService = {
     }
   },
 
+  /**
+   * Adiciona múltiplas mensagens de uma vez.
+   * Útil para consolidar logs do pipeline.
+   */
+  async addMessages(chatId, messages) {
+    if (!Array.isArray(messages) || messages.length === 0) return;
+
+    const chat = await this.getChat(chatId);
+    if (chat) {
+      messages.forEach((msg) => {
+        chat.messages.push({
+          role: msg.role,
+          content: msg.content,
+          attachments: msg.attachments || [],
+          timestamp: msg.timestamp || Date.now(),
+        });
+      });
+      chat.updatedAt = Date.now();
+      await this.saveChat(chat);
+    } else {
+      console.warn("Tentativa de adicionar msgs a chat expirado ou inexistente");
+    }
+  },
+
+
   async addScaffoldingStep(chatId, stepIndex, stepData) {
     const chat = await this.getChat(chatId);
     if (chat) {

@@ -1,9 +1,13 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
+import {
+  gerarConteudoEmJSONComImagemStream,
+  realizarPesquisaGeral,
+} from "../api/worker.js";
 import * as MemoryService from "../services/memory-service.js"; // Import MemoryService
 import { findBestQuestion } from "../services/question-service.js"; // Import question service
 import { fileToBase64 } from "../utils/file-utils.js";
 import { parseStreamedJSON } from "../utils/json-stream-parser.js";
 import { getGenerationParams, getModeConfig } from "./config.js";
+import { getMetodologia } from "./metodologias-config.js";
 import {
   getSystemPromptRaciocinio,
   getSystemPromptRapido,
@@ -17,6 +21,8 @@ import {
   triggerQuestionExtraction,
 } from "./services/gap-detector.js"; // Import Gap Detector
 import { ChatStorageService } from "../services/chat-storage.js"; // Import Persistence Service
+import { validateStudyContext } from "./services/guardrail-service.js"; // Import Guardrail Semântico
+
 
 /**
  * NORMALIZAÇÃO (STAGE 3 / TRANSFORMER)
@@ -103,6 +109,40 @@ export async function runChatPipeline(
 ) {
   let executionMode = selectedMode;
   try {
+  // 0. === GUARDRAIL SEMÂNTICO DE ESCOPO ===
+  if (context.onProcessingStatus) {
+    context.onProcessingStatus("loading", "Validando alinhamento semântico");
+  }
+
+  const guardrailValidation = await validateStudyContext(message);
+
+  if (!guardrailValidation.isValid) {
+    const reasonMap = {
+      low_vector_score: "Score vetorial insuficiente",
+      chrome_ai_rejected: "Juiz Local (Chrome AI) detectou off-topic",
+      transformers_rejected: "Juiz Local (Transformers.js) detectou off-topic",
+    };
+
+    const reasonText = reasonMap[guardrailValidation.reason] || "Assunto fora do escopo educacional";
+    console.warn(`[Pipeline] ⛔ Guardrail ativado: ${reasonText} (Score: ${guardrailValidation.score?.toFixed(3) || "N/A"})`);
+    
+    const rejectedResponse = {
+      layout: [{ tipo: "destaque", size: "full" }],
+      conteudo: [{
+        tipo: "destaque",
+        conteudo: `⛔ **Acesso Bloqueado pelo Guardrail**\n\nIdentifiquei que sua mensagem não possui alinhamento com o domínio de estudos desta IA.\n\n- **Motivo técnico:** ${reasonText}\n- **Score de Confiança:** \`${guardrailValidation.score?.toFixed(3) || "0.000"}\`\n\nPor favor, utilize o chat exclusivamente para tópicos acadêmicos (Matemática, Física, História, etc).`
+      }]
+    };
+
+    if (context.onStream) {
+      context.onStream(rejectedResponse);
+    }
+    if (context.onComplete) {
+      context.onComplete({ mode: "blocked", response: rejectedResponse });
+    }
+    return { success: false, mode: "blocked", reason: guardrailValidation.reason, score: guardrailValidation.score };
+  }
+
   // 1. === PERSISTENCE & INIT ===
   const oldActive = document.getElementById("stepsAccordion");
   if (oldActive) {
@@ -112,6 +152,9 @@ export async function runChatPipeline(
   // Gerencia criação de chat se não existir ID
   let chatId = context.chatId;
   let isNewChat = false;
+
+  // ACUMULADOR DE EVENTOS DO TURNO (Consolidado no final para evitar Race Conditions)
+  const consolidatedTurnMessages = [];
 
   if (!chatId) {
     try {
@@ -136,6 +179,7 @@ export async function runChatPipeline(
       console.warn("[Pipeline] Falha ao salvar mensagem do user:", err);
     }
   }
+
 
   // 2. === MEMORY SYSTEM INTEGRATION (PRE-ROUTING) ===
   // Buscamos memória ANTES do router para dar contexto à decisão
@@ -188,19 +232,19 @@ export async function runChatPipeline(
           };
           context.onProcessingStatus("memory_found", memoryContent);
 
-          // [PERSISTENCE] Salvar evento de memória no histórico
-          if (chatId) {
-            ChatStorageService.addMessage(chatId, "system", {
+          // [PERSISTENCE] Acumular evento de memória
+          consolidatedTurnMessages.push({
+            role: "system",
+            content: {
               type: "memory_found",
               ...memoryContent,
-            }).catch((err) =>
-              console.warn("[Pipeline] Erro ao salvar memória:", err),
-            );
-          }
+            },
+          });
         }
       }
     }
   } catch (err) {
+
     if (err.name === "AbortError") throw err; // Propagate abort
     console.warn("[Pipeline] ⚠️ Erro no sistema de memória:", err);
   }
@@ -228,6 +272,27 @@ export async function runChatPipeline(
     },
   );
   executionMode = finalMode;
+
+  // 2b. === RESOLVE METODOLOGIA PEDAGÓGICA ===
+  const userMetodologia = context.selectedMetodologia || "automatico";
+  let finalMetodologiaId;
+
+  if (userMetodologia !== "automatico") {
+    // Usuário escolheu manualmente — usar diretamente
+    finalMetodologiaId = userMetodologia;
+    console.log(`[Pipeline] 📖 Metodologia manual: ${finalMetodologiaId}`);
+  } else if (wasRouted && routerResult?.metodologia) {
+    // Modo automático — usar recomendação do router
+    finalMetodologiaId = routerResult.metodologia;
+    console.log(`[Pipeline] 📖 Metodologia automática (Router): ${finalMetodologiaId}`);
+  } else {
+    // Fallback
+    finalMetodologiaId = "feynman";
+    console.log(`[Pipeline] 📖 Metodologia fallback: feynman`);
+  }
+
+  const metodologiaObj = getMetodologia(finalMetodologiaId);
+  const metodologiaInjection = metodologiaObj?.systemPromptInjection || "";
 
   // LOGICA SCAFFOLDING
   if (finalMode === "scaffolding") {
@@ -315,6 +380,78 @@ export async function runChatPipeline(
     }
   }
 
+  // 2c. === RESEARCH STAGE (DEEP SEARCH) ===
+  const needsResearch = window.researchEnabled || (wasRouted && routerResult?.necessidade_pesquisa);
+  let searchSources = [];
+  let searchReport = "";
+
+  if (needsResearch) {
+    console.log("[Pipeline] 🔍 Ativando Pesquisa Profunda...");
+    if (context.onProcessingStatus) {
+      window._currentChatPhase = "research";
+      context.onProcessingStatus("loading", "Realizando pesquisa aprofundada");
+    }
+
+    try {
+      const searchQuery = routerResult?.instrucao_pesquisa || message;
+      
+      // Instrução específica para o Agente de Pesquisa (Grounding)
+      const researcherPrompt = `Você é um Pesquisador Especializado da Maia.edu. 
+Sua tarefa é realizar uma pesquisa profunda e gerar um relatório técnico fundamentado sobre o tema abaixo.
+
+REGRAS DE OURO:
+1. RESPONDA SOMENTE EM MARKDOWN PURO: Utilize títulos, listas e negrito para organizar o conhecimento de forma didática e legível.
+2. SEM FIRULAS TÉCNICAS: É terminantemente PROIBIDO o uso de diagramas Mermaid, tags HTML, scripts ou qualquer elemento visual que não seja Markdown padrão. 
+3. CITAÇÕES DIRETAS E CLARAS: Você OBRIGATORIAMENTE deve usar expressões como "De acordo com o site X", "Segundo a instituição Y", "Dados do portal Z indicam que..." ao longo do texto. Isso permite que a IA que lerá seu relatório saiba exatamente quem disse o quê.
+4. OBJETIVIDADE: Seja denso em informações e evite introduções protocolares.
+
+TEMA DA PESQUISA: ${searchQuery}`;
+
+      const searchResult = await realizarPesquisaGeral(
+        researcherPrompt,
+        attachments,
+        {
+          onStatus: context.onProcessingStatus,
+          onThought: context.onThought,
+          signal: context.signal,
+        }
+      );
+
+      searchReport = searchResult.report;
+      searchSources = searchResult.sources || [];
+
+      if (searchReport) {
+        additionalContextMessage += `\n\n--- INÍCIO DO CONHECIMENTO PESQUISADO (Uso Obrigatório) ---\n${searchReport}\n--- FIM DO CONHECIMENTO ---\n`;
+        additionalContextMessage += `\n[SISTEMA]: Você acaba de realizar uma pesquisa profunda. Fale sobre o assunto com TOTAL AUTORIDADE, incorporando os dados acima como seu próprio conhecimento especializado. 
+JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou "o relatório aponta". 
+Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex: "O MEC estabelece que...", "Dados da NASA confirmam...", "A Wikipedia registra que...") para passar credibilidade. 
+Sua resposta deve ser fluida, natural e baseada em evidências.`;
+        
+        if (context.onProcessingStatus) {
+          context.onProcessingStatus("research_done", {
+            report: searchReport,
+            sources: searchSources
+          });
+          
+          if (chatId) {
+            consolidatedTurnMessages.push({
+              role: "system",
+              content: {
+                type: "research_results",
+                report: searchReport,
+                sources: searchSources,
+              },
+            });
+          }
+        }
+      }
+    } catch (err) {
+
+      if (err.name === "AbortError") throw err;
+      console.warn("[Pipeline] ⚠️ Falha na etapa de pesquisa profunda:", err);
+    }
+  }
+
   const finalMessage = message + additionalContextMessage;
 
   // Notifica sobre mudança de modo (se foi roteado)
@@ -324,18 +461,22 @@ export async function runChatPipeline(
       reason: routerResult?.reason,
       confidence: routerResult?.confidence,
       routerResult: routerResult, // Envia tudo explicito
+      metodologia: finalMetodologiaId,
+      metodologiaLabel: metodologiaObj?.label || finalMetodologiaId,
     };
 
     context.onModeDecided(modeData);
 
-    // [PERSISTENCE] Salvar evento de decisão de modo
-    if (chatId) {
-      ChatStorageService.addMessage(chatId, "system", {
+    // [PERSISTENCE] Acumular evento de decisão de modo
+    consolidatedTurnMessages.push({
+      role: "system",
+      content: {
         type: "mode_selected",
         ...modeData,
-      }).catch((err) => console.warn("[Pipeline] Erro ao salvar modo:", err));
-    }
+      },
+    });
   }
+
 
   // Executa pipeline específico
   let systemPrompt;
@@ -345,10 +486,10 @@ export async function runChatPipeline(
     systemPrompt = getSystemPromptScaffolding();
     configMode = "scaffolding";
   } else if (finalMode === "raciocinio") {
-    systemPrompt = getSystemPromptRaciocinio();
+    systemPrompt = getSystemPromptRaciocinio(metodologiaInjection);
     configMode = "raciocinio";
   } else {
-    systemPrompt = getSystemPromptRapido();
+    systemPrompt = getSystemPromptRapido(metodologiaInjection);
     configMode = "rapido";
   }
 
@@ -387,14 +528,28 @@ export async function runChatPipeline(
       finalContent._thoughts = accumulatedThoughts;
     }
 
+    // Anexar dados de pesquisa se houver
+    if (searchSources && searchSources.length > 0) {
+      finalContent.sources = searchSources;
+      finalContent.report = searchReport;
+    }
+
     if (context.onComplete) {
       context.onComplete({ mode: finalMode, response: finalContent });
     }
 
-    // === PERSISTENCE: SAVE AI RESPONSE ===
+    // === PERSISTENCE: CONSOLIDATED SAVE ===
     if (chatId) {
-      ChatStorageService.addMessage(chatId, "model", finalContent).catch(
-        (err) => console.warn("[Pipeline] Erro ao salvar resposta da IA:", err),
+      // Adiciona a resposta final da IA ao lote de mensagens do turno
+      consolidatedTurnMessages.push({
+        role: "model",
+        content: finalContent,
+      });
+
+      // Salva tudo de uma vez no banco
+      ChatStorageService.addMessages(chatId, consolidatedTurnMessages).catch(
+        (err) =>
+          console.warn("[Pipeline] Erro ao salvar histórico consolidado:", err),
       );
 
       // === AUTO-TITLE GENERATION (If New Chat) ===
@@ -412,6 +567,7 @@ export async function runChatPipeline(
           );
       }
     }
+
 
     // === MEMORY EXTRACTION (ASYNC) ===
     // Notify UI that memory saving is starting

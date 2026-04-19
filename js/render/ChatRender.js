@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { safeMarkdown } from "../normalize/primitives.js";
+import { resolveCssVarsInChart } from "./hydration.js";
 // --- HELPER DE SANITIZAÇÃO ---
 const sanitizeContent = (content) => {
   return content
@@ -39,12 +40,16 @@ const ChatContentBlockRenderer = ({ block, className = "" }) => {
   // 2. Conteúdo Literal Padrão
   const conteudoRaw = block.conteudo ? String(block.conteudo) : "";
   const conteudoSafe = sanitizeContent(conteudoRaw);
-  const criarMarkdown = (classeExtra) =>
-    React.createElement("div", {
-      className: `chat-block ${classeExtra} markdown-content ${className}`,
-      "data-raw": conteudoSafe,
-      dangerouslySetInnerHTML: { __html: safeMarkdown(conteudoRaw) },
-    });
+  const criarMarkdown = (classeExtra) => {
+     // Aprimoramento: Resolve variáveis CSS no conteúdo Markdown também
+     const conteudoProcessado = resolveCssVarsInChart(conteudoRaw);
+     return React.createElement("div", {
+       className: `chat-block ${classeExtra} markdown-content ${className}`,
+       "data-raw": sanitizeContent(conteudoRaw),
+       dangerouslySetInnerHTML: { __html: safeMarkdown(conteudoProcessado) },
+     });
+
+  };
   switch (tipo) {
     case "texto":
       return criarMarkdown("chat-text");
@@ -69,10 +74,30 @@ const ChatContentBlockRenderer = ({ block, className = "" }) => {
         `\\[${conteudoRaw}\\]`,
       );
     case "codigo":
+      // Mermaid: render como placeholder para hidratação posterior
+      if (block.props?.language === "mermaid") {
+        return React.createElement("div", {
+          className: `chat-block chat-mermaid-placeholder ${className}`,
+          "data-chart": conteudoRaw,
+          style: {
+            padding: "20px",
+            border: "1px dashed var(--color-border)",
+            borderRadius: "12px",
+            textAlign: "center",
+            color: "var(--color-text-secondary)",
+            background: "rgba(var(--color-surface-rgb), 0.3)",
+            margin: "10px 0",
+            minHeight: "80px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          },
+        }, "📊 Carregando diagrama...");
+      }
       return React.createElement(
         "pre",
         { className: `chat-block chat-codigo ${className}` },
-        React.createElement("code", null, conteudoRaw),
+        React.createElement("code", { className: block.props?.language ? `language-${block.props.language}` : "" }, conteudoRaw),
       );
     case "separador":
       return React.createElement("div", {
@@ -371,8 +396,67 @@ const ChatLayoutRenderer = ({ data }) => {
     ),
   );
 };
+// --- COMPONENTE: RODAPÉ DE FONTES (SOURCES FOOTER) ---
+// --- COMPONENTE: RODAPÉ DE FONTES (SOURCES FOOTER) ---
+const SourcesFooter = ({ sources, report }) => {
+  if (!sources || sources.length === 0) return null;
+
+  return React.createElement(
+    "div",
+    { 
+      className: "chat-sources-container",
+      "data-sources": encodeURIComponent(JSON.stringify(sources)),
+      "data-report": report ? encodeURIComponent(report) : ""
+    },
+    // Compact View (Favicons) - Only this is shown in the chat stream
+    React.createElement(
+      "div",
+      { 
+        className: "chat-sources-footer-compact",
+        "data-onclick": "window.showSourcesModal(this)",
+        "data-sources": encodeURIComponent(JSON.stringify(sources)),
+        "data-report": report ? encodeURIComponent(report) : ""
+      },
+      React.createElement(
+        "div",
+        { className: "chat-sources-compact-inner" },
+        React.createElement(
+          "div",
+          { className: "chat-sources-stacked-favicons" },
+          sources.slice(0, 3).map((src, idx) => {
+            const urlObj = src.uri ? new URL(src.uri) : { hostname: "Fonte externa" };
+            const faviconUrl = src.uri ? `https://icons.duckduckgo.com/ip3/${urlObj.hostname}.ico` : null;
+            if (!faviconUrl) return null;
+            return React.createElement("a", { 
+              key: idx,
+              href: src.uri, 
+              target: "_blank",
+              className: `chat-source-stacked-link stack-${idx}`,
+              "data-onclick": "event.stopPropagation()",
+              "title": src.title || urlObj.hostname
+            }, React.createElement("img", { 
+              src: faviconUrl, 
+              className: "chat-source-stacked-icon", 
+              alt: "",
+              "data-onerror": `this.onerror=function(){this.parentElement.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64';`
+            }));
+          })
+        ),
+        React.createElement("span", { className: "chat-sources-label" }, `${sources.length} fontes pesquisadas`)
+      )
+    )
+  );
+};
+
+
+
 // --- FUNÇÃO DE EXPORTAÇÃO ---
 export const generateChatHtmlString = (data) => {
+  // Se for apenas string, converte para objeto básico
+  if (typeof data === "string") {
+    data = { layout: { id: "linear" }, conteudo: [data] };
+  }
+
   // Suporte a múltiplas seções (Novo Schema)
   if (data?.sections && Array.isArray(data.sections)) {
     const normalizedSections = data.sections.map((section) =>
@@ -381,28 +465,47 @@ export const generateChatHtmlString = (data) => {
         : { layout: { id: "linear" }, conteudo: Array.isArray(section) ? section : [section] }
     );
 
-    return ReactDOMServer.renderToStaticMarkup(
+    const html = ReactDOMServer.renderToStaticMarkup(
       React.createElement(
         "div",
         { className: "chat-response-sections" },
         normalizedSections.map((section, idx) =>
           React.createElement(ChatLayoutRenderer, { key: idx, data: section }),
         ),
+        React.createElement(SourcesFooter, { 
+          sources: data.sources || data.fontes_externas, 
+          report: data.report || data.texto_referencia 
+        })
       ),
     );
+
+    return html
+      .replace(/data-onclick="/g, 'onclick="')
+      .replace(/data-onerror="/g, 'onerror="');
   }
 
-  // Se não tiver estrutura de layout, assume que é texto simples ou markdown direto
-  if (!data?.layout && typeof data === "string") {
-    return safeMarkdown(data);
-  }
 
   // Fallback para linear se layout não definido mas tem conteudo
-  if (data && !data.layout && Array.isArray(data.conteudo)) {
-    data.layout = { id: "linear" };
+  if (data && !data.layout && (Array.isArray(data.conteudo) || typeof data === "object")) {
+     if (!data.layout) data.layout = { id: "linear" };
   }
 
-  return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(ChatLayoutRenderer, { data: data }),
+  // Renderização Padrão (Linear ou Layout Único)
+  const html = ReactDOMServer.renderToStaticMarkup(
+    React.createElement(
+      "div",
+      { className: "chat-response-wrapper" },
+      React.createElement(ChatLayoutRenderer, { data: data }),
+      React.createElement(SourcesFooter, { 
+        sources: data.sources || data.fontes_externas, 
+        report: data.report || data.texto_referencia 
+      })
+    )
   );
+
+  // Limpeza de atributos para silenciar avisos do React mas manter funcionalidade HTML
+  return html
+    .replace(/data-onclick="/g, 'onclick="')
+    .replace(/data-onerror="/g, 'onerror="');
 };
+

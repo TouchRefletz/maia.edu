@@ -30,6 +30,9 @@ export function setTheme(theme) {
   document.documentElement.setAttribute("data-color-scheme", theme);
   localStorage.setItem(THEME_KEY, theme);
   updateThemeIcon(theme);
+  
+  // Notifica interessados (ex: Mermaid renderer) que o tema mudou
+  window.dispatchEvent(new CustomEvent("maia-theme-change", { detail: { theme } }));
 }
 
 /**

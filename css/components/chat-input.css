@@ -455,6 +455,230 @@
 }
 
 /* =========================================
+   METODOLOGIA — Sub-menu Cascading
+   ========================================= */
+
+.metodologia-trigger {
+  cursor: pointer;
+}
+
+.metodologia-trigger:hover {
+  background: var(--color-bg-1);
+}
+
+.metodologia-submenu {
+  position: absolute;
+  left: calc(100% + 6px);
+  bottom: -10px;
+  top: auto;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  padding: 8px;
+  min-width: 260px;
+  max-height: 420px;
+  overflow-y: auto;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 300;
+  pointer-events: none;
+}
+
+.metodologia-submenu.active {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+/* Scrollbar sutil */
+.metodologia-submenu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.metodologia-submenu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.metodologia-submenu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.metodologia-category {
+  margin-bottom: 4px;
+}
+
+.metodologia-category:last-child {
+  margin-bottom: 0;
+}
+
+.metodologia-category-header {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  padding: 8px 10px 4px 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metodologia-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.metodologia-item:hover {
+  background: var(--color-bg-1);
+  transform: translateX(2px);
+}
+
+.metodologia-item:active {
+  transform: scale(0.97);
+}
+
+.metodologia-item-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.metodologia-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.metodologia-item-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.metodologia-item-desc {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Dropup: sub-menu abre para cima em modo conversa */
+.maia-ai-container.chat-mode .metodologia-submenu {
+  top: auto;
+  bottom: 0;
+}
+
+/* =========================================
+   METODOLOGIA — Chip Gemini Canvas
+   ========================================= */
+
+.metodologia-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg,
+      rgba(var(--color-primary-rgb), 0.12) 0%,
+      rgba(var(--color-primary-rgb), 0.06) 100%);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+  border-radius: 5px;
+  padding: 4px 8px 4px 10px;
+  font-family: var(--font-family-base);
+  cursor: default;
+  transition: all 0.2s ease;
+  animation: chipSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.metodologia-chip:hover {
+  border-color: rgba(var(--color-primary-rgb), 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.metodologia-chip-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.metodologia-chip-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.metodologia-chip-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.metodologia-chip-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text);
+  transform: scale(1.1);
+}
+
+@keyframes chipSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.metodologia-chip.chip-enter {
+  animation: chipSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =========================================
+   MERMAID — Diagramas Renderizados
+   ========================================= */
+
+.chat-mermaid-rendered {
+  margin: 12px 0;
+  padding: 16px;
+  background: rgba(var(--color-surface-rgb), 0.4);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.chat-mermaid-rendered svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.chat-mermaid-placeholder {
+  margin: 12px 0;
+}
+
+/* =========================================
    CHAT MODE - Modo Conversa
    ========================================= */
 
@@ -805,7 +1029,7 @@
   padding: 14px 18px;
   min-width: 260px;
   max-width: 320px;
-  box-shadow: 
+  box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.1),
     0 2px 4px rgba(0, 0, 0, 0.05),
     inset 0 1px 0px rgba(255, 255, 255, 0.05);
@@ -819,7 +1043,7 @@
   background: rgba(var(--color-surface-rgb), 0.6);
   border-color: rgba(var(--color-primary-rgb), 0.4);
   transform: translateY(-2px);
-  box-shadow: 
+  box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.1);
 }
@@ -844,7 +1068,7 @@
 
 .message-file-icon {
   font-size: 1.5rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .message-file-info {
@@ -895,7 +1119,7 @@
 :root:not([data-color-scheme='dark']) .message-file-card {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(var(--color-primary-rgb), 0.1);
-  box-shadow: 
+  box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.1),
     0 6px 12px rgba(0, 0, 0, 0.05);
 }
