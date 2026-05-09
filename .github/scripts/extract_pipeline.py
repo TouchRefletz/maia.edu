@@ -28,7 +28,7 @@ from google import genai
 from google.genai import types
 
 # ─── Configuration ────────────────────────────────────────────────
-WORKER_URL = os.environ.get("WORKER_URL", "https://maia-api.jfrfrfr.workers.dev")
+WORKER_URL = os.environ.get("WORKER_URL", "https://maia-api-worker.willian-campos-ismart.workers.dev")
 GEMINI_KEY = os.environ["GOOGLE_GENAI_API_KEY"]
 SLUG = os.environ["SLUG"]
 MANIFEST_PATH = os.environ.get("MANIFEST_PATH", "work/manifest.json")

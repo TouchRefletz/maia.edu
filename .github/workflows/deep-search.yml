@@ -933,6 +933,29 @@ jobs:
             fi
           ) 2>&1 | python3 logger.py
 
+      - name: Trigger Question Extraction (if requested)
+        if: success() && github.event.client_payload.extract_after == true
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          SLUG: ${{ steps.deep_search.outputs.final_slug }}
+          QUERY: ${{ github.event.client_payload.query || inputs.query }}
+          INSTITUTION: ${{ github.event.client_payload.institution || '' }}
+          SUBJECT: ${{ github.event.client_payload.subject || '' }}
+        run: |
+          echo "🔄 Triggering question extraction for slug: $SLUG"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://api.github.com/repos/${{ github.repository }}/dispatches" \
+            -H "Authorization: Bearer $GH_PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            -d "{\"event_type\": \"extract-questions\", \"client_payload\": {\"slug\": \"$SLUG\", \"query\": \"$QUERY\", \"institution\": \"$INSTITUTION\", \"subject\": \"$SUBJECT\"}}")
+
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Extraction workflow dispatched successfully (HTTP $HTTP_CODE)"
+          else
+            echo "⚠️ Failed to dispatch extraction workflow (HTTP $HTTP_CODE)"
+          fi
+
       - name: Notify Completion
         if: ${{ always() }}
         env:

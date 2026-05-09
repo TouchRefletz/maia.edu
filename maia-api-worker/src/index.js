@@ -2337,8 +2337,11 @@ async function handleExtractAndSave(request, env) {
 		const idQuestao = questao.identificacao || `Q${page_num || 0}_${Date.now().toString(36)}`;
 
 		// Base64URL ID (matching existing format)
-		const rawId = `${chaveProva} – ${idQuestao}`;
-		const pineconeId = btoa(rawId).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+		const rawId = `${chaveProva} - ${idQuestao}`;
+		// Use TextEncoder to safely handle Unicode (accented chars in idQuestao)
+		const rawBytes = new TextEncoder().encode(rawId);
+		const binString = Array.from(rawBytes, (byte) => String.fromCodePoint(byte)).join('');
+		const pineconeId = btoa(binString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 		// 4. Build full JSON for Pinecone metadata
 		const fullJson = JSON.stringify({
@@ -2444,7 +2447,7 @@ async function handleExtractAndSave(request, env) {
  * Combines: construirTextoQuestao + construirTextoSolucao + construirTextoComplexidade
  */
 function buildSemanticText(questao, gabarito) {
-	const parts = [];
+	let txtQ = '';
 
 	// Contexto (Matéria e Keywords)
 	if (questao.materias_possiveis && Array.isArray(questao.materias_possiveis)) {
