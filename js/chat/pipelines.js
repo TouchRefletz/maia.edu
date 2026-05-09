@@ -404,6 +404,7 @@ REGRAS DE OURO:
 2. SEM FIRULAS TÉCNICAS: É terminantemente PROIBIDO o uso de diagramas Mermaid, tags HTML, scripts ou qualquer elemento visual que não seja Markdown padrão. 
 3. CITAÇÕES DIRETAS E CLARAS: Você OBRIGATORIAMENTE deve usar expressões como "De acordo com o site X", "Segundo a instituição Y", "Dados do portal Z indicam que..." ao longo do texto. Isso permite que a IA que lerá seu relatório saiba exatamente quem disse o quê.
 4. OBJETIVIDADE: Seja denso em informações e evite introduções protocolares.
+5. FONTES ACADÊMICAS E CONFIÁVEIS: Por se tratar de material para vestibular e estudo denso, priorize EXCLUSIVAMENTE fontes de alto rigor técnico (sites de universidades, Scielo, MEC, INEP, grandes cursinhos). Evite blogs genéricos ou respostas não validadas academicamente.
 
 TEMA DA PESQUISA: ${searchQuery}`;
 
