@@ -351,7 +351,7 @@ export default withMermaid(
     ],
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/maia-edu/maia.api" },
+      { icon: "github", link: "https://github.com/TouchRefletz/maia.edu" },
     ],
 
     search: {
@@ -366,7 +366,7 @@ export default withMermaid(
 
     editLink: {
       pattern:
-        "https://github.com/maia-edu/maia.api/edit/main/docs/:path",
+        "https://github.com/TouchRefletz/maia.edu/edit/main/docs/:path",
       text: "Editar esta página no GitHub",
     },
   },

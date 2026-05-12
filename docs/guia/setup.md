@@ -16,7 +16,7 @@ Antes de iniciar, certifique-se de ter instalado:
 ## 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/maia-edu/maia.api.git
+git clone https://github.com/TouchRefletz/maia.edu.git
 cd maia.api
 ```
 

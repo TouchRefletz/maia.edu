@@ -228,7 +228,7 @@ Atualmente o projeto não possui uma suite de testes automatizados. Testamos man
 Toda a documentação neste site foi **gerada por IA** com base no código-fonte. Se encontrar erros:
 
 1. **Clique em "📋 Reportar Erro"** no topo de qualquer página
-2. Ou abra uma issue manualmente em `https://github.com/maia-edu/maia.api/issues`
+2. Ou abra uma issue manualmente em `https://github.com/TouchRefletz/maia.edu/issues`
 3. Use a label `documentation` + `ai-generated`
 
 ### Revisão de Documentação
