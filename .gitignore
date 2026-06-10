@@ -10,3 +10,5 @@ event.json
 act-artifacts/
 docs/.vitepress/dist
 docs/.vitepress/cache
+__pycache__/
+*.pyc

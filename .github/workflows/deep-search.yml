@@ -948,7 +948,7 @@ jobs:
             -H "Authorization: Bearer $GH_PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Content-Type: application/json" \
-            -d "{\"event_type\": \"extract-questions\", \"client_payload\": {\"slug\": \"$SLUG\", \"query\": \"$QUERY\", \"institution\": \"$INSTITUTION\", \"subject\": \"$SUBJECT\"}}")
+            -d "{\"event_type\": \"extract-questions\", \"client_payload\": {\"slug\": \"$SLUG\", \"query\": \"$QUERY\", \"institution\": \"$INSTITUTION\", \"subject\": \"$SUBJECT\", \"region_model\": \"${{ github.event.client_payload.region_model || '' }}\", \"extract_model\": \"${{ github.event.client_payload.extract_model || '' }}\"}}")
 
           if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Extraction workflow dispatched successfully (HTTP $HTTP_CODE)"

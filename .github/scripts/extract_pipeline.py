@@ -35,6 +35,8 @@ MANIFEST_PATH = os.environ.get("MANIFEST_PATH", "work/manifest.json")
 QUERY = os.environ.get("QUERY", "")
 INSTITUTION = os.environ.get("INSTITUTION", "")
 SUBJECT = os.environ.get("SUBJECT", "")
+REGION_MODEL = os.environ.get("REGION_MODEL", "models/gemini-3-flash-preview")
+EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "models/gemini-3-flash-preview")
 
 # Rate limit config
 MAX_RETRIES = 3
@@ -350,7 +352,7 @@ def detect_regions(page_img: Image.Image):
     b64 = image_to_base64(page_img)
 
     response = call_gemini_with_retry(
-        model="models/gemini-3-flash-preview",
+        model=REGION_MODEL,
         contents=[
             types.Content(
                 parts=[
@@ -375,7 +377,7 @@ def extract_question(cropped_img: Image.Image):
     b64 = image_to_base64(cropped_img)
 
     response = call_gemini_with_retry(
-        model="models/gemini-3-flash-preview",
+        model=EXTRACT_MODEL,
         contents=[
             types.Content(
                 parts=[
@@ -414,7 +416,7 @@ def search_gabarito(question_json: dict):
         resp = requests.post(f"{WORKER_URL}/search", json={
             "texto": f"""Você é um corretor de questões. Considerando a questão apresentada em JSON a seguir: {json.dumps(question_json, ensure_ascii=False)}, preencha o JSON a ser enviado com as devidas informações. SEMPRE CONSIDERE A QUESTÃO COMO EXISTENTE E OFICIAL.""",
             "query": query_text,
-            "model": "models/gemini-3-flash-preview",
+            "model": EXTRACT_MODEL,
             "schema": _get_gabarito_schema(),
             "jsonMode": True,
         }, timeout=120)
@@ -674,11 +676,11 @@ def main():
                     raw_gemini = current_json
                     
                     if current_json.get("regions"):
-                        print(f"    �️‍♂️ Auditing {len(current_json['regions'])} regions...")
+                        print(f"    ️‍♂️ Auditing {len(current_json['regions'])} regions...")
                         # 2. Auditoria (Review)
                         b64 = image_to_base64(page_img)
                         review_response = call_gemini_with_retry(
-                            model="models/gemini-3-flash-preview",
+                            model=REGION_MODEL,
                             contents=[
                                 types.Content(
                                     parts=[
@@ -705,7 +707,7 @@ def main():
                             
                             # 3. Correção (Correction)
                             correction_response = call_gemini_with_retry(
-                                model="models/gemini-3-flash-preview",
+                                model=REGION_MODEL,
                                 contents=[
                                     types.Content(
                                         parts=[

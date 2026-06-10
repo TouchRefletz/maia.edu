@@ -2105,7 +2105,7 @@ Output JSON ONLY.`;
  */
 async function handleTriggerExtraction(request, env) {
 	const body = await request.json();
-	const { query, institution, subject, year, needs_more } = body;
+	const { query, institution, subject, year, needs_more, region_model, extract_model } = body;
 
 	if (!query) {
 		return new Response(JSON.stringify({ error: 'Query is required' }), {
@@ -2172,6 +2172,8 @@ async function handleTriggerExtraction(request, env) {
 				institution: institution || '',
 				subject: subject || '',
 				year: year || '',
+				region_model: region_model || '',
+				extract_model: extract_model || '',
 			},
 		};
 	} else if (hasPdfs && needs_more) {
@@ -2185,6 +2187,8 @@ async function handleTriggerExtraction(request, env) {
 				mode: 'update',
 				search_type: 'questoes',
 				extract_after: true, // Signal to trigger extraction after
+				region_model: region_model || '',
+				extract_model: extract_model || '',
 			},
 		};
 	} else {
@@ -2206,6 +2210,8 @@ async function handleTriggerExtraction(request, env) {
 				slug,
 				search_type: 'questoes',
 				extract_after: true,
+				region_model: region_model || '',
+				extract_model: extract_model || '',
 			},
 		};
 	}

@@ -17,6 +17,12 @@ on:
       subject:
         description: "Filter: Subject (e.g. Física, Matemática)"
         required: false
+      region_model:
+        description: "Model for region detection"
+        required: false
+      extract_model:
+        description: "Model for question extraction"
+        required: false
 
 jobs:
   extract:
@@ -34,6 +40,8 @@ jobs:
       QUERY: ${{ github.event.client_payload.query || inputs.query || '' }}
       INSTITUTION: ${{ github.event.client_payload.institution || inputs.institution || '' }}
       SUBJECT: ${{ github.event.client_payload.subject || inputs.subject || '' }}
+      REGION_MODEL: ${{ github.event.client_payload.region_model || inputs.region_model || 'models/gemini-3-flash-preview' }}
+      EXTRACT_MODEL: ${{ github.event.client_payload.extract_model || inputs.extract_model || 'models/gemini-3-flash-preview' }}
 
     steps:
       - name: Checkout Repo
