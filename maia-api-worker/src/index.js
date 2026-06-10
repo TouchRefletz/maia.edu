@@ -2120,7 +2120,7 @@ Output JSON ONLY.`;
  */
 async function handleTriggerExtraction(request, env) {
 	const body = await request.json();
-	const { query, institution, subject, year, needs_more, region_model, extract_model, search_model } = body;
+	const { query, institution, subject, year, needs_more, region_model, extract_model, search_model, force } = body;
 
 	let finalSearchModel = search_model;
 	if (!finalSearchModel && (region_model || extract_model)) {
@@ -2152,28 +2152,30 @@ async function handleTriggerExtraction(request, env) {
 		});
 	}
 
-	// Step 1: Check if we already have PDFs for this topic
+	// Step 1: Check if we already have PDFs for this topic (unless forced)
 	let existingSlug = null;
 	let hasPdfs = false;
 
-	try {
-		const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
-		if (embedding) {
-			const result = await executePineconeQuery(embedding, env, 3, {
-				type: { $in: ['deep-search-result', 'manual-upload-result'] },
-			});
+	if (!force) {
+		try {
+			const embedding = await generateEmbedding(query, env.GOOGLE_GENAI_API_KEY);
+			if (embedding) {
+				const result = await executePineconeQuery(embedding, env, 3, {
+					type: { $in: ['deep-search-result', 'manual-upload-result'] },
+				});
 
-			if (result?.matches?.length > 0) {
-				const best = result.matches[0];
-				if (best.score > 0.75 && best.metadata?.slug) {
-					existingSlug = best.metadata.slug;
-					hasPdfs = true;
-					console.log(`[TriggerExtraction] Found existing PDFs: ${existingSlug} (score: ${best.score})`);
+				if (result?.matches?.length > 0) {
+					const best = result.matches[0];
+					if (best.score > 0.75 && best.metadata?.slug) {
+						existingSlug = best.metadata.slug;
+						hasPdfs = true;
+						console.log(`[TriggerExtraction] Found existing PDFs: ${existingSlug} (score: ${best.score})`);
+					}
 				}
 			}
+		} catch (e) {
+			console.warn('[TriggerExtraction] Pinecone check error:', e);
 		}
-	} catch (e) {
-		console.warn('[TriggerExtraction] Pinecone check error:', e);
 	}
 
 	// Step 2: Determine action
