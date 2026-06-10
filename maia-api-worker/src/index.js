@@ -218,7 +218,19 @@ async function handleSearchImage(request, env) {
  */
 async function handleTriggerDeepSearch(request, env) {
 	const body = await request.json();
-	const { query, ntfy_topic, force, cleanup, confirm, mode, search_type } = body;
+	const { query, ntfy_topic, force, cleanup, confirm, mode, search_type, search_model, region_model, extract_model } = body;
+
+	let finalSearchModel = search_model;
+	if (!finalSearchModel && (region_model || extract_model)) {
+		finalSearchModel = region_model || extract_model;
+	}
+	if (finalSearchModel) {
+		if (finalSearchModel.startsWith('models/')) {
+			finalSearchModel = 'gemini/' + finalSearchModel.slice(7);
+		} else if (!finalSearchModel.includes('/')) {
+			finalSearchModel = 'gemini/' + finalSearchModel;
+		}
+	}
 
 	// 1. Validate Input
 	if (!query) {
@@ -433,6 +445,9 @@ async function handleTriggerDeepSearch(request, env) {
 				cleanup: cleanup || false,
 				mode: mode || 'overwrite', // 'overwrite' or 'update'
 				search_type: search_type || 'provas', // 'provas' ou 'questoes'
+				search_model: finalSearchModel || '',
+				region_model: region_model || '',
+				extract_model: extract_model || '',
 			},
 		}),
 	});
@@ -2105,7 +2120,19 @@ Output JSON ONLY.`;
  */
 async function handleTriggerExtraction(request, env) {
 	const body = await request.json();
-	const { query, institution, subject, year, needs_more, region_model, extract_model } = body;
+	const { query, institution, subject, year, needs_more, region_model, extract_model, search_model } = body;
+
+	let finalSearchModel = search_model;
+	if (!finalSearchModel && (region_model || extract_model)) {
+		finalSearchModel = region_model || extract_model;
+	}
+	if (finalSearchModel) {
+		if (finalSearchModel.startsWith('models/')) {
+			finalSearchModel = 'gemini/' + finalSearchModel.slice(7);
+		} else if (!finalSearchModel.includes('/')) {
+			finalSearchModel = 'gemini/' + finalSearchModel;
+		}
+	}
 
 	if (!query) {
 		return new Response(JSON.stringify({ error: 'Query is required' }), {
@@ -2187,6 +2214,7 @@ async function handleTriggerExtraction(request, env) {
 				mode: 'update',
 				search_type: 'questoes',
 				extract_after: true, // Signal to trigger extraction after
+				search_model: finalSearchModel || '',
 				region_model: region_model || '',
 				extract_model: extract_model || '',
 			},
@@ -2210,6 +2238,7 @@ async function handleTriggerExtraction(request, env) {
 				slug,
 				search_type: 'questoes',
 				extract_after: true,
+				search_model: finalSearchModel || '',
 				region_model: region_model || '',
 				extract_model: extract_model || '',
 			},

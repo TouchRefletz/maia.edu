@@ -17,6 +17,15 @@ on:
       search_type:
         description: "Type of search (provas or questoes)"
         default: "provas"
+      search_model:
+        description: "Model for deep search"
+        required: false
+      region_model:
+        description: "Model for region detection"
+        required: false
+      extract_model:
+        description: "Model for question extraction"
+        required: false
         # ATENÇÃO: Cleanup forçado para FALSE para evitar deleção acidental.
         # Mesmo se o client_payload enviar true, vamos ignorar nos jobs críticos.
 
@@ -39,6 +48,9 @@ jobs:
       QUERY: ${{ github.event.client_payload.query || inputs.query }}
       SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
       SEARCH_TYPE: ${{ github.event.client_payload.search_type || inputs.search_type || 'provas' }}
+      SEARCH_MODEL: ${{ github.event.client_payload.search_model || inputs.search_model || 'gemini/gemini-3-flash-preview' }}
+      REGION_MODEL: ${{ github.event.client_payload.region_model || inputs.region_model || '' }}
+      EXTRACT_MODEL: ${{ github.event.client_payload.extract_model || inputs.extract_model || '' }}
 
     steps:
       - name: Checkout Repo
@@ -557,7 +569,7 @@ jobs:
             -e "SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.openhands.dev/openhands/runtime:1.0-nikolaik"
             -e "LOG_ALL_EVENTS=true"
             -e "LLM_API_KEY=$LLM_API_KEY"
-            -e "LLM_MODEL=gemini/gemini-3-flash-preview"
+            -e "LLM_MODEL=$SEARCH_MODEL"
             -e "TAVILY_API_KEY=$TAVILY_API_KEY"
             -e "PYTHONUNBUFFERED=1"
             -e "PROMPT=$PROMPT"
@@ -948,7 +960,7 @@ jobs:
             -H "Authorization: Bearer $GH_PAT" \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Content-Type: application/json" \
-            -d "{\"event_type\": \"extract-questions\", \"client_payload\": {\"slug\": \"$SLUG\", \"query\": \"$QUERY\", \"institution\": \"$INSTITUTION\", \"subject\": \"$SUBJECT\", \"region_model\": \"${{ github.event.client_payload.region_model || '' }}\", \"extract_model\": \"${{ github.event.client_payload.extract_model || '' }}\"}}")
+            -d "{\"event_type\": \"extract-questions\", \"client_payload\": {\"slug\": \"$SLUG\", \"query\": \"$QUERY\", \"institution\": \"$INSTITUTION\", \"subject\": \"$SUBJECT\", \"region_model\": \"$REGION_MODEL\", \"extract_model\": \"$EXTRACT_MODEL\"}}")
 
           if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Extraction workflow dispatched successfully (HTTP $HTTP_CODE)"
