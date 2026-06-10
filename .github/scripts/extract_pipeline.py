@@ -318,27 +318,85 @@ def crop_region(page_img: Image.Image, box: list) -> Image.Image:
 
 
 def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
-    """Call Gemini API with rate limit retry logic."""
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config,
-            )
-            return response
-        except Exception as e:
-            error_str = str(e).lower()
-            if "429" in error_str or "rate" in error_str or "quota" in error_str:
-                if attempt < max_retries - 1:
+    """Call Gemini API with rate limit retry logic and fallback models."""
+    def clean_schema(schema):
+        if isinstance(schema, dict):
+            cleaned = {}
+            for k, v in schema.items():
+                if k in ("additionalProperties", "additional_properties"):
+                    continue
+                cleaned[k] = clean_schema(v)
+            return cleaned
+        elif isinstance(schema, list):
+            return [clean_schema(item) for item in schema]
+        return schema
+
+    if config and hasattr(config, "response_schema") and config.response_schema:
+        if isinstance(config.response_schema, dict):
+            try:
+                config = config.model_copy(update={"response_schema": clean_schema(config.response_schema)})
+            except AttributeError:
+                try:
+                    config = config.copy(update={"response_schema": clean_schema(config.response_schema)})
+                except Exception:
+                    try:
+                        config.response_schema = clean_schema(config.response_schema)
+                    except Exception:
+                        pass
+
+    primary_model = model
+    models_to_try = [primary_model]
+    for fb in [
+        "models/gemma-4-31b-it",
+        "models/gemma-4-26b-a4b-it",
+        "models/gemini-3.5-flash",
+        "models/gemini-3-flash-preview",
+        "models/gemini-3.1-flash-lite",
+        "models/gemini-2.5-flash",
+        "models/gemini-2.5-flash-lite"
+    ]:
+        if fb not in models_to_try:
+            models_to_try.append(fb)
+            
+    last_exception = None
+    
+    for current_model in models_to_try:
+        print(f"    🤖 Attempting with model: {current_model}...")
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=current_model,
+                    contents=contents,
+                    config=config,
+                )
+                print(f"    ✅ Success with model: {current_model}")
+                return response
+            except Exception as e:
+                error_str = str(e).lower()
+                last_exception = e
+                
+                # Check for rate limit / quota / timeout / transient error / internal error
+                is_rate_limit = "429" in error_str or "rate" in error_str or "quota" in error_str
+                is_transient = "503" in error_str or "500" in error_str or "internal" in error_str or "timeout" in error_str
+                
+                if is_rate_limit or is_transient:
                     wait = RETRY_DELAY * (attempt + 1)
-                    print(f"  ⏳ Rate limited (attempt {attempt + 1}/{max_retries}), waiting {wait}s...")
+                    print(f"      ⚠️ API warning ({e}) on attempt {attempt + 1}/{max_retries}. Waiting {wait}s...")
                     time.sleep(wait)
                 else:
-                    raise RateLimitError(str(e))
-            else:
-                raise
-    raise RateLimitError("Max retries exceeded")
+                    if isinstance(e, (AttributeError, NameError, TypeError)):
+                        raise
+                    print(f"      ❌ Model {current_model} failed with non-transient error: {e}. Trying next fallback...")
+                    break
+        else:
+            print(f"      ❌ Model {current_model} exhausted all retries. Trying next fallback...")
+            
+    if last_exception:
+        error_str = str(last_exception).lower()
+        if "429" in error_str or "rate" in error_str or "quota" in error_str:
+            raise RateLimitError(str(last_exception))
+        raise last_exception
+    raise Exception("All model attempts failed")
 
 
 class RateLimitError(Exception):
