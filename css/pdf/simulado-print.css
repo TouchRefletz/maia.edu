@@ -1,0 +1,943 @@
+/* Stylesheet for Printed Vestibular Exams (Maia.edu Custom Style) */
+
+/* Force page print rules and overflow resets */
+body.print-preview-mode {
+  height: auto !important;
+  min-height: auto !important;
+  overflow: visible !important;
+}
+
+/* General Print-Preview Styles (rendered on-screen in the print tab) */
+body.print-preview-mode {
+  background: #525659 !important; /* PDF reader gray background */
+  color: #000 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 10.5pt;
+  line-height: 1.5;
+  margin: 0 !important;
+  padding: 30px 0 !important;
+  overflow-y: auto !important;
+}
+
+/* Base Page Wrapper */
+.print-page {
+  background: white !important;
+  width: 210mm !important; /* A4 width */
+  height: 297mm !important; /* Force EXACT A4 height on screen preview and print to match PDF page breaks */
+  margin: 20px auto;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+  padding: 20mm 15mm 25mm 15mm !important; /* Consistent margin/padding space (25mm bottom creates tight safety margin above footer) */
+  position: relative;
+  border-radius: 2px;
+  page-break-after: always;
+  break-after: page;
+  overflow: hidden; /* Strict page encapsulation */
+}
+
+/* Page configurations for screen preview and print */
+.print-page.cover-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.print-page.answer-sheet-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.print-page.questions-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.print-page.gabarito-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Control Bar (Top panel in preview tab, hidden during actual print) */
+.print-control-bar {
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 55px;
+  z-index: 10000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  font-family: Arial, Helvetica, sans-serif;
+  box-sizing: border-box;
+}
+
+/* Compensate body padding for fixed control bar */
+body.print-preview-mode {
+  padding-top: 85px !important;
+}
+
+.print-control-title {
+  font-weight: bold;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
+
+.print-control-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.print-btn {
+  background: #21808d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.print-btn:hover {
+  background: #1d7480;
+}
+
+.print-btn.cancel {
+  background: #ef4444;
+}
+
+.print-btn.cancel:hover {
+  background: #dc2626;
+}
+
+/* Typography styles matching prestigious Brazilian vestibulares (FUVEST/ENEM) */
+body.print-preview-mode .print-question-body,
+body.print-preview-mode .print-alternative-text,
+body.print-preview-mode .print-block-text,
+body.print-preview-mode .print-block-citacao,
+body.print-preview-mode .print-block-destaque,
+body.print-preview-mode .print-block-lista,
+body.print-preview-mode .markdown-content,
+body.print-preview-mode .markdown-content p {
+  font-family: 'Georgia', 'Times New Roman', Times, serif !important;
+  color: #000 !important;
+}
+
+body.print-preview-mode .print-question-num,
+body.print-preview-mode .vestibular-header,
+body.print-preview-mode .questions-header-line,
+body.print-preview-mode .questions-header-line *,
+body.print-preview-mode .print-answer-sheet,
+body.print-preview-mode .print-control-bar,
+body.print-preview-mode .cover-page,
+body.print-preview-mode .cover-page *,
+body.print-preview-mode .print-page-header-line,
+body.print-preview-mode .vestibular-field-label {
+  font-family: 'Inter', 'Arial', sans-serif !important;
+}
+
+/* Cover Page Specific Styles */
+.cover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.cover-logo-usp {
+  display: flex;
+  align-items: center;
+}
+
+.cover-logo-fuvest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cover-version-box {
+  border: 1.5px solid #1e293b;
+  color: #1e293b;
+  font-size: 24pt;
+  font-weight: 800;
+  padding: 4px 16px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.cover-title-box {
+  border-top: 2.5px solid #21808d;
+  border-bottom: 2.5px solid #21808d;
+  padding: 16px 0;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.cover-title-main {
+  font-size: 18pt;
+  font-weight: 800;
+  color: #21808d;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.cover-title-sub {
+  font-size: 10.5pt;
+  font-weight: bold;
+  color: #555;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.cover-instructions {
+  margin-top: 15px;
+  flex: 1;
+}
+
+.cover-instructions-title {
+  color: #21808d;
+  font-size: 11pt;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cover-instructions-list {
+  font-size: 8.5pt;
+  line-height: 1.6;
+  padding-left: 20px;
+  margin: 0;
+  color: #333;
+}
+
+.cover-instructions-list li {
+  margin-bottom: 6px;
+}
+
+.cover-declaration-box {
+  border: 1.5px solid #000;
+  padding: 18px;
+  margin-top: 25px;
+  text-align: center;
+  background-color: #fff;
+}
+
+.cover-declaration-title {
+  color: #21808d;
+  font-weight: bold;
+  font-size: 10pt;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cover-declaration-text {
+  font-size: 8pt;
+  line-height: 1.4;
+  color: #333;
+  margin: 0 0 20px 0;
+  text-align: justify;
+}
+
+.cover-signature-line {
+  width: 75%;
+  margin: 0 auto 4px auto;
+  border-bottom: 1px solid #000;
+  height: 25px;
+}
+
+.cover-signature-label {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  color: #555;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.cover-signature-warning {
+  font-size: 6.5pt;
+  color: #666;
+  font-style: italic;
+}
+
+/* Header line for subsequent pages */
+.questions-header-line {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #000;
+  padding-bottom: 5px;
+  margin-bottom: 25px;
+  font-size: 8pt;
+  font-weight: bold;
+  text-transform: none !important; /* Disable runtime text-transform to prevent accent Combining Character bug in Chrome */
+  color: #555;
+  letter-spacing: 0.5px;
+}
+
+/* Force header line texts (including tags) to match parent style and prevent italics */
+.questions-header-line span,
+.questions-header-line i,
+.questions-header-line em {
+  font-family: 'Inter', 'Arial', sans-serif !important;
+  font-style: normal !important;
+  text-transform: none !important; /* Disable runtime text-transform to prevent accent Combining Character bug in Chrome */
+  font-weight: bold !important;
+}
+
+/* Old Vestibular Official Header (Fallback) */
+.vestibular-header {
+  border: 2px solid #000;
+  padding: 18px;
+  margin-bottom: 25px;
+}
+
+.vestibular-brand-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.vestibular-logo-title {
+  font-size: 18pt;
+  font-weight: bold;
+  letter-spacing: -0.5px;
+  color: #000;
+}
+
+.vestibular-logo-title span {
+  color: #555;
+  font-weight: normal;
+}
+
+.vestibular-exam-info {
+  text-align: right;
+  font-size: 9pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.vestibular-fields-grid {
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr;
+  gap: 15px;
+  font-size: 9.5pt;
+  margin-bottom: 10px;
+}
+
+.vestibular-field {
+  border-bottom: 1px dashed #000;
+  padding-bottom: 8px; /* Increased vertical space */
+  display: flex;
+  align-items: flex-end;
+  height: 35px;
+  box-sizing: border-box;
+}
+
+.vestibular-field-label {
+  font-weight: bold;
+  margin-right: 6px;
+  flex-shrink: 0;
+  font-size: 8.5pt;
+}
+
+.vestibular-instructions-box {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 12px;
+  font-size: 8pt;
+  line-height: 1.4;
+  margin-top: 12px;
+}
+
+.vestibular-instructions-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  color: #000;
+}
+
+/* 2-Column layout for Multiple Choice (TESTE) */
+.print-columns-layout {
+  column-count: 2;
+  column-gap: 40px; /* More space for divider rule */
+  column-rule: 1.5px solid #000; /* Solid divider line */
+}
+
+/* Explicit Flexbox Columns for Test Layout */
+.print-columns-container {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  height: calc(100% - 35px) !important; /* height minus the questions-header-line */
+  box-sizing: border-box !important;
+}
+
+.print-column {
+  width: calc(50% - 20px) !important; /* width is half the page minus column divider gap */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box !important;
+}
+
+.print-column-divider {
+  width: 1.5px !important;
+  background-color: #000 !important;
+  align-self: stretch !important;
+  height: 100% !important;
+}
+
+/* 1-Column layout for Dissertativa and Gabarito */
+.print-one-column-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Sandbox container for height measurement */
+.print-sandbox,
+.print-sandbox * {
+  color: #000 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 10.5pt !important;
+  line-height: 1.5 !important;
+}
+
+.print-sandbox {
+  position: absolute !important;
+  left: -9999px !important;
+  top: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  background: white !important;
+}
+
+/* Question blocks */
+.print-question-block {
+  margin-bottom: 30px;
+  page-break-inside: auto;
+  break-inside: auto;
+  text-align: justify;
+}
+
+/* Slice container for content that spans multiple pages */
+.print-slice-container {
+  overflow: hidden;
+  position: relative;
+}
+
+/* Continued question styles */
+.print-question-continued {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.print-question-num {
+  font-weight: 800;
+  font-size: 18pt; /* Large double-digit numbers */
+  margin-bottom: 12px;
+  display: block;
+  border-bottom: 2px solid #000;
+  padding-bottom: 3px;
+  width: 100%;
+}
+
+.print-question-body {
+  font-size: 9.5pt;
+  line-height: 1.5;
+}
+
+/* Block styles */
+.print-block-text {
+  margin-bottom: 10px;
+  text-align: justify;
+}
+
+.print-block-citacao {
+  border-left: 3px solid #000;
+  padding-left: 12px;
+  margin: 12px 15px;
+  font-style: italic;
+  color: #333;
+}
+
+.print-block-destaque {
+  border: 1px solid #000;
+  padding: 10px 14px;
+  margin: 12px 0;
+  background: #f9f9f9 !important;
+}
+
+.print-block-titulo {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 11pt;
+  font-weight: bold;
+  margin: 15px 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.print-block-subtitulo {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 10pt;
+  font-weight: bold;
+  margin: 12px 0 6px 0;
+}
+
+.print-block-fonte {
+  font-size: 7.5pt;
+  color: #555;
+  text-align: right;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.print-block-codigo {
+  background: #f4f4f5 !important;
+  border: 1px solid #e4e4e7;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 8.5pt;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+
+/* Image wrappers */
+.print-block-image-wrapper {
+  margin: 12px 0;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.print-block-image-wrapper img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  background: #fff;
+  object-fit: contain;
+}
+
+.print-image-caption {
+  font-family: 'Georgia', serif !important;
+  font-size: 8pt;
+  text-align: center;
+  font-style: italic;
+  color: #444;
+  margin-top: 6px;
+}
+
+.print-image-credit {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 7.5pt !important;
+  text-align: center;
+  color: #555 !important;
+  margin-top: 4px;
+}
+
+
+/* Math/KaTeX blocks */
+body.print-preview-mode .math-block,
+body.print-preview-mode .katex-display {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 12px 0 !important;
+  padding: 4px 0;
+  text-align: center;
+  box-sizing: border-box;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+body.print-preview-mode .katex {
+  font-size: 1.05em !important;
+  white-space: nowrap;
+}
+
+body.print-preview-mode .katex-html {
+  max-width: 100%;
+}
+
+/* Alternative list */
+.print-alternatives-list {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.print-alternative-item {
+  display: flex;
+  align-items: flex-start;
+  font-size: 9.5pt;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Circular bubble around the alternative letter */
+.print-alternative-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #000;
+  border-radius: 50%;
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 8pt;
+  font-weight: bold;
+  color: #000 !important;
+  margin-right: 10px;
+  flex-shrink: 0;
+  text-align: center;
+  background-color: #fff !important;
+  box-sizing: border-box;
+  margin-top: 1px;
+}
+
+.print-alternative-text {
+  flex: 1;
+}
+
+/* Ruled Box for Dissertativa resolution space */
+.print-ruled-resolution-box {
+  border: 1.5px solid #000 !important;
+  height: 240px !important;
+  margin-top: 15px !important;
+  position: relative !important;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px) !important;
+  background-size: 100% 24px !important;
+  line-height: 24px !important;
+  box-sizing: border-box !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.print-ruled-box-label {
+  position: absolute !important;
+  top: 4px !important;
+  right: 10px !important;
+  font-size: 6.5pt !important;
+  color: #666 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  background: white !important;
+  padding: 0 6px !important;
+  font-weight: bold !important;
+}
+
+/* Answer Sheet (Gabarito / Cartão Resposta Page) */
+.print-answer-sheet-container {
+  padding: 20px;
+  margin-top: 20px;
+  background-color: #fff;
+}
+
+.print-answer-sheet-title {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 16pt;
+  font-weight: 800;
+  text-align: center;
+  margin-top: 30px;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+  text-transform: none !important; /* Disable text-transform to prevent accent Combining Character bug in Chrome */
+  color: #000;
+}
+
+/* Multi-column grid for optical answer sheet */
+.print-answer-sheet-grid {
+  column-count: 3;
+  column-gap: 40px;
+  margin-top: 30px;
+}
+
+@media (max-width: 600px) {
+  .print-answer-sheet-grid {
+    column-count: 2;
+  }
+}
+
+.print-answer-sheet-row {
+  display: flex;
+  align-items: center;
+  font-size: 10pt;
+  border-bottom: 1px dashed #eee;
+  padding: 8px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-answer-sheet-q {
+  font-weight: bold;
+  width: 32px;
+  font-family: 'Inter', Arial, sans-serif !important;
+}
+
+.print-answer-sheet-bubbles {
+  display: flex;
+  gap: 8px;
+}
+
+.print-bubble {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8pt;
+  font-weight: bold;
+  font-family: 'Inter', Arial, sans-serif !important;
+  background-color: #fff !important;
+}
+
+/* Answer Key PDF (resoluções) layout */
+.print-gabarito-title {
+  font-size: 15pt;
+  font-weight: bold;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 25px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.print-gabarito-item {
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+/* Continued gabarito styles */
+.print-gabarito-continued {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
+}
+
+.print-gabarito-answer {
+  background: #f3f4f6 !important;
+  border-left: 4px solid #10b981 !important;
+  padding: 10px 14px;
+  margin: 10px 0;
+  font-size: 9.5pt;
+  border-radius: 4px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.print-gabarito-steps {
+  font-size: 9.5pt;
+  margin-top: 12px;
+}
+
+.print-gabarito-step {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.print-section-header {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1e293b;
+  border-bottom: 2px solid #1e293b;
+  padding-bottom: 5px;
+  margin-bottom: 20px;
+  letter-spacing: 0.5px;
+  width: 100%;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+/* CSS PRINT MEDIA RULES */
+@media print {
+  .print-control-bar {
+    display: none !important;
+  }
+  /* Complete page expansion overrides for printer pagination */
+  :has(> body.print-preview-mode) {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+  body.print-preview-mode {
+    background: #fff !important;
+    color: #000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .print-container {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-page {
+    width: 100% !important; /* Fill page width dynamically to adapt to Letter/A4 paper size */
+    height: 100vh !important; /* Take exactly full viewport height per page when printing to adapt to page size */
+    padding: 20mm 15mm 25mm 15mm !important; /* Keep exact same padding to preserve layout flow */
+    margin: 0 !important;
+    box-shadow: none !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ======================================================== */
+/* HIGH-SPECIFICITY OVERRIDES TO PREVENT LEAKING DARK THEME */
+/* ======================================================== */
+body.print-preview-mode {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.print-preview-mode,
+body.print-preview-mode * {
+  background-color: transparent !important;
+  color: #000 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+body.print-preview-mode {
+  background: #525659 !important;
+}
+
+body.print-preview-mode .print-control-bar,
+body.print-preview-mode .print-control-bar * {
+  background-color: #1e293b !important;
+  color: #fff !important;
+}
+
+body.print-preview-mode .print-btn {
+  background-color: #21808d !important;
+  color: #fff !important;
+}
+
+body.print-preview-mode .print-btn.cancel {
+  background-color: #ef4444 !important;
+}
+
+body.print-preview-mode .print-page {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.print-preview-mode .print-ruled-resolution-box {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px) !important;
+  background-size: 100% 24px !important;
+  background-color: #ffffff !important;
+}
+
+body.print-preview-mode .print-ruled-box-label {
+  background-color: #ffffff !important;
+  color: #666666 !important;
+}
+
+body.print-preview-mode .print-gabarito-answer {
+  background-color: #f3f4f6 !important;
+  color: #000 !important;
+}
+
+body.print-preview-mode .vestibular-instructions-box {
+  background-color: #f9f9f9 !important;
+}
+
+body.print-preview-mode .print-block-destaque {
+  background-color: #f9f9f9 !important;
+}
+
+body.print-preview-mode .print-block-codigo {
+  background-color: #f4f4f5 !important;
+}
+
+body.print-preview-mode .print-block-image-wrapper img {
+  background-color: #ffffff !important;
+}
+
+/* Force bubble styling on preview */
+body.print-preview-mode .print-alternative-letter,
+body.print-preview-mode .print-bubble {
+  border: 1.5px solid #000 !important;
+  background-color: #fff !important;
+  color: #000 !important;
+}
+
+/* Page Footer styles */
+.print-page-footer {
+  position: absolute !important;
+  bottom: 15mm !important;
+  left: 15mm !important;
+  right: 15mm !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  border-top: 1px solid #ddd !important;
+  padding-top: 8px !important;
+  font-size: 7.5pt !important;
+  font-family: 'Inter', Arial, sans-serif !important;
+  color: #555 !important;
+  background-color: transparent !important;
+  box-sizing: border-box !important;
+  height: 25px !important;
+}
+
+.print-page-footer span {
+  font-family: 'Inter', Arial, sans-serif !important;
+  font-weight: bold !important;
+  color: #555 !important;
+  text-transform: none !important;
+}

@@ -107,6 +107,14 @@ function renderInitialUI() {
       </div>
       
       <div class="nav-sidebar-items">
+        <button class="nav-sidebar-item nav-item--home js-voltar-inicio active">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">
+            <span class="nav-title">Página Inicial</span>
+            <span class="nav-desc">Estudos e Conversação IA</span>
+          </span>
+        </button>
+
         <button class="nav-sidebar-item nav-item--banco js-iniciar-estudante">
           <span class="nav-icon">📚</span>
           <span class="nav-label">
@@ -139,6 +147,14 @@ function renderInitialUI() {
           </span>
         </button>
 
+        <button class="nav-sidebar-item nav-item--simulados js-iniciar-simulados">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-label">
+            <span class="nav-title">Simulados</span>
+            <span class="nav-desc">Gere simulados teste/dissertativos e PDFs</span>
+          </span>
+        </button>
+
         <a href="/docs/" target="_blank" class="nav-sidebar-item" style="text-decoration: none; color: inherit;">
           <span class="nav-icon">📖</span>
           <span class="nav-label">
@@ -149,7 +165,7 @@ function renderInitialUI() {
         
         <div class="nav-divider" style="height: 1px; background: var(--color-border); margin: 10px 0;"></div>
         <div class="nav-section-title" style="padding: 0 16px; font-size: 0.75rem; color: var(--color-text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Histórico</div>
-        <div id="navChatList" class="nav-chat-list" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto;"></div>
+        <div id="navChatList" class="nav-chat-list" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
       
       <!-- Footer removido pois botão foi para o header -->
@@ -964,7 +980,7 @@ export function gerarTelaInicial() {
  * Renderiza o botão de usuário no sidebar
  * (Movido para escopo do módulo para ser acessível pelos listeners globais)
  */
-function renderUserButton(user) {
+export function renderUserButton(user) {
   const userSection = document.getElementById("navUserSection");
   if (!userSection) return;
 
@@ -1141,7 +1157,7 @@ function renderUserButton(user) {
 /**
  * Carrega e renderiza a lista de chats na sidebar
  */
-async function loadSidebarChats() {
+export async function loadSidebarChats() {
   const list = document.getElementById("navChatList");
   if (!list) return;
 
@@ -1405,7 +1421,6 @@ window.loadChat = async function (chatId) {
           phaseId,
         );
       } else if (msg.content && msg.content.type === "extraction_triggered") {
-
         phaseId = "extraction";
         const contentDiv = document.createElement("div");
         contentDiv.innerHTML = `
@@ -4896,7 +4911,7 @@ async function showResearchReport(btn) {
   tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.dataset.tab;
-      
+
       // Update Buttons
       tabBtns.forEach((b) => {
         b.classList.remove("active");
@@ -4954,9 +4969,11 @@ async function showSourcesModal(btn) {
   // Fix: Search for data attributes on the button OR its parents (in case of nested clicks)
   const target = btn.closest("[data-sources]");
   if (!target) return;
-  
-  const sourcesAttr = target.getAttribute("data-sources") || target.dataset.sources;
-  const reportAttr = target.getAttribute("data-report") || target.dataset.report;
+
+  const sourcesAttr =
+    target.getAttribute("data-sources") || target.dataset.sources;
+  const reportAttr =
+    target.getAttribute("data-report") || target.dataset.report;
 
   if (!sourcesAttr) return;
 
@@ -4986,7 +5003,7 @@ async function showSourcesModal(btn) {
       return `
       <div class="source-card-premium resolving" id="${elementId}" data-uri="${src.uri}" onclick="window.open('${src.uri}', '_blank')">
         <div class="source-card-thumb">
-          <img src="${screenshotUrl || ''}" alt="" class="source-card-thumb-img" onerror="this.onerror=null;this.src='${ogThumb || ''}';this.style.objectFit='contain';this.style.padding='20px';">
+          <img src="${screenshotUrl || ""}" alt="" class="source-card-thumb-img" onerror="this.onerror=null;this.src='${ogThumb || ""}';this.style.objectFit='contain';this.style.padding='20px';">
         </div>
         <div class="source-card-body">
           <div class="source-card-title">${src.title || hostname}</div>

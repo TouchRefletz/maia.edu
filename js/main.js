@@ -327,6 +327,15 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASO 9.1: Iniciar Modo Simulados ---
+    const gatilhoSimulados = e.target.closest(".js-iniciar-simulados");
+    if (gatilhoSimulados) {
+      import("./simulados/simulados-main.js").then(({ iniciarModoSimulados }) => {
+        iniciarModoSimulados();
+      });
+      return;
+    }
+
     // --- CASO 9: BotÃ£o Limpar Filtros ---
     const gatilhoLimpar = e.target.closest(".js-limpar-filtros");
     if (gatilhoLimpar) {
@@ -1008,5 +1017,22 @@ window.debugRenderTestQuestion = async function () {
   }, 100);
 };
 
-gerarTelaInicial(); // Chama inicial ao carregar
-window.setTimeout(() => mountApiKeyModal(false), 500); // Tenta abrir (se nÃ£o tiver chave)
+// Intercepta carregamento de simulado compartilhado via link direto
+const urlParams = new URLSearchParams(window.location.search);
+const isSimularMode = urlParams.get("mode") === "simular";
+if (isSimularMode) {
+  const type = urlParams.get("type");
+  const title = urlParams.get("title");
+  const ids = urlParams.get("ids");
+  if (ids) {
+    import("./simulados/simulados-main.js").then(({ carregarSimuladoCompartilhado }) => {
+      carregarSimuladoCompartilhado(type, title, ids);
+    });
+  } else {
+    gerarTelaInicial();
+  }
+} else {
+  gerarTelaInicial();
+}
+
+window.setTimeout(() => mountApiKeyModal(false), 500); // Tenta abrir (se não tiver chave)

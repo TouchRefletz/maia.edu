@@ -202,11 +202,55 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'pdfViewerReady') {
+        // [FIX] Validar se a mensagem pertence a ESTA instância de crop/visualização
+        const msgUrl = event.data.url;
+        const msgPage = Number(event.data.page);
+        const msgX = Number(event.data.x ?? 0);
+        const msgY = Number(event.data.y ?? 0);
+        const msgW = Number(event.data.w ?? 0);
+        const msgH = Number(event.data.h ?? 0);
+
+        if (msgUrl !== effectiveUrl ||
+            msgPage !== pageNum ||
+            msgX !== c.X ||
+            msgY !== c.Y ||
+            msgW !== c.cW ||
+            msgH !== c.cH) {
+          // A mensagem é de outro crop, ignorar
+          return;
+        }
+
         if (event.data.success) {
           // Sucesso — atualiza dimensões exatas do iframe
           if (event.data.contentHeight) {
             console.log('[PdfEmbed] Recebeu dimensões do viewer:', event.data.contentWidth, 'x', event.data.contentHeight);
             setPuterIframeHeight(event.data.contentHeight);
+          }
+
+          // Salva base64 da imagem no cache global se fornecida
+          if (event.data.imageDataUrl) {
+            const cacheKey = `${effectiveUrl}_${pageNum}_${c.X}_${c.Y}_${c.cW}_${c.cH}`;
+            // @ts-ignore
+            if (!window.__pdfEmbedImagesCache) {
+              // @ts-ignore
+              window.__pdfEmbedImagesCache = new Map();
+            }
+            // @ts-ignore
+            window.__pdfEmbedImagesCache.set(cacheKey, event.data.imageDataUrl);
+            console.log('[PdfEmbed] Salvo imagem em cache para:', cacheKey);
+
+            // Dispara evento global notificando que a imagem de crop do PDF está pronta
+            window.dispatchEvent(new CustomEvent('pdf-embed-crop-ready', {
+              detail: {
+                url: effectiveUrl,
+                page: pageNum,
+                x: c.X,
+                y: c.Y,
+                w: c.cW,
+                h: c.cH,
+                dataUrl: event.data.imageDataUrl
+              }
+            }));
           }
         } else {
           console.warn('[PdfEmbed] Puter viewer falhou, fazendo fallback...');
@@ -222,7 +266,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isChromeOrEdge]);
+  }, [isChromeOrEdge, effectiveUrl, pageNum, c.X, c.Y, c.cW, c.cH]);
 
   // [FIX] Listener para detectar quando window.__pdfLocalFile é carregado externamente
   useEffect(() => {
@@ -275,6 +319,48 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       }
     };
   }, [renderMode, isRendered]);
+
+  const cacheKey = `${effectiveUrl}_${pageNum}_${c.X}_${c.Y}_${c.cW}_${c.cH}`;
+  const [cachedImage, setCachedImage] = useState<string | null>(() => {
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.__pdfEmbedImagesCache) {
+      // @ts-ignore
+      return window.__pdfEmbedImagesCache.get(cacheKey) || null;
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.__pdfEmbedImagesCache) {
+      // @ts-ignore
+      const img = window.__pdfEmbedImagesCache.get(cacheKey);
+      if (img) {
+        setCachedImage(img);
+        return;
+      }
+    }
+    setCachedImage(null);
+
+    const handleCropReady = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const detail = customEvent.detail;
+      if (
+        detail.url === effectiveUrl &&
+        detail.page === pageNum &&
+        detail.x === c.X &&
+        detail.y === c.Y &&
+        detail.w === c.cW &&
+        detail.h === c.cH
+      ) {
+        console.log('[PdfEmbed] Componente atualizou cachedImage via evento:', detail.dataUrl.substring(0, 50) + "...");
+        setCachedImage(detail.dataUrl);
+      }
+    };
+
+    window.addEventListener('pdf-embed-crop-ready', handleCropReady);
+    return () => window.removeEventListener('pdf-embed-crop-ready', handleCropReady);
+  }, [effectiveUrl, pageNum, c.X, c.Y, c.cW, c.cH]);
 
   // Render Page Helper (Defined outside useEffect to be accessible)
   const renderPageOnCanvas = async (pdfDoc: any) => {
@@ -692,6 +778,51 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       </button>
     </div>
   );
+
+  // --- RENDER CACHED IMAGE (Base64) ---
+  if (cachedImage) {
+    const finalWidth = scaleToFit ? origWidth * dynamicScale : origWidth;
+    const finalHeight = scaleToFit ? origHeight * dynamicScale : origHeight;
+
+    return (
+      <div 
+        ref={containerRef} 
+        style={{ 
+          position: 'relative', 
+          width: '100%', 
+          maxWidth: `${finalWidth}px`,
+          height: `${finalHeight}px`,
+          boxSizing: 'border-box',
+          overflow: 'hidden'
+        }}
+      >
+        {renderControls()}
+        <div style={{
+          width: `${origWidth}px`,
+          height: `${origHeight}px`,
+          transform: `scale(${dynamicScale})`,
+          transformOrigin: 'top left',
+          borderRadius: '8px',
+          background: '#FFFFFF',
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <img
+            src={cachedImage}
+            alt="PDF Crop"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block'
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   // --- RENDER PUTER (iframe) --- [NEW DEFAULT]
   if (renderMode === 'puter') {

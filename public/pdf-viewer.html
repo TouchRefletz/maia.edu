@@ -334,11 +334,25 @@
 
           // Notifica o pai (iframe parent) com as dimensões exatas
           try {
+            let dataUrl = "";
+            try {
+              dataUrl = canvasEl.toDataURL("image/png");
+            } catch (canvasErr) {
+              console.warn('[PDFViewer] Erro ao obter Data URL do canvas:', canvasErr);
+            }
+
             window.parent.postMessage({
               type: 'pdfViewerReady',
               success: true,
               contentWidth: totalWidth,
-              contentHeight: totalHeight
+              contentHeight: totalHeight,
+              imageDataUrl: dataUrl,
+              url: pdfUrl,
+              page: pageNum,
+              x: cropX,
+              y: cropY,
+              w: cropW,
+              h: cropH
             }, '*');
           } catch(e) {}
         });
@@ -352,7 +366,17 @@
 
         // Notifica o pai sobre a falha
         try {
-          window.parent.postMessage({ type: 'pdfViewerReady', success: false, error: err.message }, '*');
+          window.parent.postMessage({
+            type: 'pdfViewerReady',
+            success: false,
+            error: err.message,
+            url: pdfUrl,
+            page: pageNum,
+            x: cropX,
+            y: cropY,
+            w: cropW,
+            h: cropH
+          }, '*');
         } catch(e) {}
       }
 

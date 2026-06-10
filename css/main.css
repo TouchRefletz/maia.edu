@@ -89,3 +89,6 @@
 @import url('result/review-buttons.css');
 
 @import url('wrappers/input.css');
+
+@import url('components/simulados.css');
+@import url('pdf/simulado-print.css');

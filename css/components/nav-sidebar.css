@@ -172,7 +172,7 @@
   flex-direction: column;
   padding: 16px 12px;
   gap: 8px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 /* Item do Menu */
@@ -195,6 +195,19 @@
 .nav-sidebar-item:hover {
   background: var(--color-secondary);
   border-color: var(--color-border);
+}
+
+.nav-sidebar-item.active {
+  background: var(--color-secondary);
+  border-color: var(--color-border);
+}
+
+.nav-sidebar-item.active .nav-icon {
+  color: var(--color-text);
+}
+
+.nav-sidebar-item.active .nav-title {
+  color: var(--color-primary);
 }
 
 .nav-sidebar-item .nav-icon {
@@ -234,7 +247,7 @@
 }
 
 .nav-sidebar-item:hover .nav-desc {
-  max-height: 20px;
+  max-height: 25px;
   opacity: 1;
   margin-top: 2px;
 }
