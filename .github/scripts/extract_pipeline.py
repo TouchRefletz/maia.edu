@@ -232,7 +232,7 @@ QUESTION_EXTRACT_SCHEMA = {
             "description": (
                 "Lista ordenada que representa o fluxo visual da questão, mantendo a ordem exata de textos e imagens. "
                 "IMPORTANTÍSSIMO: não inclua a identificação da questão em nenhum item desta lista; isso deve ficar "
-                "exclusivamente no campo 'identificacao'. Use 'titulo' e 'subtitulo' apenas para cabeçalhos internos "
+                "exclusivamente no campo 'identificacao'. Use 'titulo' and 'subtitulo' apenas para cabeçalhos internos "
                 "do conteúdo (ex: 'Texto I', 'Considere o gráfico', 'Fragmento', 'Leia o texto a seguir')."
             ),
             "items": _BLOCO_CONTEUDO,
