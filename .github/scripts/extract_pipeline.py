@@ -356,7 +356,7 @@ def detect_regions(page_img: Image.Image):
         contents=[
             types.Content(
                 parts=[
-                    types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                    types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                     types.Part.from_text(text=REGION_DETECT_PROMPT),
                 ]
             ),
@@ -381,7 +381,7 @@ def extract_question(cropped_img: Image.Image):
         contents=[
             types.Content(
                 parts=[
-                    types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                    types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                     types.Part.from_text(text=QUESTION_EXTRACT_PROMPT),
                 ]
             ),
@@ -684,7 +684,7 @@ def main():
                             contents=[
                                 types.Content(
                                     parts=[
-                                        types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                                        types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                                         types.Part.from_text(text=build_review_prompt(current_json)),
                                     ]
                                 )
@@ -711,7 +711,7 @@ def main():
                                 contents=[
                                     types.Content(
                                         parts=[
-                                            types.Part.from_image(image=types.Image(image_bytes=base64.b64decode(b64), mime_type="image/png")),
+                                            types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                                             types.Part.from_text(text=build_correction_prompt(current_json, feedback)),
                                         ]
                                     )
@@ -739,6 +739,8 @@ def main():
                     manifest["rate_limit_hit"] = True
                     save_manifest(manifest)
                     sys.exit(0)
+                except (AttributeError, NameError, TypeError):
+                    raise
                 except Exception as e:
                     print(f"    ❌ Region detection/audit failed: {e}")
                     traceback.print_exc()
@@ -861,6 +863,8 @@ def main():
                         save_manifest(manifest)
                         sys.exit(0)
 
+                    except (AttributeError, NameError, TypeError):
+                        raise
                     except Exception as e:
                         print(f"      ❌ Error: {e}")
                         traceback.print_exc()
