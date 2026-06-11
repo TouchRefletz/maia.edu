@@ -365,7 +365,7 @@ def parse_json_response(text: str) -> dict:
     
     # 1. Tentar parse direto
     try:
-        return json.loads(text_stripped)
+        return json.loads(text_stripped, strict=False)
     except json.JSONDecodeError:
         pass
         
@@ -374,7 +374,7 @@ def parse_json_response(text: str) -> dict:
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text_stripped)
     if match:
         try:
-            return json.loads(match.group(1).strip())
+            return json.loads(match.group(1).strip(), strict=False)
         except json.JSONDecodeError:
             pass
             
@@ -383,7 +383,7 @@ def parse_json_response(text: str) -> dict:
     end_idx = text_stripped.rfind('}')
     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
         try:
-            return json.loads(text_stripped[start_idx:end_idx+1])
+            return json.loads(text_stripped[start_idx:end_idx+1], strict=False)
         except json.JSONDecodeError:
             pass
             
@@ -696,7 +696,7 @@ def search_gabarito(question_json: dict):
             import re
             json_match = re.search(r'\{[\s\S]*\}', answer_text)
             if json_match:
-                parsed_gabarito = json.loads(json_match.group(0))
+                parsed_gabarito = json.loads(json_match.group(0), strict=False)
                 print(f"      [Gabarito Search] Sucesso com grounding! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
                 return parsed_gabarito
         print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
@@ -736,7 +736,7 @@ def search_gabarito(question_json: dict):
             import re
             json_match = re.search(r'\{[\s\S]*\}', answer_text)
             if json_match:
-                parsed_gabarito = json.loads(json_match.group(0))
+                parsed_gabarito = json.loads(json_match.group(0), strict=False)
                 print(f"      [Gabarito Fallback] ✅ Sucesso na geração direta! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
                 return parsed_gabarito
         print(f"      [Gabarito Fallback] ⚠️ Resposta vazia ou JSON não encontrado na geração direta.")

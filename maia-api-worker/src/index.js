@@ -2483,7 +2483,9 @@ async function handleExtractAndSave(request, env) {
 					},
 				};
 
-				const fbResponse = await fetch(`${firebaseUrl}/${firebasePath}`, {
+				const secret = env.FIREBASE_DATABASE_SECRET;
+				const fbUrl = secret ? `${firebaseUrl}/${firebasePath}?auth=${secret}` : `${firebaseUrl}/${firebasePath}`;
+				const fbResponse = await fetch(fbUrl, {
 					method: 'PUT',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(firebaseData),
@@ -2535,7 +2537,9 @@ async function handleCheckQuestion(request, env) {
 			});
 		}
 		// path is like "questoes/OBMEP_2023_Nivel_3/Q1"
-		const fbResponse = await fetch(`${firebaseUrl}/${path}.json`);
+		const secret = env.FIREBASE_DATABASE_SECRET;
+		const fbUrl = secret ? `${firebaseUrl}/${path}.json?auth=${secret}` : `${firebaseUrl}/${path}.json`;
+		const fbResponse = await fetch(fbUrl);
 		let exists = false;
 		if (fbResponse.ok) {
 			const data = await fbResponse.json();
