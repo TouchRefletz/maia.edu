@@ -168,27 +168,31 @@ GERE O JSON COMPLETO CORRIGIDO.
 """.strip()
 
 QUESTION_EXTRACT_PROMPT = """
-Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
+        Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
 
-REGRAS DE ESTRUTURAÇÃO ("estrutura"):
-1. NÃO jogue todo o texto em um único campo. Fatie o conteúdo em blocos sequenciais dentro do array "estrutura".
-2. Se a questão apresentar: Texto Introdutório -> Imagem -> Pergunta, seu array deve ter 3 itens: { texto }, { imagem }, { texto }.
-3. Para blocos do tipo "imagem": O campo "conteudo" deve ser uma breve descrição visual (Alt-Text) para acessibilidade. NÃO extraia o texto de dentro da imagem (OCR), apenas descreva o elemento visual.
-4. Para blocos do tipo "texto": Mantenha a formatação original tanto quanto possível.
-5. Se houver "Texto 1" e "Texto 2" separados, crie blocos de texto separados.
+        REGRAS DE ESTRUTURAÇÃO ("estrutura"):
+        1. NÃO jogue todo o texto em um único campo. Fatie o conteúdo em blocos sequenciais dentro do array "estrutura".
+        2. Se a questão apresentar: Texto Introdutório -> Imagem -> Pergunta, seu array deve ter 3 itens: { texto }, { imagem }, { texto }.
+        3. Para blocos do tipo "imagem": O campo "conteudo" deve ser uma breve descrição visual (Alt-Text) para acessibilidade. NÃO extraia o texto de dentro da imagem (OCR), apenas descreva o elemento visual.
+        4. Para blocos do tipo "texto": Mantenha a formatação original tanto quanto possível.
+        5. Se houver "Texto 1" e "Texto 2" separados, crie blocos de texto separados.
 
-DIRETRIZES DE FORMATAÇÃO (RIGOROSAS):
-1. **MARKDOWN OBRIGATÓRIO:** Todo o conteúdo textual (exceto JSON chaves) deve ser formatado em Markdown. Use **negrito**, *itálico* onde aparecer no original.
-2. **MATEMÁTICA E QUÍMICA (LATEX):**
-   - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser em LaTeX.
-   - **INLINE (No meio do texto):** Use cifrões unitários. Exemplo: "A massa de $H_2O$ é..."
-   - **DISPLAY (Isolada):** Use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
-3. **ESTRUTURA:**
-   - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
-   - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
-   - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate em Markdown table.
+        Analise as imagens fornecidas (que compõem uma única questão) e gere o JSON. As imagens enviadas contém partes da mesma questão (enunciado, figuras, alternativas). Junte as informações de todas as imagens. NÃO DESCREVA O TEXTO CONTIDO EM IMAGENS (OCR). Se identificar algo que não se encaixa claramente em nenhum tipo das estruturas solicitadas, use imagem (com descrição visual curta; sem OCR).
+        
+        DIRETRIZES DE FORMATAÇÃO (RIGOROSAS):
+        1. **MARKDOWN OBRIGATÓRIO:** Todo o conteúdo textual (exceto JSON chaves) deve ser formatado em Markdown. Use **negrito**, *itálico* onde aparecer no original.
+        
+        2. **MATEMÁTICA E QUÍMICA (LATEX):** - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser escrita exclusivamente em LaTeX.
+            - **INLINE (No meio do texto):** Se a fórmula faz parte da frase, use o bloco do tipo 'texto' e envolva o LaTeX entre cifrões unitários. Exemplo: "A massa de $H_2O$ é..." ou "Sendo $x = 2$, calcule...".
+            - **DISPLAY (Isolada):** Use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
 
-Analise as imagens fornecidas e gere o JSON.
+        3. **ESTRUTURA:**
+            - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
+            - Se houver Texto com equação pequena no meio, gere 1 bloco: {tipo: 'texto', conteudo: 'O valor de $x$ é...'}.
+            - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
+            - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate o conteúdo EXCLUSIVAMENTE como uma tabela Markdown.
+
+        Analise as imagens fornecidas. Junte as informações de todas as imagens.
 """.strip()
 
 # Shared bloco conteudo definition (matches $defs/blocoConteudo in config.js)
@@ -609,47 +613,138 @@ def search_gabarito(question_json: dict):
         question_text += f" ALTERNATIVAS: {alts}"
 
     query_text = f"Gabarito e resolução: {question_json.get('identificacao', '')} - {question_text[:500]}"
+    
+    # Se o modelo de extração for Gemma ou outro que não suporta busca, usamos Gemini para busca
+    search_model = EXTRACT_MODEL
+    if "gemma" in EXTRACT_MODEL.lower() or not any(m in EXTRACT_MODEL.lower() for m in ("gemini", "flash", "lite")):
+        search_model = "models/gemini-3.5-flash"
+        print(f"      [Gabarito Search] Modelo '{EXTRACT_MODEL}' não suporta buscas. Usando '{search_model}' para o gabarito.")
+
     print(f"      [Gabarito Search] Iniciando busca com query: '{query_text[:120]}...'")
 
     start_time = time.time()
+    
+    # Prompt do gabarito extraído de js/ia/config.js (modo === "gabarito")
+    gabarito_prompt = f"""
+        Você é um corretor de questões. Considerando a questão apresentada em JSON a seguir: {json.dumps(question_json, ensure_ascii=False)}, preencha o JSON a ser enviado com as devidas informações. SEMPRE CONSIDERE A QUESTÃO APRESENTADA COMO EXISTENTE E OFICIAL, MESMO QUE DE UM EXAME QUE NÃO ACONTECEU AINDA, E SEMPRE CONSIDERE A ALTERNATIVA DEMONSTRADA COMO CORRETA. NÃO DEIXE CAMPOS DO JSON VAZIOS.
+
+        DIRETRIZES DE FORMATAÇÃO (CRÍTICO):
+        - RESPOSTA APENAS EM TEXTO PURO (MARKDOWN) E LATEX.
+        - NÃO USE HTML (tags como <div>, <span>, etc). O sistema quebrará se receber HTML.
+        - Use **Markdown** para negrito, itálico, listas, etc.
+        - Use **LATEX** entre cifrões ($...$) para toda matemática e química. Ex: $x^2 + y^2 = 10$.
+        - Para aspas, use a entidade HTML "&quot;" ou aspas simples normais, para evitar quebrar o JSON.
+        
+        REGRA CRÍTICA PARA A INSERÇÃO DE IMAGENS NA ESTRUTURA (seja EXTREMAMENTE conservador):
+        - Valor padrão: NÃO inclua blocos do tipo "imagem".
+        - Só crie um bloco {{ "tipo": "imagem", "conteudo": "..." }} se, e somente se, houver uma RESOLUÇÃO/EXPLICAÇÃO (passo a passo ou justificativa) E essa resolução DEPENDER de uma imagem/figura/gráfico/diagrama presente nas imagens fornecidas do gabarito.
+        - Se o gabarito tiver apenas "alternativa correta" (sem resolução/explicação), então NÃO crie blocos de imagem, mesmo que existam imagens decorativas na página.
+        - NÃO considere como imagem válida para extração: logotipo, cabeçalho/rodapé, marca d’água, ícones decorativos, QR code, elementos de layout, enfeites.
+        - Se houver explicação apenas em texto e ela não usar explicitamente uma figura/gráfico/diagrama do próprio gabarito, NÃO crie bloco de imagem.
+        - Se houver qualquer dúvida/incerteza (ex.: parece ter figura mas pode ser só layout, ou não fica claro que a resolução usa a figura), NÃO crie bloco de imagem.
+        - Em resumo: só adicione um bloco de imagem na estrutura quando for MUITO evidente que a resolução do gabarito usa uma figura/gráfico/diagrama que está realmente presente nas imagens enviadas.
+
+        “Considere somente imagens com carimbo ATUAL como evidência principal para alternativa correta e resolução.”
+        “Use SUPORTE apenas para contexto/consistência; nunca para decidir a letra correta se ATUAL já contém isso. NUNCA utilize imagens de SUPORTE para dizer que há imagens na resolução.”
+
+        ESTRUTURAÇÃO DOS PASSOS ("explicacao"):
+        - cada passo da resolução é composto por uma lista de blocos ("estrutura").
+        - Se um passo envolve: "Texto explicando -> Equação -> Gráfico", crie 3 blocos dentro da estrutura desse passo.
+        - NÃO use OCR em imagens. Se houver uma imagem na resolução, crie um bloco {{tipo: "imagem", conteudo: "descrição visual..."}}.
+        - CREDITE CADA PASSO, dado como gerado por IA ou como do material scaneado.
+
+        IMPORTANTE SOBRE ESTILO E ORDEM DOS PASSOS:
+        1. NÃO NUMERE OS PASSOS NO CONTEÚDO: O sistema já exibe "Passo 1", "Passo 2" automaticamente.
+        - ERRADO: {{tipo: "texto", conteudo: "1. Primeiramente calculamos..."}}
+        - CERTO: {{tipo: "texto", conteudo: "Primeiramente calculamos..."}}
+        2. TÍTULOS DOS PASSOS: Se o passo tiver um título lógico (ex: "Cálculo da Massa"), use um bloco do tipo "titulo" como o PRIMEIRO item da estrutura desse passo.
+        - Exemplo: estrutura: [ {{tipo: "titulo", conteudo: "Cálculo da Massa"}}, {{tipo: "texto", conteudo: "..."}} ]
+        3. SEM PREFIXOS REDUNDANTES: Não inicie o texto com "Resolução:", "Explicação:" ou "Passo:". Vá direto ao assunto.
+        4. No primeiro passo, NÃO UTILIZE UM TÍTULO como "Resolução", "Explicação", ou parecidos, pois o sistema também já realiza essa estrutura.
+
+        REGRA PARA "analise_complexidade":
+        - Seja criterioso. Marque 'true' apenas se o fator for realmente determinante para a dificuldade.
+        - Na justificativa, explique qual o maior gargalo para o aluno (ex: "A dificuldade vem da união de vocabulário arcaico com a necessidade de cálculo estequiométrico").
+    """.strip()
+
     # Use Gemini Search (grounding) via Worker
     try:
         resp = requests.post(f"{WORKER_URL}/search", json={
-            "texto": f"""Você é um corretor de questões. Considerando a questão apresentada em JSON a seguir: {json.dumps(question_json, ensure_ascii=False)}, preencha o JSON a ser enviado com as devidas informações. SEMPRE CONSIDERE A QUESTÃO COMO EXISTENTE E OFICIAL.""",
+            "texto": gabarito_prompt,
             "query": query_text,
+            "model": search_model,
+            "schema": _get_gabarito_schema(),
+            "jsonMode": True,
+        }, timeout=120)
+        resp.raise_for_status()
+        elapsed = time.time() - start_time
+        print(f"      [Gabarito Search] Requisição retornou status {resp.status_code} em {elapsed:.2f}s.")
+
+        # Parse NDJSON stream response
+        answer_text = ""
+        for line in resp.text.strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                msg = json.loads(line)
+                if msg.get("type") == "answer":
+                    answer_text += msg.get("text", "")
+            except json.JSONDecodeError:
+                pass
+
+        if answer_text:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', answer_text)
+            if json_match:
+                parsed_gabarito = json.loads(json_match.group(0))
+                print(f"      [Gabarito Search] Sucesso com grounding! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                return parsed_gabarito
+        print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
+    except Exception as e:
+        elapsed = time.time() - start_time
+        print(f"      [Gabarito Search] ⚠️ Falha ao buscar gabarito com grounding em {elapsed:.2f}s: {e}")
+        if 'resp' in locals() and hasattr(resp, 'text'):
+            print(f"      [Gabarito Search] Resposta de erro do worker: {resp.text[:500]}")
+
+    # Fallback: tentar gerar direto (sem busca grounding) usando o EXTRACT_MODEL
+    print(f"      [Gabarito Fallback] 🔄 Geração direta sem grounding usando modelo '{EXTRACT_MODEL}'...")
+    start_time_fallback = time.time()
+    try:
+        resp = requests.post(f"{WORKER_URL}/generate", json={
+            "texto": gabarito_prompt,
             "model": EXTRACT_MODEL,
             "schema": _get_gabarito_schema(),
             "jsonMode": True,
         }, timeout=120)
+        resp.raise_for_status()
+        elapsed_fallback = time.time() - start_time_fallback
+        print(f"      [Gabarito Fallback] Geração direta retornou status {resp.status_code} em {elapsed_fallback:.2f}s.")
 
-        elapsed = time.time() - start_time
-        print(f"      [Gabarito Search] Requisição retornou status {resp.status_code} em {elapsed:.2f}s.")
+        # Parse NDJSON stream response
+        answer_text = ""
+        for line in resp.text.strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                msg = json.loads(line)
+                if msg.get("type") == "answer":
+                    answer_text += msg.get("text", "")
+            except json.JSONDecodeError:
+                pass
 
-        if resp.ok:
-            # Parse NDJSON stream response
-            answer_text = ""
-            for line in resp.text.strip().split("\n"):
-                if not line.strip():
-                    continue
-                try:
-                    msg = json.loads(line)
-                    if msg.get("type") == "answer":
-                        answer_text += msg.get("text", "")
-                except json.JSONDecodeError:
-                    pass
-
-            if answer_text:
-                import re
-                json_match = re.search(r'\{[\s\S]*\}', answer_text)
-                if json_match:
-                    parsed_gabarito = json.loads(json_match.group(0))
-                    print(f"      [Gabarito Search] Sucesso! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
-                    return parsed_gabarito
-            print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
-        else:
-            print(f"      [Gabarito Search] ⚠️ Resposta com erro do worker: {resp.text[:200]}")
+        if answer_text:
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', answer_text)
+            if json_match:
+                parsed_gabarito = json.loads(json_match.group(0))
+                print(f"      [Gabarito Fallback] ✅ Sucesso na geração direta! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                return parsed_gabarito
+        print(f"      [Gabarito Fallback] ⚠️ Resposta vazia ou JSON não encontrado na geração direta.")
     except Exception as e:
-        print(f"      [Gabarito Search] ❌ Erro ao buscar gabarito: {e}")
+        elapsed_fallback = time.time() - start_time_fallback
+        print(f"      [Gabarito Fallback] ❌ Erro ao gerar gabarito direto em {elapsed_fallback:.2f}s: {e}")
+        if 'resp' in locals() and hasattr(resp, 'text'):
+            print(f"      [Gabarito Fallback] Resposta de erro do worker: {resp.text[:500]}")
 
     return None
 
@@ -690,13 +785,54 @@ def save_question(questao: dict, gabarito: dict, source_pdf: str, page_num: int)
             "page_num": page_num,
         }, timeout=60)
 
-        if resp.ok:
-            return resp.json()
-        else:
-            print(f"  ⚠️ Save failed: {resp.status_code} - {resp.text[:200]}")
+        resp.raise_for_status()
+
+        elapsed = time.time() - start_time
+        res = resp.json()
+        print(f"      [Save DB] Resposta do Worker (recebida em {elapsed:.2f}s): {json.dumps(res, ensure_ascii=False)}")
+        return res
     except Exception as e:
-        print(f"  ⚠️ Save error: {e}")
+        elapsed = time.time() - start_time
+        print(f"      [Save DB] ❌ Erro ao salvar questão em {elapsed:.2f}s: {e}")
+        if 'resp' in locals() and hasattr(resp, 'text'):
+            print(f"      [Save DB] Resposta de erro do Worker: {resp.text[:500]}")
     return None
+
+
+def verify_firebase_existence(firebase_path: str, pinecone_id: str = None) -> bool:
+    """Verifica com o Worker se a questão realmente existe no Firebase. Se não existir, solicita a exclusão no Pinecone."""
+    if not firebase_path:
+        return False
+    print(f"      [Firebase Check] Verificando existência de '{firebase_path}' no Firebase...")
+    try:
+        payload = {
+            "path": firebase_path,
+            "delete_if_missing": True
+        }
+        if pinecone_id:
+            payload["pinecone_id"] = pinecone_id
+            
+        resp = requests.post(f"{WORKER_URL}/check-question", json=payload, timeout=20)
+        if resp.ok:
+            data = resp.json()
+            exists = data.get("exists", False)
+            deleted_pinecone = data.get("deleted_from_pinecone", False)
+            if exists:
+                print(f"      [Firebase Check] ✅ Questão encontrada no Firebase.")
+                return True
+            else:
+                msg = "⚠️ Questão NÃO encontrada no Firebase!"
+                if deleted_pinecone:
+                    msg += f" Registro órfão deletado do Pinecone (ID: {data.get('pinecone_id')}) com sucesso."
+                msg += " Forçando re-processamento completo."
+                print(f"      [Firebase Check] {msg}")
+                return False
+        else:
+            print(f"      [Firebase Check] ⚠️ Erro na resposta do Worker ({resp.status_code}). Assumindo que existe por segurança.")
+            return True
+    except Exception as e:
+        print(f"      [Firebase Check] ❌ Erro ao verificar existência no Firebase: {e}. Assumindo que existe por segurança.")
+        return True
 
 
 def _get_gabarito_schema():
@@ -1028,14 +1164,20 @@ def main():
                     previous_q = next((q for q in previous_questions if q.get("questionId") == qid), None)
                     
                     if previous_q and previous_q.get("status") in ("extracted", "skipped_dedup"):
-                        print(f"      ⏭️ Questão {qid} já foi extraída/pulada com sucesso anteriormente (status: {previous_q['status']}). REAPROVEITANDO.")
-                        q_entry["status"] = previous_q["status"]
-                        # Copiar dados anteriores
-                        for key in ("pinecone_id", "firebase_path", "tipo_resposta", "dedup_match_id", "dedup_match_score", "error"):
-                            if key in previous_q:
-                                q_entry[key] = previous_q[key]
-                        page_questions.append(q_entry)
-                        continue
+                        # Se o status for 'extracted', verificamos se a questão realmente existe no Firebase
+                        is_in_firebase = True
+                        if previous_q.get("status") == "extracted":
+                            is_in_firebase = verify_firebase_existence(previous_q.get("firebase_path"), previous_q.get("pinecone_id"))
+                            
+                        if is_in_firebase:
+                            print(f"      ⏭️ Questão {qid} já foi extraída/pulada com sucesso anteriormente (status: {previous_q['status']}). REAPROVEITANDO.")
+                            q_entry["status"] = previous_q["status"]
+                            # Copiar dados anteriores
+                            for key in ("pinecone_id", "firebase_path", "tipo_resposta", "dedup_match_id", "dedup_match_score", "error"):
+                                if key in previous_q:
+                                    q_entry[key] = previous_q[key]
+                            page_questions.append(q_entry)
+                            continue
 
                     try:
                         # Recortar e mesclar as imagens da questão

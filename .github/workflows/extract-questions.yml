@@ -113,7 +113,7 @@ jobs:
 
       - name: Run Extraction Pipeline
         if: steps.setup.outputs.has_manifest == 'true'
-        run: python3 .github/scripts/extract_pipeline.py
+        run: python3 -u .github/scripts/extract_pipeline.py
         env:
           MANIFEST_PATH: work/manifest.json
 

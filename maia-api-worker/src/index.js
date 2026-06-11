@@ -106,6 +106,9 @@ export default {
 				case '/extract-and-save':
 					return handleExtractAndSave(request, env);
 
+				case '/check-question':
+					return handleCheckQuestion(request, env);
+
 				default:
 					return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
 			}
@@ -1336,7 +1339,10 @@ async function handleGeminiSearch(request, env) {
 	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
 
-	const client = new GoogleGenAI({ apiKey: finalApiKey });
+	const client = new GoogleGenAI({
+		apiKey: finalApiKey,
+		httpOptions: { timeout: 60000 },
+	});
 
 	// Modelos iniciais
 	const initialModels = model ? [model] : DEFAULT_MODELS;
@@ -1533,6 +1539,41 @@ async function executePineconeDelete(slug, env) {
 
 	return await response.json();
 }
+
+/**
+ * HELPER: Delete vector by ID from the default Pinecone host
+ */
+async function executePineconeDeleteById(pineconeId, env) {
+	const pineconeHost = env.PINECONE_HOST || env.PINECONE_HOST_DEEP_SEARCH;
+	const apiKey = env.PINECONE_API_KEY;
+
+	if (!pineconeHost || !apiKey) {
+		console.warn('PINECONE_HOST or PINECONE_API_KEY missing, skipping delete.');
+		return;
+	}
+
+	const endpoint = `${pineconeHost}/vectors/delete`;
+
+	const response = await fetch(endpoint, {
+		method: 'POST',
+		headers: {
+			'Api-Key': apiKey,
+			'Content-Type': 'application/json',
+			'X-Pinecone-API-Version': '2024-07',
+		},
+		body: JSON.stringify({
+			ids: [pineconeId],
+		}),
+	});
+
+	if (!response.ok) {
+		const txt = await response.text();
+		throw new Error(`Pinecone Delete ID Error: ${txt}`);
+	}
+
+	return await response.json();
+}
+
 /**
  * SERVICE: MANUAL UPLOAD (Sync to HF) with AI Research
  * 1. Uploads file to tmpfiles.org
@@ -2450,10 +2491,13 @@ async function handleExtractAndSave(request, env) {
 
 				firebaseSaved = fbResponse.ok;
 				if (!firebaseSaved) {
-					console.warn('[ExtractAndSave] Firebase save failed:', await fbResponse.text());
+					const errorText = await fbResponse.text();
+					console.warn('[ExtractAndSave] Firebase save failed:', errorText);
+					throw new Error(`Firebase save failed: ${errorText}`);
 				}
 			} catch (fbErr) {
 				console.warn('[ExtractAndSave] Firebase error:', fbErr);
+				throw fbErr;
 			}
 		} else {
 			console.warn('[ExtractAndSave] FIREBASE_DATABASE_URL not configured, skipping Firebase save');
@@ -2473,6 +2517,80 @@ async function handleExtractAndSave(request, env) {
 		console.error('[ExtractAndSave] Error:', error);
 		return new Response(JSON.stringify({ error: error.message }), {
 			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * Check if a question exists in Firebase RTDB.
+ */
+async function handleCheckQuestion(request, env) {
+	try {
+		const { path, pinecone_id, delete_if_missing } = await request.json();
+		const firebaseUrl = env.FIREBASE_DATABASE_URL;
+		if (!firebaseUrl) {
+			return new Response(JSON.stringify({ exists: false, error: 'Firebase not configured' }), {
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			});
+		}
+		// path is like "questoes/OBMEP_2023_Nivel_3/Q1"
+		const fbResponse = await fetch(`${firebaseUrl}/${path}.json`);
+		let exists = false;
+		if (fbResponse.ok) {
+			const data = await fbResponse.json();
+			exists = data !== null;
+		}
+
+		if (exists) {
+			return new Response(JSON.stringify({ exists: true, deleted_from_pinecone: false }), {
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			});
+		}
+
+		// If missing in Firebase, clean up Pinecone if requested
+		let deletedFromPinecone = false;
+		let targetPineconeId = null;
+
+		if (delete_if_missing) {
+			let pineconeId = pinecone_id;
+			if (!pineconeId && path) {
+				const parts = path.split('/');
+				if (parts.length >= 3 && parts[0] === 'questoes') {
+					const chaveProva = parts[1];
+					const idQuestao = parts.slice(2).join('/');
+					const rawId = `${chaveProva} - ${idQuestao}`;
+					const rawBytes = new TextEncoder().encode(rawId);
+					const binString = Array.from(rawBytes, (byte) => String.fromCodePoint(byte)).join('');
+					pineconeId = btoa(binString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+				}
+			}
+
+			if (pineconeId) {
+				targetPineconeId = pineconeId;
+				try {
+					console.log(`[CheckQuestion] Question missing in Firebase. Cleaning up Pinecone vector: ${pineconeId}`);
+					await executePineconeDeleteById(pineconeId, env);
+					deletedFromPinecone = true;
+				} catch (err) {
+					console.error(`[CheckQuestion] Error deleting Pinecone vector ${pineconeId}:`, err);
+				}
+			}
+		}
+
+		return new Response(
+			JSON.stringify({
+				exists: false,
+				deleted_from_pinecone: deletedFromPinecone,
+				pinecone_id: targetPineconeId,
+			}),
+			{
+				headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+			}
+		);
+	} catch (error) {
+		console.error('[CheckQuestion] Error:', error);
+		return new Response(JSON.stringify({ exists: false, error: error.message }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	}
