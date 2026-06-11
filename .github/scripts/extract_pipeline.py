@@ -304,14 +304,146 @@ def image_to_base64(img: Image.Image, fmt="PNG") -> str:
 
 
 def crop_region(page_img: Image.Image, box: list) -> Image.Image:
-    """Crop a region from page image using [y1, x1, y2, x2] in 0..1000 scale."""
+    """Crop a region from page image using [y1, x1, y2, x2] in 0..1000 scale with validations."""
+    if not isinstance(box, list) or len(box) != 4:
+        raise ValueError(f"Formato de box inválido: {box}. Deve ser uma lista de 4 números.")
+    
     w, h = page_img.size
-    y1, x1, y2, x2 = box
+    
+    # Garantir que sejam numéricos
+    try:
+        y1, x1, y2, x2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Valores não-numéricos no box: {box}") from e
+
+    # Converter para inteiros
+    y1, x1, y2, x2 = int(y1), int(x1), int(y2), int(x2)
+
+    # Limitar ao range 0..1000
+    y1 = max(0, min(1000, y1))
+    x1 = max(0, min(1000, x1))
+    y2 = max(0, min(1000, y2))
+    x2 = max(0, min(1000, x2))
+
+    # Garantir ordem correta y1 <= y2 e x1 <= x2
+    if y1 > y2:
+        y1, y2 = y2, y1
+    if x1 > x2:
+        x1, x2 = x2, x1
+
+    # Impedir altura ou largura zero
+    if y1 == y2:
+        y2 = min(1000, y1 + 1)
+    if x1 == x2:
+        x2 = min(1000, x1 + 1)
+
     left = int(x1 / 1000 * w)
     top = int(y1 / 1000 * h)
     right = int(x2 / 1000 * w)
     bottom = int(y2 / 1000 * h)
+    
+    # Garantir pelo menos 1 pixel de tamanho real na imagem
+    if right <= left:
+        right = min(w, left + 1)
+    if bottom <= top:
+        bottom = min(h, top + 1)
+        
+    print(f"      [Crop] Box original: {box} -> Validado: [{y1}, {x1}, {y2}, {x2}] -> Pixels: left={left}, top={top}, right={right}, bottom={bottom}")
     return page_img.crop((left, top, right, bottom))
+
+
+def parse_json_response(text: str) -> dict:
+    """Parse JSON response from LLM, cleaning markdown wraps if present."""
+    if not text:
+        raise ValueError("Texto de resposta vazio")
+    
+    text_stripped = text.strip()
+    
+    # 1. Tentar parse direto
+    try:
+        return json.loads(text_stripped)
+    except json.JSONDecodeError:
+        pass
+        
+    # 2. Tentar extrair de blocos markdown ```json ... ``` ou ``` ... ```
+    import re
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text_stripped)
+    if match:
+        try:
+            return json.loads(match.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+            
+    # 3. Tentar encontrar limites de chaves { ... }
+    start_idx = text_stripped.find('{')
+    end_idx = text_stripped.rfind('}')
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        try:
+            return json.loads(text_stripped[start_idx:end_idx+1])
+        except json.JSONDecodeError:
+            pass
+            
+    raise ValueError(f"Falha ao decodificar JSON da resposta do LLM: {text[:200]}")
+
+
+def validate_question(questao: dict) -> tuple[bool, str]:
+    """Valida a estrutura do JSON extraído da questão para evitar salvar lixo."""
+    if not isinstance(questao, dict):
+        return False, "O objeto da questão não é um dicionário."
+        
+    identificacao = questao.get("identificacao")
+    if not identificacao or not isinstance(identificacao, str) or not identificacao.strip():
+        return False, "Campo 'identificacao' ausente ou vazio."
+    if len(identificacao.strip()) < 2:
+        return False, f"Campo 'identificacao' é curto demais: '{identificacao}'."
+        
+    tipo_resposta = questao.get("tipo_resposta")
+    if tipo_resposta not in ("objetiva", "dissertativa"):
+        return False, f"Campo 'tipo_resposta' inválido ou ausente: '{tipo_resposta}'."
+        
+    estrutura = questao.get("estrutura")
+    if not isinstance(estrutura, list) or not estrutura:
+        return False, "Campo 'estrutura' ausente ou vazio."
+        
+    # Validar se há texto real (evitando zero extrações)
+    total_text = ""
+    for idx, item in enumerate(estrutura):
+        if not isinstance(item, dict):
+            return False, f"Item na estrutura na posição {idx} não é um dicionário."
+        if "tipo" not in item or "conteudo" not in item:
+            return False, f"Item na estrutura na posição {idx} está sem 'tipo' ou 'conteudo'."
+        if item.get("tipo") != "imagem":
+            total_text += str(item.get("conteudo") or "")
+            
+    if len(total_text.strip()) < 3:
+        return False, "O conteúdo textual extraído da questão é vazio ou curto demais (menos de 3 caracteres)."
+        
+    # Validar campos de metadados obrigatórios pelo schema
+    for field in ("materias_possiveis", "palavras_chave"):
+        if field not in questao or not isinstance(questao[field], list):
+            return False, f"Campo obrigatório '{field}' ausente ou não é uma lista."
+            
+    # Validar alternativas para questões objetivas
+    if tipo_resposta == "objetiva":
+        alternativas = questao.get("alternativas")
+        if not isinstance(alternativas, list):
+            return False, "Campo 'alternativas' ausente ou não é uma lista para questão objetiva."
+        if len(alternativas) == 0:
+            return False, "Questão objetiva declarada com lista de alternativas vazia."
+        for idx, alt in enumerate(alternativas):
+            if not isinstance(alt, dict):
+                return False, f"Alternativa na posição {idx} não é um dicionário."
+            if "letra" not in alt or "estrutura" not in alt:
+                return False, f"Alternativa na posição {idx} está sem 'letra' ou 'estrutura'."
+            letra = alt.get("letra")
+            if not letra or not isinstance(letra, str) or not letra.strip():
+                return False, f"Alternativa na posição {idx} possui campo 'letra' inválido ou vazio."
+            alt_estrutura = alt.get("estrutura")
+            if not isinstance(alt_estrutura, list) or not alt_estrutura:
+                return False, f"Alternativa '{letra}' está sem blocos em 'estrutura' ou está vazia."
+                
+    return True, ""
+
 
 
 
@@ -408,7 +540,9 @@ class RateLimitError(Exception):
 def detect_regions(page_img: Image.Image):
     """Step 1: Detect question regions in a page image."""
     b64 = image_to_base64(page_img)
+    print(f"    [Region Detect] Enviando imagem (base64 size: {len(b64)} chars) para detecção de regiões...")
 
+    start_time = time.time()
     response = call_gemini_with_retry(
         model=REGION_MODEL,
         contents=[
@@ -426,14 +560,18 @@ def detect_regions(page_img: Image.Image):
         ),
     )
 
+    elapsed = time.time() - start_time
     text = response.text
-    return json.loads(text)
+    print(f"    [Region Detect] Resposta recebida em {elapsed:.2f}s (tamanho: {len(text or '')} chars).")
+    return parse_json_response(text)
 
 
 def extract_question(cropped_img: Image.Image):
     """Step 2: Extract structured question data from a cropped region."""
     b64 = image_to_base64(cropped_img)
+    print(f"      [Extract Question] Chamando Gemini com crop (base64 size: {len(b64)} chars)...")
 
+    start_time = time.time()
     response = call_gemini_with_retry(
         model=EXTRACT_MODEL,
         contents=[
@@ -451,7 +589,10 @@ def extract_question(cropped_img: Image.Image):
         ),
     )
 
-    return json.loads(response.text)
+    elapsed = time.time() - start_time
+    text = response.text
+    print(f"      [Extract Question] Resposta recebida em {elapsed:.2f}s (tamanho: {len(text or '')} chars).")
+    return parse_json_response(text)
 
 
 def search_gabarito(question_json: dict):
@@ -468,7 +609,9 @@ def search_gabarito(question_json: dict):
         question_text += f" ALTERNATIVAS: {alts}"
 
     query_text = f"Gabarito e resolução: {question_json.get('identificacao', '')} - {question_text[:500]}"
+    print(f"      [Gabarito Search] Iniciando busca com query: '{query_text[:120]}...'")
 
+    start_time = time.time()
     # Use Gemini Search (grounding) via Worker
     try:
         resp = requests.post(f"{WORKER_URL}/search", json={
@@ -478,6 +621,9 @@ def search_gabarito(question_json: dict):
             "schema": _get_gabarito_schema(),
             "jsonMode": True,
         }, timeout=120)
+
+        elapsed = time.time() - start_time
+        print(f"      [Gabarito Search] Requisição retornou status {resp.status_code} em {elapsed:.2f}s.")
 
         if resp.ok:
             # Parse NDJSON stream response
@@ -496,26 +642,45 @@ def search_gabarito(question_json: dict):
                 import re
                 json_match = re.search(r'\{[\s\S]*\}', answer_text)
                 if json_match:
-                    return json.loads(json_match.group(0))
+                    parsed_gabarito = json.loads(json_match.group(0))
+                    print(f"      [Gabarito Search] Sucesso! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                    return parsed_gabarito
+            print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
+        else:
+            print(f"      [Gabarito Search] ⚠️ Resposta com erro do worker: {resp.text[:200]}")
     except Exception as e:
-        print(f"  ⚠️ Gabarito search error: {e}")
+        print(f"      [Gabarito Search] ❌ Erro ao buscar gabarito: {e}")
 
     return None
 
 
 def check_duplicate(text: str) -> dict:
     """Check if a question already exists in Pinecone."""
+    print(f"      [Dedup Check] Buscando duplicata para: '{text[:100]}...'")
+    start_time = time.time()
     try:
         resp = requests.post(f"{WORKER_URL}/check-duplicate", json={"text": text}, timeout=30)
+        elapsed = time.time() - start_time
         if resp.ok:
-            return resp.json()
+            res = resp.json()
+            exists = res.get("exists", False)
+            matches = res.get("matches", [])
+            if exists and matches:
+                print(f"      [Dedup Check] Duplicata ENCONTRADA! Score: {matches[0].get('score', 0):.3f} (ID: {matches[0].get('id', '')}) em {elapsed:.2f}s.")
+            else:
+                print(f"      [Dedup Check] Nenhuma duplicata encontrada em {elapsed:.2f}s.")
+            return res
+        else:
+            print(f"      [Dedup Check] ⚠️ Falha na requisição de dedup (status {resp.status_code}): {resp.text[:200]}")
     except Exception as e:
-        print(f"  ⚠️ Dedup check error: {e}")
+        print(f"      [Dedup Check] ❌ Erro na requisição de dedup: {e}")
     return {"exists": False, "matches": []}
 
 
 def save_question(questao: dict, gabarito: dict, source_pdf: str, page_num: int) -> dict:
     """Save extracted question via Worker."""
+    print(f"      [Save DB] Salvando questão '{questao.get('identificacao')}' no banco via Worker...")
+    start_time = time.time()
     try:
         resp = requests.post(f"{WORKER_URL}/extract-and-save", json={
             "questao": questao,
@@ -614,6 +779,10 @@ def _get_gabarito_schema():
 # ─── Main Pipeline ───────────────────────────────────────────────
 
 def main():
+    print(f"\n{'='*80}")
+    print(f"🚀 Iniciando Pipeline de Extração - Manifest: {MANIFEST_PATH}")
+    print(f"{'='*80}")
+
     manifest = load_manifest()
     manifest["status"] = "in_progress"
 
@@ -624,7 +793,7 @@ def main():
         items = manifest.get("results", manifest.get("files", manifest.get("items", [])))
 
     if not items:
-        print("❌ No valid items found in manifest to process")
+        print("❌ Nenhum item válido encontrado no manifesto para processamento")
         manifest["status"] = "error"
         manifest["error"] = "No items to process"
         save_manifest(manifest)
@@ -637,7 +806,7 @@ def main():
     total_skipped = 0
     total_failed = 0
 
-    # Recalculate totals from existing items
+    # Recalcular totais a partir dos itens existentes no manifesto
     for item in items:
         data = item.get("extraction_results", {})
         for page, pdata in data.get("pages", {}).items():
@@ -649,7 +818,11 @@ def main():
                 elif q["status"] == "failed":
                     total_failed += 1
 
-    print(f"📄 Found {len(items)} items to process")
+    print(f"📊 Estado Inicial:")
+    print(f"   Total de itens (PDFs) no manifesto: {len(items)}")
+    print(f"   Questões já extraídas: {total_extracted}")
+    print(f"   Questões já puladas (dedup): {total_skipped}")
+    print(f"   Questões falhas anteriormente: {total_failed}")
 
     try:
         import urllib.request
@@ -661,13 +834,15 @@ def main():
         for item_idx, item in enumerate(items):
             url = item.get("url") or item.get("link") or item.get("link_origem") or item.get("external_url")
             if not url or not url.startswith("http"):
+                print(f"⚠️ Item {item_idx} pulado: URL ausente ou inválida ('{url}')")
                 continue
 
             if "extraction_results" not in item:
                 item["extraction_results"] = {"pages": {}, "status": "pending"}
             
-            # Check if this item is already fully extracted
+            # Se o status do item já está completo, pulamos o processamento dele
             if item["extraction_results"].get("status") == "complete":
+                print(f"⏭️ Item {item_idx} ('{item.get('name')}') já está 'complete'. Pulando.")
                 continue
 
             name = item.get("name") or item.get("nome") or "doc"
@@ -679,62 +854,71 @@ def main():
             pdf_name = f"doc_{item_idx}_{safe_name}"
 
             print(f"\n{'='*60}")
-            print(f"📄 Processing: {safe_name}")
+            print(f"📄 Processando Item [{item_idx + 1}/{len(items)}]: {safe_name}")
+            print(f"   URL: {url}")
             print(f"{'='*60}")
 
-            # Download if not exists
+            # Baixar o PDF caso não exista localmente
             if not os.path.exists(pdf_path):
-                print(f"  📥 Downloading {url}...")
+                print(f"  📥 Baixando arquivo para {pdf_path}...")
+                download_start = time.time()
                 try:
                     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                     with urllib.request.urlopen(req, context=ctx, timeout=30) as response, open(pdf_path, 'wb') as out_file:
                         out_file.write(response.read())
+                    print(f"  ✅ Download finalizado em {time.time() - download_start:.2f}s (tamanho: {os.path.getsize(pdf_path)} bytes).")
                 except Exception as e:
-                    print(f"  ❌ Failed to download {url}: {e}")
+                    print(f"  ❌ Falha no download de {url}: {e}")
                     item["extraction_results"]["status"] = "error"
                     item["extraction_results"]["error"] = f"Download failed: {e}"
                     save_manifest(manifest)
                     continue
+            else:
+                print(f"  💾 Arquivo PDF já existe localmente: {pdf_path} ({os.path.getsize(pdf_path)} bytes)")
 
-            # Convert PDF to images
+            # Converter PDF em imagens
+            print(f"  📃 Convertendo PDF em imagens (DPI=200)...")
+            convert_start = time.time()
             try:
                 pages = convert_from_path(pdf_path, dpi=200)
+                print(f"  ✅ PDF convertido em {len(pages)} imagem(ns) de página em {time.time() - convert_start:.2f}s.")
             except Exception as e:
-                print(f"  ❌ Failed to convert PDF: {e}")
+                print(f"  ❌ Falha ao converter PDF: {e}")
                 item["extraction_results"]["status"] = "error"
                 item["extraction_results"]["error"] = f"PDF convert failed: {e}"
                 save_manifest(manifest)
                 continue
 
-            print(f"  📃 {len(pages)} pages")
-
             for page_idx, page_img in enumerate(pages):
                 page_num = page_idx + 1
                 page_key = str(page_num)
 
-                # Check if already processed
+                # Verificar se a página já foi processada com absoluto sucesso
                 results_pages = item["extraction_results"].get("pages", {})
                 page_data = results_pages.get(page_key, {})
                 questions = page_data.get("questions", [])
                 
-                if questions and all(q["status"] in ("extracted", "skipped_dedup") for q in questions):
-                    print(f"  ⏭️ Page {page_num}: already processed, skipping")
+                has_page_error = "error" in page_data
+                has_failed_questions = any(q.get("status") in ("failed", "pending") for q in questions)
+                
+                # Só pula a página se ela existir no manifesto e não tiver erros nem questões falhas/pendentes
+                if page_key in results_pages and not has_page_error and not has_failed_questions:
+                    print(f"  ⏭️ Página {page_num}/{len(pages)}: já foi processada com sucesso anteriormente. Pulando.")
                     continue
 
-                print(f"\n  📃 Page {page_num}/{len(pages)}")
+                print(f"\n  📃 Analisando Página {page_num}/{len(pages)}...")
 
-                # Step 0: Regions Extraction with Audit Loop
+                # Passo 1: Detecção de Regiões com Loop de Auditoria
                 regions = []
                 raw_gemini = {}
                 try:
-                    # 1. Primeira Extração (Extraction)
-                    print(f"    🔍 Detecting regions...")
+                    print(f"    🔍 Detectando regiões da página...")
                     regions_result = detect_regions(page_img)
                     current_json = regions_result
                     raw_gemini = current_json
                     
                     if current_json.get("regions"):
-                        print(f"    ️‍♂️ Auditing {len(current_json['regions'])} regions...")
+                        print(f"    ️🕵️ Auditando {len(current_json['regions'])} região(ões) detectada(s)...")
                         # 2. Auditoria (Review)
                         b64 = image_to_base64(page_img)
                         review_response = call_gemini_with_retry(
@@ -753,15 +937,15 @@ def main():
                                 temperature=0.1,
                             ),
                         )
-                        review_result = json.loads(review_response.text)
+                        review_result = parse_json_response(review_response.text)
                         
                         if review_result.get("ok"):
-                            print(f"      ✅ Audit passed!")
+                            print(f"      ✅ Auditoria aprovada de primeira!")
                             regions = current_json.get("regions", [])
                         else:
                             feedback = review_result.get("feedback", "Correção necessária")
-                            print(f"      ❌ Audit failed: {feedback}")
-                            print(f"    🛠️ Correcting regions...")
+                            print(f"      ❌ Auditoria reprovada: {feedback}")
+                            print(f"    🛠️ Aplicando loop de correção com base no feedback...")
                             
                             # 3. Correção (Correction)
                             correction_response = call_gemini_with_retry(
@@ -780,27 +964,27 @@ def main():
                                     temperature=0.1,
                                 ),
                             )
-                            corrected_json = json.loads(correction_response.text)
+                            corrected_json = parse_json_response(correction_response.text)
                             
                             if corrected_json and corrected_json.get("regions"):
-                                print(f"      ✅ Correction applied! ({len(corrected_json['regions'])} regions)")
+                                print(f"      ✅ Correção aplicada com sucesso! ({len(corrected_json['regions'])} regiões novas)")
                                 regions = corrected_json.get("regions", [])
                                 raw_gemini = corrected_json
                             else:
-                                print(f"      ⚠️ Correction failed, keeping original regions.")
+                                print(f"      ⚠️ Correção retornou vazia, mantendo regiões originais.")
                                 regions = current_json.get("regions", [])
                     else:
-                        print(f"    ℹ️ No regions detected originally.")
+                        print(f"    ℹ️ Nenhuma região de questão foi detectada pela IA nesta página.")
 
                 except RateLimitError:
-                    print(f"  ⚠️ RATE LIMITED on region detection - saving checkpoint")
+                    print(f"  ⚠️ RATE LIMIT atingido na detecção de regiões! Salvando checkpoint e encerrando...")
                     manifest["rate_limit_hit"] = True
                     save_manifest(manifest)
                     sys.exit(0)
                 except (AttributeError, NameError, TypeError):
                     raise
                 except Exception as e:
-                    print(f"    ❌ Region detection/audit failed: {e}")
+                    print(f"    ❌ Falha na detecção de regiões ou auditoria da página: {e}")
                     traceback.print_exc()
                     if "pages" not in item["extraction_results"]:
                         item["extraction_results"]["pages"] = {}
@@ -813,10 +997,16 @@ def main():
                     save_manifest(manifest)
                     continue
 
-                # Group regions by questionId
+                # Agrupar regiões por questionId
                 question_groups = {}
                 for region in regions:
-                    qid = region.get("questionId", region.get("id", "unknown"))
+                    if not isinstance(region, dict) or "box" not in region:
+                        print(f"    ⚠️ Região inválida ignorada no agrupamento: {region}")
+                        continue
+                    qid = region.get("questionId") or region.get("id") or "unknown"
+                    qid = str(qid).strip()
+                    if not qid:
+                        qid = "unknown"
                     if qid not in question_groups:
                         question_groups[qid] = []
                     question_groups[qid].append(region)
@@ -824,7 +1014,7 @@ def main():
                 page_questions = []
 
                 for qid, q_regions in question_groups.items():
-                    print(f"    📝 Question {qid} ({len(q_regions)} region(s))")
+                    print(f"    📝 Analisando Questão {qid} ({len(q_regions)} região(ões) agrupada(s))")
 
                     q_entry = {
                         "questionId": qid,
@@ -832,17 +1022,35 @@ def main():
                         "regions": len(q_regions),
                     }
 
-                    try:
-                        # Crop and merge regions for this question
-                        cropped_images = []
-                        for region in q_regions:
-                            cropped = crop_region(page_img, region["box"])
-                            cropped_images.append(cropped)
+                    # --- Lógica de Reaproveitamento de Questões Bem-sucedidas ---
+                    # Se esta questão já foi extraída com sucesso numa execução anterior, reutilizamos o status!
+                    previous_questions = page_data.get("questions", [])
+                    previous_q = next((q for q in previous_questions if q.get("questionId") == qid), None)
+                    
+                    if previous_q and previous_q.get("status") in ("extracted", "skipped_dedup"):
+                        print(f"      ⏭️ Questão {qid} já foi extraída/pulada com sucesso anteriormente (status: {previous_q['status']}). REAPROVEITANDO.")
+                        q_entry["status"] = previous_q["status"]
+                        # Copiar dados anteriores
+                        for key in ("pinecone_id", "firebase_path", "tipo_resposta", "dedup_match_id", "dedup_match_score", "error"):
+                            if key in previous_q:
+                                q_entry[key] = previous_q[key]
+                        page_questions.append(q_entry)
+                        continue
 
-                        # Use first (or combined) cropped image for extraction
+                    try:
+                        # Recortar e mesclar as imagens da questão
+                        cropped_images = []
+                        for idx, region in enumerate(q_regions):
+                            try:
+                                cropped = crop_region(page_img, region["box"])
+                                cropped_images.append(cropped)
+                            except Exception as crop_err:
+                                print(f"      ❌ Erro ao recortar região {idx} da questão {qid}: {crop_err}")
+                                raise
+
                         main_crop = cropped_images[0]
                         if len(cropped_images) > 1:
-                            # Stack images vertically for multi-region questions
+                            # Empilhar verticalmente as imagens
                             total_h = sum(img.height for img in cropped_images)
                             max_w = max(img.width for img in cropped_images)
                             combined = Image.new("RGB", (max_w, total_h), "white")
@@ -851,12 +1059,24 @@ def main():
                                 combined.paste(img, (0, y_offset))
                                 y_offset += img.height
                             main_crop = combined
+                            print(f"      [Merge] Mescladas {len(cropped_images)} regiões verticalmente (W={max_w}, H={total_h}).")
 
-                        # Step 2: Extract structured question
+                        # Passo 2: Extrair JSON estruturado da questão
                         questao = extract_question(main_crop)
-                        print(f"      ✅ Extracted: {questao.get('identificacao', '?')}")
+                        
+                        # --- Validação Estrutural Completa (Prevenir Dados Problemáticos) ---
+                        is_valid, validation_reason = validate_question(questao)
+                        if not is_valid:
+                            print(f"      ❌ Validação da Questão {qid} FALHOU: {validation_reason}. Abortando salvamento.")
+                            q_entry["status"] = "failed"
+                            q_entry["error"] = f"Validation failed: {validation_reason}"
+                            total_failed += 1
+                            page_questions.append(q_entry)
+                            continue
 
-                        # Build semantic text for dedup
+                        print(f"      ✅ Validação da Questão {qid} Aprovada. Identificação extraída: '{questao.get('identificacao')}'")
+
+                        # Construir texto semântico para o Pinecone
                         semantic_parts = []
                         if questao.get("materias_possiveis"):
                             semantic_parts.append(f"MATÉRIA: {', '.join(questao['materias_possiveis'])}")
@@ -865,10 +1085,9 @@ def main():
                             semantic_parts.append(text_content[:500])
                         semantic_text = " ".join(semantic_parts)
 
-                        # Step 3: Check for duplicates
+                        # Passo 3: Verificar duplicatas no Pinecone
                         dedup = check_duplicate(semantic_text)
                         if dedup.get("exists"):
-                            print(f"      ⏭️ Duplicate found (score: {dedup['matches'][0]['score']:.3f})")
                             q_entry["status"] = "skipped_dedup"
                             q_entry["dedup_match_id"] = dedup["matches"][0]["id"]
                             q_entry["dedup_match_score"] = dedup["matches"][0]["score"]
@@ -876,13 +1095,12 @@ def main():
                             page_questions.append(q_entry)
                             continue
 
-                        # Step 4: Search for gabarito
-                        print(f"      🔍 Searching gabarito...")
+                        # Passo 4: Buscar gabarito via Worker (Google Search)
                         gabarito = search_gabarito(questao)
                         if gabarito:
-                            print(f"      ✅ Gabarito found: {gabarito.get('alternativa_correta', 'dissertativa')}")
+                            print(f"      ✅ Gabarito retornado: {gabarito.get('alternativa_correta', 'dissertativa/modelo')}")
                         else:
-                            print(f"      ⚠️ No gabarito found, using empty")
+                            print(f"      ⚠️ Gabarito não retornado pelo worker. Utilizando fallback vazio.")
                             gabarito = {
                                 "alternativa_correta": "",
                                 "justificativa_curta": "Gabarito não encontrado automaticamente.",
@@ -890,7 +1108,7 @@ def main():
                                 "explicacao": [],
                             }
 
-                        # Step 5: Save to Pinecone + Firebase
+                        # Passo 5: Salvar no Pinecone e Firebase
                         save_result = save_question(questao, gabarito, pdf_name, page_num)
                         if save_result and save_result.get("saved"):
                             q_entry["status"] = "extracted"
@@ -898,14 +1116,16 @@ def main():
                             q_entry["firebase_path"] = save_result.get("firebase_path", "")
                             q_entry["tipo_resposta"] = save_result.get("tipo_resposta", "objetiva")
                             total_extracted += 1
-                            print(f"      💾 Saved: {save_result.get('firebase_path')}")
+                            if "error" in q_entry:
+                                del q_entry["error"]
                         else:
+                            print(f"      ❌ Falha ao salvar a questão {qid} no banco de dados.")
                             q_entry["status"] = "failed"
-                            q_entry["error"] = "Save failed"
+                            q_entry["error"] = "Save to database failed"
                             total_failed += 1
 
                     except RateLimitError:
-                        print(f"  ⚠️ RATE LIMITED — saving checkpoint")
+                        print(f"  ⚠️ RATE LIMIT atingido durante processamento da questão {qid}! Salvando checkpoint...")
                         q_entry["status"] = "pending"
                         page_questions.append(q_entry)
                         
@@ -924,7 +1144,7 @@ def main():
                     except (AttributeError, NameError, TypeError):
                         raise
                     except Exception as e:
-                        print(f"      ❌ Error: {e}")
+                        print(f"      ❌ Erro inesperado na questão {qid}: {e}")
                         traceback.print_exc()
                         q_entry["status"] = "failed"
                         q_entry["error"] = str(e)
@@ -932,7 +1152,7 @@ def main():
 
                     page_questions.append(q_entry)
 
-                # Save page results to manifest under item
+                # Salvar os resultados da página no manifesto do Hugging Face
                 if "pages" not in item["extraction_results"]:
                     item["extraction_results"]["pages"] = {}
                 item["extraction_results"]["pages"][page_key] = {
@@ -942,45 +1162,85 @@ def main():
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }
                 save_manifest(manifest)
+                print(f"  ✅ Página {page_num} processada e manifest atualizado.")
 
-                # Small delay between pages to avoid rate limits
+                # Pequeno delay entre páginas para evitar limites de taxa (Rate Limits)
                 time.sleep(2)
             
-            # Check if ANY region was detected across all pages
-            total_regions = sum(p.get("regions_detected", 0) for p in item["extraction_results"].get("pages", {}).values())
-            if total_regions == 0:
-                item["extraction_results"]["status"] = "error"
-                item["extraction_results"]["error"] = "zero_regions_detected"
+            # --- Validação de Conclusão do Item (PDF) ---
+            print(f"  🔍 Verificando integridade da extração do item '{safe_name}'...")
+            item_complete = True
+            pages_dict = item["extraction_results"].get("pages", {})
+            
+            if len(pages_dict) < len(pages):
+                print(f"  ⚠️ Item incompleto: apenas {len(pages_dict)} de {len(pages)} páginas processadas.")
+                item_complete = False
             else:
+                for p_key, pdata in pages_dict.items():
+                    if "error" in pdata:
+                        print(f"  ⚠️ Página {p_key} tem um erro registrado: {pdata['error']}")
+                        item_complete = False
+                        break
+                    p_questions = pdata.get("questions", [])
+                    failed_qs = [q.get("questionId") for q in p_questions if q.get("status") in ("failed", "pending")]
+                    if failed_qs:
+                        print(f"  ⚠️ Página {p_key} possui questões marcadas como falhas ou pendentes: {failed_qs}")
+                        item_complete = False
+                        break
+            
+            if item_complete:
+                print(f"  🎉 Item '{safe_name}' extraído com 100% de sucesso!")
                 item["extraction_results"]["status"] = "complete"
+                if "error" in item["extraction_results"]:
+                    del item["extraction_results"]["error"]
+            else:
+                print(f"  ⚠️ Item '{safe_name}' ficará como 'partial' para permitir retentativas futuras.")
+                item["extraction_results"]["status"] = "partial"
 
             save_manifest(manifest)
 
     except RateLimitError:
-        print("\n⚠️ RATE LIMITED — saving checkpoint and exiting")
+        print("\n⚠️ RATE LIMIT global atingido. Checkpoint salvo. Encerrando execução.")
         manifest["rate_limit_hit"] = True
         save_manifest(manifest)
         sys.exit(0)
 
     except Exception as e:
-        print(f"\n❌ Pipeline error: {e}")
+        print(f"\n❌ Erro crítico no pipeline: {e}")
         traceback.print_exc()
         manifest["status"] = "error"
         manifest["error"] = str(e)
         save_manifest(manifest)
         sys.exit(1)
 
-    # Complete!
-    manifest["status"] = "complete"
-    manifest["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # --- Validação de Conclusão de Todo o Manifesto ---
+    all_complete = True
+    for item_idx, item in enumerate(items):
+        item_status = item.get("extraction_results", {}).get("status")
+        if item_status != "complete":
+            print(f"⚠️ Manifesto pendente: Item {item_idx} ({item.get('name')}) está com status '{item_status}'")
+            all_complete = False
+
+    if all_complete:
+        print(f"\n🏆 Todos os PDFs foram extraídos com sucesso absoluta! Finalizando manifesto como 'complete'.")
+        manifest["status"] = "complete"
+        manifest["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if "error" in manifest:
+            del manifest["error"]
+    else:
+        print(f"\n⚠️ Algumas extrações falharam ou estão incompletas. Manifesto finalizado como 'partial'.")
+        manifest["status"] = "partial"
+        manifest["error"] = "Alguns itens falharam ou tiveram extrações parciais"
+        
     save_manifest(manifest)
 
-    print(f"\n{'='*60}")
-    print(f"✅ Extraction complete!")
-    print(f"   Extracted: {total_extracted}")
-    print(f"   Skipped (dedup): {total_skipped}")
-    print(f"   Failed: {total_failed}")
-    print(f"{'='*60}")
+    print(f"\n{'='*80}")
+    print(f"📊 Resumo Final da Execução:")
+    print(f"   Status do Manifesto: {manifest.get('status')}")
+    print(f"   Questões Extraídas com Sucesso: {total_extracted}")
+    print(f"   Questões Puladas (Deduplicadas): {total_skipped}")
+    print(f"   Questões que Falharam (Sem DB): {total_failed}")
+    print(f"{'='*80}")
 
 
 if __name__ == "__main__":
