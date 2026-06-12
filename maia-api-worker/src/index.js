@@ -1,11 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
 
 const DEFAULT_MODELS = [
+	'models/gemini-3.5-flash',
 	'models/gemini-3-flash-preview',
+	'models/gemini-3.1-flash-lite',
 	'models/gemini-2.5-flash',
 	'models/gemini-2.5-flash-lite',
-	'models/gemini-flash-latest',
-	'models/gemini-flash-lite-latest',
+	'models/gemma-4-31b-it',
+	'models/gemma-4-26b-a4b-it',
 ];
 
 const safetySettings = [
@@ -1348,7 +1350,7 @@ async function handleGeminiSearch(request, env) {
 	});
 
 	// Modelos iniciais
-	const initialModels = model ? [model] : DEFAULT_MODELS;
+	const initialModels = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
 
 	// Fallbacks
 	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
