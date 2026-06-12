@@ -901,7 +901,10 @@ async function handleGeminiGenerate(request, env) {
 	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
 
-	const client = new GoogleGenAI({ apiKey: finalApiKey });
+	const client = new GoogleGenAI({
+		apiKey: finalApiKey,
+		httpOptions: { timeout: 60000 },
+	});
 
 	// Modelos iniciais: Se vier "model", coloca ele primeiro, depois o resto (deduplicado)
 	const initialModels = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
