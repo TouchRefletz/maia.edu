@@ -689,6 +689,8 @@ def search_gabarito(question_json: dict):
                 msg = json.loads(line)
                 if msg.get("type") == "answer":
                     answer_text += msg.get("text", "")
+                elif msg.get("type") == "error":
+                    print(f"      [Gabarito Search] ❌ Erro do Worker no stream: {msg.get('message')}")
             except json.JSONDecodeError:
                 pass
 
@@ -696,9 +698,15 @@ def search_gabarito(question_json: dict):
             import re
             json_match = re.search(r'\{[\s\S]*\}', answer_text)
             if json_match:
-                parsed_gabarito = json.loads(json_match.group(0), strict=False)
-                print(f"      [Gabarito Search] Sucesso com grounding! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
-                return parsed_gabarito
+                try:
+                    parsed_gabarito = json.loads(json_match.group(0), strict=False)
+                    print(f"      [Gabarito Search] Sucesso com grounding! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                    return parsed_gabarito
+                except json.JSONDecodeError as json_err:
+                    print(f"      [Gabarito Search] ❌ Erro ao decodificar JSON do grounding: {json_err}")
+                    print(f"      [Gabarito Search] Texto gerado (primeiros 2000 chars): {answer_text[:2000]}")
+                    if len(answer_text) > 2000:
+                        print(f"      [Gabarito Search] Texto gerado (últimos 2000 chars): {answer_text[-2000:]}")
         print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
     except Exception as e:
         elapsed = time.time() - start_time
@@ -729,6 +737,8 @@ def search_gabarito(question_json: dict):
                 msg = json.loads(line)
                 if msg.get("type") == "answer":
                     answer_text += msg.get("text", "")
+                elif msg.get("type") == "error":
+                    print(f"      [Gabarito Fallback] ❌ Erro do Worker no stream: {msg.get('message')}")
             except json.JSONDecodeError:
                 pass
 
@@ -736,9 +746,15 @@ def search_gabarito(question_json: dict):
             import re
             json_match = re.search(r'\{[\s\S]*\}', answer_text)
             if json_match:
-                parsed_gabarito = json.loads(json_match.group(0), strict=False)
-                print(f"      [Gabarito Fallback] ✅ Sucesso na geração direta! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
-                return parsed_gabarito
+                try:
+                    parsed_gabarito = json.loads(json_match.group(0), strict=False)
+                    print(f"      [Gabarito Fallback] ✅ Sucesso na geração direta! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                    return parsed_gabarito
+                except json.JSONDecodeError as json_err:
+                    print(f"      [Gabarito Fallback] ❌ Erro ao decodificar JSON da geração direta: {json_err}")
+                    print(f"      [Gabarito Fallback] Texto gerado (primeiros 2000 chars): {answer_text[:2000]}")
+                    if len(answer_text) > 2000:
+                        print(f"      [Gabarito Fallback] Texto gerado (últimos 2000 chars): {answer_text[-2000:]}")
         print(f"      [Gabarito Fallback] ⚠️ Resposta vazia ou JSON não encontrado na geração direta.")
     except Exception as e:
         elapsed_fallback = time.time() - start_time_fallback
