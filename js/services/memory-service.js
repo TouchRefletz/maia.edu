@@ -433,9 +433,9 @@ export async function synthesizeContext(
   currentMessage,
   apiKey,
   attachments = [],
-  options = {}, // Receive options with signal
+  opts = {}, // Receive options with signal
 ) {
-  if (options.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
   if (!facts || facts.length === 0) return "";
 
   try {
@@ -453,30 +453,35 @@ export async function synthesizeContext(
     // Prompt já importado no topo
     const fullPrompt = `${PROMPT_SINTETIZADOR_CONTEXTO}\n\n---\nMENSAGEM ATUAL DO USUÁRIO: "${currentMessage}"\n\nLISTA DE FATOS RECUPERADOS:\n${factsList}`;
 
-    // Opções para geração rápida (Flash)
-    const options = {
-      model: "gemini-3-flash-preview", // Usar modelo rápido se disponivel
-    };
-
-    // Usa handlers para repassar onThought, permitindo que a UI veja a IA pensando
-    const handlers = {
-      onStatus: () => {},
-      onThought: options.onThought || (() => {}),
-      onAnswerDelta: () => {},
-      signal: options.signal, // Pass signal
-    };
-
-    // Usamos a função de stream mas pegamos o resultado final.
-    // OBS: A função worker espera retorno JSON se schema for passado, mas aqui queremos TEXTO LIVRE.
-    // Se passarmos schema null, ela deve retornar texto?
-    // Verificando worker.js: Se schema for fornecido, usa json mode. Se não, texto.
-    // Vamos usar null para schema.
-
     const finalApiKey =
       apiKey ||
       (typeof sessionStorage !== "undefined"
         ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
         : undefined);
+
+    const finalGithubKey =
+      opts.githubApiKey ||
+      (typeof sessionStorage !== "undefined"
+        ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+        : undefined);
+
+    // Opções para geração rápida (Flash) ou modelo selecionado pelo usuário
+    const specificModel = opts.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedSpecificModel : null);
+    const finalModel = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+
+    const workerOptions = {
+      model: finalModel,
+      apiKey: finalApiKey,
+      githubApiKey: finalGithubKey,
+    };
+
+    // Usa handlers para repassar onThought, permitindo que a UI veja a IA pensando
+    const handlers = {
+      onStatus: () => {},
+      onThought: opts.onThought || (() => {}),
+      onAnswerDelta: () => {},
+      signal: opts.signal, // Pass signal
+    };
 
     // Precisamos de uma funçao que retorne texto puro. A `gerarConteudoEmJSONComImagemStream` foca em JSON.
     // Se passarmos schema null, o worker tenta fazer parse?
@@ -520,8 +525,7 @@ export async function synthesizeContext(
       processedFiles,
       "",
       handlers,
-      options,
-      finalApiKey,
+      workerOptions,
     );
 
     if (result && result.diretivas) {
@@ -654,11 +658,22 @@ export async function extractAndSaveNarrative(
       }
     }
 
+    const finalGithubKey =
+      options.githubApiKey ||
+      (typeof sessionStorage !== "undefined"
+        ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+        : undefined);
+
+    const specificModel = options.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedSpecificModel : null);
+    const finalModel = (specificModel && specificModel !== "automatico") ? specificModel : "gemini-3-flash-preview";
+
     const requestOptions = {
-      model: "gemini-3-flash-preview", // Tenta usar flash para isso ser rápido
+      model: finalModel, // Tenta usar o modelo ativo
       generationConfig: {
-        response_mime_type: "application/json",
+        responseMimeType: "application/json",
       },
+      apiKey: finalApiKey,
+      githubApiKey: finalGithubKey,
     };
 
     const result = await gerarConteudoEmJSONComImagemStream(
@@ -668,7 +683,6 @@ export async function extractAndSaveNarrative(
       "", // mimetype (ignorado quando files são passados como objects)
       handlers,
       requestOptions,
-      finalApiKey,
     );
 
     // Parse final

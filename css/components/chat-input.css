@@ -369,6 +369,8 @@
   align-items: flex-start;
   gap: 2px;
   min-width: 280px;
+  max-height: 400px;
+  overflow-y: auto;
   visibility: hidden;
   opacity: 0;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -598,6 +600,15 @@
   cursor: default;
   transition: all 0.2s ease;
   animation: chipSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.model-chip {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.08) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.model-chip .metodologia-chip-label {
+  color: #a78bfa !important;
 }
 
 .metodologia-chip:hover {

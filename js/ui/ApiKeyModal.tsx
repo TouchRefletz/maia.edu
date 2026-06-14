@@ -1,18 +1,16 @@
 // ApiKeyModal.tsx
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-// Supondo que GlobalAlertsLogic.tsx esteja acessível. Se der erro de TS, crie um alerts.d.ts ou use // @ts-ignore
 import { customAlert } from './GlobalAlertsLogic';
 
-// --- Tipagem para funções globais do sistema legado ---
+// --- Tipagem para funções globais ---
 declare global {
   interface Window {
     generatePDFUploadInterface?: () => void;
   }
 }
 
-// --- Funções Auxiliares (Lógica Pura) ---
-
+// --- Testar chave Gemini ---
 export async function testarChaveReal(key: string): Promise<{ valido: boolean; msg?: string }> {
   try {
     const response = await fetch(
@@ -27,10 +25,6 @@ export async function testarChaveReal(key: string): Promise<{ valido: boolean; m
   }
 }
 
-function triggerSystemUpdate() {
-  // Deprecated
-}
-
 function mostrarToastSucesso(mensagem: string) {
   const toast = document.createElement('div');
   toast.innerText = mensagem;
@@ -40,75 +34,91 @@ function mostrarToastSucesso(mensagem: string) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// --- Funções Públicas (Re-exportadas para manter compatibilidade) ---
-
-export function logicSalvarChave(key: string) {
-  sessionStorage.setItem('GOOGLE_GENAI_API_KEY', key);
-  mostrarToastSucesso('Chave salva com sucesso!');
-  triggerSystemUpdate();
-}
-
-export function logicRemoverChave() {
-  sessionStorage.removeItem('GOOGLE_GENAI_API_KEY');
-  triggerSystemUpdate();
-  if (typeof customAlert === 'function') {
-    customAlert('Chave removida! O sistema voltará a usar a chave padrão.');
-  }
-}
-
 // --- Componente React ---
-
 interface ModalProps {
   onClose: () => void;
 }
 
 const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
-  const [isCustomKey, setIsCustomKey] = useState(false);
-  const [inputValue, setInputValue] = useState('');
+  const [hasGemini, setHasGemini] = useState(false);
+  const [hasGithub, setHasGithub] = useState(false);
+
+  const [geminiInput, setGeminiInput] = useState('');
+  const [githubInput, setGithubInput] = useState('');
+
+  const [isLoadingGemini, setIsLoadingGemini] = useState(false);
+  const [geminiError, setGeminiError] = useState<string | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
+
   const [termsChecked, setTermsChecked] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    // Verifica estado inicial
-    const currentKey = sessionStorage.getItem('GOOGLE_GENAI_API_KEY');
-    setIsCustomKey(!!currentKey);
+    setHasGemini(!!sessionStorage.getItem('GOOGLE_GENAI_API_KEY'));
+    setHasGithub(!!sessionStorage.getItem('GITHUB_PAT_KEY'));
   }, []);
 
-  const handleRemove = () => {
-    logicRemoverChave();
-    onClose();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveGemini = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!termsChecked || isLoading) return;
+    if (!termsChecked || isLoadingGemini) return;
 
-    const key = inputValue.trim();
+    const key = geminiInput.trim();
     if (key.length < 10) {
-      setErrorMsg('A chave parece muito curta.');
+      setGeminiError('A chave parece muito curta.');
       return;
     }
 
-    setIsLoading(true);
-    setErrorMsg(null); // Limpa erro anterior
+    setIsLoadingGemini(true);
+    setGeminiError(null);
 
     const resultado = await testarChaveReal(key);
 
+    setIsLoadingGemini(false);
     if (resultado.valido) {
-      logicSalvarChave(key);
-      onClose();
+      sessionStorage.setItem('GOOGLE_GENAI_API_KEY', key);
+      setHasGemini(true);
+      setGeminiInput('');
+      mostrarToastSucesso('Chave Gemini salva com sucesso!');
     } else {
-      setErrorMsg(`Chave inválida: ${resultado.msg}`);
-      setIsLoading(false);
+      setGeminiError(`Chave inválida: ${resultado.msg}`);
     }
+  };
+
+  const handleRemoveGemini = () => {
+    sessionStorage.removeItem('GOOGLE_GENAI_API_KEY');
+    setHasGemini(false);
+    setGeminiInput('');
+    customAlert('Chave Gemini removida! O sistema voltará a usar a chave padrão.');
+  };
+
+  const handleSaveGithub = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!termsChecked) return;
+
+    const token = githubInput.trim();
+    if (token.length < 10) {
+      setGithubError('O token do GitHub parece muito curto.');
+      return;
+    }
+
+    sessionStorage.setItem('GITHUB_PAT_KEY', token);
+    setHasGithub(true);
+    setGithubInput('');
+    setGithubError(null);
+    mostrarToastSucesso('Token GitHub/OpenAI salvo com sucesso!');
+  };
+
+  const handleRemoveGithub = () => {
+    sessionStorage.removeItem('GITHUB_PAT_KEY');
+    setHasGithub(false);
+    setGithubInput('');
+    customAlert('Token GitHub/OpenAI removido! O sistema voltará a usar o token padrão.');
   };
 
   return (
     <div id="apiKeyModal" className="modal-overlay" style={{ display: 'flex', animation: 'fadeIn 0.3s ease' }}>
-      <div className="modal-content api-modal-content">
-        {/* Lado Esquerdo: Formulário */}
-        <div className="modal-form-col">
+      <div className="modal-content api-modal-content" style={{ maxWidth: '820px', width: '95%' }}>
+        {/* Lado Esquerdo: Formulários */}
+        <div className="modal-form-col" style={{ overflowY: 'auto', maxHeight: '80vh', paddingRight: '8px' }}>
           <div className="modal-header" style={{ marginBottom: '20px' }}>
             <div className="icon-wrapper">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,105 +126,145 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
               </svg>
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Configuração de Chave</h2>
-              <p style={{ margin: '5px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                {isCustomKey ? 'Você está usando sua própria chave.' : 'Uma chave padrão está ativa, mas você pode usar a sua.'}
+              <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Chaves de Acesso (Client-Side)</h2>
+              <p style={{ margin: '5px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
+                Configure suas chaves de API próprias para evitar limites de cota.
               </p>
             </div>
           </div>
 
-          <div className="modal-body" style={{ flex: 1 }}>
-            {isCustomKey ? (
-              // Estado: Chave já salva
-              <>
-                <div style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success)', color: 'var(--color-success-text)', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <strong>✅ Chave Própria Ativa</strong><br />
-                  Sua chave está salva no navegador e sendo usada preferencialmente.
+          <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Seção 1: Google Gemini */}
+            <div style={{ padding: '16px', background: 'var(--color-bg-2)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ✨ Google Gemini Key
+              </h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                Usada para processar modelos da família Google Gemini.
+              </p>
+              
+              {hasGemini ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '10px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    ✅ Chave Ativa e Configurada
+                  </div>
+                  <button type="button" onClick={handleRemoveGemini} className="btn btn--outline-danger btn--full-width" style={{ padding: '8px' }}>
+                    Remover Chave Gemini
+                  </button>
                 </div>
-                <button onClick={handleRemove} className="btn btn--outline-danger btn--full-width" style={{ marginTop: 'auto' }}>
-                  Remover minha chave (Voltar ao Padrão)
-                </button>
-                <button onClick={onClose} className="btn btn--ghost btn--full-width" style={{ marginTop: '10px' }}>
-                  Fechar
-                </button>
-              </>
-            ) : (
-              // Estado: Formulário novo
-              <>
-                <div className="info-box" style={{ marginBottom: '20px' }}>
-                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Sua chave será salva <strong>apenas na memória do seu navegador</strong>.</p>
-                  <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="link-external" style={{ fontSize: '0.9rem', marginTop: '5px', display: 'inline-block' }}>
-                    Gerar chave no Google AI Studio ↗
-                  </a>
-                </div>
-
-                <form onSubmit={handleSubmit}>
-                  <div className="form-group">
-                    <label htmlFor="apiKeyInput" className="form-label">Cole sua API Key aqui</label>
-                    <div className="input-wrapper">
-                      <input
-                        type="password"
-                        className="form-control"
-                        placeholder="AIzaSy..."
-                        autoComplete="on"
-                        value={inputValue}
-                        onChange={(e) => {
-                          setInputValue(e.target.value);
-                          setErrorMsg(null); // Limpa erro ao digitar
-                        }}
-                        style={errorMsg ? { borderColor: 'var(--color-error)' } : {}}
-                      />
+              ) : (
+                <form onSubmit={handleSaveGemini} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>API Key do Google AI Studio</label>
+                      <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>
+                        Obter chave no AI Studio ↗
+                      </a>
                     </div>
-                    {errorMsg && <span className="error-message">{errorMsg}</span>}
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="Cole sua API Key (AIzaSy...)"
+                      value={geminiInput}
+                      onChange={(e) => {
+                        setGeminiInput(e.target.value);
+                        setGeminiError(null);
+                      }}
+                      style={geminiError ? { borderColor: 'var(--color-error)' } : {}}
+                    />
+                    {geminiError && <span className="error-message" style={{ fontSize: '0.7rem' }}>{geminiError}</span>}
                   </div>
-
-                  <div style={{ background: 'var(--color-bg-2)', border: '1px solid rgba(var(--color-warning-rgb), 0.3)', borderRadius: '8px', padding: '15px', margin: '15px 0', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                    <h1 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      ⚠️ Atenção à Segurança
-                    </h1>
-                    <ul style={{ margin: 0, paddingLeft: '20px', textAlign: 'left' }}>
-                      <li>Sua chave é salva apenas no <strong>Storage do navegador</strong>.</li>
-                      <li>Extensões maliciosas ou scripts de terceiros podem ter acesso a ela.</li>
-                      <li>Recomendamos usar uma chave exclusiva para este uso, com limites de cota definidos no Google AI Studio.</li>
-                    </ul>
-                  </div>
-
-                  <div style={{ margin: '15px 0' }}>
-                    <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={termsChecked}
-                        onChange={(e) => setTermsChecked(e.target.checked)}
-                        style={{ marginTop: '4px' }}
-                      />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
-                        Li e compreendo os riscos de armazenar minha chave no navegador (Client-Side). Assumo a responsabilidade pela segurança da minha credencial.
-                      </span>
-                    </label>
-                  </div>
-
-                  <div className="modal-footer" style={{ padding: 0, marginTop: '20px' }}>
-                    <button
-                      type="submit"
-                      className="btn btn--primary btn--full-width"
-                      disabled={!termsChecked || isLoading}
-                      style={{ opacity: (!termsChecked || isLoading) ? 0.5 : 1, cursor: (!termsChecked || isLoading) ? 'not-allowed' : 'pointer' }}
-                    >
-                      {isLoading ? 'Verificando...' : 'Verificar e Salvar'}
-                    </button>
-                    <button type="button" onClick={onClose} className="btn btn--ghost btn--full-width" style={{ marginTop: '10px' }}>
-                      Cancelar e usar Padrão
-                    </button>
-                  </div>
+                  <button type="submit" className="btn btn--primary" disabled={!termsChecked || isLoadingGemini} style={{ padding: '8px', opacity: (!termsChecked || isLoadingGemini) ? 0.5 : 1 }}>
+                    {isLoadingGemini ? 'Verificando...' : 'Salvar Chave Gemini'}
+                  </button>
                 </form>
-              </>
-            )}
+              )}
+            </div>
+
+            {/* Seção 2: GitHub PAT (OpenAI Models) */}
+            <div style={{ padding: '16px', background: 'var(--color-bg-2)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                🟢 GitHub Access Token (OpenAI)
+              </h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                Necessário para rodar os modelos OpenAI (GPT-5, o1, o3-mini) pela GitHub Models API.
+              </p>
+              
+              {hasGithub ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '10px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    ✅ Token Ativo e Configurado
+                  </div>
+                  <button type="button" onClick={handleRemoveGithub} className="btn btn--outline-danger btn--full-width" style={{ padding: '8px' }}>
+                    Remover Token GitHub
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveGithub} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>GitHub Personal Access Token (PAT)</label>
+                      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>
+                        Obter token no GitHub ↗
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="Cole seu token do GitHub (github_pat_...)"
+                      value={githubInput}
+                      onChange={(e) => {
+                        setGithubInput(e.target.value);
+                        setGithubError(null);
+                      }}
+                      style={githubError ? { borderColor: 'var(--color-error)' } : {}}
+                    />
+                    {githubError && <span className="error-message" style={{ fontSize: '0.7rem' }}>{githubError}</span>}
+                  </div>
+                  <button type="submit" className="btn btn--primary" disabled={!termsChecked} style={{ padding: '8px', opacity: !termsChecked ? 0.5 : 1 }}>
+                    Salvar Token GitHub
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Aviso de Segurança Comum */}
+            <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', padding: '12px', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ⚠️ Segurança das Credenciais
+              </h4>
+              <ul style={{ margin: 0, paddingLeft: '16px', textAlign: 'left' }}>
+                <li>Suas chaves são salvas apenas localmente no <strong>navegador (sessionStorage)</strong>.</li>
+                <li>Nenhum dado de credencial é armazenado ou enviado permanentemente aos nossos servidores.</li>
+              </ul>
+            </div>
+
+            {/* Checkbox de Aceite Termos */}
+            <div>
+              <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={termsChecked}
+                  onChange={(e) => setTermsChecked(e.target.checked)}
+                  style={{ marginTop: '4px' }}
+                />
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                  Compreendo que as chaves serão salvas na sessão do meu navegador. Assumo a responsabilidade pela segurança destas credenciais.
+                </span>
+              </label>
+            </div>
+
+            {/* Botão de Fechar Geral */}
+            <button type="button" onClick={onClose} className="btn btn--ghost btn--full-width" style={{ padding: '10px' }}>
+              Fechar Configurações
+            </button>
           </div>
         </div>
 
         {/* Lado Direito: Benefícios */}
-        <div className="modal-benefits-col">
-          <h3 style={{ color: 'var(--color-primary)', marginBottom: '20px' }}>Por que usar sua chave?</h3>
+        <div className="modal-benefits-col" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <h3 style={{ color: 'var(--color-primary)', marginBottom: '10px' }}>Por que usar sua chave?</h3>
           <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <li style={{ display: 'flex', gap: '10px' }}>
               <span style={{ fontSize: '1.2rem' }}>🔒</span>
@@ -227,14 +277,14 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
               <span style={{ fontSize: '1.2rem' }}>🚀</span>
               <div>
                 <strong style={{ display: 'block', color: 'var(--color-text)' }}>Sem Limites</strong>
-                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Aproveite limites maiores de requisições e processamento mais rápido.</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Aproveite limites maiores de requisições e processamento mais rápido de IA.</span>
               </div>
             </li>
             <li style={{ display: 'flex', gap: '10px' }}>
               <span style={{ fontSize: '1.2rem' }}>⚡</span>
               <div>
-                <strong style={{ display: 'block', color: 'var(--color-text)' }}>Controle Total</strong>
-                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Evite filas compartilhadas e tenha a performance máxima do Gemini.</span>
+                <strong style={{ display: 'block', color: 'var(--color-text)' }}>Performance Máxima</strong>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Evite filas compartilhadas e tenha respostas rápidas no Gemini e OpenAI.</span>
               </div>
             </li>
           </ul>
@@ -244,24 +294,20 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
   );
 };
 
-// --- Função de Montagem (Exportada para o arquivo JS original usar) ---
-
+// --- Função de Montagem ---
 export function mountApiKeyModal(forceShow: boolean = true) {
   if (!forceShow) return;
 
   const rootId = 'react-api-key-modal-root';
-  // Remove anterior se existir
   const existing = document.getElementById(rootId);
   if (existing) existing.remove();
 
-  // Cria container
   const container = document.createElement('div');
   container.id = rootId;
   document.body.appendChild(container);
 
   const root = createRoot(container);
 
-  // Fecha e limpa o DOM
   const handleClose = () => {
     root.unmount();
     container.remove();

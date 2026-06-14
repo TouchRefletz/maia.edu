@@ -205,7 +205,12 @@ export async function runChatPipeline(
         message,
         context.apiKey,
         attachments,
-        { signal: context.signal, onThought: context.onThought }, // Repassa callbacks pro service
+        {
+          signal: context.signal,
+          onThought: context.onThought,
+          selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
+          githubApiKey: context.githubApiKey,
+        }, // Repassa callbacks pro service
       );
 
       if (contextString) {
@@ -268,7 +273,9 @@ export async function runChatPipeline(
       previousQueries: context.previousQueries,
       signal: context.signal, // Pass signal to router
       apiKey: context.apiKey,
+      githubApiKey: context.githubApiKey,
       onThought: context.onThought, // Hook de pensamentos pro router usar
+      selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it", // Pass router model
     },
   );
   executionMode = finalMode;
@@ -503,8 +510,11 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
   // Acumulador de pensamentos para persistência
     let accumulatedThoughts = [];
 
+    const specificModel = context.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedModelChat : null) || "models/gemini-3.5-flash";
+    const finalModelToUse = specificModel !== "automatico" ? specificModel : "models/gemini-3.5-flash";
+
     const fullResponse = await generateChatStreamed({
-      model: getModeConfig(configMode).model,
+      model: finalModelToUse,
       generationConfig: getGenerationParams(configMode),
       systemPrompt,
 
@@ -516,6 +526,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
         if (context.onThought) context.onThought(thought);
       },
       apiKey: context.apiKey,
+      githubApiKey: context.githubApiKey,
       chatMode: context.chatMode,
       history: context.history,
       signal: context.signal,
@@ -584,7 +595,12 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
         fullResponse,
         context.apiKey,
         attachments,
-        { onThought: context.onThought, signal: context.signal },
+        {
+          onThought: context.onThought,
+          signal: context.signal,
+          selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
+          githubApiKey: context.githubApiKey,
+        },
       )
         .then(() => {
           console.log("[Pipeline] 🧠 Ciclo de memória concluído.");
@@ -677,6 +693,7 @@ async function generateChatStreamed(params) {
     onStream,
     onThought,
     apiKey,
+    githubApiKey,
     chatMode,
     history,
     signal, // Receive signal
@@ -743,6 +760,8 @@ async function generateChatStreamed(params) {
     chatMode,
     history,
     systemInstruction: chatMode ? systemPrompt : undefined, // In Chat Mode, separate system instruction
+    apiKey,
+    githubApiKey,
   };
 
   console.log("[Generate] 🚀 Iniciando geração JSON Estruturado Streamed...");
@@ -812,7 +831,7 @@ RESPOSTA (apenas o título, texto puro):`;
         },
       },
       {
-        model: "gemma-3-27b-it", // Modelo solicitado pelo usuário (Gemma)
+        model: "models/gemma-4-31b-it", // Modelo solicitado pelo usuário (Gemma 4)
         generationConfig: { responseMimeType: "text/plain" }, // Força texto plano
       },
     );

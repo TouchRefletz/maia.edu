@@ -51,6 +51,7 @@ export async function checkQuestionRelevance(
   questionData,
   apiKey,
   signal,
+  githubApiKey = null,
 ) {
   try {
     // Extrai informações relevantes do resultado para análise
@@ -85,15 +86,19 @@ ANALISE:
 
 Responda com o JSON estruturado.`;
 
+    const specificModel = typeof window !== "undefined" ? window.selectedModelSearch : null;
+    const modelToUse = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+
     const response = await fetch(`${WORKER_URL}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal,
       body: JSON.stringify({
-        apiKey: apiKey || undefined,
+        apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
+        githubApiKey: githubApiKey || (typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey")) : undefined) || undefined,
         texto: prompt,
         schema: RELEVANCE_SCHEMA,
-        model: "gemini-3-flash-preview",
+        model: modelToUse,
         jsonMode: true,
         thinking: false, // Rápido, sem thinking
       }),

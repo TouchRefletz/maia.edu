@@ -79,17 +79,20 @@ export async function routeMessage(
 
     const apiKey =
       options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+    const githubApiKey =
+      options.githubApiKey || sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
+
+    const specificModel = options.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedSpecificModel : null);
+    const finalRouterModel = (specificModel && specificModel !== "automatico") ? specificModel : CHAT_CONFIG.routerModel;
 
     console.log(
       "[Router] 🎯 Iniciando classificação com modelo:",
-      CHAT_CONFIG.routerModel,
+      finalRouterModel,
     );
     console.log(
       "[Router] 📝 Prompt enviado:",
       fullPrompt.substring(0, 200) + "...",
     );
-
-    console.log(CHAT_CONFIG.routerModel);
 
     // Chama /generate com schema para obter JSON
     const response = await fetch(`${WORKER_URL}/generate`, {
@@ -98,10 +101,11 @@ export async function routeMessage(
       signal: options.signal, // Pass signal to fetch
       body: JSON.stringify({
         apiKey: apiKey || undefined,
+        githubApiKey: githubApiKey || undefined,
         texto: fullPrompt,
-        // Schema e Json Mode ATIVADOS para Gemini Flash
+        // Schema e Json Mode ATIVADOS
         schema: ROUTER_RESPONSE_SCHEMA,
-        model: CHAT_CONFIG.routerModel,
+        model: finalRouterModel,
         jsonMode: true,
         thinking: true, // Aqui o router foi ajustado para emitir pensamentos
         files: processedFiles.length > 0 ? processedFiles : undefined,

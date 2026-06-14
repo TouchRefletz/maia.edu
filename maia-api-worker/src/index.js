@@ -10,6 +10,20 @@ const DEFAULT_MODELS = [
 	'models/gemma-4-26b-a4b-it',
 ];
 
+const GITHUB_MODELS = [
+	'github/gpt-5',
+	'github/gpt-5-chat',
+	'github/gpt-5-mini',
+	'github/gpt-4.1',
+	'github/gpt-4.1-mini',
+	'github/gpt-4o',
+	'github/gpt-4o-mini',
+	'github/o1',
+	'github/o3',
+	'github/o3-mini',
+	'github/o4-mini'
+];
+
 const safetySettings = [
 	{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
 	{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -893,12 +907,18 @@ async function handleGeminiGenerate(request, env) {
 		mimeType = 'image/jpeg',
 		model,
 		apiKey: userApiKey,
+		githubApiKey: userGithubApiKey,
 		jsonMode = true,
 		thinking = true,
 		chatMode = false,
 		history = [],
 		systemInstruction,
 	} = body;
+
+	let finalHistory = history || [];
+	if (finalHistory.length > 0 && ('content' in finalHistory[0] || finalHistory[0].role === 'assistant' || finalHistory[0].role === 'system')) {
+		finalHistory = mapOpenAIHistoryToGemini(finalHistory);
+	}
 
 	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
@@ -908,8 +928,15 @@ async function handleGeminiGenerate(request, env) {
 		httpOptions: { timeout: 60000 },
 	});
 
-	// Modelos iniciais: Se vier "model", coloca ele primeiro, depois o resto (deduplicado)
-	const initialModels = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
+	// Modelos iniciais: Se for github, coloca o do github na frente de outros github e depois gemini
+	let initialModels;
+	if (model && (model.startsWith('github/') || GITHUB_MODELS.includes(model))) {
+		const otherGithub = GITHUB_MODELS.filter((m) => m !== model);
+		initialModels = [model, ...otherGithub, ...DEFAULT_MODELS];
+	} else {
+		const baseGemini = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
+		initialModels = [...baseGemini, ...GITHUB_MODELS];
+	}
 
 	// Fallbacks específicos pra RECITATION
 	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
@@ -989,6 +1016,13 @@ async function handleGeminiGenerate(request, env) {
 			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo });
 
 			try {
+				if (modelo.startsWith('github/') || GITHUB_MODELS.includes(modelo)) {
+					await handleGithubGenerateStream(modelo, body, env, attempt, writeNdjson);
+					attemptHistory[attemptHistory.length - 1].status = 'success';
+					success = true;
+					break;
+				}
+
 				let stream;
 				const config = {
 					...(thinking ? { thinkingConfig: { includeThoughts: true } } : {}),
@@ -1001,7 +1035,7 @@ async function handleGeminiGenerate(request, env) {
 					// NOTE: create() config usually takes systemInstruction, tools, etc.
 					const chat = client.chats.create({
 						model: modelo,
-						history: history,
+						history: finalHistory,
 						config: {
 							systemInstruction: systemInstruction,
 						},
@@ -2775,4 +2809,235 @@ async function handleResolveLink(request, env) {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	}
+}
+
+/**
+ * Helper to generate chat stream using GitHub Models (OpenAI compatible)
+ */
+async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjson) {
+	const {
+		texto,
+		schema,
+		listaImagensBase64 = [],
+		mimeType = 'image/jpeg',
+		apiKey: userApiKey,
+		githubApiKey: userGithubApiKey,
+		jsonMode = true,
+		chatMode = false,
+		history = [],
+		systemInstruction,
+	} = body;
+
+	// Use user-provided GitHub API key, fallback to userApiKey, or fallback to env.GITHUB_PAT
+	const finalApiKey = userGithubApiKey || userApiKey || env.GITHUB_PAT;
+	if (!finalApiKey) {
+		throw new Error('GITHUB_PAT not configured');
+	}
+
+	const githubModelId = modelo.replace('github/', '');
+
+	// Process attachments to parts
+	const currentParts = [];
+	if (texto) {
+		currentParts.push({ text: texto });
+	}
+
+	const processAttachmentsToParts = (items, defaultMime) => {
+		if (Array.isArray(items)) {
+			items.forEach((item) => {
+				let data = item;
+				let mimeType = defaultMime;
+				if (typeof item === 'object' && item.data) {
+					data = item.data;
+					if (item.mimeType) mimeType = item.mimeType;
+				} else if (typeof item === 'string' && item.includes('base64,')) {
+					const matches = item.match(/^data:(.+);base64,(.+)$/);
+					if (matches) {
+						mimeType = matches[1];
+						data = matches[2];
+					}
+				}
+				currentParts.push({ inlineData: { mimeType, data } });
+			});
+		}
+	};
+
+	processAttachmentsToParts(listaImagensBase64, mimeType);
+	if (body.files) {
+		processAttachmentsToParts(body.files, 'application/pdf');
+	}
+
+	// Bidirectional mapping: Convert Gemini history to OpenAI format
+	const openAIMessages = mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction);
+
+	const payload = {
+		model: githubModelId,
+		messages: openAIMessages,
+		stream: true,
+	};
+
+	if (jsonMode && schema) {
+		payload.response_format = {
+			type: 'json_schema',
+			json_schema: {
+				name: 'response_schema',
+				schema: schema,
+			},
+		};
+	}
+
+	const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${finalApiKey}`,
+		},
+		body: JSON.stringify(payload),
+	});
+
+	if (!response.ok) {
+		const errText = await response.text();
+		throw new Error(`GitHub Models API Error: ${response.status} - ${errText}`);
+	}
+
+	if (!response.body) throw new Error('Response body is null (stream)');
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder('utf-8');
+	let buffer = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+
+		buffer += decoder.decode(value, { stream: true });
+		const lines = buffer.split('\n');
+		buffer = lines.pop() || '';
+
+		for (const line of lines) {
+			const cleanLine = line.trim();
+			if (!cleanLine) continue;
+			if (cleanLine === 'data: [DONE]') continue;
+			if (cleanLine.startsWith('data: ')) {
+				try {
+					const jsonStr = cleanLine.slice(6);
+					const chunk = JSON.parse(jsonStr);
+					const choice = chunk.choices?.[0];
+					const delta = choice?.delta;
+
+					// o1/o3-mini/deepseek reasoning thoughts parsing
+					const thoughtText = delta?.reasoning_content || delta?.thinking || '';
+					if (thoughtText) {
+						await writeNdjson({ type: 'thought', attempt, model: modelo, text: thoughtText });
+					}
+
+					const answerText = delta?.content || '';
+					if (answerText) {
+						await writeNdjson({ type: 'answer', attempt, model: modelo, text: answerText });
+					}
+				} catch (err) {
+					// Ignore parser errors for incomplete chunks
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Maps Gemini history structure to OpenAI messages
+ */
+function mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction) {
+	const messages = [];
+
+	if (systemInstruction) {
+		messages.push({
+			role: 'system',
+			content: typeof systemInstruction === 'string' ? systemInstruction : systemInstruction.text,
+		});
+	}
+
+	if (Array.isArray(history)) {
+		for (const msg of history) {
+			messages.push({
+				role: msg.role === 'model' ? 'assistant' : 'user',
+				content: mapPartsToOpenAIContent(msg.parts),
+			});
+		}
+	}
+
+	messages.push({
+		role: 'user',
+		content: mapPartsToOpenAIContent(currentParts),
+	});
+
+	return messages;
+}
+
+/**
+ * Maps Gemini parts array to OpenAI message content
+ */
+function mapPartsToOpenAIContent(parts) {
+	if (typeof parts === 'string') {
+		return parts;
+	}
+	if (!Array.isArray(parts)) {
+		return '';
+	}
+	if (parts.length === 1 && parts[0].text) {
+		return parts[0].text;
+	}
+
+	return parts
+		.map((part) => {
+			if (part.text) {
+				return { type: 'text', text: part.text };
+			}
+			if (part.inlineData) {
+				const { mimeType, data } = part.inlineData;
+				return {
+					type: 'image_url',
+					image_url: {
+						url: `data:${mimeType};base64,${data}`,
+					},
+				};
+			}
+			return null;
+		})
+		.filter(Boolean);
+}
+
+/**
+ * Maps OpenAI history format to Gemini parts format (Bidirectional compat)
+ */
+function mapOpenAIHistoryToGemini(history) {
+	if (!Array.isArray(history)) return [];
+	return history.map((msg) => {
+		let role = msg.role;
+		if (role === 'assistant') role = 'model';
+		if (role === 'system') role = 'user'; // Gemini chats create system instruction separately, so map system to user fallback if inside history
+
+		let parts = [];
+		if (typeof msg.content === 'string') {
+			parts = [{ text: msg.content }];
+		} else if (Array.isArray(msg.content)) {
+			parts = msg.content
+				.map((part) => {
+					if (part.type === 'text') {
+						return { text: part.text };
+					}
+					if (part.type === 'image_url') {
+						const url = part.image_url?.url || '';
+						if (url.startsWith('data:')) {
+							const matches = url.match(/^data:(.+);base64,(.+)$/);
+							if (matches) {
+								return { inlineData: { mimeType: matches[1], data: matches[2] } };
+							}
+						}
+					}
+					return null;
+				})
+				.filter(Boolean);
+		}
+		return { role, parts };
+	});
 }

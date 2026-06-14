@@ -42,6 +42,7 @@ import { showConfirmModal } from "../ui/modal-confirm.js";
 import { gerarHtmlModalScanOriginal } from "../ui/scan-original-modal.js";
 import { checkAndRestoreFloatingTerminal } from "../upload/search-logic.js";
 import { mountApiKeyModal } from "../ui/ApiKeyModal.tsx";
+import { mountModelSelectorModal, IA_MODELS } from "../ui/ModelSelectorModal.tsx";
 import {
   getTheme,
   toggleTheme,
@@ -237,6 +238,16 @@ function renderInitialUI() {
                                 </div>
                             </button>
 
+                            <button class="model-menu-item" id="chatSpecificModelBtn" style="justify-content: flex-start; gap: 12px;">
+                                <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    🤖
+                                </div>
+                                <div class="model-item-content">
+                                    <span class="model-item-title">Modelos de IA</span>
+                                    <span class="model-item-desc" id="chatSpecificModelText">Gemini 3.5 Flash</span>
+                                </div>
+                            </button>
+
                             <!-- Item 3: Metodologia (Cascading Sub-menu) -->
                             <div class="model-menu-item metodologia-trigger" id="metodologiaTrigger" style="justify-content: flex-start; gap: 12px; position: relative;">
                                 <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
@@ -289,21 +300,22 @@ function renderInitialUI() {
                         </div>
                     </div>
 
-                    <!-- Wrapper Botão Modelo (Estilo "Gemini Loop") -->
+                    <!-- Wrapper Botão Orientação (Modo) -->
                     <div style="position: relative;">
-                         <button class="model-selector-btn" id="chatModelBtn" title="Alterar modelo">
-                             <span id="currentModelText" style="font-weight: 500; font-size: 0.9rem;">Automático</span>
+                         <button class="model-selector-btn" id="chatModeBtn" title="Alterar modo de execução da IA">
+                             <span id="currentModeText" style="font-weight: 500; font-size: 0.9rem;">Automático</span>
                              <!-- Chevron Down -->
                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </button>
 
-                        <!-- Menu Modelo Rico -->
-                        <div class="chat-model-menu" id="chatModelMenu">
+                        <!-- Menu Modo Rico -->
+                        <div class="chat-model-menu" id="chatModeMenu" style="min-width: 240px;">
+                            <div class="model-menu-header" style="padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 8px; font-weight: 600; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Modo de execução da IA</div>
                             <!-- Item 3: Automático -->
-                             <div class="model-menu-item selected" data-model="Automático" data-desc="O melhor para cada tarefa">
+                             <div class="model-menu-item selected" data-mode="automatico">
                                 <div class="model-item-content">
                                     <span class="model-item-title">Automático</span>
-                                    <span class="model-item-desc">A IA escolhe o melhor modo para o seu uso</span>
+                                    <span class="model-item-desc">A IA escolhe o melhor modo para cada tarefa</span>
                                 </div>
                                 <div class="model-item-check">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -311,7 +323,7 @@ function renderInitialUI() {
                             </div>
 
                             <!-- Item 2: Rápido -->
-                            <div class="model-menu-item" data-model="Rápido" data-desc="Respostas ágeis">
+                            <div class="model-menu-item" data-mode="rapido">
                                 <div class="model-item-content">
                                     <span class="model-item-title">Rápido</span>
                                     <span class="model-item-desc">Excelente para um estudo rápido e eficaz</span>
@@ -321,11 +333,11 @@ function renderInitialUI() {
                                 </div>
                             </div>
 
-                            <!-- Item 1: Raciocínio (Selected) -->
-                            <div class="model-menu-item" data-model="Raciocínio" data-desc="Resolve problemas complexos">
+                            <!-- Item 1: Raciocínio -->
+                            <div class="model-menu-item" data-mode="raciocinio">
                                 <div class="model-item-content">
                                     <span class="model-item-title">Raciocínio</span>
-                                    <span class="model-item-desc">Obtenha respostas com menos alucinações ou incoerências</span>
+                                    <span class="model-item-desc">Respostas com menos alucinações ou incoerências</span>
                                 </div>
                                 <div class="model-item-check">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -346,6 +358,13 @@ function renderInitialUI() {
                         <span class="metodologia-chip-icon">🔍</span>
                         <span class="metodologia-chip-label">Pesquisa Ativa</span>
                         <button class="metodologia-chip-close" id="researchChipClose" title="Desativar pesquisa">&times;</button>
+                    </div>
+
+                    <!-- Chip de Modelo Ativo -->
+                    <div class="metodologia-chip model-chip" id="modelChip" style="display: none; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3);">
+                        <span class="metodologia-chip-icon" id="modelChipIcon">✨</span>
+                        <span class="metodologia-chip-label" id="modelChipLabel">Gemini 3.5 Flash</span>
+                        <button class="metodologia-chip-close" id="modelChipClose" title="Remover modelo">&times;</button>
                     </div>
                 </div>
                 
@@ -376,16 +395,45 @@ function renderInitialUI() {
     `;
   document.body.innerHTML = html;
 
-  // === LÓGICA DOS MENUS (PLUS e MODELO) ===
+  // === LÓGICA DOS MENUS (PLUS e MODO) ===
   const plusBtn = document.getElementById("chatPlusBtn");
   const plusMenu = document.getElementById("chatActionMenu");
 
-  const modelBtn = document.getElementById("chatModelBtn");
-  const modelMenu = document.getElementById("chatModelMenu");
+  const modeBtn = document.getElementById("chatModeBtn");
+  const modeMenu = document.getElementById("chatModeMenu");
+
+  const specificModelBtn = document.getElementById("chatSpecificModelBtn");
+
+  // Definir modelo padrão por padrão inicial (granularizado em 5 etapas)
+  const defaultModels = {
+    chat: "models/gemini-3.5-flash",
+    router: "models/gemma-4-31b-it",
+    memory: "models/gemma-4-31b-it",
+    search: "models/gemini-3.5-flash",
+    corrector: "models/gemini-3.5-flash"
+  };
+
+  window.selectedModelChat = localStorage.getItem("selectedModelChat") || defaultModels.chat;
+  window.selectedModelRouter = localStorage.getItem("selectedModelRouter") || defaultModels.router;
+  window.selectedModelMemory = localStorage.getItem("selectedModelMemory") || defaultModels.memory;
+  window.selectedModelSearch = localStorage.getItem("selectedModelSearch") || defaultModels.search;
+  window.selectedModelCorrector = localStorage.getItem("selectedModelCorrector") || defaultModels.corrector;
+
+  // Getter/Setter compatível para selectedSpecificModel
+  Object.defineProperty(window, "selectedSpecificModel", {
+    get() {
+      return window.selectedModelChat;
+    },
+    set(val) {
+      window.selectedModelChat = val;
+      localStorage.setItem("selectedModelChat", val);
+    },
+    configurable: true
+  });
 
   function closeAllMenus() {
     plusMenu?.classList.remove("active");
-    modelMenu?.classList.remove("active");
+    modeMenu?.classList.remove("active");
   }
 
   // Toggle Menu Plus
@@ -398,38 +446,160 @@ function renderInitialUI() {
     });
   }
 
-  // Toggle Menu Model
-  if (modelBtn && modelMenu) {
-    modelBtn.addEventListener("click", (e) => {
+  // Toggle Menu Mode
+  if (modeBtn && modeMenu) {
+    modeBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      const isActive = modelMenu.classList.contains("active");
+      const isActive = modeMenu.classList.contains("active");
       closeAllMenus();
-      if (!isActive) modelMenu.classList.add("active");
+      if (!isActive) modeMenu.classList.add("active");
     });
+  }
 
-    // Seleção de item no menu de modelo
-    modelMenu.querySelectorAll(".model-menu-item").forEach((item) => {
+  // Gerenciamento e renderização do badge do modelo
+  function updateModelChip() {
+    const chip = document.getElementById("modelChip");
+    const label = document.getElementById("modelChipLabel");
+    const icon = document.getElementById("modelChipIcon");
+    const subtext = document.getElementById("chatSpecificModelText");
+
+    const defaultModels = {
+      chat: "models/gemini-3.5-flash",
+      router: "models/gemma-4-31b-it",
+      memory: "models/gemma-4-31b-it",
+      search: "models/gemini-3.5-flash",
+      corrector: "models/gemini-3.5-flash"
+    };
+
+    const isChatCustom = (window.selectedModelChat || defaultModels.chat) !== defaultModels.chat;
+    const isRouterCustom = (window.selectedModelRouter || defaultModels.router) !== defaultModels.router;
+    const isMemoryCustom = (window.selectedModelMemory || defaultModels.memory) !== defaultModels.memory;
+    const isSearchCustom = (window.selectedModelSearch || defaultModels.search) !== defaultModels.search;
+    const isCorrectorCustom = (window.selectedModelCorrector || defaultModels.corrector) !== defaultModels.corrector;
+
+    const isAnyCustom = isChatCustom || isRouterCustom || isMemoryCustom || isSearchCustom || isCorrectorCustom;
+
+    const chatModelId = window.selectedModelChat || defaultModels.chat;
+    const modelObj = IA_MODELS.find(m => m.id === chatModelId) || { title: "Gemini 3.5 Flash" };
+
+    if (subtext) {
+      subtext.textContent = isAnyCustom ? "Personalizado" : modelObj.title;
+    }
+
+    if (chip && label && icon) {
+      if (!isAnyCustom) {
+        chip.style.display = "none";
+      } else {
+        chip.style.display = "flex";
+
+        // Caso 1: Apenas o Chat é personalizado
+        if (isChatCustom && !isRouterCustom && !isMemoryCustom && !isSearchCustom && !isCorrectorCustom) {
+          label.textContent = modelObj.title;
+          if (chatModelId.startsWith("github/")) {
+            icon.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#10a37f" xmlns="http://www.w3.org/2000/svg" style="display: block; flex-shrink: 0;">
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
+              </svg>
+            `;
+          } else {
+            icon.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="url(#geminiGradientBadge)" xmlns="http://www.w3.org/2000/svg" style="display: block; flex-shrink: 0;">
+                <defs>
+                  <linearGradient id="geminiGradientBadge" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4e82ee" />
+                    <stop offset="50%" stop-color="#a75df4" />
+                    <stop offset="100%" stop-color="#e0638b" />
+                  </linearGradient>
+                </defs>
+                <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/>
+              </svg>
+            `;
+          }
+        } else {
+          // Caso 2: Múltiplas etapas personalizadas (ou etapas de fundo personalizadas)
+          label.textContent = "Modelos Personalizados";
+          
+          // Mostra os dois logotipos side-by-side no slot de ícone
+          icon.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="url(#geminiGradientBadge)" xmlns="http://www.w3.org/2000/svg" style="display: block; flex-shrink: 0;">
+                <defs>
+                  <linearGradient id="geminiGradientBadge" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#4e82ee" />
+                    <stop offset="50%" stop-color="#a75df4" />
+                    <stop offset="100%" stop-color="#e0638b" />
+                  </linearGradient>
+                </defs>
+                <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/>
+              </svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#10a37f" xmlns="http://www.w3.org/2000/svg" style="display: block; flex-shrink: 0;">
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
+              </svg>
+            </div>
+          `;
+        }
+      }
+    }
+  }
+
+  window.updateModelChip = updateModelChip;
+
+  // Inicializar o chip na montagem
+  setTimeout(updateModelChip, 50);
+
+  // Abertura do Popup Modal de Modelos de IA
+  if (specificModelBtn) {
+    specificModelBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeAllMenus();
+      mountModelSelectorModal(
+        window.selectedSpecificModel || "models/gemini-3.5-flash",
+        (modelId) => {
+          window.selectedSpecificModel = modelId;
+          updateModelChip();
+          console.log("Modelo específico alterado para:", window.selectedSpecificModel);
+        }
+      );
+    });
+  }
+
+  // Botão de fechar/redefinir no chip do modelo (volta para o padrão de fábrica de todos os modelos)
+  const modelChipClose = document.getElementById("modelChipClose");
+  if (modelChipClose) {
+    modelChipClose.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.selectedModelChat = "models/gemini-3.5-flash";
+      window.selectedModelRouter = "models/gemma-4-31b-it";
+      window.selectedModelMemory = "models/gemma-4-31b-it";
+      window.selectedModelSearch = "models/gemini-3.5-flash";
+      window.selectedModelCorrector = "models/gemini-3.5-flash";
+
+      localStorage.setItem("selectedModelChat", "models/gemini-3.5-flash");
+      localStorage.setItem("selectedModelRouter", "models/gemma-4-31b-it");
+      localStorage.setItem("selectedModelMemory", "models/gemma-4-31b-it");
+      localStorage.setItem("selectedModelSearch", "models/gemini-3.5-flash");
+      localStorage.setItem("selectedModelCorrector", "models/gemini-3.5-flash");
+
+      updateModelChip();
+      console.log("Todos os modelos redefinidos para os padrões de fábrica");
+    });
+  }
+
+  // Listeners de seleção de Modo (Orientação)
+  if (modeMenu) {
+    modeMenu.querySelectorAll(".model-menu-item").forEach((item) => {
       item.addEventListener("click", (e) => {
         e.stopPropagation();
-        const modelName = item.dataset.model;
+        const modeVal = item.dataset.mode;
+        const friendlyName = item.querySelector(".model-item-title")?.textContent || modeVal;
 
-        // Update Selected Visuals
-        modelMenu
-          .querySelectorAll(".model-menu-item")
-          .forEach((i) => i.classList.remove("selected"));
+        modeMenu.querySelectorAll(".model-menu-item").forEach((i) => i.classList.remove("selected"));
         item.classList.add("selected");
 
-        // Update Button Text
-        const textSpan = document.getElementById("currentModelText");
-        if (textSpan) textSpan.textContent = modelName;
+        const textSpan = document.getElementById("currentModeText");
+        if (textSpan) textSpan.textContent = friendlyName; // Just the mode name, no "Modo: " prefix
 
-        // Salva modo selecionado no estado global
-        window.selectedChatMode = modelName
-          .toLowerCase()
-          .replace("automático", "automatico")
-          .replace("raciocínio", "raciocinio")
-          .replace("rápido", "rapido");
-
+        window.selectedChatMode = modeVal;
         console.log("Modo alterado para:", window.selectedChatMode);
         closeAllMenus();
       });
@@ -442,7 +612,7 @@ function renderInitialUI() {
   });
 
   // Listener dentro dos menus para evitar fechar ao clicar neles (exceto botões)
-  [plusMenu, modelMenu].forEach((menu) => {
+  [plusMenu, modeMenu].forEach((menu) => {
     menu?.addEventListener("click", (e) => {
       e.stopPropagation();
     });
@@ -1250,6 +1420,12 @@ window.loadChat = async function (chatId) {
 
   window.currentChatId = chatId;
 
+  // Se o container principal não existir (ex: estamos no Banco de Questões), reconstrói a tela inicial primeiro
+  const container = document.querySelector(".maia-ai-container");
+  if (!container) {
+    renderInitialUI();
+  }
+
   // 1. Prepara UI (sem mensagem inicial nova)
   transicionarParaModoConversa(null, []);
 
@@ -1537,6 +1713,9 @@ window.loadChat = async function (chatId) {
   setTimeout(() => {
     initCustomChatScrollbar();
     initTopScrollSync();
+    if (window.updateModelChip) {
+      window.updateModelChip();
+    }
   }, 100);
 };
 
@@ -1762,16 +1941,20 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
     // 8. Executar pipeline de chat com router
     const selectedMode = window.selectedChatMode || "automatico";
+    const geminiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || sessionStorage.getItem("geminiApiKey");
+    const githubKey = sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
 
     // [REMOVIDO] createExpandableStatus local - agora usamos a global
 
     runChatPipeline(selectedMode, mensagem, arquivos, {
-      apiKey: sessionStorage.getItem("geminiApiKey"),
+      apiKey: geminiKey || undefined,
+      githubApiKey: githubKey || undefined,
       chatMode: true, // Ativa modo chat (preserva history)
       chatId: window.currentChatId, // Passa ID atual (null se novo)
       history: extractChatHistory(), // Passa histórico recuperado do DOM (contexto imediato)
       signal: options.signal, // Pass AbortSignal passed from Send Button
       selectedMetodologia: window.selectedMetodologia || "automatico", // Metodologia ativa
+      selectedSpecificModel: window.selectedSpecificModel || "models/gemini-3.5-flash", // Modelo selecionado pelo usuário
 
       // Callbacks de Persistência
       onChatCreated: (chat) => {

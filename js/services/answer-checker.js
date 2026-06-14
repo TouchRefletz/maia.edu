@@ -192,14 +192,18 @@ INSTRUÇÕES:
 Responda com o JSON estruturado.`;
 
   try {
+    const specificModel = typeof window !== "undefined" ? window.selectedModelCorrector : null;
+    const modelToUse = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+
     const response = await fetch(`${WORKER_URL}/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        apiKey: apiKey || undefined,
+        apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
+        githubApiKey: (typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey")) : undefined) || undefined,
         texto: prompt,
         schema,
-        model: "gemini-3-flash-preview",
+        model: modelToUse,
         jsonMode: true,
         thinking: true,
       }),

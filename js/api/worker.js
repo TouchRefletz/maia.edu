@@ -52,6 +52,7 @@ export async function callWorker(endpoint, body) {
       signal: body.signal, // Adicionado suporte a signal
       body: JSON.stringify({
         apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
+        githubApiKey: sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey") || undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
       }),
@@ -146,10 +147,10 @@ export async function gerarConteudoEmJSONComImagemStream(
 
     try {
       // [DEBUG] Log API key status
-      const customApiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+      const customApiKey = options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+      const customGithubKey = options.githubApiKey || sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
       console.log(
-        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present:`,
-        !!customApiKey,
+        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}`,
       );
 
       const response = await fetch(`${WORKER_URL}/generate`, {
@@ -158,6 +159,7 @@ export async function gerarConteudoEmJSONComImagemStream(
         signal: handlers.signal, // Passar signal via handlers ou arguments extra seria melhor, mas vamos usar o que tem
         body: JSON.stringify({
           apiKey: customApiKey || undefined,
+          githubApiKey: customGithubKey || undefined,
           texto,
           schema,
           listaImagensBase64:
@@ -489,6 +491,10 @@ export async function realizarPesquisa(
           typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
             : undefined,
+        githubApiKey:
+          typeof sessionStorage !== "undefined"
+            ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+            : undefined,
         texto,
         listaImagensBase64,
         schema,
@@ -603,6 +609,10 @@ export async function realizarPesquisaGeral(
         apiKey:
           typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+            : undefined,
+        githubApiKey:
+          typeof sessionStorage !== "undefined"
+            ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
             : undefined,
         texto,
         listaImagensBase64,
