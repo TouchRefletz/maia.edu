@@ -16,19 +16,15 @@ O maia.edu roda inteiramente no browser do estudante. IndexedDB, embora poderoso
 
 Em dispositivos com 2-4GB de storage total (celulares de entrada), isso causaria `QuotaExceededError` — o browser simplesmente pararia de salvar qualquer coisa, inclusive para outros sites.
 
-## Arquitetura de TTL (Time-To-Live)
+Todo dado local possui um campo `expiresAt` calculado como `Date.now() + LOCAL_EXPIRATION_TIME`. O limite varia de acordo com o serviço:
+- **Chats**: 30 dias (`30 * 24 * 60 * 60 * 1000` ms)
+- **Fatos da Memória Semântica**: 30 minutos (`30 * 60 * 1000` ms)
 
-Todo dado local possui um campo `expiresAt` calculado como `Date.now() + LOCAL_EXPIRATION_TIME`:
-
-```javascript
-const LOCAL_EXPIRATION_TIME = 30 * 60 * 1000; // 30 minutos
-```
-
-Cada vez que o dado é acessado ou atualizado (leitura de chat, salvamento de nova mensagem), o `expiresAt` é renovado. Dados que ficam 30 minutos sem serem tocados são candidatos à evaporação.
+Cada vez que o dado é acessado ou atualizado (leitura de chat, salvamento de nova mensagem, busca semântica), o `expiresAt` é renovado. Dados que ficam sem ser tocados além do período limite são candidatos à evaporação.
 
 ### A Metáfora do Gelo
 
-Imagine cada registro local como um cubo de gelo. Cada interação do aluno "re-congela" o cubo. Se o aluno para de interagir, o gelo derrete em 30 minutos. Antes de derreter completamente, o sistema faz uma cópia digital do cubo na nuvem (Firestore/Pinecone). Quando o aluno voltar e precisar do dado, ele é recriado a partir da cópia cloud.
+Imagine cada registro local como um cubo de gelo. Cada interação do aluno "re-congela" o cubo. Se o aluno para de interagir, o gelo derrete em 30 dias (para chats) ou 30 minutos (para fatos da memória). Antes de derreter completamente, o sistema faz uma cópia digital do cubo na nuvem (Firestore/Pinecone). Quando o aluno voltar e precisar do dado, ele é recriado a partir da cópia cloud.
 
 ## Cleanup de Chats (`ChatStorageService.cleanupExpired`)
 
@@ -49,7 +45,7 @@ setInterval(() => {
 flowchart TD
     A[Timer: 5 min tick] --> B[Pass 1: Cursor Scan]
     B --> C{Iterar todos os chats}
-    C --> D{updatedAt + 30min < now?}
+    C --> D{updatedAt + 30 dias < now?}
     D -- Sim --> E[Marca como expirado]
     D -- Não --> F[Mantém]
     E --> G[Acumula lista de expirados]
@@ -78,7 +74,7 @@ if (chat.updatedAt) {
 }
 ```
 
-A prioridade é `updatedAt` > `createdAt` > `expiresAt`. Isso garante que a métrica de expiração seja baseada na última interação REAL do aluno, não na última vez que o sistema re-salvou o registro internamente.
+A prioridade é `updatedAt` > `createdAt` > `expiresAt`. Isso garante que a métrica de expiração de 30 dias seja baseada na última interação REAL do aluno, não na última vez que o sistema re-salvou o registro internamente.
 
 ### Detalhes do Pass 2 (Cloud Backup)
 
@@ -124,7 +120,7 @@ Após as deleções, um `CustomEvent("chat-list-updated")` é disparado para que
 |---------|-------------|----------------|
 | Target DB | MaiaChatsDB (IndexedDB) | EntityDB (IndexedDB) |
 | Cloud backup | Firestore | Pinecone |
-| Critério | `updatedAt + 30min` | `expiresAt` ou `timestamp + 30min` |
+| Critério | `updatedAt + 30 dias` | `expiresAt` ou `timestamp + 30min` |
 | ObjectStore | "chats" (nome fixo) | "vector" ou "vectors" (detecção dinâmica) |
 | Intervalo | 5 minutos | 5 minutos |
 
@@ -160,7 +156,7 @@ O campo `origem_cleanup: true` nos metadados do Pinecone permite auditar quais f
 
 ## Edge Cases e Proteções
 
-1. **Usuário anônimo**: Não tem backup cloud. Ao expirar, dados são deletados permanentemente. É o incentivo para criar conta.
+1. **Usuário anônimo**: Não tem backup cloud. Ao expirar (30 dias para chats, 30 minutos para fatos), dados são deletados permanentemente. É o incentivo para criar conta.
 2. **Múltiplas tabs**: Cada tab roda seu próprio setInterval. Como as operações são idempotentes (deletar algo já deletado é no-op), não há conflito.
 3. **Browser crash durante Pass 2**: Os dados locais ainda existem (Pass 3 não rodou). No próximo boot, o cleanup detectará novamente e tentará sync.
 4. **Quota do Pinecone excedida**: O upsert falha, o cleanup aborta — dados locais preservados.

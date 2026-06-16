@@ -38,8 +38,8 @@ export function getSearchInterfaceHTML() {
             </div>
 
             <p style="text-align: center; color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 15px; opacity: 0.8;">
-                Resultados gerados por IA podem conter imprecisões. 
-                <button id="btnDisclaimerInfo" type="button" style="background:none; border:none; padding:0; color:var(--color-primary); text-decoration:underline; cursor:pointer; font-size:inherit; font-weight:500;">Saiba mais</button>
+                A pesquisa por IA pode conter imprecisões e erros. 
+                <a href="/docs/guia/limitacoes-ia.html#pesquisa-por-ia" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a>
             </p>
         </div>
 
@@ -102,6 +102,11 @@ export function getManualUploadInterfaceHTML() {
                     <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
                     <span id="fileName" class="file-name-display">Nenhum arquivo selecionado</span>
                     <input type="text" id="sourceUrlProva" class="form-control" placeholder="Link original da prova (Opcional)" style="margin-top: 10px; width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text);">
+                </div>
+
+                <div class="extraction-warning" style="margin-top: 15px; margin-bottom: 15px; font-size: 0.8rem; color: var(--color-text-secondary); text-align: left; border: 1px dashed var(--color-border); padding: 12px; border-radius: 8px; background: rgba(255, 193, 7, 0.05); line-height: 1.5; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-weight: 600; color: var(--color-text);">⚠️ Limitações da Extração por IA:</span>
+                    <span>A extração automatizada de PDFs pode conter falhas, omitir dados (como tabelas e imagens) ou gerar gabaritos incorretos. Certifique-se de revisar os dados extraídos. <a href="/docs/guia/limitacoes-ia.html#extracao-de-pdfs" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a></span>
                 </div>
 
                 <div class="modal-footer">

@@ -13,8 +13,8 @@ const DB_NAME = "MaiaChatsDB";
 const DB_VERSION = 2; // Incrementado para suportar expiresAt
 const STORE_NAME = "chats";
 
-// 30 Minutos em ms
-const LOCAL_EXPIRATION_TIME = 30 * 60 * 1000;
+// 30 Dias em ms (para evitar que chats sumam da barra lateral constantemente)
+const LOCAL_EXPIRATION_TIME = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * Helper para abrir o banco de dados IndexedDB

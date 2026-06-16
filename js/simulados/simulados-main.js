@@ -1084,6 +1084,10 @@ function prepareResultAlternativesHtml(qObj, q, cardId) {
           </button>
         </div>
 
+        <div class="q-dissert-warning" style="margin-top: 8px; font-size: 0.75rem; color: var(--color-text-secondary); text-align: center; border: 1px dashed var(--color-border); padding: 8px; border-radius: 8px; background: rgba(255, 193, 7, 0.05); display: flex; align-items: center; justify-content: center; gap: 6px;">
+            ⚠️ As correções automáticas de respostas dissertativas são baseadas em IA e podem conter imprecisões. <a href="/docs/guia/limitacoes-ia.html#correcao-dissertativa" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a>
+        </div>
+
         <div id="${cardId}_feedback" class="q-dissert-feedback" style="display: none; margin-top:15px;"></div>
       </div>`;
   } else {

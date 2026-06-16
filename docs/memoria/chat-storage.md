@@ -6,7 +6,7 @@
 
 O `ChatStorageService` (`js/services/chat-storage.js`) é o guardião absoluto de toda conversa que o estudante mantém com a inteligência artificial do maia.edu. Diferente de serviços triviais que simplesmente jogam dados no `localStorage` e rezam para não perder nada, este módulo implementa uma **Arquitetura de Persistência Híbrida com TTL (Time-To-Live)** que combina armazenamento local de alta velocidade (IndexedDB) com sincronização assíncrona na nuvem (Firebase Firestore).
 
-A filosofia central é: **o browser do aluno é cache efêmero, a nuvem é o cofre permanente**. Toda mensagem vive localmente por 30 minutos de inatividade. Se o aluno parar de interagir, o sistema faz backup automático para o Firestore e evapora os dados locais, liberando a RAM e o disco do dispositivo — algo crítico para celulares de estudantes de escola pública com 2GB de armazenamento livre.
+A filosofia central é: **o browser do aluno é cache efêmero, a nuvem é o cofre permanente**. Toda mensagem vive localmente por 30 dias de inatividade. Se o aluno parar de interagir, o sistema faz backup automático para o Firestore e evapora os dados locais, liberando a RAM e o disco do dispositivo — algo crítico para celulares de estudantes de escola pública com 2GB de armazenamento livre.
 
 ## Constantes Fundamentais de Configuração
 
@@ -14,7 +14,7 @@ A filosofia central é: **o browser do aluno é cache efêmero, a nuvem é o cof
 const DB_NAME     = "MaiaChatsDB";     // Nome do banco IndexedDB
 const DB_VERSION  = 2;                  // Versão com suporte a expiresAt
 const STORE_NAME  = "chats";            // Object Store principal
-const LOCAL_EXPIRATION_TIME = 30 * 60 * 1000; // 30 minutos em ms
+const LOCAL_EXPIRATION_TIME = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
 ```
 
 A `DB_VERSION = 2` foi necessária para introduzir o índice `expiresAt` no ObjectStore. Quando o browser detecta uma versão mais nova, o evento `onupgradeneeded` cria o índice novo sem destruir dados existentes — uma migração in-place segura.
@@ -75,20 +75,20 @@ sequenceDiagram
 
     U->>UI: Digita primeira mensagem
     UI->>CS: createNewChat("Explica entropia")
-    CS->>IDB: put({ id, title, messages, expiresAt: now+30min })
+    CS->>IDB: put({ id, title, messages, expiresAt: now+30dias })
     CS-->>UI: retorna { id, ... }
 
     Note over UI: IA processa resposta...
 
     UI->>CS: addMessage(chatId, "model", jsonSections)
     CS->>CS: getChat(chatId) → renova expiresAt
-    CS->>IDB: put({ ...chat, updatedAt: now, expiresAt: now+30min })
+    CS->>IDB: put({ ...chat, updatedAt: now, expiresAt: now+30dias })
 
     alt Usuário logado (Firebase Auth)
         CS->>FS: setDoc(users/{uid}/chats/{id}, payload, {merge: true})
     end
 
-    Note over IDB: 30 min sem interação...
+    Note over IDB: 30 dias sem interação...
 
     CS->>CS: cleanupExpired() via setInterval(5min)
     CS->>IDB: Cursor scan → detecta chat expirado
@@ -110,7 +110,7 @@ Gera um UUID via `crypto.randomUUID()`, cria o objeto chat com a primeira mensag
 Opera em cascata de fallback:
 1. **Busca no IndexedDB** → se existe e `expiresAt > now`, retorna imediatamente.
 2. **Se expirou ou não existe** e o usuário está logado → busca no Firestore.
-3. **Se encontrou na nuvem** → re-hidrata localmente com novo TTL de 30min.
+3. **Se encontrou na nuvem** → re-hidrata localmente com novo TTL de 30dias.
 4. **Se não encontrou em lugar nenhum** → retorna `null`.
 5. **Se encontrou mas expirou** e não está logado → deleta silenciosamente e retorna `null` (dado perdido — punição por não logar).
 
@@ -132,7 +132,7 @@ Deleta do IndexedDB e, se logado, deleta do Firestore também. Dispara evento de
 Usado pelo gerador assíncrono de títulos (`generateChatTitleData`). Recupera o chat, muda o campo `title`, e salva novamente. Isso faz com que o sidebar do chat atualize o texto da aba de "Novo Chat" para "Dúvida sobre Entropia" sem intervenção do aluno.
 
 ### `syncFromCloud(uid)`
-Baixa TODOS os chats do Firestore para o IndexedDB local, cada um com TTL fresco de 30min. Chamada no login do usuário para reconstruir o estado completo do sidebar.
+Baixa TODOS os chats do Firestore para o IndexedDB local, cada um com TTL fresco de 30dias. Chamada no login do usuário para reconstruir o estado completo do sidebar.
 
 ### `syncPendingToCloud()`
 Operação inversa: varre todos os chats locais e faz upload para o Firestore com `merge: true`. Protege contra perda de dados em cenários onde o aluno conversou offline e depois conectou.
@@ -142,7 +142,7 @@ O motor de Garbage Collection do serviço. Funciona em 3 passes:
 
 ```
 Pass 1: Cursor Scan — Itera todos os registros do ObjectStore,
-        marcando como expirados aqueles cujo (updatedAt + 30min) < now.
+        marcando como expirados aqueles cujo (updatedAt + 30dias) < now.
 
 Pass 2: Cloud Backup — Se logado, faz setDoc de TODOS os expirados
         para o Firestore antes de deletar. Se o backup falhar,
@@ -173,7 +173,7 @@ setInterval(() => {
 
 ## O Dilema dos Usuários Anônimos
 
-Usuários que não fizeram login operam em modo kamikaze: seus chats existem exclusivamente no IndexedDB com TTL de 30 minutos. Se fecharem o navegador e não voltarem a tempo, **tudo é perdido irrevogavelmente**. Isso é intencional — serve como incentivo para criar conta. A UI exibe periodicamente um toast sutil: *"Faça login para salvar suas conversas na nuvem"*.
+Usuários que não fizeram login operam em modo kamikaze: seus chats existem exclusivamente no IndexedDB com TTL de 30 dias. Se fecharem o navegador e não voltarem a tempo, **tudo é perdido irrevogavelmente**. Isso é intencional — serve como incentivo para criar conta. A UI exibe periodicamente um toast sutil: *"Faça login para salvar suas conversas na nuvem"*.
 
 ## Otimizações de Performance
 

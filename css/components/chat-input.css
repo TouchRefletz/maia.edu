@@ -1250,3 +1250,31 @@
   background: #cc0000;
   transform: scale(1.1);
 }
+
+/* =========================================
+   DISCLAIMER DE IA
+   ========================================= */
+.chat-disclaimer {
+  display: none;
+}
+
+.maia-ai-container.chat-mode .chat-disclaimer {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+  margin-top: 10px;
+  text-align: center;
+  width: 100%;
+  opacity: 0.8;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 8px;
+  line-height: 1.4;
+  z-index: 10;
+}
+
+/* Hide on mobile screens where space is critical */
+@media (max-width: 768px) {
+  .maia-ai-container.chat-mode .chat-disclaimer {
+    display: none;
+  }
+}

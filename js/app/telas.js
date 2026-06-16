@@ -384,6 +384,10 @@ function renderInitialUI() {
                     </button>
                 </div>
             </div>
+            
+            <div class="chat-disclaimer">
+                A Maia pode cometer erros. Por isso, lembre-se de conferir informações importantes. <a href="/docs/guia/limitacoes-ia.html" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a>
+            </div>
         </div>
 
         <div class="maia-ai-footer">

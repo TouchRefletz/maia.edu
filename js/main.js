@@ -285,10 +285,24 @@ if (!window.__globalListenerRegistered) {
     // --- CASO 6.1: Toggle Nav Sidebar ---
     const gatilhoToggleNav = e.target.closest(".js-toggle-nav");
     if (gatilhoToggleNav) {
+      const isOpening = !document.querySelector(".nav-sidebar")?.classList.contains("open");
       document.querySelector(".nav-sidebar")?.classList.toggle("open");
       document
         .querySelector(".nav-sidebar-overlay")
         ?.classList.toggle("visible");
+
+      if (isOpening) {
+        import("./app/telas.js").then(({ loadSidebarChats }) => {
+          loadSidebarChats().catch(console.error);
+
+          const user = auth.currentUser;
+          if (user && !user.isAnonymous) {
+            import("./services/chat-storage.js").then(({ ChatStorageService }) => {
+              ChatStorageService.syncFromCloud(user.uid).catch(console.error);
+            });
+          }
+        });
+      }
       return;
     }
 

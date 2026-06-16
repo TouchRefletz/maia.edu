@@ -69,6 +69,7 @@ export default withMermaid(
         collapsed: false,
         items: [
           { text: "Introdução e Missão", link: "/guia/introducao" },
+          { text: "Limitações da IA", link: "/guia/limitacoes-ia" },
           { text: "Arquitetura Geral", link: "/guia/arquitetura" },
           { text: "Começando (Setup)", link: "/guia/setup" },
           { text: "Glossário Técnico", link: "/guia/glossario" },
