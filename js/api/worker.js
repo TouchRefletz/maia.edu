@@ -1,3 +1,4 @@
+import { parseStreamedJSON } from "../utils/json-stream-parser.js";
 // --- CONFIGURAÇÃO DO WORKER ---
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
@@ -53,6 +54,7 @@ export async function callWorker(endpoint, body) {
       body: JSON.stringify({
         apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
         githubApiKey: sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey") || undefined,
+        groqApiKey: sessionStorage.getItem("GROQ_API_KEY") || undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
       }),
@@ -149,19 +151,22 @@ export async function gerarConteudoEmJSONComImagemStream(
       // [DEBUG] Log API key status
       const customApiKey = options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
       const customGithubKey = options.githubApiKey || sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
+      const customGroqKey = options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
       console.log(
-        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}`,
+        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}`,
       );
 
       const response = await fetch(`${WORKER_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: handlers.signal, // Passar signal via handlers ou arguments extra seria melhor, mas vamos usar o que tem
+        signal: handlers.signal,
         body: JSON.stringify({
           apiKey: customApiKey || undefined,
           githubApiKey: customGithubKey || undefined,
+          groqApiKey: customGroqKey || undefined,
           texto,
-          schema,
+          schema: schema || undefined,
+          jsonMode: !!schema,
           listaImagensBase64:
             payloadImages.length > 0 ? payloadImages : undefined,
           files: payloadFiles.length > 0 ? payloadFiles : undefined,
@@ -278,7 +283,21 @@ export async function gerarConteudoEmJSONComImagemStream(
 
       console.log(answerText);
 
-      return JSON.parse(answerText);
+      try {
+        return JSON.parse(answerText);
+      } catch (pe) {
+        if (schema) {
+          console.warn("[Worker] Resposta não é JSON perfeito. Tentando recuperar...");
+          const parsedRecovered = parseStreamedJSON(answerText);
+          if (parsedRecovered && typeof parsedRecovered === "object" && parsedRecovered.layout && parsedRecovered.conteudo) {
+            console.log("[Worker] JSON recuperado com sucesso via best-effort!");
+            return parsedRecovered;
+          }
+          throw new Error("INVALID_JSON_STRUCTURE");
+        }
+        console.log("[Worker] Resposta não é JSON válido. Retornando texto bruto.", pe.message);
+        return answerText;
+      }
     } catch (error) {
       if (error.name === "AbortError") throw error;
       if (error.message === "RECITATION_ERROR") throw error;
@@ -478,6 +497,7 @@ export async function realizarPesquisa(
   listaImagensBase64 = [],
   handlers = {},
   schema = null,
+  model = null,
 ) {
   handlers?.onStatus?.("Conectando ao Researcher...");
 
@@ -495,9 +515,14 @@ export async function realizarPesquisa(
           typeof sessionStorage !== "undefined"
             ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
             : undefined,
+        groqApiKey:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("GROQ_API_KEY")
+            : undefined,
         texto,
         listaImagensBase64,
         schema,
+        model,
       }),
     });
 
@@ -613,6 +638,10 @@ export async function realizarPesquisaGeral(
         githubApiKey:
           typeof sessionStorage !== "undefined"
             ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+            : undefined,
+        groqApiKey:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("GROQ_API_KEY")
             : undefined,
         texto,
         listaImagensBase64,
@@ -731,6 +760,7 @@ export async function gerarGabaritoComPesquisa(
   handlers,
   imagensPesquisa = [], // Argumento opcional para imagens limpas/originais
   textoQuestao = "", // Contexto específico da questão (JSON/Texto) para a pesquisa
+  options = {},
 ) {
   // 1. Etapa de Pesquisa
   handlers?.onStatus?.(
@@ -765,6 +795,8 @@ export async function gerarGabaritoComPesquisa(
         onThought: handlers?.onThought, // Thoughts do pesquisador!
         signal: handlers?.signal, // CRÍTICO: Passar o signal para abortar o fetch se a rede cair
       },
+      null,
+      options?.searchModel,
     );
 
     relatorioPesquisa = searchResult.report;
@@ -802,6 +834,9 @@ export async function gerarGabaritoComPesquisa(
     listaImagens,
     mimeType,
     handlers,
+    {
+      model: options?.gabaritoModel,
+    }
   );
 
   // 3. Injeção HARDCODED das fontes e relatório no JSON final

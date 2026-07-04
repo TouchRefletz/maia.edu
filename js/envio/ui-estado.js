@@ -213,7 +213,14 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
 export async function confirmarEnvioIA(tabId = null) {
   // --- PASSO 1: PREPARAÇÃO DE DADOS E ESTADO ---
   const dadosIniciais = await inicializarEnvioCompleto();
-  if (!dadosIniciais) return;
+  if (!dadosIniciais) {
+    if (tabId) {
+      const { updateTabStatus, addLogToQuestionTab } = await import("../ui/sidebar-tabs.js");
+      updateTabStatus(tabId, { status: "error" });
+      addLogToQuestionTab(tabId, "Erro: Falha na inicialização do envio (sem imagens ou já em processamento).");
+    }
+    return;
+  }
   const { styleviewerSidebar, listaImagens, uiState } = dadosIniciais;
 
   // --- PASSO 1.5: CRIAR ABORT CONTROLLER PARA CANCELAMENTO ---
@@ -263,6 +270,9 @@ export async function confirmarEnvioIA(tabId = null) {
         onAnswerDelta: () => setStatus("📝 [QUESTÃO] Gerando JSON..."),
         signal: abortController?.signal, // Passa o signal para cancelamento
       },
+      {
+        model: window.selectedModelExtractorOcr || "models/gemini-3.5-flash",
+      }
     );
 
     console.log("Resposta QUESTÃO recebida:", respostaQuestao);
@@ -302,6 +312,10 @@ export async function confirmarEnvioIA(tabId = null) {
       },
       listaImagens, // Usa as mesmas imagens para pesquisa
       textoQuestao, // Passa o texto da questão para ajudar na busca
+      {
+        searchModel: window.selectedModelExtractorSearch || "models/gemini-3.5-flash",
+        gabaritoModel: window.selectedModelExtractorGabarito || "models/gemini-3.5-flash",
+      }
     );
 
     console.log("Resposta GABARITO recebida:", respostaGabarito);

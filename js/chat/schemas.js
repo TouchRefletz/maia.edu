@@ -201,7 +201,7 @@ export const CHAT_RESPONSE_SCHEMA = {
           type: "object",
           properties: {
             raciocinio_adaptativo: { type: "string" },
-            status: { type: "string", enum: ["em_progresso", "concluido"] },
+            status: { type: "string", enum: ["em_progresso"] },
             tipo_pergunta: { type: "string", enum: ["verdadeiro_ou_falso"] },
             enunciado: { type: "string" },
             resposta_correta: { type: "string", enum: ["Verdadeiro", "Falso"] },

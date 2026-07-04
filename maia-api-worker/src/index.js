@@ -24,6 +24,11 @@ const GITHUB_MODELS = [
 	'github/o4-mini'
 ];
 
+const GROQ_MODELS = [
+	'groq/openai/gpt-oss-120b',
+	'groq/gpt-oss-120b'
+];
+
 const safetySettings = [
 	{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
 	{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -928,14 +933,12 @@ async function handleGeminiGenerate(request, env) {
 		httpOptions: { timeout: 60000 },
 	});
 
-	// Modelos iniciais: Se for github, coloca o do github na frente de outros github e depois gemini
+	// Modelos iniciais: Se o usuário/cliente solicitou um modelo específico, respeita e tenta APENAS ele.
 	let initialModels;
-	if (model && (model.startsWith('github/') || GITHUB_MODELS.includes(model))) {
-		const otherGithub = GITHUB_MODELS.filter((m) => m !== model);
-		initialModels = [model, ...otherGithub, ...DEFAULT_MODELS];
+	if (model) {
+		initialModels = [model];
 	} else {
-		const baseGemini = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
-		initialModels = [...baseGemini, ...GITHUB_MODELS];
+		initialModels = [...DEFAULT_MODELS, ...GITHUB_MODELS, ...GROQ_MODELS];
 	}
 
 	// Fallbacks específicos pra RECITATION
@@ -1018,6 +1021,13 @@ async function handleGeminiGenerate(request, env) {
 			try {
 				if (modelo.startsWith('github/') || GITHUB_MODELS.includes(modelo)) {
 					await handleGithubGenerateStream(modelo, body, env, attempt, writeNdjson);
+					attemptHistory[attemptHistory.length - 1].status = 'success';
+					success = true;
+					break;
+				}
+
+				if (modelo.startsWith('groq/') || GROQ_MODELS.includes(modelo)) {
+					await handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson);
 					attemptHistory[attemptHistory.length - 1].status = 'success';
 					success = true;
 					break;
@@ -2926,6 +2936,271 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 					const delta = choice?.delta;
 
 					// o1/o3-mini/deepseek reasoning thoughts parsing
+					const thoughtText = delta?.reasoning_content || delta?.thinking || '';
+					if (thoughtText) {
+						await writeNdjson({ type: 'thought', attempt, model: modelo, text: thoughtText });
+					}
+
+					const answerText = delta?.content || '';
+					if (answerText) {
+						await writeNdjson({ type: 'answer', attempt, model: modelo, text: answerText });
+					}
+				} catch (err) {
+					// Ignore parser errors for incomplete chunks
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Helper to generate chat stream using Groq Models (OpenAI compatible)
+ */
+async function handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson) {
+	const {
+		schema,
+		apiKey: userApiKey,
+		groqApiKey: userGroqApiKey,
+		jsonMode = true,
+		chatMode = false,
+		history = [],
+		systemInstruction,
+	} = body;
+
+	// Use user-provided Groq API key, fallback to env.GROQ_API_KEY
+	const finalApiKey = userGroqApiKey || env.GROQ_API_KEY;
+	if (!finalApiKey) {
+		throw new Error('GROQ_API_KEY not configured');
+	}
+
+	const groqModelId = modelo === 'groq/gpt-oss-120b' ? 'openai/gpt-oss-120b' : modelo.replace('groq/', '');
+
+	// Process image descriptions if needed
+	let textWithDescriptions = body.texto || '';
+	const images = [];
+
+	const extractImages = (items, defaultMime) => {
+		if (Array.isArray(items)) {
+			items.forEach((item) => {
+				let data = item;
+				let mime = defaultMime;
+
+				if (typeof item === 'object' && item.data) {
+					data = item.data;
+					if (item.mimeType) mime = item.mimeType;
+				} else if (typeof item === 'string' && item.includes('base64,')) {
+					const matches = item.match(/^data:(.+);base64,(.+)$/);
+					if (matches) {
+						mime = matches[1];
+						data = matches[2];
+					}
+				}
+				
+				if (mime && mime.startsWith('image/')) {
+					images.push({ mimeType: mime, data });
+				}
+			});
+		}
+	};
+
+	extractImages(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+	if (body.files) {
+		extractImages(body.files, 'application/pdf');
+	}
+
+	if (images.length > 0 && groqModelId.includes('gpt-oss-120b')) {
+		const descriptions = [];
+		const promptDescrever = `Você é um transcritor visual acadêmico especializado em provas de vestibulares brasileiros. Sua tarefa é descrever, com absurdamente alto detalhamento, TODOS os elementos visuais presentes na imagem anexa de uma questão de vestibular.
+REGRAS:
+Descreva CADA elemento visual separadamente
+Para gráficos: descreva eixos (nome, unidade, escala), pontos plotados, tendências, interceptos
+Para tabelas: transcreva TODOS os valores célula por célula
+Para figuras geométricas: descreva formas, medidas, ângulos, relações espaciais
+Para fórmulas/química: transcreva símbolos, subscritos, superescritos, setas
+Para imagens fotografadas: descreva cenário, objetos, pessoas, contexto
+NÃO interprete nem resolva a questão — apenas descreva o que vê
+Use formato estruturado com tópicos
+FORMATO DE SAÍDA:
+[TIPO_DE_ELEMENTO]: descrição detalhada`;
+
+		const finalGeminiApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+		if (!finalGeminiApiKey) {
+			throw new Error('GOOGLE_GENAI_API_KEY is required to describe images using Gemma.');
+		}
+		const client = new GoogleGenAI({
+			apiKey: finalGeminiApiKey,
+			httpOptions: { timeout: 60000 },
+		});
+
+		for (let i = 0; i < images.length; i++) {
+			const img = images[i];
+			let desc = '';
+			
+			// Envia status e cabeçalho do pensamento inicial
+			await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com Gemma...` });
+			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com Gemma...]\n` });
+
+			try {
+				const stream = await client.models.generateContentStream({
+					model: 'models/gemma-4-31b-it',
+					contents: [
+						{
+							role: 'user',
+							parts: [
+								{ text: promptDescrever },
+								{ inlineData: { mimeType: img.mimeType, data: img.data } }
+							]
+						}
+					]
+				});
+				for await (const chunk of stream) {
+					const text = chunk.text;
+					if (text) {
+						desc += text;
+						await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
+					}
+				}
+			} catch (e) {
+				console.warn('[Image Description] gemma-4-31b-it failed, falling back to gemini-3.5-flash:', e);
+				await writeNdjson({ type: 'status', text: `Gemma falhou. Usando Gemini 3.5 Flash para descrever imagem ${i + 1}...` });
+				await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Gemma falhou. Usando Gemini 3.5 Flash para descrever imagem ${i + 1}...]\n` });
+
+				const stream = await client.models.generateContentStream({
+					model: 'models/gemini-3.5-flash',
+					contents: [
+						{
+							role: 'user',
+							parts: [
+								{ text: promptDescrever },
+								{ inlineData: { mimeType: img.mimeType, data: img.data } }
+							]
+						}
+					]
+				});
+				for await (const chunk of stream) {
+					const text = chunk.text;
+					if (text) {
+						desc += text;
+						await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
+					}
+				}
+			}
+			descriptions.push(desc);
+			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Fim da descrição da imagem ${i + 1}]\n` });
+		}
+
+		const formattedDescriptions = descriptions.map((desc, idx) => `[DESCRIÇÃO DA IMAGEM ${idx + 1}]:\n${desc}`).join('\n\n');
+		textWithDescriptions = `${textWithDescriptions}\n\n=== DESCRIÇÃO VISUAL DAS IMAGENS DA QUESTÃO ===\n${formattedDescriptions}\n===============================================`;
+	}
+
+	const currentParts = [];
+	if (textWithDescriptions) {
+		currentParts.push({ text: textWithDescriptions });
+	}
+
+	const processNonImageAttachmentsToParts = (items, defaultMime) => {
+		if (Array.isArray(items)) {
+			items.forEach((item) => {
+				let data = item;
+				let mimeType = defaultMime;
+				if (typeof item === 'object' && item.data) {
+					data = item.data;
+					if (item.mimeType) mimeType = item.mimeType;
+				} else if (typeof item === 'string' && item.includes('base64,')) {
+					const matches = item.match(/^data:(.+);base64,(.+)$/);
+					if (matches) {
+						mimeType = matches[1];
+						data = matches[2];
+					}
+				}
+				if (mimeType && !mimeType.startsWith('image/')) {
+					currentParts.push({ inlineData: { mimeType, data } });
+				}
+			});
+		}
+	};
+
+	if (!groqModelId.includes('gpt-oss-120b')) {
+		processNonImageAttachmentsToParts(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+	} else {
+		processNonImageAttachmentsToParts(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+	}
+
+	if (body.files) {
+		processNonImageAttachmentsToParts(body.files, 'application/pdf');
+	}
+
+	// Bidirectional mapping: Convert Gemini history to OpenAI format
+	let openAIMessages = mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction);
+
+	if (groqModelId.includes('gpt-oss-120b')) {
+		openAIMessages = openAIMessages.map((msg) => {
+			if (Array.isArray(msg.content)) {
+				const textContent = msg.content
+					.filter(part => part.type === 'text')
+					.map(part => part.text)
+					.join('\n');
+				return { ...msg, content: textContent };
+			}
+			return msg;
+		});
+	}
+
+	const payload = {
+		model: groqModelId,
+		messages: openAIMessages,
+		stream: true,
+	};
+
+	if (jsonMode && schema) {
+		payload.response_format = {
+			type: 'json_schema',
+			json_schema: {
+				name: 'response_schema',
+				schema: schema,
+			},
+		};
+	}
+
+	const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${finalApiKey}`,
+		},
+		body: JSON.stringify(payload),
+	});
+
+	if (!response.ok) {
+		const errText = await response.text();
+		throw new Error(`Groq API Error: ${response.status} - ${errText}`);
+	}
+
+	if (!response.body) throw new Error('Response body is null (stream)');
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder('utf-8');
+	let buffer = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+
+		buffer += decoder.decode(value, { stream: true });
+		const lines = buffer.split('\n');
+		buffer = lines.pop() || '';
+
+		for (const line of lines) {
+			const cleanLine = line.trim();
+			if (!cleanLine) continue;
+			if (cleanLine === 'data: [DONE]') continue;
+			if (cleanLine.startsWith('data: ')) {
+				try {
+					const jsonStr = cleanLine.slice(6);
+					const chunk = JSON.parse(jsonStr);
+					const choice = chunk.choices?.[0];
+					const delta = choice?.delta;
+
 					const thoughtText = delta?.reasoning_content || delta?.thinking || '';
 					if (thoughtText) {
 						await writeNdjson({ type: 'thought', attempt, model: modelo, text: thoughtText });

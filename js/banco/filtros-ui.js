@@ -1,11 +1,18 @@
 import { bancoState } from "../main.js";
 
 export function gerarHtmlPainelFiltros() {
+  // Get current corrector model name for display
+  const correctorModelId = (typeof window !== 'undefined' && window.selectedModelCorrector) || localStorage.getItem('selectedModelCorrector') || 'models/gemini-3.5-flash';
+  
   return `
     <div class="filters-panel">
         <div class="filters-header">
             <span style="font-size:1.2em;">🌪️</span> Filtros Avançados
-            <div style="margin-left:auto; display:flex; gap:10px;">
+            <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+                <button class="btn btn--sm btn--outline js-banco-model-selector" title="Configurar modelo de IA para correção de respostas dissertativas" style="display:flex; align-items:center; gap:6px; padding: 5px 10px; border: 1px solid rgba(139, 92, 246, 0.3); background: rgba(139, 92, 246, 0.08); color: #a78bfa; font-size: 0.75rem; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span class="js-banco-model-label">🤖 IA</span>
+                </button>
                 <button class="btn btn--sm btn--outline js-limpar-filtros">Limpar</button>
                 <button class="btn btn--sm btn--outline js-voltar-inicio">
                     ← Voltar

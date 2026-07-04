@@ -1,6 +1,6 @@
 import { renderizarQuestaoFinal } from "../render/final/render-questao.js";
 import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { updateTabStatus } from "../ui/sidebar-tabs.js";
+import { updateTabStatus, addLogToQuestionTab } from "../ui/sidebar-tabs.js";
 import { mostrarPainel } from "../viewer/sidebar.js";
 import { restaurarVisualizacaoOriginal } from "./cropper-core.js";
 import { CropperState } from "./cropper-state.js";
@@ -88,6 +88,11 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
   }
 
   if (images.length === 0) {
+    console.warn("[BatchSave] Nenhuma imagem foi extraída dos recortes!");
+    if (tabId) {
+      updateTabStatus(tabId, { status: "error" });
+      addLogToQuestionTab(tabId, "Erro: Nenhuma imagem pôde ser extraída do documento.");
+    }
     return;
   }
 

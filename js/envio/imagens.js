@@ -31,11 +31,12 @@ export async function carimbarBase64(base64, label) {
 
 export function coletarESalvarImagensParaEnvio() {
   // 1. Tenta pegar do array global
-  const recortesRef =
-    (Array.isArray(window.recortesAcumulados) && window.recortesAcumulados) ||
-    (Array.isArray(window.__recortesAcumulados) &&
-      window.__recortesAcumulados) ||
-    [];
+  let recortesRef = [];
+  if (Array.isArray(window.recortesAcumulados) && window.recortesAcumulados.length > 0) {
+    recortesRef = window.recortesAcumulados;
+  } else if (Array.isArray(window.__recortesAcumulados) && window.__recortesAcumulados.length > 0) {
+    recortesRef = window.__recortesAcumulados;
+  }
 
   let imagensAtuais = [...recortesRef];
 

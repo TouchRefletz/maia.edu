@@ -508,6 +508,9 @@ export class AiScanner {
               ScannerUI.updateAgentStatus(pageNum, "analysis", text),
             signal: this.abortController.signal,
           },
+          {
+            model: window.selectedModelScannerDetect || "models/gemini-3.5-flash",
+          }
         );
 
         if (!currentJson || !currentJson.regions) {
@@ -592,6 +595,9 @@ export class AiScanner {
               ),
             signal: this.abortController.signal,
           },
+          {
+            model: window.selectedModelScannerAudit || "models/gemini-3.5-flash",
+          }
         );
 
         if (reviewResult.ok) {
@@ -666,6 +672,9 @@ export class AiScanner {
               ),
             signal: this.abortController.signal,
           },
+          {
+            model: window.selectedModelScannerCorrect || "models/gemini-3.5-flash",
+          }
         );
 
         this.clearDrafts(pageNum); // Clear previous drafts

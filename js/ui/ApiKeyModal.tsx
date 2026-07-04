@@ -42,19 +42,23 @@ interface ModalProps {
 const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
   const [hasGemini, setHasGemini] = useState(false);
   const [hasGithub, setHasGithub] = useState(false);
+  const [hasGroq, setHasGroq] = useState(false);
 
   const [geminiInput, setGeminiInput] = useState('');
   const [githubInput, setGithubInput] = useState('');
+  const [groqInput, setGroqInput] = useState('');
 
   const [isLoadingGemini, setIsLoadingGemini] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
+  const [groqError, setGroqError] = useState<string | null>(null);
 
   const [termsChecked, setTermsChecked] = useState(false);
 
   useEffect(() => {
     setHasGemini(!!sessionStorage.getItem('GOOGLE_GENAI_API_KEY'));
     setHasGithub(!!sessionStorage.getItem('GITHUB_PAT_KEY'));
+    setHasGroq(!!sessionStorage.getItem('GROQ_API_KEY'));
   }, []);
 
   const handleSaveGemini = async (e: React.FormEvent) => {
@@ -112,6 +116,30 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
     setHasGithub(false);
     setGithubInput('');
     customAlert('Token GitHub/OpenAI removido! O sistema voltará a usar o token padrão.');
+  };
+
+  const handleSaveGroq = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!termsChecked) return;
+
+    const token = groqInput.trim();
+    if (token.length < 10) {
+      setGroqError('A chave do Groq parece muito curta.');
+      return;
+    }
+
+    sessionStorage.setItem('GROQ_API_KEY', token);
+    setHasGroq(true);
+    setGroqInput('');
+    setGroqError(null);
+    mostrarToastSucesso('Chave Groq salva com sucesso!');
+  };
+
+  const handleRemoveGroq = () => {
+    sessionStorage.removeItem('GROQ_API_KEY');
+    setHasGroq(false);
+    setGroqInput('');
+    customAlert('Chave Groq removida! O sistema voltará a usar a chave padrão.');
   };
 
   return (
@@ -224,6 +252,53 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
                   </div>
                   <button type="submit" className="btn btn--primary" disabled={!termsChecked} style={{ padding: '8px', opacity: !termsChecked ? 0.5 : 1 }}>
                     Salvar Token GitHub
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Seção 3: Groq API Key */}
+            <div style={{ padding: '16px', background: 'var(--color-bg-2)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                🟠 Groq API Key
+              </h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                Necessária para rodar os modelos da Groq (como o GPT-OSS 120B).
+              </p>
+              
+              {hasGroq ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '10px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    ✅ Chave Groq Ativa e Configurada
+                  </div>
+                  <button type="button" onClick={handleRemoveGroq} className="btn btn--outline-danger btn--full-width" style={{ padding: '8px' }}>
+                    Remover Chave Groq
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveGroq} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600 }}>Groq API Key</label>
+                      <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>
+                        Obter chave no Groq Console ↗
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      className="form-control"
+                      placeholder="Cole sua API Key do Groq (gsk_...)"
+                      value={groqInput}
+                      onChange={(e) => {
+                        setGroqInput(e.target.value);
+                        setGroqError(null);
+                      }}
+                      style={groqError ? { borderColor: 'var(--color-error)' } : {}}
+                    />
+                    {groqError && <span className="error-message" style={{ fontSize: '0.7rem' }}>{groqError}</span>}
+                  </div>
+                  <button type="submit" className="btn btn--primary" disabled={!termsChecked} style={{ padding: '8px', opacity: !termsChecked ? 0.5 : 1 }}>
+                    Salvar Chave Groq
                   </button>
                 </form>
               )}

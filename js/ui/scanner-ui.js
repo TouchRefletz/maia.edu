@@ -49,9 +49,11 @@ export const ScannerUI = {
     if (!header || !titleSpan) return;
 
     // Criar botão de cancelar temporário para o countdown
-    // PRIMEIRO: remover botão de iniciar/resumir se existir
+    // PRIMEIRO: remover botões/ações se existirem
     const oldStartBtn = header.querySelector("#btn-start-ai");
     if (oldStartBtn) oldStartBtn.remove();
+    const oldActions = header.querySelector(".ai-header-actions");
+    if (oldActions) oldActions.remove();
 
     let btnCancel = header.querySelector("#btn-countdown-cancel");
     if (!btnCancel) {
@@ -165,10 +167,12 @@ export const ScannerUI = {
     const oldStartBtn = header.querySelector("#btn-start-ai");
     const oldCancelBtn = header.querySelector("#btn-countdown-cancel");
     const oldActions = header.querySelector(".ai-header-actions");
+    const oldConfigBtn = header.querySelector("#btn-config-extractor-models");
 
     if (oldStartBtn) oldStartBtn.remove();
     if (oldCancelBtn) oldCancelBtn.remove();
     if (oldActions) oldActions.remove();
+    if (oldConfigBtn) oldConfigBtn.remove();
 
     // Verifica se tem progresso para mostrar "Resumir"
     import("../services/ai-scanner.js").then((m) => {
@@ -178,6 +182,9 @@ export const ScannerUI = {
       void titleSpan.offsetWidth;
       titleSpan.innerText = hasProgress ? "Extração pausada" : "Extrair com IA";
       titleSpan.classList.add("animate-appear");
+
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "ai-header-actions";
 
       const btnStart = document.createElement("button");
       btnStart.id = "btn-start-ai";
@@ -194,7 +201,50 @@ export const ScannerUI = {
         }
       };
 
-      header.appendChild(btnStart);
+      const btnConfig = document.createElement("button");
+      btnConfig.id = "btn-config-extractor-models";
+      btnConfig.className = "btn-stop-ai animate-appear";
+      btnConfig.title = "Configurar Modelos da Extração";
+      btnConfig.style.background = "rgba(139, 92, 246, 0.15)";
+      btnConfig.style.border = "1px solid rgba(139, 92, 246, 0.3)";
+      btnConfig.style.color = "#a78bfa";
+      btnConfig.style.borderRadius = "8px";
+      btnConfig.style.cursor = "pointer";
+      btnConfig.style.display = "inline-flex";
+      btnConfig.style.alignItems = "center";
+      btnConfig.style.justifyContent = "center";
+      btnConfig.style.height = "26px";
+      btnConfig.style.width = "28px";
+      btnConfig.style.padding = "0";
+      btnConfig.style.fontSize = "14px";
+      btnConfig.innerHTML = "⚙️";
+
+      btnConfig.onmouseenter = () => {
+        btnConfig.style.background = "rgba(139, 92, 246, 0.25)";
+        btnConfig.style.borderColor = "rgba(139, 92, 246, 0.5)";
+      };
+      btnConfig.onmouseleave = () => {
+        btnConfig.style.background = "rgba(139, 92, 246, 0.15)";
+        btnConfig.style.borderColor = "rgba(139, 92, 246, 0.3)";
+      };
+
+      btnConfig.onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        import("./ModelSelectorModal.tsx").then((m) => {
+          m.mountModelSelectorModal(
+            window.selectedModelScannerDetect || "models/gemini-3.5-flash",
+            (modelId) => {
+              console.log("Modelos do extrator salvos!");
+            },
+            "extractor"
+          );
+        });
+      };
+
+      actionsDiv.appendChild(btnStart);
+      actionsDiv.appendChild(btnConfig);
+      header.appendChild(actionsDiv);
     });
   },
 

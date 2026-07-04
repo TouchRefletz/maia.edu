@@ -105,6 +105,9 @@ export async function extractImagesFromRegion(
         onStatus,
         onThought,
         signal,
+      },
+      {
+        model: window.selectedModelExtractorImageDetect || "models/gemini-3.5-flash",
       }
     );
 

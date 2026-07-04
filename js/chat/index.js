@@ -25,6 +25,7 @@ export {
   runRaciocinioPipeline,
   runRapidoPipeline,
   generateSilentScaffoldingStep,
+  generatePersonaSimulation,
 } from "./pipelines.js";
 
 // Prompts

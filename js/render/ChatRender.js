@@ -454,7 +454,7 @@ const SourcesFooter = ({ sources, report }) => {
 export const generateChatHtmlString = (data) => {
   // Se for apenas string, converte para objeto básico
   if (typeof data === "string") {
-    data = { layout: { id: "linear" }, conteudo: [data] };
+    data = { layout: { id: "linear" }, conteudo: [{ tipo: "texto", conteudo: data }] };
   }
 
   // Suporte a múltiplas seções (Novo Schema)

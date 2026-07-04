@@ -319,7 +319,7 @@ function renderTabs() {
   closeSidebarBtn.innerHTML = "×";
   closeSidebarBtn.title = "Fechar Sidebar";
   closeSidebarBtn.onclick = () => {
-    esconderPainel();
+    import("../viewer/sidebar.js").then(({ esconderPainel }) => esconderPainel());
   };
   headerWrapper.appendChild(closeSidebarBtn);
 

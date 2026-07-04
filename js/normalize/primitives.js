@@ -107,7 +107,12 @@ export const safeMarkdown = (s) => {
     if (decoded.includes("\\(") || decoded.includes("\\[")) {
       // Deixa cair no bloco do marked abaixo ou fallback
     } else {
-      return safe(decoded).replace(/\n/g, "<br>");
+      // safe() escapa ", mas innerHTML não precisa disso - apenas < > & são perigosos
+      return decoded
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\n/g, "<br>");
     }
   }
 

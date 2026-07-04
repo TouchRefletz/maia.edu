@@ -9,6 +9,7 @@ import {
 import {
   runChatPipeline,
   generateSilentScaffoldingStep,
+  generatePersonaSimulation,
 } from "../chat/index.js";
 import {
   getMetodologiasByCategory,
@@ -69,6 +70,55 @@ import "../../css/responsivity/questions-responsivity.css";
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
+
+window.chatDebugLogs = [];
+window.downloadMessageDebug = (msgIndex) => {
+  const log = window.chatDebugLogs.find(l => l.msgIndex === msgIndex);
+  if (!log) {
+    alert("Log de depuração não encontrado para esta mensagem.");
+    return;
+  }
+  const seen = new WeakSet();
+  const safeJson = JSON.stringify(log, (key, value) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) return "[Circular]";
+      seen.add(value);
+    }
+    return value;
+  }, 2);
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  const formattedTime = log.timestamp.replace(/[:.]/g, "-");
+  downloadAnchor.setAttribute("download", `maia_debug_${log.use_maia_architecture ? 'com' : 'sem'}_arq_${formattedTime}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+};
+
+window.toggleMessageDebugMenu = (btn, event) => {
+  event.stopPropagation();
+  // Close all other menus first
+  document.querySelectorAll(".debug-dropdown-menu").forEach(menu => {
+    if (menu !== btn.nextElementSibling) {
+      menu.style.display = "none";
+    }
+  });
+  const menu = btn.nextElementSibling;
+  if (menu) {
+    const isVisible = menu.style.display === "block";
+    menu.style.display = isVisible ? "none" : "block";
+  }
+};
+
+// Adiciona listener global no document para fechar o menu ao clicar fora
+if (typeof document !== "undefined") {
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".debug-dropdown-menu").forEach(menu => {
+      menu.style.display = "none";
+    });
+  });
+}
 
 /**
  * Renderiza (ou re-renderiza) a interface inicial da aplicação
@@ -311,36 +361,53 @@ function renderInitialUI() {
                         <!-- Menu Modo Rico -->
                         <div class="chat-model-menu" id="chatModeMenu" style="min-width: 240px;">
                             <div class="model-menu-header" style="padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 8px; font-weight: 600; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Modo de execução da IA</div>
-                            <!-- Item 3: Automático -->
-                             <div class="model-menu-item selected" data-mode="automatico">
-                                <div class="model-item-content">
-                                    <span class="model-item-title">Automático</span>
-                                    <span class="model-item-desc">A IA escolhe o melhor modo para cada tarefa</span>
-                                </div>
-                                <div class="model-item-check">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </div>
+                            
+                            <!-- Toggle de Arquitetura Maia.edu no Topo -->
+                            <div style="padding: 4px 12px 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; user-select: none;">
+                                <span id="toggleMaiaLabel" style="color: var(--color-text); font-weight: 600; font-size: 0.85rem; white-space: nowrap;">Com Arquitetura Maia.edu</span>
+                                <label id="toggleMaiaContainer" style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+                                    <input type="checkbox" id="toggleMaiaArchitecture" checked style="display: none;">
+                                    <div id="toggleMaiaSlider" style="position: relative; width: 36px; height: 20px; background-color: var(--color-primary); border-radius: 10px; transition: background-color 0.2s;">
+                                        <div id="toggleMaiaKnob" style="position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; background-color: #ffffff; border-radius: 50%; transition: left 0.2s;"></div>
+                                    </div>
+                                </label>
                             </div>
 
-                            <!-- Item 2: Rápido -->
-                            <div class="model-menu-item" data-mode="rapido">
-                                <div class="model-item-content">
-                                    <span class="model-item-title">Rápido</span>
-                                    <span class="model-item-desc">Excelente para um estudo rápido e eficaz</span>
-                                </div>
-                                <div class="model-item-check">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                </div>
-                            </div>
+                            <div style="height: 1px; background: var(--color-border); margin-bottom: 8px;"></div>
 
-                            <!-- Item 1: Raciocínio -->
-                            <div class="model-menu-item" data-mode="raciocinio">
-                                <div class="model-item-content">
-                                    <span class="model-item-title">Raciocínio</span>
-                                    <span class="model-item-desc">Respostas com menos alucinações ou incoerências</span>
+                            <!-- Container de Opções Condicionais -->
+                            <div id="chatModeOptionsContainer" style="transition: opacity 0.2s;">
+                                <!-- Item 3: Automático -->
+                                <div class="model-menu-item selected" data-mode="automatico">
+                                    <div class="model-item-content">
+                                        <span class="model-item-title">Automático</span>
+                                        <span class="model-item-desc">A IA escolhe o melhor modo para cada tarefa</span>
+                                    </div>
+                                    <div class="model-item-check">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
                                 </div>
-                                <div class="model-item-check">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+                                <!-- Item 2: Rápido -->
+                                <div class="model-menu-item" data-mode="rapido">
+                                    <div class="model-item-content">
+                                        <span class="model-item-title">Rápido</span>
+                                        <span class="model-item-desc">Excelente para um estudo rápido e eficaz</span>
+                                    </div>
+                                    <div class="model-item-check">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
+                                </div>
+
+                                <!-- Item 1: Raciocínio -->
+                                <div class="model-menu-item" data-mode="raciocinio">
+                                    <div class="model-item-content">
+                                        <span class="model-item-title">Raciocínio</span>
+                                        <span class="model-item-desc">Respostas com menos alucinações ou incoerências</span>
+                                    </div>
+                                    <div class="model-item-check">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -408,13 +475,14 @@ function renderInitialUI() {
 
   const specificModelBtn = document.getElementById("chatSpecificModelBtn");
 
-  // Definir modelo padrão por padrão inicial (granularizado em 5 etapas)
+  // Definir modelo padrão por padrão inicial (granularizado em 6 etapas)
   const defaultModels = {
     chat: "models/gemini-3.5-flash",
     router: "models/gemma-4-31b-it",
     memory: "models/gemma-4-31b-it",
     search: "models/gemini-3.5-flash",
-    corrector: "models/gemini-3.5-flash"
+    corrector: "models/gemini-3.5-flash",
+    scaffolding: "models/gemini-3-flash-preview"
   };
 
   window.selectedModelChat = localStorage.getItem("selectedModelChat") || defaultModels.chat;
@@ -422,6 +490,16 @@ function renderInitialUI() {
   window.selectedModelMemory = localStorage.getItem("selectedModelMemory") || defaultModels.memory;
   window.selectedModelSearch = localStorage.getItem("selectedModelSearch") || defaultModels.search;
   window.selectedModelCorrector = localStorage.getItem("selectedModelCorrector") || defaultModels.corrector;
+  window.selectedModelScaffolding = localStorage.getItem("selectedModelScaffolding") || defaultModels.scaffolding;
+
+  // Extrator de questões (granularizado em 7 etapas)
+  window.selectedModelScannerDetect = localStorage.getItem("selectedModelScannerDetect") || "models/gemini-3.5-flash";
+  window.selectedModelScannerAudit = localStorage.getItem("selectedModelScannerAudit") || "models/gemini-3.5-flash";
+  window.selectedModelScannerCorrect = localStorage.getItem("selectedModelScannerCorrect") || "models/gemini-3.5-flash";
+  window.selectedModelExtractorOcr = localStorage.getItem("selectedModelExtractorOcr") || "models/gemini-3.5-flash";
+  window.selectedModelExtractorSearch = localStorage.getItem("selectedModelExtractorSearch") || "models/gemini-3.5-flash";
+  window.selectedModelExtractorGabarito = localStorage.getItem("selectedModelExtractorGabarito") || "models/gemini-3.5-flash";
+  window.selectedModelExtractorImageDetect = localStorage.getItem("selectedModelExtractorImageDetect") || "models/gemini-3.5-flash";
 
   // Getter/Setter compatível para selectedSpecificModel
   Object.defineProperty(window, "selectedSpecificModel", {
@@ -589,11 +667,77 @@ function renderInitialUI() {
     });
   }
 
+  // Sincronização da interface baseada na arquitetura ativa
+  function syncMaiaArchitectureUI(checked) {
+    window.useMaiaArchitecture = checked;
+    localStorage.setItem("useMaiaArchitecture", checked);
+
+    const toggleCheckbox = document.getElementById("toggleMaiaArchitecture");
+    const toggleSlider = document.getElementById("toggleMaiaSlider");
+    const toggleKnob = document.getElementById("toggleMaiaKnob");
+    const toggleLabel = document.getElementById("toggleMaiaLabel");
+    const modeOptionsContainer = document.getElementById("chatModeOptionsContainer");
+    const currentModeText = document.getElementById("currentModeText");
+    const metodologiaTrigger = document.getElementById("metodologiaTrigger");
+    const chatSearchToggleBtn = document.getElementById("chatSearchToggleBtn");
+
+    if (toggleCheckbox) toggleCheckbox.checked = checked;
+
+    if (checked) {
+      if (toggleSlider) toggleSlider.style.backgroundColor = "var(--color-primary)";
+      if (toggleKnob) toggleKnob.style.left = "18px";
+      if (toggleLabel) toggleLabel.textContent = "Com Arquitetura Maia.edu";
+      if (modeOptionsContainer) {
+        modeOptionsContainer.style.opacity = "1";
+        modeOptionsContainer.style.pointerEvents = "auto";
+      }
+      
+      // Restaura o nome amigável do modo selecionado
+      const selectedItem = document.querySelector("#chatModeOptionsContainer .model-menu-item.selected");
+      const friendlyName = selectedItem ? (selectedItem.querySelector(".model-item-title")?.textContent || "Automático") : "Automático";
+      if (currentModeText) currentModeText.textContent = friendlyName;
+
+      // Exibe Metodologia e Pesquisa
+      if (metodologiaTrigger) metodologiaTrigger.style.display = "flex";
+      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = "flex";
+    } else {
+      if (toggleSlider) toggleSlider.style.backgroundColor = "var(--color-border)";
+      if (toggleKnob) toggleKnob.style.left = "2px";
+      if (toggleLabel) toggleLabel.textContent = "Sem Arquitetura Maia.edu";
+      if (modeOptionsContainer) {
+        modeOptionsContainer.style.opacity = "0.4";
+        modeOptionsContainer.style.pointerEvents = "none";
+      }
+      
+      if (currentModeText) currentModeText.textContent = "Sem Arquitetura";
+
+      // Oculta Metodologia e Pesquisa
+      if (metodologiaTrigger) metodologiaTrigger.style.display = "none";
+      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = "none";
+    }
+  }
+
+  // Toggle de Arquitetura Maia.edu
+  const toggleCheckbox = document.getElementById("toggleMaiaArchitecture");
+  if (toggleCheckbox) {
+    const savedState = localStorage.getItem("useMaiaArchitecture");
+    const initialState = savedState !== "false";
+    syncMaiaArchitectureUI(initialState);
+
+    toggleCheckbox.addEventListener("change", () => {
+      syncMaiaArchitectureUI(toggleCheckbox.checked);
+    });
+  }
+
   // Listeners de seleção de Modo (Orientação)
   if (modeMenu) {
     modeMenu.querySelectorAll(".model-menu-item").forEach((item) => {
       item.addEventListener("click", (e) => {
         e.stopPropagation();
+        if (window.useMaiaArchitecture === false) {
+          // Se estiver sem arquitetura, não permite mudar de modo
+          return;
+        }
         const modeVal = item.dataset.mode;
         const friendlyName = item.querySelector(".model-item-title")?.textContent || modeVal;
 
@@ -601,7 +745,7 @@ function renderInitialUI() {
         item.classList.add("selected");
 
         const textSpan = document.getElementById("currentModeText");
-        if (textSpan) textSpan.textContent = friendlyName; // Just the mode name, no "Modo: " prefix
+        if (textSpan) textSpan.textContent = friendlyName;
 
         window.selectedChatMode = modeVal;
         console.log("Modo alterado para:", window.selectedChatMode);
@@ -1059,6 +1203,9 @@ function renderInitialUI() {
       // Para sugestões dinâmicas
       stopSuggestionRotation();
 
+      window.lastUserMessageText = mensagem;
+      window.lastUserMessageAttachments = [...attachedFiles];
+
       // Transição para modo conversa (passa também os arquivos e o signal)
       transicionarParaModoConversa(mensagem, [...attachedFiles], {
         signal: activeGenerationController.signal,
@@ -1410,6 +1557,9 @@ window.startNewChat = function () {
  * Carrega um chat do histórico e exibe na tela
  */
 window.loadChat = async function (chatId) {
+  // Clear debug logs from previous sessions
+  window.chatDebugLogs = [];
+
   // Abort active generation if any
   if (activeGenerationController) {
     activeGenerationController.abort();
@@ -1626,7 +1776,8 @@ window.loadChat = async function (chatId) {
     } else if (msg.role === "model" || msg.role === "ai") {
       // Render AI Message
       const aiMessage = document.createElement("div");
-      aiMessage.className = "chat-message chat-message--ai visible";
+      const isMaiaMessage = msg.content && typeof msg.content === "object" && msg.content._debugLog ? msg.content._debugLog.use_maia_architecture : true;
+      aiMessage.className = `chat-message chat-message--ai visible${isMaiaMessage ? "" : " no-maia"}`;
       aiMessage.id = `msg-${index}`; // ID estável
       aiMessage.dataset.msgIndex = index; // Para persistência de Scaffolding
 
@@ -1678,6 +1829,29 @@ window.loadChat = async function (chatId) {
 
       contentContainer.innerHTML = htmlContent;
       aiMessage.appendChild(contentContainer);
+
+      // Se existir log de depuração anexado no histórico, salva e exibe botão de download
+      if (typeof msg.content === "object" && msg.content._debugLog) {
+        const debugLogCopy = { ...msg.content._debugLog, msgIndex: index };
+        window.chatDebugLogs.push(debugLogCopy);
+        
+        const debugBtnHtml = `
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
+            <div style="position: relative; display: inline-block;">
+              <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
+              </button>
+              <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 160px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
+                <button onclick="window.downloadMessageDebug(${index})" style="width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='rgba(var(--color-primary-rgb), 0.08)'" onmouseout="this.style.backgroundColor='transparent'">
+                  <span>🐞</span> Baixar Debug JSON
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+      }
+
       messagesContainer.appendChild(aiMessage);
 
       // Hidratação
@@ -1807,6 +1981,31 @@ async function hydrateQuestionBlocks(containerElement) {
     }
   });
 }
+
+window.regerarUltimaMensagem = function() {
+  const mensagem = window.lastUserMessageText;
+  const arquivos = window.lastUserMessageAttachments || [];
+  
+  // Remove a mensagem de erro da tela antes de tentar de novo
+  const errMsg = document.querySelector(".chat-message--error");
+  if (errMsg) errMsg.remove();
+  
+  // Reinicia o AbortController
+  activeGenerationController = new AbortController();
+  window.currentChatAbortController = activeGenerationController;
+  
+  const sendBtn = document.querySelector(".chat-send-btn");
+  if (sendBtn) {
+    sendBtn.classList.add("stop-mode");
+    sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>`;
+  }
+
+  // Chama a transição com a flag de retry ativa para não duplicar o balão do usuário na UI
+  transicionarParaModoConversa(mensagem, arquivos, {
+    signal: activeGenerationController.signal,
+    isRetry: true
+  });
+};
 
 /**
  * Transiciona a interface para o modo de conversa
@@ -1947,12 +2146,14 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
     const selectedMode = window.selectedChatMode || "automatico";
     const geminiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || sessionStorage.getItem("geminiApiKey");
     const githubKey = sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
+    const groqKey = sessionStorage.getItem("GROQ_API_KEY");
 
     // [REMOVIDO] createExpandableStatus local - agora usamos a global
 
     runChatPipeline(selectedMode, mensagem, arquivos, {
       apiKey: geminiKey || undefined,
       githubApiKey: githubKey || undefined,
+      groqApiKey: groqKey || undefined,
       chatMode: true, // Ativa modo chat (preserva history)
       chatId: window.currentChatId, // Passa ID atual (null se novo)
       history: extractChatHistory(), // Passa histórico recuperado do DOM (contexto imediato)
@@ -2260,7 +2461,8 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         let aiMessage = document.getElementById("currentAiMessage");
         if (!aiMessage) {
           aiMessage = document.createElement("div");
-          aiMessage.className = "chat-message chat-message--ai visible";
+          const isMaiaActive = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+          aiMessage.className = `chat-message chat-message--ai visible${isMaiaActive ? "" : " no-maia"}`;
           aiMessage.id = "currentAiMessage";
           // Calculate the message index based on the current number of chat messages
           // .chat-message includes both user and ai messages.
@@ -2296,6 +2498,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         if (messagesContainer) {
           // Garante que o conteúdo final (incluindo fontes injetadas no pipeline) seja renderizado
           const aiMessage = document.getElementById("currentAiMessage");
+          const msgIndex = aiMessage ? parseInt(aiMessage.dataset.msgIndex, 10) : null;
           const contentContainer = aiMessage?.querySelector(
             ".chat-message-content",
           );
@@ -2308,6 +2511,28 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               if (window.hljs) window.hljs.highlightElement(el);
             });
             hydrateAllChatContent(contentContainer);
+
+            // Se existir log de depuração anexado, salva e exibe botão de download
+            if (finalData._debugLog && msgIndex !== null) {
+              const debugLogCopy = { ...finalData._debugLog, msgIndex: msgIndex };
+              window.chatDebugLogs.push(debugLogCopy);
+              
+              const debugBtnHtml = `
+                <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
+                  <div style="position: relative; display: inline-block;">
+                    <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
+                    </button>
+                    <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 160px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
+                      <button onclick="window.downloadMessageDebug(${msgIndex})" style="width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='rgba(var(--color-primary-rgb), 0.08)'" onmouseout="this.style.backgroundColor='transparent'">
+                        <span>🐞</span> Baixar Debug JSON
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `;
+              contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+            }
           }
 
           const loading = document.getElementById("chatLoading");
@@ -2535,23 +2760,27 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
         const errorMessage = document.createElement("div");
         errorMessage.className = "chat-message chat-message--error visible";
+        errorMessage.style.cssText = "margin: 16px 0; width: 100%;";
 
-        let errorText = `Erro: ${error.message || error}`;
-        if (
-          error.message &&
-          (error.message.includes("RATE_LIMIT_ERROR") ||
-            error.message.includes("Too Many Requests") ||
-            error.message.includes("429"))
-        ) {
-          errorText = `
-            <strong>⚠️ Sistema Sobrecarregado</strong><br>
-            Nossos servidores de IA estão com alta demanda no momento.<br>
-            <span style="font-size:0.9em; opacity:0.8; display:block; margin-top:5px;">Por favor, aguarde alguns instantes e tente novamente.</span>
-          `;
-        }
-
-        errorMessage.innerHTML = `<div class="chat-message-content"><p>${errorText}</p></div>`;
+        errorMessage.innerHTML = `
+          <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 16px 20px; display: flex; align-items: flex-start; gap: 14px; box-shadow: var(--chat-shadow-md);">
+            <div style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 0.95rem; border: 1px solid rgba(239, 68, 68, 0.25);">
+              !
+            </div>
+            <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="color: var(--color-text); font-weight: 600; font-size: 0.95rem; text-align: left;">Não foi possível gerar a sua resposta</span>
+                <span style="color: var(--color-text-secondary); font-size: 0.85rem; opacity: 0.9; text-align: left;">Tente novamente mais tarde.</span>
+              </div>
+              <button onclick="window.regerarUltimaMensagem()" style="align-self: flex-start; background: var(--color-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s, transform 0.1s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.2);" onmouseover="this.style.opacity='0.95'" onmouseout="this.style.opacity='1'" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -1px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        `;
         messagesContainer.appendChild(errorMessage);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
       },
     });
   }
@@ -3869,11 +4098,20 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
   const textoEnunciado =
     pergunta || props.enunciado || props.conteudo || "Carregando pergunta...";
 
+  const isAnswered = props.status === "respondido" || props.didSucceed !== undefined || isFinished;
+  const toggleBtnHtml = isAnswered ? "" : `
+    <button class="persona-toggle-btn">
+        👥 Simular Personas
+    </button>
+  `;
+
   return `
         <div class="passo" id="scaffolding-step-${stepNumber}">
+            <div class="passo-header-row" style="margin-bottom: 12px;">
+                <h2 style="margin: 0;"><span style="font-size:0.8em; opacity:0.7">Passo ${stepNumber}</span></h2>
+            </div>
             <div class="passoText">
-                <h2><span style="font-size:0.8em; opacity:0.7">Passo ${stepNumber}</span></h2>
-                <p style="font-size: 1.1em; font-weight: 500;">${textoEnunciado}</p>
+                <p style="font-size: 1.1em; font-weight: 500; margin-top: 0;">${textoEnunciado}</p>
             </div>
             
 
@@ -3934,6 +4172,7 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
 
                 <button class="newPassoButton">Não sei</button>
                 <button class="guessButton submit-step-btn">Confirmar</button>
+                ${toggleBtnHtml}
             </div>
             
             ${
@@ -4023,6 +4262,47 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             htmlSnapshots,
             currentStepProps: initialProps,
           };
+
+          // Compile simulation summary for debug log
+          const simSteps = stepHistory.map((step, idx) => {
+            return {
+              step_number: idx + 1,
+              statement: step.contexto?.pergunta,
+              correct_answer: step.stats?.extremidadeCorreta === 100 ? "Verdadeiro" : "Falso",
+              step_generator_model: step.simulation?.modelo_passo || "models/gemini-3.5-flash",
+              step_generation_time_ms: step.simulation?.tempo_geracao_passo_ms || null,
+              simulation_detail: (step.simulation && step.simulation.persona_used) ? {
+                persona: step.simulation.persona_used,
+                simulator_model: step.simulation.modelo_simulador,
+                simulated_answer: step.simulation.resposta_simulada,
+                simulated_certainty: step.simulation.certeza_simulada,
+                simulated_time: step.stats?.tempoGasto,
+                simulated_thought: step.simulation.pensamento_simulado,
+                response_generation_time_ms: step.simulation.tempo_geracao_resposta_ms || null
+              } : null,
+              evaluation: {
+                acertou: step.stats?.acertou,
+                score: step.stats?.resultadoPasso,
+                certainty: step.stats?.taxaDeCerteza,
+                time_weight: step.stats?.pesoTempo,
+                proficiency_after_step: step.stats?.proficiencia
+              }
+            };
+          });
+
+          msgContent._debugLog = msgContent._debugLog || {};
+          msgContent._debugLog.scaffolding_simulation = {
+            persona_profile: window.__currentSimulation?.selectedPersona || "manual",
+            final_proficiency: stepHistory[stepHistory.length - 1]?.stats?.proficiencia || 0,
+            total_steps: stepHistory.length,
+            steps: simSteps
+          };
+
+          // Also update the global in-memory debug log so they can download it directly without refresh
+          const existingGlobalLog = window.chatDebugLogs.find(l => l.msgIndex === initialProps.msgIndex);
+          if (existingGlobalLog) {
+            existingGlobalLog.scaffolding_simulation = msgContent._debugLog.scaffolding_simulation;
+          }
 
           chat.updatedAt = Date.now();
           await ChatStorageService.saveChat(chat);
@@ -4649,6 +4929,196 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
     const hintBtn = slideElement.querySelector(".hintPassoButton");
     const dicaContainer = slideElement.querySelector(".dica-container");
+    const personaToggleBtn = slideElement.querySelector(".persona-toggle-btn");
+
+    // Hide toggle button if slide is already answered
+    if (personaToggleBtn && (isAnsweredSlide || stepProps.status === "respondido" || stepProps.status === "concluido")) {
+      personaToggleBtn.style.display = "none";
+    }
+
+    // Helper: Run simulation for this specific slide
+    async function startSimulationForSlide(personaType) {
+      let activePersona = personaType;
+      if (personaType === "aleatorio") {
+        const personas = ["avancado", "inseguro", "chutador"];
+        activePersona = personas[Math.floor(Math.random() * personas.length)];
+      }
+
+      // Create/show simulation panel
+      let simPanel = slideElement.querySelector(".simulation-panel");
+      if (!simPanel) {
+        simPanel = document.createElement("div");
+        simPanel.className = "simulation-panel";
+        simPanel.style.marginTop = "15px";
+        simPanel.style.borderTop = "1px solid var(--color-border)";
+        simPanel.style.paddingTop = "15px";
+        simPanel.style.background = "rgba(59, 130, 246, 0.05)";
+        simPanel.style.borderRadius = "8px";
+        simPanel.style.padding = "12px";
+        slideElement.appendChild(simPanel);
+      }
+      simPanel.style.display = "block";
+      simPanel.innerHTML = `
+        <h4 style="margin:0 0 10px 0; color:var(--color-primary); display:flex; align-items:center; gap:6px; font-size: 0.9rem;">
+            🤖 Simulação Autônoma: <span class="persona-badge ${activePersona}">${activePersona === 'avancado' ? '🚀 Avançado' : activePersona === 'inseguro' ? '😟 Inseguro' : '🎲 Chutador'}</span>
+        </h4>
+        <div class="simulation-console" style="background:#1e1e1e; color:#d4d4d4; font-family:monospace; padding:10px; border-radius:6px; font-size:0.85rem; max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+            <div>[Processo] Gemma 4 simulando resposta...</div>
+        </div>
+      `;
+
+      const consoleLog = (msg) => {
+        const consoleEl = simPanel.querySelector(".simulation-console");
+        if (consoleEl) {
+          const div = document.createElement("div");
+          div.innerText = msg;
+          consoleEl.appendChild(div);
+          consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+      };
+
+      // Hide other inputs
+      if (inputWrapper) inputWrapper.style.display = "none";
+      if (submitBtn) submitBtn.style.display = "none";
+      if (unknownBtn) unknownBtn.style.display = "none";
+      if (hintBtn) hintBtn.style.display = "none";
+      if (personaToggleBtn) personaToggleBtn.style.display = "none";
+
+      try {
+        const apiKey = sessionStorage.getItem("geminiApiKey");
+        const enunciado = stepProps.enunciado || stepProps.question || stepProps.conteudo || "";
+        const respostaCorreta = stepProps.resposta_correta || (stepProps.gabarito ? "Verdadeiro" : "Falso");
+        const dica = stepProps.dica || "";
+
+        const simulationData = await generatePersonaSimulation(enunciado, respostaCorreta, dica, apiKey);
+        const pData = simulationData[`aluno_${activePersona}`];
+
+        consoleLog(`[Gemma 4] Simulação Concluída!`);
+        consoleLog(`[Gemma 4] Escolha: ${pData.resposta} | Certeza: ${pData.certeza}% | Tempo: ${pData.tempo_gasto}s`);
+        consoleLog(`[Pensamento] "${pData.pensamento}"`);
+        consoleLog(`[Processando] Submetendo resposta...`);
+
+        let guessValue = 50;
+        const respLower = pData.resposta.toLowerCase();
+        if (respLower === "verdadeiro" || respLower === "verdado") {
+          guessValue = pData.certeza > 50 ? pData.certeza : 50 + (pData.certeza / 2);
+        } else if (respLower === "falso") {
+          guessValue = pData.certeza > 50 ? (100 - pData.certeza) : 50 - (pData.certeza / 2);
+        } else {
+          guessValue = -1;
+        }
+
+        setTimeout(() => {
+          handleSubmit(guessValue, pData.tempo_gasto, {
+            persona: activePersona,
+            resposta: pData.resposta,
+            certeza: pData.certeza,
+            pensamento: pData.pensamento,
+            persona_model: "models/gemma-4-31b-it",
+            generation_time_ms: simulationData._meta?.generation_time_ms || null
+          });
+        }, 1000);
+      } catch (err) {
+        console.error("Erro ao simular persona:", err);
+        consoleLog(`[Erro] Falha ao simular persona: ${err.message || err}`);
+        consoleLog(`[Aviso] Retornando ao Modo Humano para inserir os valores manualmente...`);
+        
+        setTimeout(() => {
+          simPanel.style.display = "none";
+          if (inputWrapper) inputWrapper.style.display = "block";
+          if (submitBtn) {
+            submitBtn.style.display = "inline-block";
+            submitBtn.removeAttribute("disabled");
+            submitBtn.innerText = "Confirmar";
+          }
+          if (unknownBtn) unknownBtn.style.display = "inline-block";
+          if (hintBtn && stepProps.dica) hintBtn.style.display = "inline-block";
+          if (personaToggleBtn) {
+            personaToggleBtn.style.display = "inline-block";
+            personaToggleBtn.innerText = "👥 Simular Personas";
+            personaToggleBtn.classList.remove("active-persona");
+          }
+          window.__currentSimulation = null;
+        }, 3000);
+      }
+    }
+
+    // Autostart simulation check on new step render
+    if (window.__currentSimulation && window.__currentSimulation.active && !isAnsweredSlide) {
+      setTimeout(() => {
+        startSimulationForSlide(window.__currentSimulation.selectedPersona);
+      }, 500);
+    }
+
+    // Manual Persona Toggle Button
+    if (personaToggleBtn && !personaToggleBtn.dataset.listenerAdded) {
+      personaToggleBtn.dataset.listenerAdded = "true";
+      personaToggleBtn.addEventListener("click", () => {
+        let simPanel = slideElement.querySelector(".simulation-panel");
+        if (simPanel && simPanel.style.display !== "none") {
+          // Hide panel and restore manual controls
+          simPanel.style.display = "none";
+          if (inputWrapper) inputWrapper.style.display = "block";
+          if (submitBtn) submitBtn.style.display = "inline-block";
+          if (unknownBtn) unknownBtn.style.display = "inline-block";
+          if (hintBtn && stepProps.dica) hintBtn.style.display = "inline-block";
+          personaToggleBtn.innerText = "👥 Simular Personas";
+          personaToggleBtn.classList.remove("active-persona");
+          personaToggleBtn.style.color = "";
+          personaToggleBtn.style.borderColor = "";
+        } else {
+          // Render selection dropdown
+          if (!simPanel) {
+            simPanel = document.createElement("div");
+            simPanel.className = "simulation-panel";
+            simPanel.style.marginTop = "15px";
+            simPanel.style.borderTop = "1px solid var(--color-border)";
+            simPanel.style.paddingTop = "15px";
+            simPanel.style.background = "rgba(59, 130, 246, 0.05)";
+            simPanel.style.borderRadius = "8px";
+            simPanel.style.padding = "12px";
+            slideElement.appendChild(simPanel);
+          }
+          simPanel.style.display = "block";
+          
+          personaToggleBtn.innerText = "👤 Modo Humano";
+          personaToggleBtn.classList.add("active-persona");
+          personaToggleBtn.style.color = "";
+          personaToggleBtn.style.borderColor = "";
+          
+          if (inputWrapper) inputWrapper.style.display = "none";
+          if (submitBtn) submitBtn.style.display = "none";
+          if (unknownBtn) unknownBtn.style.display = "none";
+          if (hintBtn) hintBtn.style.display = "none";
+
+          simPanel.innerHTML = `
+            <h4 style="margin:0 0 10px 0; color:var(--color-primary); font-size: 0.95rem;">👥 Simulação de Persona Gemma 4</h4>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                <label style="font-size:0.85rem; color:var(--color-text-secondary);">Selecione o perfil do aluno:</label>
+                <select class="persona-select" style="padding:6px; border-radius:4px; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); font-size:0.85rem;">
+                    <option value="avancado">🚀 Aluno Avançado</option>
+                    <option value="inseguro">😟 Aluno Inseguro</option>
+                    <option value="chutador">🎲 Aluno Chutador</option>
+                    <option value="aleatorio">🔀 Perfil Aleatório</option>
+                </select>
+            </div>
+            <button class="btn btn--sm btn--primary start-sim-btn" style="width:100%;">Iniciar Simulação Autônoma ▶</button>
+          `;
+
+          const selectEl = simPanel.querySelector(".persona-select");
+          const startBtn = simPanel.querySelector(".start-sim-btn");
+          
+          startBtn.addEventListener("click", () => {
+            const persona = selectEl.value;
+            window.__currentSimulation = {
+              active: true,
+              selectedPersona: persona
+            };
+            startSimulationForSlide(persona);
+          });
+        }
+      });
+    }
 
     // [SOFT EXIT] Re-habilitar controles se estamos permitindo re-resposta
     // (Isso acontece quando o slide foi carregado de um snapshot mas é o último não-final)
@@ -4705,8 +5175,10 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       }
     }
 
-    guessRange.addEventListener("input", (e) => updateVisuals(e.target.value));
-    updateVisuals(50); // Init
+    if (guessRange) {
+      guessRange.addEventListener("input", (e) => updateVisuals(e.target.value));
+      updateVisuals(50); // Init
+    }
 
     // Hint Logic
     if (hintBtn && dicaContainer && !hintBtn.dataset.listenerAdded) {
@@ -4719,22 +5191,23 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     }
 
     // 2. Submit Logic
-    const handleSubmit = async (guessValue) => {
+    const handleSubmit = async (guessValue, customTime = null, simulationDetail = null) => {
       // UI Lock
-      guessRange.disabled = true;
-      submitBtn.disabled = true;
-      unknownBtn.style.display = "none";
+      if (guessRange) guessRange.disabled = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Processando...";
+      }
+      if (unknownBtn) unknownBtn.style.display = "none";
       if (backBtn) backBtn.style.display = "none";
-      // if (nextBtn) nextBtn.style.display = "none"; // Não esconde o nextBtn se ele já existir (revisão)
-      submitBtn.innerText = "Processando...";
-      inputWrapper.style.opacity = "0.6";
+      if (inputWrapper) inputWrapper.style.opacity = "0.6";
 
       // Calculos
       const gabaritoText =
         stepProps.resposta_correta ||
         (stepProps.gabarito ? "Verdadeiro" : "Falso");
       const isVerdadeiro = gabaritoText.toLowerCase() === "verdadeiro";
-      const tempoGasto = 10; // Placeholder ou calcular com Date.now()
+      const tempoGasto = customTime !== null ? customTime : 10;
       const tempoIdeal = stepProps.tempo_ideal || 15;
 
       const stats = ScaffoldingService.calcularPontuacao(
@@ -4745,28 +5218,30 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       );
 
       // UI Feedback (Reveal)
-      explanationDiv.style.display = "block";
-      explanationDiv.classList.add("fade-in");
+      if (explanationDiv) {
+        explanationDiv.style.display = "block";
+        explanationDiv.classList.add("fade-in");
+      }
 
       const acertou = stats.taxaDeAcerto === 1;
 
       // Feedback texto específico
       let feedbackText = stepProps.explicacao || "";
-      if (acertou && stepProps.feedback_v) feedbackText = stepProps.feedback_v; // Assumindo resposta certa = V? Não necessariaente
-      // Na vdd usamos feedback_v de Verdadeiro (usuario respondeu V) ? Ou feedback se ERA verdadeiro?
-      // O schema diz: "Feedback se usuário responder X".
-      // Se usuario respondeu > 50 (Verdadeiro):
+      if (acertou && stepProps.feedback_v) feedbackText = stepProps.feedback_v; 
       const userChuteBool = guessValue > 50;
       if (userChuteBool && stepProps.feedback_v)
         feedbackText = stepProps.feedback_v;
       if (!userChuteBool && stepProps.feedback_f)
         feedbackText = stepProps.feedback_f;
 
-      resultHeader.innerHTML = acertou
-        ? `<span style="color:var(--color-success)">✓ Correto! Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`
-        : `<span style="color:var(--color-error)">✗ Incorreto. Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`;
+      if (resultHeader) {
+        resultHeader.innerHTML = acertou
+          ? `<span style="color:var(--color-success)">✓ Correto! Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`
+          : `<span style="color:var(--color-error)">✗ Incorreto. Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`;
+      }
 
-      slideElement.querySelector(".explanation-text").innerHTML = feedbackText;
+      const expTextEl = slideElement.querySelector(".explanation-text");
+      if (expTextEl) expTextEl.innerHTML = feedbackText;
 
       // Populate Stats
       const statScoreEl = slideElement.querySelector(".stat-score");
@@ -4800,6 +5275,16 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
           ...stats,
           proficiencia: currentProf,
         },
+        simulation: {
+          persona_used: simulationDetail ? simulationDetail.persona : null,
+          resposta_simulada: simulationDetail ? simulationDetail.resposta : null,
+          certeza_simulada: simulationDetail ? simulationDetail.certeza : null,
+          pensamento_simulado: simulationDetail ? simulationDetail.pensamento : null,
+          modelo_simulador: simulationDetail ? simulationDetail.persona_model : null,
+          modelo_passo: stepProps._meta?.model_used || "models/gemini-3.5-flash",
+          tempo_geracao_passo_ms: stepProps._meta?.generation_time_ms || null,
+          tempo_geracao_resposta_ms: (simulationDetail && simulationDetail.generation_time_ms) ? simulationDetail.generation_time_ms : null
+        }
       };
       stepHistory.push(stepResultData);
       accumulatedStats.push(stats);
@@ -4841,14 +5326,36 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       await saveState();
 
       // Update UI Status
-      // ... External logic ...
-      submitBtn.innerText = "Confirmado";
-      submitBtn.style.display = "none"; // Esconde botão de confirmar após sucesso
-      if (backBtn) backBtn.style.display = "inline-block"; // Traz de volta o Back se quiser
+      if (submitBtn) {
+        submitBtn.innerText = "Confirmado";
+        submitBtn.style.display = "none";
+      }
+      if (backBtn) backBtn.style.display = "inline-block";
 
       // Gerar Próximo Passo (Silent Generation)
-      // O botão "Avançar" aparecerá via generateNextStep quando pronto
       await generateNextStep(stepResultData);
+
+      // If simulation is running automatically, advance and trigger next simulation step
+      if (window.__currentSimulation && window.__currentSimulation.active) {
+        const currentStep = parseInt(slideElement.dataset.step);
+        const nextStep = currentStep + 1;
+        const wrapper = slideElement.closest(".scaffolding-slides-wrapper");
+        const nextSlide = wrapper.querySelector(
+          `.scaffolding-slide[data-step="${nextStep}"]`,
+        );
+
+        if (nextSlide) {
+          setTimeout(() => {
+            slideElement.style.display = "none";
+            slideElement.classList.remove("active-slide");
+            nextSlide.style.display = "block";
+            nextSlide.classList.add("active-slide");
+          }, 1500);
+        } else {
+          // Simulation completed
+          window.__currentSimulation = null;
+        }
+      }
     };
 
     const userAnswerText = (val) => {
@@ -4858,8 +5365,12 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       return `${bool ? "VERDADEIRO" : "FALSO"} (${cert}%)`;
     };
 
-    submitBtn.addEventListener("click", () => handleSubmit(guessRange.value));
-    unknownBtn.addEventListener("click", () => handleSubmit(-1));
+    if (submitBtn) {
+      submitBtn.addEventListener("click", () => handleSubmit(guessRange.value));
+    }
+    if (unknownBtn) {
+      unknownBtn.addEventListener("click", () => handleSubmit(-1));
+    }
 
     // Back Button Logic
     if (backBtn) {
@@ -4950,7 +5461,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             nextStepJSON.enunciado ||
             nextStepJSON.pergunta ||
             nextStepJSON.conteudo,
-          props: { ...nextStepJSON, question: nextStepJSON.enunciado },
+          props: { ...nextStepJSON, question: nextStepJSON.enunciado, _meta: nextStepJSON._meta },
         });
 
         // [PERSISTENCE] Salvar JSON resultante no array scaffoldingSteps do chat
@@ -4980,7 +5491,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
         newSlideDiv.innerHTML = renderScaffoldingSlideContent(
           conteudo,
-          { ...nextStepJSON, question: nextStepJSON.enunciado },
+          { ...nextStepJSON, question: nextStepJSON.enunciado, _meta: nextStepJSON._meta },
           currentStepIndex,
         );
 
@@ -4999,6 +5510,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         setupSlideInteractions(newSlideDiv, {
           ...nextStepJSON,
           question: nextStepJSON.enunciado || nextStepJSON.pergunta,
+          _meta: nextStepJSON._meta
         });
       }
     } catch (err) {

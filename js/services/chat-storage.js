@@ -199,7 +199,21 @@ export const ChatStorageService = {
         // Remove expiresAt antes de enviar
         const cloudPayload = { ...chat };
         delete cloudPayload.expiresAt;
-        const cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
+        delete cloudPayload._debugLog; // Debug data is local-only, also causes circular refs
+        let cleanPayload;
+        try {
+          cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
+        } catch (_circularErr) {
+          // Fallback: strip circular references
+          const seen = new WeakSet();
+          cleanPayload = JSON.parse(JSON.stringify(cloudPayload, (_key, value) => {
+            if (typeof value === "object" && value !== null) {
+              if (seen.has(value)) return undefined;
+              seen.add(value);
+            }
+            return value;
+          }));
+        }
 
         const docRef = doc(firestore, "users", user.uid, "chats", chat.id);
         // Usamos setDoc com merge para não sobrescrever dados se a nuvem tiver algo mais novo (teoricamente)
@@ -233,10 +247,23 @@ export const ChatStorageService = {
         // Remove expiresAt antes de enviar pra nuvem (dado limpo)
         const cloudPayload = { ...chat };
         delete cloudPayload.expiresAt; // Nuvem é permanente
+        delete cloudPayload._debugLog; // Debug data is local-only, causes circular refs
 
         // Firestore não curte arrays de undefined, limpa payload se precisar
         // Mas JSON stringify/parse limpa functions, etc.
-        const cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
+        let cleanPayload;
+        try {
+          cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
+        } catch (_circularErr) {
+          const seen = new WeakSet();
+          cleanPayload = JSON.parse(JSON.stringify(cloudPayload, (_key, value) => {
+            if (typeof value === "object" && value !== null) {
+              if (seen.has(value)) return undefined;
+              seen.add(value);
+            }
+            return value;
+          }));
+        }
 
         const docRef = doc(firestore, "users", user.uid, "chats", chat.id);
         setDoc(docRef, cleanPayload, { merge: true }).catch((err) =>

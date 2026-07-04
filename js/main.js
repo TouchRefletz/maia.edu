@@ -350,10 +350,26 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
-    // --- CASO 9: BotÃ£o Limpar Filtros ---
+    // --- CASO 9: Botão Limpar Filtros ---
     const gatilhoLimpar = e.target.closest(".js-limpar-filtros");
     if (gatilhoLimpar) {
       limparFiltros();
+      return;
+    }
+
+    // --- CASO 9.2: Botão Modelo de Correção (Banco de Questões) ---
+    const gatilhoBancoModel = e.target.closest(".js-banco-model-selector");
+    if (gatilhoBancoModel) {
+      import("./ui/ModelSelectorModal.tsx").then(({ mountModelSelectorModal, IA_MODELS }) => {
+        const currentModel = window.selectedModelCorrector || 'models/gemini-3.5-flash';
+        mountModelSelectorModal(currentModel, (selectedId) => {
+          console.log("[Banco] Modelo de correção atualizado:", selectedId);
+          // Atualiza label no botão do banco com o título amigável
+          const modelObj = IA_MODELS.find(m => m.id === selectedId);
+          const lbl = document.querySelector(".js-banco-model-label");
+          if (lbl && modelObj) lbl.textContent = "🤖 " + modelObj.title;
+        }, 'corrector');
+      });
       return;
     }
 

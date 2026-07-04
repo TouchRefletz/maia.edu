@@ -319,3 +319,131 @@
 :root:not([data-color-scheme='dark']) .range-value-label {
     background: rgba(0, 0, 0, 0.05);
 }
+
+.persona-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--color-primary) !important;
+    color: var(--color-primary) !important;
+}
+
+.persona-toggle-btn:hover {
+    background: rgba(var(--color-primary-rgb), 0.08);
+}
+
+.persona-toggle-btn.active-persona {
+    border-color: var(--color-warning) !important;
+    color: var(--color-warning) !important;
+}
+
+.persona-toggle-btn.active-persona:hover {
+    background: rgba(var(--color-warning-rgb), 0.08);
+}
+
+/* 👥 Persona Simulation Interface Styles */
+.personas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.persona-card {
+    background: var(--color-background-soft);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.persona-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-primary);
+}
+
+.persona-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    align-self: flex-start;
+}
+
+.persona-badge.avancado {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.persona-badge.inseguro {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.persona-badge.chutador {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+}
+
+.persona-meta {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    justify-content: space-between;
+}
+
+.persona-thought {
+    font-size: 0.9rem;
+    font-style: italic;
+    line-height: 1.4;
+    color: var(--color-text);
+    margin: 4px 0;
+}
+
+.persona-btn {
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    text-align: center;
+    width: 100%;
+    margin-top: auto;
+}
+
+.persona-btn:hover {
+    background: var(--color-primary-dark, #2563eb);
+}
+
+.simulation-panel {
+    background: rgba(var(--color-primary-rgb), 0.05);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+}
+
+.simulation-console {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Courier New', Courier, monospace;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #333;
+}

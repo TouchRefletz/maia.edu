@@ -387,6 +387,15 @@ export async function gerarVisualizadorPDF(args) {
     if (viewerState.pdfDoc) {
       import("../ui/sidebar-page-manager.js").then((mod) => {
         mod.SidebarPageManager.init(viewerState.pdfDoc.numPages);
+
+        // --- AI AUTO-SCANNER TRIGGER ---
+        // Iniciado somente após a inicialização da sidebar para evitar race conditions
+        console.log("🚀 Iniciando AI Scanner...");
+        setTimeout(() => {
+          if (viewerState.pdfDoc) {
+            AiScanner.start(viewerState.pdfDoc);
+          }
+        }, 200); // Pequeno delay pra UI estabilizar
       });
     }
 
@@ -398,14 +407,6 @@ export async function gerarVisualizadorPDF(args) {
       "search-toaster-container",
     );
     if (toasterContainer) toasterContainer.innerHTML = "";
-
-    // --- AI AUTO-SCANNER TRIGGER ---
-    console.log("🚀 Iniciando AI Scanner...");
-    setTimeout(() => {
-      if (viewerState.pdfDoc) {
-        AiScanner.start(viewerState.pdfDoc);
-      }
-    }, 200); // Pequeno delay pra UI estabilizar
   }
 
   try {

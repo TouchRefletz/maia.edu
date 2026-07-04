@@ -383,52 +383,110 @@ export function obterConfiguracaoIA(modo) {
       },
     };
   } else {
-    // ============================================================
-    // ÁREA DE COLAGEM: QUESTÃO (MODO NORMAL)
-    // Cole aqui exatamente o conteúdo que estava no 'else'
-    // ============================================================
+      // ============================================================
+      // ÁREA DE COLAGEM: QUESTÃO (MODO NORMAL)
+      // Cole aqui exatamente o conteúdo que estava no 'else'
+      // ============================================================
 
-    promptDaIA = `
-        Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
+      promptDaIA = `
+          Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
 
-        REGRAS DE ESTRUTURAÇÃO ("estrutura"):
-        1. NÃO jogue todo o texto em um único campo. Fatie o conteúdo em blocos sequenciais dentro do array "estrutura".
-        2. Se a questão apresentar: Texto Introdutório -> Imagem -> Pergunta, seu array deve ter 3 itens: { texto }, { imagem }, { texto }.
-        3. Para blocos do tipo "imagem": O campo "conteudo" deve ser uma breve descrição visual (Alt-Text) para acessibilidade. NÃO extraia o texto de dentro da imagem (OCR), apenas descreva o elemento visual.
-        4. Para blocos do tipo "texto": Mantenha a formatação original tanto quanto possível.
-        5. Se houver "Texto 1" e "Texto 2" separados, crie blocos de texto separados.
+          REGRAS DE ESTRUTURAÇÃO ("estrutura"):
+          1. NÃO jogue todo o texto em um único campo. Fatie o conteúdo em blocos sequenciais dentro do array "estrutura".
+          2. Se a questão apresentar: Texto Introdutório -> Imagem -> Pergunta, seu array deve ter 3 itens: { texto }, { imagem }, { texto }.
+          3. Para blocos do tipo "imagem": O campo "conteudo" deve ser uma breve descrição visual (Alt-Text) para acessibilidade. NÃO extraia o texto de dentro da imagem (OCR), apenas descreva o elemento visual.
+          4. Para blocos do tipo "texto": Mantenha a formatação original tanto quanto possível.
+          5. Se houver "Texto 1" e "Texto 2" separados, crie blocos de texto separados.
 
-        Analise as imagens fornecidas (que compõem uma única questão) e gere o JSON. As imagens enviadas contém partes da mesma questão (enunciado, figuras, alternativas). Junte as informações de todas as imagens. NÃO DESCREVA O TEXTO CONTIDO EM IMAGENS (OCR). Se identificar algo que não se encaixa claramente em nenhum tipo das estruturas solicitadas, use imagem (com descrição visual curta; sem OCR).
-        
-        DIRETRIZES DE FORMATAÇÃO (RIGOROSAS):
-        1. **MARKDOWN OBRIGATÓRIO:** Todo o conteúdo textual (exceto JSON chaves) deve ser formatado em Markdown. Use **negrito**, *itálico* onde aparecer no original.
-        
-        2. **MATEMÁTICA E QUÍMICA (LATEX):** - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser escrita exclusivamente em LaTeX.
-            - **INLINE (No meio do texto):** Se a fórmula faz parte da frase, use o bloco do tipo 'texto' e envolva o LaTeX entre cifrões unitários. Exemplo: "A massa de $H_2O$ é..." ou "Sendo $x = 2$, calcule...".
-            - **DISPLAY (Isolada):** Se a fórmula aparece centralizada, sozinha em uma linha ou é muito complexa, use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
+          Analise as imagens fornecidas (que compõem uma única questão) e gere o JSON. As imagens enviadas contém partes da mesma questão (enunciado, figuras, alternativas). Junte as informações de todas as imagens. NÃO DESCREVA O TEXTO CONTIDO EM IMAGENS (OCR). Se identificar algo que não se encaixa claramente em nenhum tipo das estruturas solicitadas, use imagem (com descrição visual curta; sem OCR).
+          
+          DIRETRIZES DE FORMATAÇÃO (RIGOROSAS):
+          1. **MARKDOWN OBRIGATÓRIO:** Todo o conteúdo textual (exceto JSON chaves) deve ser formatado em Markdown. Use **negrito**, *itálico* onde aparecer no original.
+          
+          2. **MATEMÁTICA E QUÍMICA (LATEX):** - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser escrita exclusivamente em LaTeX.
+              - **INLINE (No meio do texto):** Se a fórmula faz parte da frase, use o bloco do tipo 'texto' e envolva o LaTeX entre cifrões unitários. Exemplo: "A massa de $H_2O$ é..." ou "Sendo $x = 2$, calcule...".
+              - **DISPLAY (Isolada):** Se a fórmula aparece centralizada, sozinha em uma linha ou é muito complexa, use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
 
-        3. **ESTRUTURA:**
-            - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
-            - Se houver Texto com equação pequena no meio, gere 1 bloco: {tipo: 'texto', conteudo: 'O valor de $x$ é...'}.
-            - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
-            - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate o conteúdo EXCLUSIVAMENTE como uma tabela Markdown.
+          3. **ESTRUTURA:**
+              - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
+              - Se houver Texto com equação pequena no meio, gere 1 bloco: {tipo: 'texto', conteudo: 'O valor de $x$ é...'}.
+              - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
+              - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate o conteúdo EXCLUSIVAMENTE como uma tabela Markdown.
 
-        Analise as imagens fornecidas. Junte as informações de todas as imagens.
-        `;
+          Analise as imagens fornecidas. Junte as informações de todas as imagens.
+          `;
 
-    JSONEsperado = {
-      type: "object",
-      properties: {
-        identificacao: {
-          type: "string",
-          description: "Identificação da questão (ex: 'ENEM 2023 - Q45').",
+      JSONEsperado = {
+        type: "object",
+        properties: {
+          identificacao: {
+            type: "string",
+            description: "Identificação da questão (ex: 'ENEM 2023 - Q45').",
+          },
+          materias_possiveis: { type: "array", items: { type: "string" } },
+          estrutura: {
+            type: "array",
+            description:
+              "Lista ordenada que representa o fluxo visual da questão, mantendo a ordem exata de textos e imagens. IMPORTANTÍSSIMO: não inclua a identificação da questão (ex: 'Questão 12', 'ENEM 2023 - Q45', 'FUVEST 2022') em nenhum item desta lista; isso deve ficar exclusivamente no campo 'identificacao'. Use 'titulo' e 'subtitulo' apenas para cabeçalhos internos do conteúdo (ex: 'Texto I', 'Considere o gráfico', 'Fragmento', 'Leia o texto a seguir').",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                tipo: {
+                  type: "string",
+                  enum: [
+                    "texto",
+                    "imagem",
+                    "citacao",
+                    "titulo",
+                    "subtitulo",
+                    "lista",
+                    "equacao",
+                    "codigo",
+                    "destaque",
+                    "separador",
+                    "fonte",
+                    "tabela",
+                  ],
+                  description: "O tipo de conteúdo deste bloco.",
+                },
+                conteudo: {
+                  type: "string",
+                  description:
+                    "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
+                },
+              },
+              required: ["tipo", "conteudo"],
+            },
+          },
+          palavras_chave: {
+            type: "array",
+            description: "Principais termos chave.",
+            items: { type: "string" },
+          },
+          tipo_resposta: {
+            type: "string",
+            enum: ["objetiva", "dissertativa"],
+            description:
+              "Se a questão tem alternativas (A, B, C...), é 'objetiva'. Se pede resposta escrita/discursiva, é 'dissertativa'.",
+          },
+          alternativas: {
+            type: "array",
+            description:
+              "Lista de alternativas. Para questões dissertativas, este array deve estar VAZIO [].",
+            items: { $ref: "#/$defs/alternativa" },
+          },
         },
-        materias_possiveis: { type: "array", items: { type: "string" } },
-        estrutura: {
-          type: "array",
-          description:
-            "Lista ordenada que representa o fluxo visual da questão, mantendo a ordem exata de textos e imagens. IMPORTANTÍSSIMO: não inclua a identificação da questão (ex: 'Questão 12', 'ENEM 2023 - Q45', 'FUVEST 2022') em nenhum item desta lista; isso deve ficar exclusivamente no campo 'identificacao'. Use 'titulo' e 'subtitulo' apenas para cabeçalhos internos do conteúdo (ex: 'Texto I', 'Considere o gráfico', 'Fragmento', 'Leia o texto a seguir').",
-          items: {
+        required: [
+          "identificacao",
+          "materias_possiveis",
+          "palavras_chave",
+          "alternativas",
+          "estrutura",
+          "tipo_resposta",
+        ],
+        $defs: {
+          blocoConteudo: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -458,81 +516,23 @@ export function obterConfiguracaoIA(modo) {
             },
             required: ["tipo", "conteudo"],
           },
-        },
-        palavras_chave: {
-          type: "array",
-          description: "Principais termos chave.",
-          items: { type: "string" },
-        },
-        tipo_resposta: {
-          type: "string",
-          enum: ["objetiva", "dissertativa"],
-          description:
-            "Se a questão tem alternativas (A, B, C...), é 'objetiva'. Se pede resposta escrita/discursiva, é 'dissertativa'.",
-        },
-        alternativas: {
-          type: "array",
-          description:
-            "Lista de alternativas. Para questões dissertativas, este array deve estar VAZIO [].",
-          items: { $ref: "#/$defs/alternativa" },
-        },
-      },
-      required: [
-        "identificacao",
-        "materias_possiveis",
-        "palavras_chave",
-        "alternativas",
-        "estrutura",
-        "tipo_resposta",
-      ],
-      $defs: {
-        blocoConteudo: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            tipo: {
-              type: "string",
-              enum: [
-                "texto",
-                "imagem",
-                "citacao",
-                "titulo",
-                "subtitulo",
-                "lista",
-                "equacao",
-                "codigo",
-                "destaque",
-                "separador",
-                "fonte",
-                "tabela",
-              ],
-              description: "O tipo de conteúdo deste bloco.",
+          alternativa: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              letra: { type: "string" },
+              estrutura: {
+                type: "array",
+                description:
+                  "Lista ordenada que representa o fluxo visual das alternativas, mantendo a ordem exata de textos e imagens.",
+                items: { $ref: "#/$defs/blocoConteudo" },
+              },
             },
-            conteudo: {
-              type: "string",
-              description:
-                "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
-            },
+            required: ["letra", "estrutura"],
           },
-          required: ["tipo", "conteudo"],
         },
-        alternativa: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            letra: { type: "string" },
-            estrutura: {
-              type: "array",
-              description:
-                "Lista ordenada que representa o fluxo visual das alternativas, mantendo a ordem exata de textos e imagens.",
-              items: { $ref: "#/$defs/blocoConteudo" },
-            },
-          },
-          required: ["letra", "estrutura"],
-        },
-      },
-    };
-  }
+      };
+    }
 
   return { promptDaIA, JSONEsperado };
 }

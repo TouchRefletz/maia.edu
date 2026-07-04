@@ -167,6 +167,14 @@ export const CHAT_CONFIG = {
       usesRouter: false,
       model: "github/o4-mini",
     },
+    // Modelos Groq
+    "groq/gpt-oss-120b": {
+      id: "groq/gpt-oss-120b",
+      label: "GPT-OSS 120B (Groq)",
+      description: "Modelo Mixture of Experts ultra-veloz de raciocínio",
+      usesRouter: false,
+      model: "groq/gpt-oss-120b",
+    },
   },
 
   /**

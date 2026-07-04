@@ -21,6 +21,18 @@ const OPENAI_LOGO = (
   </svg>
 );
 
+const GROQ_LOGO = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="url(#groqGradientModal)" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px', flexShrink: 0 }}>
+    <defs>
+      <linearGradient id="groqGradientModal" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#f97316" />
+        <stop offset="100%" stopColor="#dc2626" />
+      </linearGradient>
+    </defs>
+    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10c5.523 0 10-4.477 10-10H12v3h6.582c-.895 2.387-3.178 4-5.915 4-3.59 0-6.5-2.91-6.5-6.5s2.91-6.5 6.5-6.5c1.795 0 3.418.727 4.595 1.905l2.122-2.122C17.585 3.978 14.935 2 12 2z"/>
+  </svg>
+);
+
 // SVGs para Avaliação
 const BULB_SVG = (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
@@ -235,10 +247,24 @@ export const IA_MODELS = [
     speed: 5,
     reasoningText: "Alto",
     speedText: "Muito Rápido"
+  },
+  // Groq Models
+  {
+    id: "groq/gpt-oss-120b",
+    title: "GPT-OSS 120B",
+    desc: "Modelo de raciocínio de alta performance em Groq LPU",
+    category: "Groq",
+    logo: GROQ_LOGO,
+    reasoning: 5,
+    speed: 5,
+    reasoningText: "Muito Alto",
+    speedText: "Muito Rápido"
   }
 ];
 
-type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector';
+type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' |
+             'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
+             'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect';
 
 interface TabConfig {
   id: TabId;
@@ -283,6 +309,65 @@ const STAGES_CONFIG: TabConfig[] = [
     icon: '📝',
     title: '📝 Correção de Atividades',
     desc: 'Modelo utilizado para analisar detalhadamente as respostas das atividades enviadas pelos alunos e gerar feedbacks didáticos e notas.'
+  },
+  {
+    id: 'scaffolding',
+    label: 'Scaffolding (Passos)',
+    icon: '🧩',
+    title: '🧩 Geração de Passos (Scaffolding)',
+    desc: 'Modelo responsável por gerar os passos pedagógicos do Scaffolding (Verdadeiro ou Falso) além do primeiro, guiando o aluno progressivamente.'
+  }
+];
+
+const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
+  {
+    id: 'scanner_detect',
+    label: '1. Detecção (Scan)',
+    icon: '🔍',
+    title: '🔍 Detecção de Caixas (Scanner)',
+    desc: 'Modelo de visão computacional para identificar e mapear as coordenadas das questões na página inteira.'
+  },
+  {
+    id: 'scanner_audit',
+    label: '2. Auditoria (Audit)',
+    icon: '🛡️',
+    title: '🛡️ Auditoria de Caixas (Auditor)',
+    desc: 'Modelo rigoroso encarregado de verificar se as caixas encontradas estão cortadas, incompletas ou perfeitas.'
+  },
+  {
+    id: 'scanner_correct',
+    label: '3. Correção (Correct)',
+    icon: '⚙️',
+    title: '⚙️ Correção de Caixas (Corretor)',
+    desc: 'Modelo que ajusta e corrige as coordenadas das caixas que foram reprovadas pelo auditor.'
+  },
+  {
+    id: 'extractor_ocr',
+    label: '4. Estrutura (OCR)',
+    icon: '📝',
+    title: '📝 Estruturação e OCR da Questão',
+    desc: 'Modelo que transcreve e organiza o texto, fórmulas em LaTeX, tabelas e descreve imagens do recorte da questão.'
+  },
+  {
+    id: 'extractor_search',
+    label: '5. Pesquisador (Gabarito)',
+    icon: '🌐',
+    title: '🌐 Pesquisa Web (Apenas Gemini)',
+    desc: 'Modelo encarregado de realizar buscas na Web para encontrar gabaritos e resoluções originais.'
+  },
+  {
+    id: 'extractor_gabarito',
+    label: '6. Resolução (Gabarito)',
+    icon: '✍️',
+    title: '✍️ Geração de Gabarito e Resolução',
+    desc: 'Modelo que escreve a explicação detalhada passo a passo, define a alternativa correta e checa coerência.'
+  },
+  {
+    id: 'extractor_image_detect',
+    label: '7. Sub-imagens (Crop)',
+    icon: '📸',
+    title: '📸 Detecção de Imagens no Crop',
+    desc: 'Modelo especializado em detectar imagens e figuras isoladas dentro do recorte da questão.'
   }
 ];
 
@@ -291,24 +376,43 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   router: 'models/gemma-4-31b-it',
   memory: 'models/gemma-4-31b-it',
   search: 'models/gemini-3.5-flash',
-  corrector: 'models/gemini-3.5-flash'
+  corrector: 'models/gemini-3.5-flash',
+  scaffolding: 'models/gemini-3-flash-preview',
+  scanner_detect: 'models/gemini-3.5-flash',
+  scanner_audit: 'models/gemini-3.5-flash',
+  scanner_correct: 'models/gemini-3.5-flash',
+  extractor_ocr: 'models/gemini-3.5-flash',
+  extractor_search: 'models/gemini-3.5-flash',
+  extractor_gabarito: 'models/gemini-3.5-flash',
+  extractor_image_detect: 'models/gemini-3.5-flash'
 };
 
 interface ModelSelectorProps {
   onClose: () => void;
   currentSelected: string;
   onSelect: (modelId: string) => void;
+  mode?: 'chat' | 'extractor' | 'corrector';
 }
 
-const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, currentSelected, onSelect }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('chat');
+const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, currentSelected, onSelect, mode = 'chat' }) => {
+  const [activeTab, setActiveTab] = useState<TabId>(
+    mode === 'extractor' ? 'scanner_detect' : (mode === 'corrector' ? 'corrector' : 'chat')
+  );
+  const isMaiaActive = typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
+
+  useEffect(() => {
+    if (mode === 'chat' && !isMaiaActive && activeTab !== 'chat') {
+      setActiveTab('chat');
+    }
+  }, [isMaiaActive, activeTab, mode]);
 
   // Model states
-  const [selectedChat, setSelectedChat] = useState('');
-  const [selectedRouter, setSelectedRouter] = useState('');
-  const [selectedMemory, setSelectedMemory] = useState('');
-  const [selectedSearch, setSelectedSearch] = useState('');
-  const [selectedCorrector, setSelectedCorrector] = useState('');
+  const [selections, setSelections] = useState<Record<TabId, string>>({
+    chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '',
+    scanner_detect: '', scanner_audit: '', scanner_correct: '',
+    extractor_ocr: '', extractor_search: '', extractor_gabarito: '',
+    extractor_image_detect: ''
+  });
 
   // Initial load
   useEffect(() => {
@@ -320,76 +424,107 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       return localStorage.getItem(key) || def;
     };
 
-    setSelectedChat(getVal('selectedModelChat', DEFAULT_MODELS.chat));
-    setSelectedRouter(getVal('selectedModelRouter', DEFAULT_MODELS.router));
-    setSelectedMemory(getVal('selectedModelMemory', DEFAULT_MODELS.memory));
-    setSelectedSearch(getVal('selectedModelSearch', DEFAULT_MODELS.search));
-    setSelectedCorrector(getVal('selectedModelCorrector', DEFAULT_MODELS.corrector));
+    setSelections({
+      chat: getVal('selectedModelChat', DEFAULT_MODELS.chat),
+      router: getVal('selectedModelRouter', DEFAULT_MODELS.router),
+      memory: getVal('selectedModelMemory', DEFAULT_MODELS.memory),
+      search: getVal('selectedModelSearch', DEFAULT_MODELS.search),
+      corrector: getVal('selectedModelCorrector', DEFAULT_MODELS.corrector),
+      scaffolding: getVal('selectedModelScaffolding', DEFAULT_MODELS.scaffolding),
+      scanner_detect: getVal('selectedModelScannerDetect', DEFAULT_MODELS.scanner_detect),
+      scanner_audit: getVal('selectedModelScannerAudit', DEFAULT_MODELS.scanner_audit),
+      scanner_correct: getVal('selectedModelScannerCorrect', DEFAULT_MODELS.scanner_correct),
+      extractor_ocr: getVal('selectedModelExtractorOcr', DEFAULT_MODELS.extractor_ocr),
+      extractor_search: getVal('selectedModelExtractorSearch', DEFAULT_MODELS.extractor_search),
+      extractor_gabarito: getVal('selectedModelExtractorGabarito', DEFAULT_MODELS.extractor_gabarito),
+      extractor_image_detect: getVal('selectedModelExtractorImageDetect', DEFAULT_MODELS.extractor_image_detect)
+    });
   }, []);
 
   const getSelectedIdForTab = (tab: TabId) => {
-    switch (tab) {
-      case 'chat': return selectedChat;
-      case 'router': return selectedRouter;
-      case 'memory': return selectedMemory;
-      case 'search': return selectedSearch;
-      case 'corrector': return selectedCorrector;
-    }
+    return selections[tab];
   };
 
   const handleSelectModel = (modelId: string) => {
-    switch (activeTab) {
-      case 'chat':
-        setSelectedChat(modelId);
-        break;
-      case 'router':
-        setSelectedRouter(modelId);
-        break;
-      case 'memory':
-        setSelectedMemory(modelId);
-        break;
-      case 'search':
-        setSelectedSearch(modelId);
-        break;
-      case 'corrector':
-        setSelectedCorrector(modelId);
-        break;
-    }
+    setSelections(prev => ({
+      ...prev,
+      [activeTab]: modelId
+    }));
   };
 
   const handleResetAll = () => {
-    setSelectedChat(DEFAULT_MODELS.chat);
-    setSelectedRouter(DEFAULT_MODELS.router);
-    setSelectedMemory(DEFAULT_MODELS.memory);
-    setSelectedSearch(DEFAULT_MODELS.search);
-    setSelectedCorrector(DEFAULT_MODELS.corrector);
+    if (mode === 'extractor') {
+      setSelections(prev => ({
+        ...prev,
+        scanner_detect: DEFAULT_MODELS.scanner_detect,
+        scanner_audit: DEFAULT_MODELS.scanner_audit,
+        scanner_correct: DEFAULT_MODELS.scanner_correct,
+        extractor_ocr: DEFAULT_MODELS.extractor_ocr,
+        extractor_search: DEFAULT_MODELS.extractor_search,
+        extractor_gabarito: DEFAULT_MODELS.extractor_gabarito,
+        extractor_image_detect: DEFAULT_MODELS.extractor_image_detect
+      }));
+    } else {
+      setSelections(prev => ({
+        ...prev,
+        chat: DEFAULT_MODELS.chat,
+        router: DEFAULT_MODELS.router,
+        memory: DEFAULT_MODELS.memory,
+        search: DEFAULT_MODELS.search,
+        corrector: DEFAULT_MODELS.corrector,
+        scaffolding: DEFAULT_MODELS.scaffolding
+      }));
+    }
   };
 
   const handleSaveAndClose = () => {
     if (typeof window !== 'undefined') {
-      (window as any).selectedModelChat = selectedChat;
-      (window as any).selectedModelRouter = selectedRouter;
-      (window as any).selectedModelMemory = selectedMemory;
-      (window as any).selectedModelSearch = selectedSearch;
-      (window as any).selectedModelCorrector = selectedCorrector;
-      (window as any).selectedSpecificModel = selectedChat; // keep legacy selectedSpecificModel updated
+      if (mode === 'extractor') {
+        (window as any).selectedModelScannerDetect = selections.scanner_detect;
+        (window as any).selectedModelScannerAudit = selections.scanner_audit;
+        (window as any).selectedModelScannerCorrect = selections.scanner_correct;
+        (window as any).selectedModelExtractorOcr = selections.extractor_ocr;
+        (window as any).selectedModelExtractorSearch = selections.extractor_search;
+        (window as any).selectedModelExtractorGabarito = selections.extractor_gabarito;
+        (window as any).selectedModelExtractorImageDetect = selections.extractor_image_detect;
+      } else {
+        (window as any).selectedModelChat = selections.chat;
+        (window as any).selectedModelRouter = selections.router;
+        (window as any).selectedModelMemory = selections.memory;
+        (window as any).selectedModelSearch = selections.search;
+        (window as any).selectedModelCorrector = selections.corrector;
+        (window as any).selectedModelScaffolding = selections.scaffolding;
+        (window as any).selectedSpecificModel = selections.chat; // keep legacy selectedSpecificModel updated
+      }
     }
     
-    localStorage.setItem('selectedModelChat', selectedChat);
-    localStorage.setItem('selectedModelRouter', selectedRouter);
-    localStorage.setItem('selectedModelMemory', selectedMemory);
-    localStorage.setItem('selectedModelSearch', selectedSearch);
-    localStorage.setItem('selectedModelCorrector', selectedCorrector);
-
-    onSelect(selectedChat);
+    if (mode === 'extractor') {
+      localStorage.setItem('selectedModelScannerDetect', selections.scanner_detect);
+      localStorage.setItem('selectedModelScannerAudit', selections.scanner_audit);
+      localStorage.setItem('selectedModelScannerCorrect', selections.scanner_correct);
+      localStorage.setItem('selectedModelExtractorOcr', selections.extractor_ocr);
+      localStorage.setItem('selectedModelExtractorSearch', selections.extractor_search);
+      localStorage.setItem('selectedModelExtractorGabarito', selections.extractor_gabarito);
+      localStorage.setItem('selectedModelExtractorImageDetect', selections.extractor_image_detect);
+      onSelect(selections.scanner_detect);
+    } else {
+      localStorage.setItem('selectedModelChat', selections.chat);
+      localStorage.setItem('selectedModelRouter', selections.router);
+      localStorage.setItem('selectedModelMemory', selections.memory);
+      localStorage.setItem('selectedModelSearch', selections.search);
+      localStorage.setItem('selectedModelCorrector', selections.corrector);
+      localStorage.setItem('selectedModelScaffolding', selections.scaffolding);
+      onSelect(mode === 'corrector' ? selections.corrector : selections.chat);
+    }
     onClose();
   };
 
   // Group models by category, filtering for search if active
   const categories: { [key: string]: typeof IA_MODELS } = {};
   IA_MODELS.forEach((model) => {
-    // Se a aba ativa for 'search' (Pesquisa), permite apenas modelos Gemini (starts with models/gemini-)
-    if (activeTab === 'search' && !model.id.startsWith('models/gemini-')) {
+    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e GPT-OSS 120b
+    const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
+    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'groq/gpt-oss-120b') {
       return;
     }
     if (!categories[model.category]) {
@@ -417,7 +552,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     });
   };
 
-  const currentActiveStage = STAGES_CONFIG.find(s => s.id === activeTab);
+  const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive);
+  const filteredStages = mode === 'extractor' 
+    ? EXTRACTOR_STAGES_CONFIG 
+    : (mode === 'corrector' 
+        ? STAGES_CONFIG.filter(s => s.id === 'corrector') 
+        : (isMaiaActive ? STAGES_CONFIG : STAGES_CONFIG.filter(s => s.id === 'chat')));
+  const currentActiveStage = filteredStages.find(s => s.id === activeTab);
   const currentSelectedId = getSelectedIdForTab(activeTab);
 
   return (
@@ -506,30 +647,38 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🤖 Configuração Granular de Modelos de IA
+              {mode === 'extractor' ? "🤖 Configuração de Modelos do Extrator de Questões" : (mode === 'corrector' ? "🤖 Modelo de Correção Dissertativa" : (isMaiaActive ? "🤖 Configuração Granular de Modelos de IA" : "🤖 Seleção de Modelo de IA"))}
             </h2>
             <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-              Configure individualmente os modelos para cada etapa vital da inteligência.
+              {mode === 'extractor' 
+                ? "Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração."
+                : (mode === 'corrector'
+                    ? "Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas."
+                    : (isMaiaActive 
+                        ? "Configure individualmente os modelos para cada etapa vital da inteligência." 
+                        : "Selecione o modelo de IA padrão para responder suas perguntas."))}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              onClick={handleResetAll}
-              style={{
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                color: '#f87171',
-                borderRadius: '8px',
-                padding: '6px 12px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              className="restore-default-btn"
-            >
-              Definir Todos como Padrão
-            </button>
+            {(mode === 'extractor' || (isMaiaActive && mode !== 'corrector')) && (
+              <button 
+                onClick={handleResetAll}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#f87171',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                className="restore-default-btn"
+              >
+                Definir Todos como Padrão
+              </button>
+            )}
             <button 
               onClick={onClose} 
               style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', fontSize: '1.5rem', cursor: 'pointer', padding: '4px', lineHeight: 1 }}
@@ -544,31 +693,33 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         <div className="premium-model-modal">
           
           {/* Sidebar Tabs */}
-          <div className="modal-sidebar">
-            {STAGES_CONFIG.map((stage) => {
-              const isActive = activeTab === stage.id;
-              // Pegar o label curto do modelo selecionado para mostrar abaixo do nome da tab
-              const selectedModelId = getSelectedIdForTab(stage.id);
-              const selectedModel = IA_MODELS.find(m => m.id === selectedModelId);
-              const selectedModelName = selectedModel ? selectedModel.title : 'Não definido';
+          {isShowSidebar && (
+            <div className="modal-sidebar">
+              {filteredStages.map((stage) => {
+                const isActive = activeTab === stage.id;
+                // Pegar o label curto do modelo selecionado para mostrar abaixo do nome da tab
+                const selectedModelId = getSelectedIdForTab(stage.id);
+                const selectedModel = IA_MODELS.find(m => m.id === selectedModelId);
+                const selectedModelName = selectedModel ? selectedModel.title : 'Não definido';
 
-              return (
-                <button
-                  key={stage.id}
-                  onClick={() => setActiveTab(stage.id)}
-                  className={`tab-button ${isActive ? 'active' : ''}`}
-                >
-                  <span style={{ fontSize: '1.2rem' }}>{stage.icon}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span>{stage.label}</span>
-                    <span style={{ fontSize: '0.68rem', color: isActive ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', opacity: 0.8, marginTop: '2px' }}>
-                      {selectedModelName}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    key={stage.id}
+                    onClick={() => setActiveTab(stage.id)}
+                    className={`tab-button ${isActive ? 'active' : ''}`}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>{stage.icon}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span>{stage.label}</span>
+                      <span style={{ fontSize: '0.68rem', color: isActive ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', opacity: 0.8, marginTop: '2px' }}>
+                        {selectedModelName}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Main Stage Panel */}
           <div className="main-stage-content">
@@ -649,8 +800,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                         </div>
                       );
                     })}
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -683,7 +834,11 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   );
 };
 
-export function mountModelSelectorModal(currentSelected: string, onSelect: (modelId: string) => void) {
+export function mountModelSelectorModal(
+  currentSelected: string,
+  onSelect: (modelId: string) => void,
+  mode: 'chat' | 'extractor' | 'corrector' = 'chat'
+) {
   const rootId = 'react-model-selector-modal-root';
   const existing = document.getElementById(rootId);
   if (existing) existing.remove();
@@ -704,6 +859,7 @@ export function mountModelSelectorModal(currentSelected: string, onSelect: (mode
       onClose={handleClose}
       currentSelected={currentSelected}
       onSelect={onSelect}
+      mode={mode}
     />
   );
 }

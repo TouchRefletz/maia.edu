@@ -39,7 +39,12 @@ export const SidebarPageManager = {
       // Se totalPages == 0 (ou default), assumimos que é uma chamada de verificação/garantia,
       // então NÃO limpamos para preservar o estado (ex: questões manuais).
       if (totalPages > 0) {
-        container.innerHTML = "";
+        // Preserve global header and overlay if they exist, remove others
+        Array.from(container.children).forEach((child) => {
+          if (child.id !== "ai-scanner-global-header" && child.id !== "ai-sidebar-overlay") {
+            child.remove();
+          }
+        });
       }
     }
 
