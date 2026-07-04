@@ -10,17 +10,17 @@
 </table>
 
 <div>
-  <img src="https://img.shields.io/badge/Google%20Gemini-3%20Flash%20(Preview)-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini 3 Flash">
+  <img src="https://img.shields.io/badge/Google%20Gemini-3.5%20Flash-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini 3.5 Flash">
+  <img src="https://img.shields.io/badge/OpenAI%20Models-GPT--5%20%2F%20o3--mini-10A37F?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI Models">
+  <img src="https://img.shields.io/badge/Groq-GPT--OSS%20120B-f97316?style=for-the-badge&logoColor=white" alt="Groq Models">
   <img src="https://img.shields.io/badge/System-Router%20Complexity%20Aware-21808D?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Router Complexity">
   <img src="https://img.shields.io/badge/Feature-Google%20Grounding%20(Search)-34A853?style=for-the-badge&logo=google&logoColor=white" alt="Google Grounding">
   <img src="https://img.shields.io/badge/Feature-Google%20Structured%20Output-34a0a8?style=for-the-badge&logo=google&logoColor=white" alt="Google Structured Output">
   <img src="https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Cloudflare Workers">
   <img src="https://img.shields.io/badge/Pinecone-Vector_DB-000000?style=for-the-badge&logo=pinecone&logoColor=white" alt="Pinecone">
-  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/Frontend-Vanilla%20%2B%20React%2019-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Frontend Hybrid">
   <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
-  <img src="https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white" alt="HTML5">
-  <img src="https://img.shields.io/badge/CSS3-1572B6?style=for-the-badge&logo=css3&logoColor=white" alt="CSS3">
 </div>
 
 <br />
@@ -32,7 +32,7 @@
 
 O **Maia.edu** é uma plataforma _open-source_ de alto desempenho projetada para criar um ecossistema educacional funcional e autônomo. Mais do que apenas documentar dados, o projeto integra um **sistema automatizado de extração de questões**, um **chatbot pedagógico** avançado e um **banco de dados estruturado** de questões reais de vestibulares brasileiros.
 
-Por meio de uma arquitetura _serverless_ distribuída e uma interface web de alta fidelidade (Vite), a plataforma permite que estudantes treinem para exames e contribuam para o banco de dados em um ciclo colaborativo. O sistema de extração inteligente reduz o tempo de digitalização para menos de **5 minutos por questão**, garantindo que a informação educacional seja preservada, interoperável e acessível a todos.
+Por meio de uma arquitetura _serverless_ distribuída e uma interface web de alto desempenho (SPA construída em Vanilla JS + TypeScript compilado via Vite, com componentes interativos específicos montados sob demanda utilizando React 19), a plataforma permite que estudantes treinem para exames e contribuam para o banco de dados em um ciclo colaborativo. O sistema de extração inteligente reduz o tempo de digitalização para menos de **5 minutos por questão**, garantindo que a informação educacional seja preservada, interoperável e acessível a todos.
 
 ## 🎯 Nossa Missão
 
@@ -55,7 +55,7 @@ graph TD
     classDef db fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
     classDef front fill:#61DAFB,stroke:#333,stroke-width:2px,color:#000;
 
-    UserInput([👤 Mensagem do Estudante]):::user --> Router{🧠 Router Inteligente<br>Gemini 3 Flash}:::ai
+    UserInput([👤 Mensagem do Estudante]):::user --> Router{🧠 Router Inteligente<br>Gemma 4 31B IT}:::ai
 
     subgraph "Backend (Cloudflare Workers)"
         Router -- "Dúvida Rápida" --> ModeFast[⚡ Modo Rápido]:::ai
@@ -69,7 +69,7 @@ graph TD
         ModeFast & ModeReasoning & ModeScaffolding --> Generator
     end
 
-    Generator -- "Stream de JSON Tipado" --> Frontend[💻 Frontend React<br>Processamento de Stream]:::front
+    Generator -- "Stream de JSON Tipado" --> Frontend[💻 Frontend Híbrido<br>Processamento de Stream]:::front
 
     subgraph "Frontend (Client-Side Rendering)"
         Frontend --> Parser{⚙️ Parser de Blocos}:::front
@@ -89,7 +89,7 @@ graph TD
 
 O backend é sustentado por **Cloudflare Workers**, executando código diretamente na borda da rede. Quando uma questão é enviada:
 
-- **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Gemini 3 Flash Preview** (modelos multimodais) para realizar a inferência semântica da prova.
+- **Ingestão Multimodal:** O sistema recebe os dados brutos e utiliza a inteligência do **Gemini 3.5 Flash** (ou modelo configurável) para realizar a inferência semântica da prova.
 - **Estruturação de Dados:** Diferente de OCRs tradicionais, nossa API força uma **saída estruturada em JSON**, categorizando rigorosamente:
   - Enunciados, alternativas e **suporte completo para questões dissertativas**;
   - Imagens, gráficos e legendas associadas;
@@ -103,7 +103,7 @@ O extrator não apenas "lê" a imagem, mas atua como um agente pesquisador para 
 ```mermaid
 graph TD
     subgraph Passo 1: Extração Visual
-        Image[Crop da Questão] --> Extractor[Gemini 3 Flash<br>Visão Computacional]
+        Image[Crop da Questão] --> Extractor[Gemini 3.5 Flash<br>Visão Computacional]
         Extractor --> JSON_Q[JSON Preliminar]
     end
 
@@ -114,7 +114,7 @@ graph TD
     end
 
     subgraph Passo 3: Geração Aumentada
-        JSON_Q & Report --> Generator[Gemini 3 Flash<br>Gerador de Gabarito]
+        JSON_Q & Report --> Generator[Gemini 3.5 Flash<br>Gerador de Gabarito]
         Generator --> JSON_Full[JSON Completo + Fontes]
     end
 
@@ -146,8 +146,8 @@ A Maia.ai é o assistente inteligente que consome o banco de dados para proporci
 
 ### 1. Orquestração de Conversa (Router)
 
-- **Router de Complexidade:** Implementamos um roteador inteligente baseado em **Gemini 3 Flash Preview** que analisa cada mensagem do usuário para decidir o melhor fluxo de execução: _Rápido_ (respostas diretas), _Raciocínio_ (análise profunda via Flash Thinking) ou _Scaffolding_ (estudo guiado).
-- **Títulos Dinâmicos:** Utilizamos o modelo **Gemma 3 27b-it** para gerar títulos curtos e precisos que resumem o contexto de cada conversa no histórico.
+- **Router de Complexidade:** Implementamos um roteador inteligente (baseado em **Gemma 4 31B IT** por padrão, ou outro modelo configurável) que analisa cada mensagem do usuário para decidir o melhor fluxo de execução: _Rápido_ (respostas diretas baseadas no Gemini 3.5 Flash), _Raciocínio_ (análise profunda via Flash/Thinking) ou _Scaffolding_ (estudo guiado/Tutor Socrático).
+- **Títulos Dinâmicos:** Utilizamos o modelo **Gemma 4 31B IT** para gerar títulos curtos e precisos que resumem o contexto de cada conversa no histórico de chats.
 
 ### 2. Memória Contextual Híbrida
 
@@ -171,6 +171,13 @@ A inteligência da Maia.ai transcende a consulta passiva ao banco de dados:
 
 - **Solicitação de Extração AI-Driven:** Caso a IA identifique a necessidade de mais material sobre um tema específico para auxiliar o aluno, ela pode atuar como um agente pesquisador autônomo. A IA pode **solicitar uma extração de questões**, desencadeando a pesquisa web de PDFs relacionados ao assunto e orquestrando a **extração via CLI**. Esse conteúdo é fatiado e injetado no sistema em tempo real, garantindo que o aprendizado nunca seja interrompido por falta de exercícios.
 
+### 5. Configuração Multi-Modelos e Chaves Clientes (Client-Side)
+
+Para garantir total flexibilidade nas requisições e contornar limites globais de cota, os usuários podem configurar suas próprias credenciais de API diretamente pela interface web (com persistência em `sessionStorage` local):
+- **Google Gemini API Key**: Habilita o processamento local com os modelos nativos do ecossistema Google, incluindo `Gemini 3.5 Flash` (padrão do chat e correções), `Gemini 3.1 Flash Lite`, `Gemini 3 Flash (Preview)` e `Gemini 2.5 Flash`.
+- **GitHub Personal Access Token (OpenAI)**: Permite executar modelos da OpenAI disponibilizados pela API de Modelos do GitHub, tais como `GPT-5`, `GPT-5-mini`, `GPT-4.1-mini`, `GPT-4o`, `o1` e `o3-mini`.
+- **Groq API Key**: Ativa o suporte ao modelo Mixture of Experts de ultra-velocidade `GPT-OSS 120B`.
+
 ## 🔎 Busca e Extração Inteligente (Deep Search & Extraction)
 
 Para escalar a captura de conteúdo educacional, o Maia.edu possui um sistema autônomo e multifacetado de busca e extração. O sistema opera em dois modos principais de pesquisa e suporta múltiplos métodos de geração do banco.
@@ -193,7 +200,7 @@ O sistema de digitalização possui um loop de "auditoria" para garantir cortes 
 
 ```mermaid
 graph TD
-    Page[Página PDF Renderizada] --> GreedyBox[Greedy Box Detection<br>Gemini 3 Flash]
+    Page[Página PDF Renderizada] --> GreedyBox[Greedy Box Detection<br>Gemini 3.5 Flash]
     GreedyBox --> Auditor{Agente Auditor}
 
     Auditor -- "Corte Inválido (Cortou Texto)" --> Correction[Self-Correction Loop<br>Ajuste de Coordenadas]
@@ -201,6 +208,25 @@ graph TD
 
     Auditor -- "Aprovado" --> Crop[Final Crop]
 ```
+
+## 📝 Módulo de Simulados
+
+Para complementar a preparação dos estudantes, a plataforma integra um sistema completo de simulados:
+- **Criação Personalizada**: Geração de provas de múltipla escolha (objetivas) ou abertas (dissertativas) selecionando livremente itens do banco de dados curado.
+- **Simulação Online**: Painel do estudante com cronômetro integrado, salvamento de respostas em tempo real e correção automatizada (com correção semântica via IA nas questões dissertativas).
+- **Exportação para Estudo Offline**: Motor de exportação que gera cadernos de prova em formato PDF altamente customizados e diagramados para impressão ou resolução offline.
+
+## 🧪 Apêndice B (Sistema de Experimento Científico)
+
+Um painel dedicado à pesquisa acadêmica e validação científica da IA pedagógica:
+- **Triagem de Complexidade**: Avaliação de enunciados, imagens e gabaritos sob uma ótica de 14 fatores heurísticos de dificuldade (como abstração teórica, necessidade de deduções lógicas ou distratores semânticos). O experimento utiliza o modelo **Gemma 4 31B IT** fixado para manter a consistência do estudo científico.
+- **Simulador de Persona**: Permite orquestrar execuções onde o modelo Gemma 4 atua como um estudante com diferentes perfis para resolver a questão, gerando métricas preditivas de resposta, tempo de raciocínio e nível estimado de certeza (0-100%).
+
+## 🛡️ Painel Administrativo
+
+Módulo de governança do ecossistema educacional:
+- **Moderação de Questões**: Painel para validação manual, ajuste de recortes, edição de metadados e aprovação formal de questões extraídas antes da persistência definitiva no banco público.
+- **Métricas e Manutenção**: Ferramentas de auditoria de integridade do banco de dados Firebase, estatísticas globais e gerenciamento de perfis de moderadores.
 
 ## 🧬 Estrutura do Banco de Dados
 
@@ -325,12 +351,22 @@ Estamos construindo o futuro onde o aprendizado não tem barreiras.
 
 ## 🛠️ Execução Local
 
-Para rodar a interface web em ambiente de desenvolvimento:
+O projeto é composto por duas partes principais: a interface web (frontend) e o servidor de inteligência (Cloudflare Worker).
 
-1.  **Clone o repositório:** `git clone https://github.com/TouchRefletz/maia.edu.git`
+### 1. Frontend (Interface Web)
+
+Para rodar a interface web localmente em ambiente de desenvolvimento:
+1.  **Instale as dependências:** `npm install` na raiz do projeto.
+2.  **Configure as variáveis de ambiente:** Crie um arquivo `.env` baseado no `.env.example` (configurando chaves do Firebase, ImgBB, etc.). A variável `VITE_WORKER_URL` deve apontar para o Worker local: `http://localhost:8787` (ou a URL de produção do Cloudflare).
+3.  **Inicie o servidor de desenvolvimento:** `npm run dev` (iniciará o Vite e a documentação do Vitepress de forma concorrente).
+
+### 2. Backend (Cloudflare Worker)
+
+Para rodar o Worker de inferência de inteligência localmente:
+1.  **Navegue até a pasta do worker:** `cd maia-api-worker`
 2.  **Instale as dependências:** `npm install`
-3.  **Configure as variáveis:** Crie um arquivo `.env` baseado no `.env.example` (Necessário Firebase e chaves de API do Worker).
-4.  **Inicie o servidor:** `npm run dev`
+3.  **Configure as credenciais locais:** Crie um arquivo `.dev.vars` na pasta `maia-api-worker` baseado no `.dev.vars.example` (configurando credenciais do Gemini, Pinecone e GitHub Models, caso queira utilizar como fallback de cota).
+4.  **Inicie o worker:** `npm run dev` (iniciará o simulador local do Cloudflare Workers via Wrangler na porta `8787`).
 
 ---
 

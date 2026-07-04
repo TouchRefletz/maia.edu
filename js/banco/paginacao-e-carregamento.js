@@ -140,6 +140,39 @@ async function hidratarStatusRevisao(listaQuestoes) {
   await Promise.all(promises);
 }
 
+// Ingestão dinâmica e em lote do status do Apêndice B
+async function hidratarStatusApendiceB(listaQuestoes) {
+  if (!listaQuestoes || listaQuestoes.length === 0) return;
+
+  const { get, ref, child } =
+    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+  const { db } = await import("../main.js");
+
+  window.bancoState = window.bancoState || {};
+  window.bancoState.apendiceBStatusMap = window.bancoState.apendiceBStatusMap || {};
+
+  const provasUnicas = [...new Set(listaQuestoes.map((item) => item.prova))];
+
+  const promises = provasUnicas.map(async (prova) => {
+    const path = `experimentos_apendice_b_status/${prova}`;
+    try {
+      const snap = await get(child(ref(db), path));
+      if (snap.exists()) {
+        const statusMap = snap.val();
+        Object.entries(statusMap).forEach(([idQuestao, val]) => {
+          if (val && val.status === "rodado") {
+            window.bancoState.apendiceBStatusMap[`${prova}/${idQuestao}`] = true;
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar status Apêndice B:", path, e);
+    }
+  });
+
+  await Promise.all(promises);
+}
+
 export async function carregarBancoDados() {
   if (bancoState.carregandoMais) return;
   bancoState.carregandoMais = true;
@@ -162,8 +195,11 @@ export async function carregarBancoDados() {
       bancoState.ultimoKeyCarregada = novoCursor;
 
       // 2.1 HIDRATAÇÃO DE STATUS (NOVO)
-      // Buscamos em paralelo os status das revisoes
-      await hidratarStatusRevisao(questoesProcessadas);
+      // Buscamos em paralelo os status das revisoes e do Apêndice B
+      await Promise.all([
+        hidratarStatusRevisao(questoesProcessadas),
+        hidratarStatusApendiceB(questoesProcessadas),
+      ]);
 
       // 3. Renderiza na tela
       const container = document.getElementById("bankStream");

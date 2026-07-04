@@ -350,6 +350,15 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASO 9.0b: Iniciar Modo Apêndice B ---
+    const gatilhoApendiceB = e.target.closest(".js-iniciar-apendice-b");
+    if (gatilhoApendiceB) {
+      import("./ui/apendice-b-screen.js").then(({ iniciarModoApendiceB }) => {
+        iniciarModoApendiceB();
+      });
+      return;
+    }
+
     // --- CASO 9.1: Iniciar Modo Simulados ---
     const gatilhoSimulados = e.target.closest(".js-iniciar-simulados");
     if (gatilhoSimulados) {

@@ -206,6 +206,22 @@ export function gerarHtmlHeader(id, fullData) {
                     </span>`;
   }
 
+  const provaKey = (meta.material_origem || "").replace(/ /g, "_");
+  const apendiceKey = `${provaKey}/${id}`;
+  const hasApendiceB = !!(window.bancoState?.apendiceBStatusMap?.[apendiceKey]);
+  const apendiceBadgeHtml = `
+                    <!-- Badge Apêndice B -->
+                    <span class="apendice-b-status-badge" style="
+                        background: ${hasApendiceB ? "rgba(40, 167, 69, 0.15)" : "rgba(108, 117, 125, 0.1)"};
+                        color: ${hasApendiceB ? "#28a745" : "#6c757d"};
+                        border: 1px solid ${hasApendiceB ? "rgba(40, 167, 69, 0.3)" : "rgba(108, 117, 125, 0.2)"};
+                        padding: 3px 8px; 
+                        border-radius: 4px;
+                        display:flex; align-items:center; gap:5px; font-weight:600;
+                    ">
+                        <span>🧪</span> Apêndice B: ${hasApendiceB ? "OK" : "Pendente"}
+                    </span>`;
+
   return `
         <div class="q-header">
             <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
@@ -234,6 +250,8 @@ export function gerarHtmlHeader(id, fullData) {
                     ">
                         <span>${origemIcon}</span> ${origemLabel}
                     </span>
+
+                    ${apendiceBadgeHtml}
 
                     ${diffBadgeHtml}
 

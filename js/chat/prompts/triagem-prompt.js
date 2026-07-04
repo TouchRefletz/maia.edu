@@ -113,7 +113,7 @@ export const TRIAGEM_RESPONSE_SCHEMA = {
 
 export function buildTriagemPrompt(enunciado, gabarito) {
   return `
-IMAGENS DE ENTRADA: Considere as imagens anexadas a este prompt como o Enunciado da Questão e o Gabarito Oficial para realizar a sua análise baseada na rubrica acima.
+CONTEÚDO DE ENTRADA: Considere o conteúdo anexado a este prompt como o Enunciado da Questão e o Gabarito Oficial para realizar a sua análise baseada na rubrica acima.
 
 [Dados de referência da questão]:
 Enunciado: ${enunciado}

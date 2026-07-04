@@ -6117,6 +6117,7 @@ function renderFileAttachment(file) {
 export async function verificarAdminEShowSidebar(user) {
   if (!user || user.isAnonymous) {
     document.querySelector(".js-iniciar-admin")?.remove();
+    document.querySelector(".js-iniciar-apendice-b")?.remove();
     return;
   }
 
@@ -6128,25 +6129,46 @@ export async function verificarAdminEShowSidebar(user) {
 
     if (isAdmin) {
       const sidebarItems = document.querySelector(".nav-sidebar-items");
-      if (sidebarItems && !document.querySelector(".js-iniciar-admin")) {
-        const btnAdmin = document.createElement("button");
-        btnAdmin.className = "nav-sidebar-item nav-item--admin js-iniciar-admin";
-        btnAdmin.innerHTML = `
-          <span class="nav-icon">🛠️</span>
-          <span class="nav-label">
-            <span class="nav-title">Painel Admin</span>
-            <span class="nav-desc">Gerencie dados e vetores</span>
-          </span>
-        `;
+      if (sidebarItems) {
         const divider = sidebarItems.querySelector(".nav-divider");
-        if (divider) {
-          sidebarItems.insertBefore(btnAdmin, divider);
-        } else {
-          sidebarItems.appendChild(btnAdmin);
+        
+        if (!document.querySelector(".js-iniciar-admin")) {
+          const btnAdmin = document.createElement("button");
+          btnAdmin.className = "nav-sidebar-item nav-item--admin js-iniciar-admin";
+          btnAdmin.innerHTML = `
+            <span class="nav-icon">🛠️</span>
+            <span class="nav-label">
+              <span class="nav-title">Painel Admin</span>
+              <span class="nav-desc">Gerencie dados e vetores</span>
+            </span>
+          `;
+          if (divider) {
+            sidebarItems.insertBefore(btnAdmin, divider);
+          } else {
+            sidebarItems.appendChild(btnAdmin);
+          }
+        }
+
+        if (!document.querySelector(".js-iniciar-apendice-b")) {
+          const btnApendiceB = document.createElement("button");
+          btnApendiceB.className = "nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b";
+          btnApendiceB.innerHTML = `
+            <span class="nav-icon">🧪</span>
+            <span class="nav-label">
+              <span class="nav-title">Apêndice B</span>
+              <span class="nav-desc">Triagem do Gemma 4</span>
+            </span>
+          `;
+          if (divider) {
+            sidebarItems.insertBefore(btnApendiceB, divider);
+          } else {
+            sidebarItems.appendChild(btnApendiceB);
+          }
         }
       }
     } else {
       document.querySelector(".js-iniciar-admin")?.remove();
+      document.querySelector(".js-iniciar-apendice-b")?.remove();
     }
   } catch (error) {
     console.error("Erro ao verificar admin para sidebar:", error);
