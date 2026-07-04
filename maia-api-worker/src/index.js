@@ -105,6 +105,9 @@ export default {
 				case '/delete-pinecone-record':
 					return handlePineconeDelete(request, env);
 
+				case '/pinecone-clear-all':
+					return handlePineconeClearAll(request, env);
+
 				case '/manual-upload':
 					return handleManualUpload(request, env);
 
@@ -737,6 +740,28 @@ async function handlePineconeDelete(request, env) {
 	try {
 		await executePineconeDelete(slug, env);
 		return new Response(JSON.stringify({ success: true, message: `Deleted ${slug} from Pinecone` }), {
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	} catch (error) {
+		return new Response(JSON.stringify({ error: error.message }), {
+			status: 500,
+			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+		});
+	}
+}
+
+/**
+ * SERVICE: CLEAR ALL PINECONE VECTORS
+ * Clears all vectors in a namespace for the given target index
+ */
+async function handlePineconeClearAll(request, env) {
+	try {
+		const body = await request.json();
+		const { target } = body || {};
+
+		await executePineconeClearAll(target || 'default', env);
+
+		return new Response(JSON.stringify({ success: true, message: `Cleared all vectors for target: ${target || 'default'}` }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	} catch (error) {
@@ -1621,6 +1646,74 @@ async function executePineconeDeleteById(pineconeId, env) {
 	}
 
 	return await response.json();
+}
+
+/**
+ * HELPER: Clear all vectors from Pinecone for a given target index
+ */
+async function executePineconeClearAll(target, env) {
+	const hostsToClear = [];
+	
+	if (target === 'filter') {
+		if (env.PINECONE_HOST_FILTER) {
+			hostsToClear.push(env.PINECONE_HOST_FILTER);
+		} else {
+			throw new Error('PINECONE_HOST_FILTER is not configured! Cannot clear filter index.');
+		}
+	} else if (target === 'maia-memory') {
+		if (env.PINECONE_HOST_MEMORY) {
+			hostsToClear.push(env.PINECONE_HOST_MEMORY);
+		} else {
+			throw new Error('PINECONE_HOST_MEMORY is not configured! Cannot clear memory index.');
+		}
+	} else {
+		// Clear both PINECONE_HOST and PINECONE_HOST_DEEP_SEARCH if defined
+		if (env.PINECONE_HOST) {
+			hostsToClear.push(env.PINECONE_HOST);
+		}
+		if (env.PINECONE_HOST_DEEP_SEARCH && !hostsToClear.includes(env.PINECONE_HOST_DEEP_SEARCH)) {
+			hostsToClear.push(env.PINECONE_HOST_DEEP_SEARCH);
+		}
+		if (hostsToClear.length === 0) {
+			throw new Error('No Pinecone hosts configured for target default.');
+		}
+	}
+
+	const apiKey = env.PINECONE_API_KEY;
+	if (!apiKey) {
+		throw new Error('PINECONE_API_KEY is not configured.');
+	}
+
+	const errors = [];
+	for (const host of hostsToClear) {
+		try {
+			const endpoint = `${host}/vectors/delete`;
+			const response = await fetch(endpoint, {
+				method: 'POST',
+				headers: {
+					'Api-Key': apiKey,
+					'Content-Type': 'application/json',
+					'X-Pinecone-API-Version': '2024-07',
+				},
+				body: JSON.stringify({
+					deleteAll: true,
+				}),
+			});
+
+			if (!response.ok) {
+				const txt = await response.text();
+				errors.push(`Host ${host} error: ${txt}`);
+			}
+		} catch (e) {
+			errors.push(`Host ${host} failed: ${e.message}`);
+		}
+	}
+
+	if (errors.length > 0) {
+		throw new Error(`Failed to clear some Pinecone hosts: ${errors.join(' | ')}`);
+	}
+
+	return { success: true };
 }
 
 /**

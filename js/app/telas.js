@@ -17,7 +17,7 @@ import {
 } from "../chat/metodologias-config.js";
 import { ScaffoldingService } from "../chat/services/scaffolding-service.js"; // Import ScaffoldingService
 import { renderLatexIn } from "../libs/loader";
-import { auth, bancoState, logoutUser, onAuthStateChanged } from "../main.js";
+import { auth, db, bancoState, logoutUser, onAuthStateChanged } from "../main.js";
 import { generateChatHtmlString } from "../render/ChatRender";
 import { hydrateAllChatContent } from "../render/hydration.js";
 import { findBestQuestion } from "../services/question-service.js";
@@ -1265,6 +1265,7 @@ function renderInitialUI() {
  */
 export function gerarTelaInicial() {
   renderInitialUI();
+  verificarAdminEShowSidebar(auth.currentUser);
 
   // 1. Initial Local Cleanup (Always runs) - Forced Update
   ChatStorageService.cleanupExpired();
@@ -1275,6 +1276,7 @@ export function gerarTelaInicial() {
     onAuthStateChanged(auth, (user) => {
       window.isAuthFirstResolved = true;
       renderUserButton(user);
+      verificarAdminEShowSidebar(user);
 
       if (user && !user.isAnonymous) {
         // 2. Sync Logic when Logged In (Real User)
@@ -1291,6 +1293,7 @@ export function gerarTelaInicial() {
     // Custom Event for manual updates (e.g. after linking account)
     window.addEventListener("auth-changed", () => {
       renderUserButton(auth.currentUser);
+      verificarAdminEShowSidebar(auth.currentUser);
     });
 
     window.__globalListenersAttached = true;
@@ -6106,4 +6109,46 @@ function renderFileAttachment(file) {
             </div>
         </div>
     `;
+}
+
+/**
+ * Verifica se o usuário atual é admin e exibe o botão do painel administrativo no sidebar
+ */
+export async function verificarAdminEShowSidebar(user) {
+  if (!user || user.isAnonymous) {
+    document.querySelector(".js-iniciar-admin")?.remove();
+    return;
+  }
+
+  try {
+    const { ref, get } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+    const adminRef = ref(db, `admins/${user.uid}`);
+    const snapshot = await get(adminRef);
+    const isAdmin = snapshot.exists() && snapshot.val() === true;
+
+    if (isAdmin) {
+      const sidebarItems = document.querySelector(".nav-sidebar-items");
+      if (sidebarItems && !document.querySelector(".js-iniciar-admin")) {
+        const btnAdmin = document.createElement("button");
+        btnAdmin.className = "nav-sidebar-item nav-item--admin js-iniciar-admin";
+        btnAdmin.innerHTML = `
+          <span class="nav-icon">🛠️</span>
+          <span class="nav-label">
+            <span class="nav-title">Painel Admin</span>
+            <span class="nav-desc">Gerencie dados e vetores</span>
+          </span>
+        `;
+        const divider = sidebarItems.querySelector(".nav-divider");
+        if (divider) {
+          sidebarItems.insertBefore(btnAdmin, divider);
+        } else {
+          sidebarItems.appendChild(btnAdmin);
+        }
+      }
+    } else {
+      document.querySelector(".js-iniciar-admin")?.remove();
+    }
+  } catch (error) {
+    console.error("Erro ao verificar admin para sidebar:", error);
+  }
 }

@@ -367,6 +367,15 @@ export async function upsertPineconeWorker(
 }
 
 /**
+ * Limpa todos os vetores no Pinecone para um determinado target index
+ * @param {string} target - 'default', 'filter' ou 'maia-memory'
+ * @returns {Promise<any>}
+ */
+export async function clearAllPineconeVectors(target = "default") {
+  return await callWorker("/pinecone-clear-all", { target });
+}
+
+/**
  * Consulta Pinecone via Worker
  * @param {Array} vector - Vetor de consulta
  * @param {number} topK - Número de resultados

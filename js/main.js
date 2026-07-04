@@ -341,6 +341,15 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASO 9.0: Iniciar Modo Admin ---
+    const gatilhoAdmin = e.target.closest(".js-iniciar-admin");
+    if (gatilhoAdmin) {
+      import("./ui/admin-panel.js").then(({ iniciarModoAdmin }) => {
+        iniciarModoAdmin();
+      });
+      return;
+    }
+
     // --- CASO 9.1: Iniciar Modo Simulados ---
     const gatilhoSimulados = e.target.closest(".js-iniciar-simulados");
     if (gatilhoSimulados) {
