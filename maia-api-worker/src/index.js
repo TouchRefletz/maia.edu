@@ -943,6 +943,7 @@ async function handleGeminiGenerate(request, env) {
 		chatMode = false,
 		history = [],
 		systemInstruction,
+		generationConfig,
 	} = body;
 
 	let finalHistory = history || [];
@@ -1064,6 +1065,8 @@ async function handleGeminiGenerate(request, env) {
 					responseMimeType: jsonMode ? 'application/json' : undefined,
 					responseJsonSchema: jsonMode ? schema || undefined : undefined,
 					safetySettings,
+					maxOutputTokens: jsonMode ? 8192 : undefined,
+					...generationConfig,
 				};
 
 				if (chatMode) {

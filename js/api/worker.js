@@ -232,19 +232,29 @@ export async function gerarConteudoEmJSONComImagemStream(
                 throw new Error("RECITATION_ERROR");
               }
 
-              // Tratamento de Rate Limit / Sobrecarga
-              if (
-                msg.code === "ALL_MODELS_FAILED" ||
+              // Tratamento de Rate Limit / Sobrecarga / Falha Geral
+              const isRateLimit =
                 msg.status === 429 ||
-                msg.status === 503
-              ) {
+                msg.status === 503 ||
+                (msg.code === "ALL_MODELS_FAILED" &&
+                  /rate|limit|quota|exhausted|429/i.test(msg.message || ""));
+
+              if (isRateLimit) {
                 console.error(
-                  "⚠️ Worker Error:",
+                  "⚠️ Worker Rate Limit/Outage:",
                   msg.code,
                   msg.message,
                   msg.attempts,
                 );
                 throw new Error("RATE_LIMIT_ERROR");
+              } else if (msg.code === "ALL_MODELS_FAILED") {
+                console.error(
+                  "⚠️ Worker Model Execution Failed:",
+                  msg.code,
+                  msg.message,
+                  msg.attempts,
+                );
+                throw new Error(`WORKER_RUN_FAILED: ${msg.message || "Unknown error"}`);
               }
 
               console.error("Erro do worker stream:", msg.text);
@@ -303,17 +313,26 @@ export async function gerarConteudoEmJSONComImagemStream(
       if (error.message === "RECITATION_ERROR") throw error;
       if (error.message === "RATE_LIMIT_ERROR") throw error;
 
-      if (error.message === "EMPTY_RESPONSE_ERROR") {
+      // Classifica se o erro é temporário/elegível para nova tentativa (incluindo falha de modelo e rede)
+      const isRetryable =
+        error.message === "EMPTY_RESPONSE_ERROR" ||
+        error.message.startsWith("WORKER_RUN_FAILED") ||
+        (error.name === "TypeError" && error.message.includes("Failed to fetch")) ||
+        error.message === "NETWORK_ERROR";
+
+      if (isRetryable) {
         if (attempt < MAX_RETRIES) {
           console.warn(
-            `[Worker] EMPTY_RESPONSE_ERROR detectado (Tentativa ${attempt}/${MAX_RETRIES}). Ignorando resultado e tentando novamente...`,
+            `[Worker] Erro temporário detectado (${error.message}) na tentativa ${attempt}/${MAX_RETRIES}. Tentando novamente em ${attempt}s...`,
           );
-          continue; // Tenta novamente
+          // Aguarda com delay incremental (1s, 2s, etc)
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+          continue;
         }
       }
 
-      // Se esgotou tentativas ou é outro erro irrelevante para retry automático
-      if (error.message === "EMPTY_RESPONSE_ERROR") throw error; // Re-throw para o caller lidar se falhar 3x
+      // Se esgotou as tentativas ou o erro não é elegível para retry
+      if (error.message === "EMPTY_RESPONSE_ERROR") throw error;
 
       // Detecção de erro de rede
       if (
