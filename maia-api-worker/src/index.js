@@ -1740,6 +1740,7 @@ async function handleManualUpload(request, env) {
 		const confirmOverride = formData.get('confirm_override') === 'true';
 		const inputVisualHash = formData.get('visual_hash');
 		const inputVisualHashGab = formData.get('visual_hash_gabarito');
+		const slugCodinome = formData.get('slug_codinome');
 
 		if ((!fileProva && !confirmOverride) || !title) {
 			return new Response(JSON.stringify({ error: 'Prova and Title are required' }), {
@@ -1903,37 +1904,96 @@ async function handleManualUpload(request, env) {
 			}
 		};
 
-		// EXECUTE PARALLEL (Just AI now)
-		const [aiData] = await Promise.all([aiTask()]);
-
-		console.log('[Manual Upload] AI Data:', aiData);
-
-		// 2. Generate/Validate Slug
-		// Use Centralized Service with General Title
-		const generalTitle = aiData.formatted_title_general || title;
-		let slug = '';
-		try {
-			const slugReq = new Request('http://internal/canonical-slug', {
-				method: 'POST',
-				body: JSON.stringify({ query: generalTitle }),
-			});
-			const slugRes = await handleCanonicalSlug(slugReq, env);
-			if (slugRes.ok) {
-				const sData = await slugRes.json();
-				slug = sData.slug;
-				console.log(`[Manual Upload] Slug generated: ${slug}`);
-			}
-		} catch (e) {
-			console.warn('[Manual Upload] Slug service failed:', e);
+		// 2. Determine/Generate Slug
+		let slug = slugCodinome ? slugCodinome.trim() : '';
+		if (slug === 'auto-detect') {
+			slug = '';
 		}
 
-		// Fallback only if AI returns empty
+		let aiData = null;
+		let foundProva = false;
+		let foundGab = false;
+		let remoteManifest = null;
+		let manifestExists = false;
+
+		// Proactively check if manifest already exists to reuse its metadata
+		if (slug) {
+			try {
+				const hfManifestUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`;
+				const hfCheck = await fetch(hfManifestUrl);
+				if (hfCheck.status === 200) {
+					remoteManifest = await hfCheck.json();
+					manifestExists = true;
+					console.log(`[Manual Upload] Existing manifest found for slug: ${slug}`);
+				}
+			} catch (e) {
+				console.warn(`[Manual Upload] Failed to check/fetch manifest for slug ${slug}:`, e);
+			}
+		}
+
+		// Retrieve metadata (aiData) from the manifest if it exists
+		if (manifestExists && remoteManifest) {
+			const items = Array.isArray(remoteManifest) ? remoteManifest : remoteManifest.results || remoteManifest.files || [];
+			const firstItem = items[0];
+			if (firstItem) {
+				aiData = {
+					institution: firstItem.instituicao || firstItem.institution || 'Desconhecida',
+					year: (firstItem.ano || firstItem.year || new Date().getFullYear()).toString(),
+					phase: firstItem.fase || firstItem.phase || 'Única',
+					summary: firstItem.summary || 'Recuperado do manifesto existente.',
+					formatted_title_general: firstItem.nome || firstItem.friendly_name || firstItem.name || slug,
+					formatted_title_prova: firstItem.nome || firstItem.friendly_name || firstItem.name || slug,
+				};
+				console.log('[Manual Upload] Reused aiData from existing manifest:', aiData);
+			}
+		}
+
+		// Run AI task to extract metadata if we don't have it yet
+		if (!aiData) {
+			if (fileProva) {
+				aiData = await aiTask();
+			} else {
+				aiData = {
+					institution: 'Desconhecida',
+					year: new Date().getFullYear().toString(),
+					phase: 'Única',
+					summary: 'No file provided for AI analysis.',
+					formatted_title_general: title && title !== 'Auto-Detect' ? title : (slug || 'Auto-Detect'),
+				};
+			}
+			console.log('[Manual Upload] AI Data generated/fallback:', aiData);
+		}
+
+		// If slug was not provided/empty, generate it using the canonical slug service
 		if (!slug) {
-			slug = title
-				.toLowerCase()
-				.trim()
-				.replace(/[\s_]+/g, '-')
-				.replace(/[^a-z0-9-]/g, '');
+			const generalTitle = aiData.formatted_title_general || title;
+			try {
+				const slugReq = new Request('http://internal/canonical-slug', {
+					method: 'POST',
+					body: JSON.stringify({ query: generalTitle }),
+				});
+				const slugRes = await handleCanonicalSlug(slugReq, env);
+				if (slugRes.ok) {
+					const sData = await slugRes.json();
+					slug = sData.slug;
+					console.log(`[Manual Upload] Slug generated: ${slug}`);
+				}
+			} catch (e) {
+				console.warn('[Manual Upload] Slug service failed:', e);
+			}
+
+			// Fallback if canonical service failed
+			if (!slug) {
+				slug = title
+					.toLowerCase()
+					.trim()
+					.replace(/[\s_]+/g, '-')
+					.replace(/[^a-z0-9-]/g, '');
+			}
+		}
+
+		if (!slug || slug === 'auto-detect') {
+			slug = 'temp-slug'; // Safe guard
 		}
 
 		// SANITIZE & FORCE
@@ -1945,7 +2005,6 @@ async function handleManualUpload(request, env) {
 		console.log(`[Worker] CustomNames: PDF="${pdfCustomName}", GAB="${gabCustomName}"`);
 
 		// 1. PHYSICAL FILENAME (Storage) - Priority: Custom > Original
-		// We want SAFE filenames for the filesystem (no spaces/weird chars logic handled by user input or assumed safe from source)
 		const sanitize = (n) => (n ? n.replace(/[^a-zA-Z0-9.-]/g, '_') : n);
 		const pdfPhysicalName = sanitize(pdfCustomName || (fileProva && fileProva.name ? fileProva.name : 'FALLBACK_ERROR_PDF.pdf'));
 
@@ -1963,91 +2022,82 @@ async function handleManualUpload(request, env) {
 		let gabFinalPhysicalName = gabPhysicalName;
 		let gabDisplayName = aiData.formatted_title_gabarito || (gabPhysicalName ? gabPhysicalName.replace(/\.pdf$/i, '') : '');
 
-		let foundProva = false;
-		let foundGab = false;
 		let gabUrlToDispatch = formData.get('gabarito_url_override') || gabUrl;
 
-		if (!confirmOverride) {
+		// Determine if a gabarito is actually provided or referenced
+		const hasGabarito = !!fileGabarito || !!inputVisualHashGab || !!gabUrlToDispatch;
+
+		if (!confirmOverride && manifestExists && remoteManifest) {
 			try {
-				const hfManifestUrl = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`;
-				const hfCheck = await fetch(hfManifestUrl, { method: 'HEAD' });
+				const items = Array.isArray(remoteManifest) ? remoteManifest : remoteManifest.results || remoteManifest.files || [];
 
-				if (hfCheck.status === 200) {
-					// Conflict found! Fetch the full manifest to check granularly
-					const fullManifestRes = await fetch(hfManifestUrl);
-					const remoteManifest = await fullManifestRes.json();
-					const items = Array.isArray(remoteManifest) ? remoteManifest : remoteManifest.results || remoteManifest.files || [];
+				// --- CHECK PROVA ---
+				if (inputVisualHash) {
+					const match = items.find((item) => item.visual_hash === inputVisualHash);
+					if (match) {
+						console.log(`[Worker] Dedup: Prova found (${match.filename}). Skipping upload.`);
+						foundProva = true;
+						pdfUrlToDispatch = null;
 
-					// --- CHECK PROVA ---
-					if (inputVisualHash) {
-						const match = items.find((item) => item.visual_hash === inputVisualHash);
-						if (match) {
-							console.log(`[Worker] Dedup: Prova found (${match.filename}). Skipping upload.`);
-							foundProva = true;
-							// Hosted file exists. We send NULL to Action so it skips download/overwrite.
-							pdfUrlToDispatch = null;
-
-							const fname = match.filename || match.path;
-							if (fname) {
-								pdfFinalPhysicalName = fname; // PRESERVE EXISTING PHYSICAL NAME
-							}
+						const fname = match.filename || match.path;
+						if (fname) {
+							pdfFinalPhysicalName = fname; // PRESERVE EXISTING PHYSICAL NAME
 						}
 					}
-
-					// --- CHECK GABARITO ---
-					if (inputVisualHashGab) {
-						const matchGab = items.find((item) => item.visual_hash === inputVisualHashGab);
-						if (matchGab) {
-							console.log(`[Worker] Dedup: Gabarito found (${matchGab.filename}). Skipping upload.`);
-							foundGab = true;
-							// Hosted file exists. We send NULL to Action so it skips download/overwrite.
-							gabUrlToDispatch = null;
-
-							const fname = matchGab.filename || matchGab.path;
-							if (fname) {
-								gabFinalPhysicalName = fname; // PRESERVE EXISTING PHYSICAL NAME
-							}
-						}
-					}
-
-					// LOGIC: If all required files (Prova and/or Gabarito) are already found in the manifest,
-					// we return success immediately.
-					const provaSatisfied = !fileProva || foundProva;
-
-					if (provaSatisfied) {
-						return new Response(
-							JSON.stringify({
-								success: true,
-								slug,
-								message: 'Arquivo(s) já existente(s) encontrado(s) (Smart Deduplication).',
-								ai_data: aiData,
-								// For preview, we reconstruct the hosted URL because dispatch was null
-								hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${pdfFinalPhysicalName}`,
-								hf_url_gabarito: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gabFinalPhysicalName}`,
-								is_deduplicated: true,
-								dedup_status: {
-									prova: foundProva ? 'hosted' : 'new',
-									gabarito: foundGab ? 'hosted' : 'new',
-								},
-							}),
-							{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-						);
-					}
-
-					// If partial, we proceed to dispatch. The found ones have URLs=null, new ones have tmpfiles URLs.
-					const partialMsg = `[Worker] Partial deduplication: Prova=${foundProva ? 'Hosted' : 'New'}, Gab=${foundGab ? 'Hosted' : 'New'}. Dispatching hybrid request.`;
-					console.log(partialMsg);
 				}
+
+				// --- CHECK GABARITO ---
+				if (inputVisualHashGab && hasGabarito) {
+					const matchGab = items.find((item) => item.visual_hash === inputVisualHashGab);
+					if (matchGab) {
+						console.log(`[Worker] Dedup: Gabarito found (${matchGab.filename}). Skipping upload.`);
+						foundGab = true;
+						gabUrlToDispatch = null;
+
+						const fname = matchGab.filename || matchGab.path;
+						if (fname) {
+							gabFinalPhysicalName = fname; // PRESERVE EXISTING PHYSICAL NAME
+						}
+					}
+				}
+
+				// LOGIC: If all required files (Prova and/or Gabarito) are already found in the manifest,
+				// we return success immediately.
+				const provaSatisfied = !fileProva || foundProva;
+
+				if (provaSatisfied) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							slug,
+							message: 'Arquivo(s) já existente(s) encontrado(s) (Smart Deduplication).',
+							ai_data: aiData,
+							hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${pdfFinalPhysicalName}`,
+							hf_url_gabarito: hasGabarito ? `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gabFinalPhysicalName}` : null,
+							is_deduplicated: true,
+							dedup_status: {
+								prova: foundProva ? 'hosted' : 'new',
+								gabarito: hasGabarito ? (foundGab ? 'hosted' : 'new') : null,
+							},
+						}),
+						{ headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+					);
+				}
+
+				// If partial, we proceed to dispatch. The found ones have URLs=null, new ones have tmpfiles URLs.
+				const partialMsg = `[Worker] Partial deduplication: Prova=${foundProva ? 'Hosted' : 'New'}, Gab=${foundGab ? 'Hosted' : 'New'}. Dispatching hybrid request.`;
+				console.log(partialMsg);
 			} catch (e) {
-				console.warn('HF Check failed, assuming new.', e);
+				console.warn('HF Check failed, proceeding.', e);
 			}
-		} else {
+		}
+
+		if (!manifestExists) {
 			// 3b. NEW SLUG (Manual Upload Indexing)
 			try {
 				console.log(`[Worker] New slug detected: ${slug}. Indexing to Pinecone...`);
 
 				// Generate Embedding for the SLUG (Canonical representation)
-				// Similar to deep-search, we embed the slug/title concept
 				const embeddingText = slug.replace(/-/g, ' ');
 				const embedding = await generateEmbedding(embeddingText, env.GOOGLE_GENAI_API_KEY);
 
@@ -2057,12 +2107,12 @@ async function handleManualUpload(request, env) {
 					metadata: {
 						slug: slug,
 						institution: aiData.institution,
-						year: aiData.year ? parseInt(aiData.year) : new Date().getFullYear(), // Ensure number if possible, or keep string if inconsistent
-						file_count: 2, // Initial count (Probe + Gabarito)
+						year: aiData.year ? parseInt(aiData.year) : new Date().getFullYear(),
+						file_count: 2,
 						type: 'manual-upload-result',
 						source: 'manual-upload',
-						query: slug.replace(/-/g, ' '), // Approximate query equivalent
-						original_query: title, // User provided title
+						query: slug.replace(/-/g, ' '),
+						original_query: title,
 						updated_at: new Date().toISOString(),
 					},
 				};
@@ -2097,13 +2147,11 @@ async function handleManualUpload(request, env) {
 				event_type: 'manual-upload',
 				client_payload: {
 					slug,
-					// Legacy/Ignored by workflow but kept for schema validity if strictly typed somewhere
 					pdf_url: 'LEGACY_IGNORED',
 					gabarito_url: 'LEGACY_IGNORED',
 
-					title: generalTitle,
+					title: aiData.formatted_title_general || title,
 
-					// Critical Data for Manifest Update
 					source_url_prova: sourceUrlProva || '',
 					source_url_gabarito: sourceUrlGabarito || '',
 					visual_hash: inputVisualHash || '',
@@ -2115,15 +2163,13 @@ async function handleManualUpload(request, env) {
 						phase: aiData.phase,
 						summary: aiData.summary,
 
-						// Pass Source URLs in metadata too for redundancy
 						source_url_prova: sourceUrlProva || '',
 						source_url_gabarito: sourceUrlGabarito || '',
 
-						// Filenames and Display Names for Manifest
 						pdf_filename: pdfFinalPhysicalName,
-						gabarito_filename: gabFinalPhysicalName,
+						gabarito_filename: hasGabarito ? gabFinalPhysicalName : '',
 						pdf_display_name: pdfDisplayName,
-						gabarito_display_name: gabDisplayName,
+						gabarito_display_name: hasGabarito ? gabDisplayName : '',
 					},
 				},
 			}),
@@ -2133,7 +2179,7 @@ async function handleManualUpload(request, env) {
 			const txt = await ghRes.text();
 			console.error(`GitHub Dispatch Failed: ${ghRes.status} - ${txt}`);
 			return new Response(JSON.stringify({ error: `GitHub Dispatch Failed: ${txt}` }), {
-				status: 500, // or 503
+				status: 500,
 				headers: corsHeaders,
 			});
 		}
@@ -2145,14 +2191,12 @@ async function handleManualUpload(request, env) {
 				slug,
 				message: 'Upload started. Monitoring progress...',
 				ai_data: aiData,
-				// We predict the final URL but frontend should wait for Pusher 'Cloud sync complete!'
-				// or use this as optimistic preview if dedup happened.
 				hf_url_preview: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${pdfFinalPhysicalName}`,
-				hf_url_gabarito: `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gabFinalPhysicalName}`,
+				hf_url_gabarito: hasGabarito ? `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/files/${gabFinalPhysicalName}` : null,
 				should_monitor: true,
 				dedup_status: {
 					prova: foundProva ? 'hosted' : 'new',
-					gabarito: foundGab ? 'hosted' : 'new',
+					gabarito: hasGabarito ? (foundGab ? 'hosted' : 'new') : null,
 				},
 			}),
 			{
