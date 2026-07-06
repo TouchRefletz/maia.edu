@@ -32,7 +32,7 @@ export const ScannerUI = {
       // Header só mostra status - controles ficam no floating
       header.innerHTML = `
         <div class="maia-thoughts-title-group">
-            <img src="/public/logo.png" class="maia-thought-header-logo" alt="Maia" />
+            <img src="/logo.png" class="maia-thought-header-logo" alt="Maia" />
             <span id="ai-header-title">Extrair com IA</span>
         </div>
       `;

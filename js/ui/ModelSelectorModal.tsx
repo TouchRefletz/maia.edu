@@ -522,9 +522,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   // Group models by category, filtering for search if active
   const categories: { [key: string]: typeof IA_MODELS } = {};
   IA_MODELS.forEach((model) => {
-    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e GPT-OSS 120b
+    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini
     const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
-    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'groq/gpt-oss-120b') {
+    if (isSearchActiveTab && !model.id.startsWith('models/gemini-')) {
       return;
     }
     if (!categories[model.category]) {

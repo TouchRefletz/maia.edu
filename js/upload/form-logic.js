@@ -422,7 +422,7 @@ export function setupFormLogic(elements, initialData) {
 
         let skipUpload = false;
         let uploadProva = true;
-        let uploadGabarito = true;
+        let uploadGabarito = false;
         let targetSlug = null;
         let aiDataFromManifest = null;
         let remoteUrlProva = null;
@@ -905,7 +905,7 @@ export function setupFormLogic(elements, initialData) {
                 method: "POST",
                 body: JSON.stringify({
                   texto: prompt,
-                  model: "models/gemini-flash-latest", // Fast model
+                  model: "models/gemma-4-31b-it", // Use Gemma for verification
                   schema: {
                     type: "OBJECT",
                     properties: {

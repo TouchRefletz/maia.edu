@@ -1736,6 +1736,7 @@ async function handleManualUpload(request, env) {
 
 		const confirmOverride = formData.get('confirm_override') === 'true';
 		const inputVisualHash = formData.get('visual_hash');
+		const inputVisualHashGab = formData.get('visual_hash_gabarito');
 
 		if ((!fileProva && !confirmOverride) || !title) {
 			return new Response(JSON.stringify({ error: 'Prova and Title are required' }), {
@@ -1954,7 +1955,14 @@ async function handleManualUpload(request, env) {
 		// The "Final Name" for metadata starts as our physical target, but may be overwritten if dedup finds a hosted file.
 		let pdfFinalPhysicalName = pdfPhysicalName;
 
+		const fileGabarito = formData.get('fileGabarito');
+		const gabPhysicalName = sanitize(gabCustomName || (fileGabarito && fileGabarito.name ? fileGabarito.name : ''));
+		let gabFinalPhysicalName = gabPhysicalName;
+		let gabDisplayName = aiData.formatted_title_gabarito || (gabPhysicalName ? gabPhysicalName.replace(/\.pdf$/i, '') : '');
+
 		let foundProva = false;
+		let foundGab = false;
+		let gabUrlToDispatch = formData.get('gabarito_url_override') || gabUrl;
 
 		if (!confirmOverride) {
 			try {
