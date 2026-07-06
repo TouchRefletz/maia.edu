@@ -33,7 +33,8 @@ export function getProxyPdfUrl(rawUrl) {
   if (
     cleanUrl.startsWith("blob:") ||
     cleanUrl.includes("localhost") ||
-    cleanUrl.includes("127.0.0.1")
+    cleanUrl.includes("127.0.0.1") ||
+    cleanUrl.includes("download.inep.gov.br")
   )
     return cleanUrl;
 

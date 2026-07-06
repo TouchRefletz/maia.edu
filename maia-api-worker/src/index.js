@@ -1330,6 +1330,18 @@ async function handleProxyPdf(request, env) {
 		console.warn('Proxy: Failed to decode URL:', targetUrl);
 	}
 
+	// SAFETY/WORKAROUND: Cloudflare edge cannot negotiate SSL handshake (525) with download.inep.gov.br.
+	// Since download.inep.gov.br supports CORS (Access-Control-Allow-Origin: *), redirect the browser to fetch it directly.
+	if (targetUrl.includes('download.inep.gov.br')) {
+		return new Response(null, {
+			status: 302,
+			headers: {
+				...corsHeaders,
+				'Location': targetUrl,
+			},
+		});
+	}
+
 	try {
 		let currentUrl = targetUrl;
 		let response = null;

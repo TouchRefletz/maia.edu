@@ -1,3 +1,5 @@
+import { getProxyPdfUrl } from "../api/worker.js";
+
 /**
  * Prepara o ambiente: configura worker, limpa tela anterior,
  * define estados globais, gera as URLs dos blobs e busca link original do manifesto.
@@ -96,19 +98,7 @@ export async function inicializarContextoViewer(args) {
   const getUrl = (fileOrUrl) => {
     if (!fileOrUrl) return null;
     if (typeof fileOrUrl === "string") {
-      // PROXY LOGIC: Se for URL externa (HuggingFace, etc), usa o proxy para evitar CORS/CORB
-      if (
-        fileOrUrl.startsWith("http") &&
-        !fileOrUrl.includes("localhost") &&
-        !fileOrUrl.includes("127.0.0.1") &&
-        !fileOrUrl.includes("/proxy-pdf")
-      ) {
-        const workerUrl =
-          "https://maia-api-worker.willian-campos-ismart.workers.dev";
-        const encodedTarget = encodeURIComponent(fileOrUrl);
-        return `${workerUrl}/proxy-pdf?url=${encodedTarget}`;
-      }
-      return fileOrUrl;
+      return getProxyPdfUrl(fileOrUrl);
     }
     return URL.createObjectURL(fileOrUrl);
   };

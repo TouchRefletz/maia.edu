@@ -4,6 +4,7 @@
  */
 
 import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { getProxyPdfUrl } from "../api/worker.js";
 
 // Helper para converter PDF crop para Data URL (Base64)
 // Helper para converter PDF crop para Data URL (Base64) com suporte a cache, crops específicos e fundo branco
@@ -92,17 +93,7 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
             const blob = await response.blob();
             arrayBuffer = await blob.arrayBuffer();
           } else {
-            let fetchUrl = url;
-            if (
-              url.startsWith("http") &&
-              !url.includes("localhost") &&
-              !url.includes("127.0.0.1")
-            ) {
-              const workerUrl =
-                import.meta.env?.VITE_WORKER_URL ||
-                "https://maia-api-worker.willian-campos-ismart.workers.dev";
-              fetchUrl = `${workerUrl}/proxy-pdf?url=${encodeURIComponent(url)}`;
-            }
+            const fetchUrl = getProxyPdfUrl(url);
             console.log("[PDFGenerator] Carregando PDF via fetch/proxy:", fetchUrl);
             const response = await fetch(fetchUrl);
             if (!response.ok) throw new Error(`Fetch HTTP ${response.status}`);

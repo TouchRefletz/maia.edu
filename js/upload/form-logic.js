@@ -1,5 +1,6 @@
 import { customAlert } from "../ui/GlobalAlertsLogic";
 import { gerarVisualizadorPDF } from "../viewer/events.js";
+import { getProxyPdfUrl } from "../api/worker.js";
 
 /**
  * Helper: Upload to TmpFiles.org
@@ -297,14 +298,8 @@ export function setupFormLogic(elements, initialData) {
 
       // Helper to Open Viewer (Reusable)
       const openViewer = (hfUrl, slug, aiData, hfUrlGabarito) => {
-        const WORKER_URL =
-          "https://maia-api-worker.willian-campos-ismart.workers.dev";
-        const proxyUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrl)}`;
-
-        let proxyGabUrl = null;
-        if (hfUrlGabarito) {
-          proxyGabUrl = `${WORKER_URL}/proxy-pdf?url=${encodeURIComponent(hfUrlGabarito)}`;
-        }
+        const proxyUrl = getProxyPdfUrl(hfUrl);
+        const proxyGabUrl = hfUrlGabarito ? getProxyPdfUrl(hfUrlGabarito) : null;
 
         gerarVisualizadorPDF({
           title:
