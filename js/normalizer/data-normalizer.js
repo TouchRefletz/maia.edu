@@ -74,7 +74,8 @@ Retorne APENAS o JSON estruturado.`;
       TERM_EXPANSION_SCHEMA,
       [], // no images
       "image/jpeg",
-      {} // no handlers
+      {}, // no handlers
+      { model: "models/gemma-4-31b-it" } // use Gemma 4 31B IT
     );
 
     if (result && result.variations && Array.isArray(result.variations)) {

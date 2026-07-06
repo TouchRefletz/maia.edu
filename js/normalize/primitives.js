@@ -95,8 +95,14 @@ export const safeMarkdown = (s) => {
   // Processa LaTeX inline antes do markdown para evitar crash com caracteres especiais
   decoded = processLatex(decoded);
 
-  // Se não tiver markdown (sem * nem _ nem ` nem # nem [), retorna safe (mas mantendo o latex processado)
-  if (!/[*_`#\[\]()]/.test(decoded)) {
+  // Verifica se o texto possui indícios de formatação markdown
+  const temMarkdown = /[*_`#\[\]()]/.test(decoded) || 
+                      /^([-+*])\s/m.test(decoded) || 
+                      /^(\d+)[.)]\s/m.test(decoded) || 
+                      /^>\s/m.test(decoded) || 
+                      /\|/.test(decoded);
+
+  if (!temMarkdown) {
     // Se só tiver latex (\(...\)), não precisa de markdown, mas precisamos garantir que o HTML escape funcione para o resto
     // Mas wait, safe() escapa < e >. Se o latex tiver < ou >, pode quebrar?
     // MathJax costuma lidar, mas idealmente não escapamos o conteúdo do LaTeX.
