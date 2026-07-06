@@ -13,6 +13,14 @@ export async function inicializarContextoViewer(args) {
   const uploadContainer = document.getElementById("pdfUploadContainer");
   if (uploadContainer) uploadContainer.remove();
 
+  // Resolve "Auto-Detect" titles to the slug to prevent displaying generic title and database name clashes
+  if (!args.rawTitle || args.rawTitle === 'Auto-Detect') {
+    args.rawTitle = args.slug || 'Auto-Detect';
+  }
+  if (!args.title || args.title === 'Auto-Detect') {
+    args.title = args.slug || 'Auto-Detect';
+  }
+
   // 3. Define Estado Global Inicial
   window.__viewerArgs = args;
 

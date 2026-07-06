@@ -412,8 +412,12 @@ function renderTabInnerContent(container, tab) {
         window.__ultimoGabaritoExtraido = tab.gabaritoResponse;
       }
 
-      import("../render/final/render-questao.js")
-        .then((mod) => {
+      // Garante que o renderizador e as bibliotecas KaTeX/Marked estejam carregadas ANTES de renderizar
+      Promise.all([
+        import("../render/final/render-questao.js"),
+        import("../libs/loader.tsx").then((m) => m.ensureLibsLoaded()),
+      ])
+        .then(([mod]) => {
           // [FIX] Passa o 3º argumento (aiThoughtsHtml) que a renderizarQuestaoFinal espera
           mod.renderizarQuestaoFinal(
             tab.response,

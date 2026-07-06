@@ -9,6 +9,7 @@ import { getProxyPdfUrl } from "../api/worker.js";
  */
 export async function gerarPreviewPDF(args) {
   const { rawTitle, fileProva } = args;
+  const displayTitle = (!rawTitle || rawTitle === 'Auto-Detect') ? (args.slug || 'Auto-Detect') : rawTitle;
 
   // 1. Limpa Viewer Antigo
   const existing = document.getElementById("previewModalContainer");
@@ -27,7 +28,7 @@ export async function gerarPreviewPDF(args) {
                     <img src="public/logo.png" alt="Logo" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='./logo.png'">
                 </div>
                 <div style="display:flex; flex-direction:column;">
-                    <span style="font-weight:600; font-size:1rem; color:var(--color-text);">${rawTitle}</span>
+                    <span style="font-weight:600; font-size:1rem; color:var(--color-text);">${displayTitle}</span>
                     <span style="font-size:0.8rem; color:var(--color-text-secondary); display:flex; gap:10px; align-items:center;">
                         Visualização Rápida
                     </span>
