@@ -16,6 +16,13 @@
   align-items: center;
 }
 
+.alt-row > .alt-content > .alt-estrutura > .markdown-content {
+  display: flex;
+  align-items: center;
+  margin: 0px;
+  padding: 5px;
+}
+
 .alt-letter {
   font-weight: 700;
   color: var(--color-primary);
