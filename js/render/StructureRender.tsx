@@ -90,12 +90,12 @@ const StructureTextBlock: React.FC<{
   // Re-executa sempre que o conteúdo renderizado mudar
   const mathRef = useMathRender([conteudoRenderizado]);
 
-  const criarMarkdown = (classeExtra: string) => (
+  const criarMarkdown = (classeExtra: string, htmlOverride?: string) => (
     <div
       ref={mathRef}
       className={`structure-block ${classeExtra} markdown-content ${className}`}
       data-raw={conteudoSafe}
-      dangerouslySetInnerHTML={{ __html: conteudoRenderizado }}
+      dangerouslySetInnerHTML={{ __html: htmlOverride ?? conteudoRenderizado }}
     />
   );
 
@@ -112,10 +112,19 @@ const StructureTextBlock: React.FC<{
       // Vou simplificar para usar criarMarkdown, já que safeMarkdown deve lidar com tabelas se for markdown padrão.
       // Mas para garantir compatibilidade com tabelas que podem não ser markdown padrão ou exigir processamento extra:
       return criarMarkdown('structure-tabela');
-    case 'lista':
-      // Para listas, garantimos que quebras de linha virem <br> se o markdown não pegar, 
-      // mas safeMarkdown já deve tratar isso.
-      return criarMarkdown('structure-lista');
+    case 'lista': {
+      // Converte cada linha em um <li> dentro de uma <ul>
+      // O editor armazena itens separados por \n ("um item por linha")
+      const linhas = conteudoRaw.split(/\n/).filter(l => l.trim().length > 0);
+      const listaHtml = '<ul>' + linhas.map(l => {
+        // Renderiza markdown inline mas remove <p> wrapper que marked.parse() adiciona
+        let itemHtml = safeMarkdown(l.trim());
+        // Strip outer <p>...</p> tags para evitar espaçamento extra dentro de <li>
+        itemHtml = itemHtml.replace(/^\s*<p>([\s\S]*?)<\/p>\s*$/, '$1');
+        return `<li>${itemHtml}</li>`;
+      }).join('') + '</ul>';
+      return criarMarkdown('structure-lista', listaHtml);
+    }
     case 'equacao': 
       // Equação explícita também precisa de render
       // eslint-disable-next-line react-hooks/rules-of-hooks

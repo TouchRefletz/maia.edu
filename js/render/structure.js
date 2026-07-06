@@ -49,8 +49,14 @@ export function renderizarBlocoTexto(tipo, conteudoRaw, conteudoSafe) {
       return criarMarkdown("structure-subtitulo");
     case "fonte":
       return criarMarkdown("structure-fonte");
-    case "lista":
-      return `<div class="structure-block structure-lista markdown-content" data-raw="${conteudoSafe}">${conteudoRaw}</div>`;
+    case "lista": {
+      const linhas = String(conteudoRaw || '').split(/\n/).filter(l => l.trim().length > 0);
+      const listaHtml = '<ul>' + linhas.map(l => {
+        const escaped = String(l.trim()).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<li>${escaped}</li>`;
+      }).join('') + '</ul>';
+      return `<div class="structure-block structure-lista markdown-content" data-raw="${conteudoSafe}">${listaHtml}</div>`;
+    }
     case "equacao":
       return `<div class="structure-block structure-equacao">\\[${conteudoRaw}\\]</div>`;
     case "codigo":
