@@ -448,7 +448,7 @@
 
 /* Ajuste para o markdown dentro do botão não quebrar o layout */
 .q-opt-content .structure-block {
-      margin-bottom: 5px;
+    margin-bottom: 0px;
     display: flex;
     align-items: center;
     padding: 8px 4px;
