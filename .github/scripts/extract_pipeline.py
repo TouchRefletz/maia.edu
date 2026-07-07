@@ -614,9 +614,9 @@ def search_gabarito(question_json: dict):
 
     query_text = f"Gabarito e resolução: {question_json.get('identificacao', '')} - {question_text[:500]}"
     
-    # Se o modelo de extração for Gemma ou outro que não suporta busca, usamos Gemini para busca
+    # Se o modelo de extração for Gemma (exceto gemma-4-31b-it) ou outro que não suporta busca, usamos Gemini para busca
     search_model = EXTRACT_MODEL
-    if "gemma" in EXTRACT_MODEL.lower() or not any(m in EXTRACT_MODEL.lower() for m in ("gemini", "flash", "lite")):
+    if ("gemma" in EXTRACT_MODEL.lower() and "gemma-4-31b-it" not in EXTRACT_MODEL.lower()) or not any(m in EXTRACT_MODEL.lower() for m in ("gemini", "flash", "lite", "gemma-4-31b-it")):
         search_model = "models/gemini-3.5-flash"
         print(f"      [Gabarito Search] Modelo '{EXTRACT_MODEL}' não suporta buscas. Usando '{search_model}' para o gabarito.")
 

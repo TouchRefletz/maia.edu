@@ -1099,7 +1099,7 @@ async function handleGeminiGenerate(request, env) {
 
 				let stream;
 				const config = {
-					...(thinking ? { thinkingConfig: { includeThoughts: true } } : {}),
+					...((thinking && (modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it')) ? { thinkingConfig: { includeThoughts: true } } : {}),
 					responseMimeType: jsonMode ? 'application/json' : undefined,
 					responseJsonSchema: jsonMode ? schema || undefined : undefined,
 					safetySettings,
@@ -1531,7 +1531,7 @@ async function handleGeminiSearch(request, env) {
 				const generationConfig = {
 					tools: [{ googleSearch: {} }],
 					safetySettings,
-					thinkingConfig: { includeThoughts: true }, // Enable thoughts
+					...((modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it') ? { thinkingConfig: { includeThoughts: true } } : {}),
 				};
 
 				if (schema) {

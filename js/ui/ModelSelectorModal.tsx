@@ -352,7 +352,7 @@ const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
     id: 'extractor_search',
     label: '5. Pesquisador (Gabarito)',
     icon: '🌐',
-    title: '🌐 Pesquisa Web (Apenas Gemini)',
+    title: '🌐 Pesquisa Web (Gemini / Gemma 4)',
     desc: 'Modelo encarregado de realizar buscas na Web para encontrar gabaritos e resoluções originais.'
   },
   {
@@ -522,9 +522,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   // Group models by category, filtering for search if active
   const categories: { [key: string]: typeof IA_MODELS } = {};
   IA_MODELS.forEach((model) => {
-    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini
+    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e Gemma 4 31B IT
     const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
-    if (isSearchActiveTab && !model.id.startsWith('models/gemini-')) {
+    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'models/gemma-4-31b-it') {
       return;
     }
     if (!categories[model.category]) {
