@@ -37,11 +37,11 @@ export async function obterImagemDoCropper() {
 }
 
 export async function restaurarVisualizacaoOriginal() {
-  // Remove o overlay e limpa a seleção
-  removeSelectionOverlay();
-
   // LIMPEZA DE RESTRIÇÃO DE PÁGINA (EMPTY STATE)
   CropperState.setPageConstraint(null);
+
+  // Define o grupo ativo como null para sair do modo de edição e desativar interação do overlay
+  CropperState.setActiveGroup(null);
 
   document.body.classList.remove("manual-crop-active");
   window.__isManualPageAdd = false;
@@ -95,20 +95,14 @@ export function cancelarRecorte() {
 
   // 1. Check for legacy slot-mode tag cleanup (Fallback) OR 'NOVO' tag
   if (activeGroup && activeGroup.tags) {
-    if (
-      activeGroup.tags.includes("NOVO") ||
-      activeGroup.tags.includes("manual") ||
-      activeGroup.tags.includes("slot-mode") // Ensure slot-mode is also deleted if not saved
-    ) {
+    // Apenas deleta se for um grupo NOVO (não concluído/salvo) ou se ficou completamente vazio
+    if (activeGroup.tags.includes("NOVO") || activeGroup.crops.length === 0) {
       CropperState.deleteGroup(activeGroup.id);
       console.log(
         `[CropperCore] Grupo temporário (${activeGroup.tags.join(
           ","
         )}) ${activeGroup.id} limpo ao cancelar.`
       );
-    } else if (activeGroup.crops.length === 0) {
-      // EDGE CASE: Created but Empty (Generic) - Delete it to prevent ghost groups
-      CropperState.deleteGroup(activeGroup.id);
     }
   }
 

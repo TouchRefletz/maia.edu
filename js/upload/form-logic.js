@@ -283,6 +283,7 @@ export function setupFormLogic(elements, initialData) {
                   gabaritoNaProva: false,
                   isManualLocal: true,
                   slug: "local-" + Date.now(),
+                  originalPdfUrl: document.getElementById("sourceUrlProva")?.value.trim() || null,
                 });
               }, 800);
             };
@@ -300,6 +301,7 @@ export function setupFormLogic(elements, initialData) {
       const openViewer = (hfUrl, slug, aiData, hfUrlGabarito) => {
         const proxyUrl = getProxyPdfUrl(hfUrl);
         const proxyGabUrl = hfUrlGabarito ? getProxyPdfUrl(hfUrlGabarito) : null;
+        const linkProva = document.getElementById("sourceUrlProva")?.value.trim();
 
         gerarVisualizadorPDF({
           title:
@@ -314,6 +316,7 @@ export function setupFormLogic(elements, initialData) {
           gabaritoNaProva: false,
           isManualLocal: false,
           slug: slug,
+          originalPdfUrl: linkProva || aiData?.source_url_prova || hfUrl || null,
         });
       };
 
@@ -1025,7 +1028,7 @@ export function setupFormLogic(elements, initialData) {
                 isManualLocal: true, // Força modo local
                 slug: targetSlug || "local-preview",
                 originalPdfUrl:
-                  remoteUrlProva || aiDataFromManifest?.source_url_prova,
+                  remoteUrlProva || linkProva || aiDataFromManifest?.source_url_prova || null,
               });
             }, 1000);
             return; // FIM DO PROCESSO
@@ -1281,7 +1284,7 @@ export function setupFormLogic(elements, initialData) {
             isManualLocal: true,
             slug: finalSlug,
             originalPdfUrl:
-              remoteUrlProva || aiDataFromManifest?.source_url_prova, // Garante que o contexto receba a URL oficial
+              remoteUrlProva || linkProva || data.hf_url_preview || aiDataFromManifest?.source_url_prova || null, // Garante que o contexto receba a URL oficial
           });
         }, 800);
 
@@ -1318,6 +1321,7 @@ export function setupFormLogic(elements, initialData) {
             gabaritoNaProva: false,
             isManualLocal: true,
             slug: "local-" + "error" + "-" + Date.now(),
+            originalPdfUrl: linkProva || null,
           });
         }, 500);
       }
