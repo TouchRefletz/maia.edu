@@ -241,6 +241,44 @@ async function handleSearchImage(request, env) {
 }
 
 /**
+ * Helper to check if there is a year mismatch between the user's query and a Pinecone match.
+ */
+function hasYearMismatch(query, match) {
+	const extractYears = (str) => {
+		if (!str) return [];
+		const normalized = str.replace(/[^0-9]/g, ' ');
+		return normalized.match(/\b(19\d{2}|20\d{2})\b/g) || [];
+	};
+
+	const queryYears = extractYears(query);
+	if (queryYears.length === 0) {
+		return false; // No year specified in the user query, so no mismatch possible
+	}
+
+	const matchYears = new Set();
+	if (match.metadata?.year) {
+		const parsedYear = String(match.metadata.year).trim();
+		const extracted = extractYears(parsedYear);
+		for (const y of extracted) matchYears.add(y);
+	}
+	if (match.metadata?.slug) {
+		const extracted = extractYears(match.metadata.slug);
+		for (const y of extracted) matchYears.add(y);
+	}
+	if (match.metadata?.query) {
+		const extracted = extractYears(match.metadata.query);
+		for (const y of extracted) matchYears.add(y);
+	}
+
+	if (matchYears.size === 0) {
+		return false; // Match has no year info, so no definitive mismatch
+	}
+
+	const hasIntersection = queryYears.some((y) => matchYears.has(y));
+	return !hasIntersection;
+}
+
+/**
  * SERVICE: TRIGGER DEEP SEARCH (GITHUB ACTIONS)
  */
 async function handleTriggerDeepSearch(request, env) {
@@ -286,10 +324,11 @@ async function handleTriggerDeepSearch(request, env) {
 				});
 
 				if (directResult?.matches?.length > 0) {
-					const bestMatch = directResult.matches[0];
+					const bestMatch = directResult.matches.find(
+						(m) => m.score > 0.75 && m.metadata?.slug && !hasYearMismatch(query, m)
+					);
 
-					// Se match razoável (> 75%), usa o slug do match (User request: "afrouxar pinecone")
-					if (bestMatch.score > 0.75 && bestMatch.metadata?.slug) {
+					if (bestMatch) {
 						canonicalSlug = bestMatch.metadata.slug;
 						reasoning = `Pinecone direct match (score: ${(bestMatch.score * 100).toFixed(1)}%)`;
 						searchMethod = 'pinecone-direct';
@@ -301,8 +340,7 @@ async function handleTriggerDeepSearch(request, env) {
 
 						// Pega candidatos similares
 						similarCandidates = directResult.matches
-							.slice(1)
-							.filter((m) => m.metadata && m.score > 0.75)
+							.filter((m) => m.metadata && m.score > 0.75 && m.metadata.slug !== canonicalSlug)
 							.map((m) => ({
 								slug: m.metadata.slug,
 								score: m.score,
@@ -313,8 +351,8 @@ async function handleTriggerDeepSearch(request, env) {
 								timestamp: m.metadata.updated_at,
 							}));
 					} else {
-						// Match fraco - guarda como candidatos
-						console.log(`[Deep Search] Match fraco (${bestMatch.score}), continuando para IA...`);
+						// Match fraco ou incompatível por ano - guarda como candidatos
+						console.log(`[Deep Search] Nenhum match forte e compatível por ano. Continuando para IA...`);
 						similarCandidates = directResult.matches
 							.filter((m) => m.metadata && m.score > 0.6)
 							.map((m) => ({
@@ -2415,8 +2453,10 @@ async function handleTriggerExtraction(request, env) {
 				});
 
 				if (result?.matches?.length > 0) {
-					const best = result.matches[0];
-					if (best.score > 0.75 && best.metadata?.slug) {
+					const best = result.matches.find(
+						(m) => m.score > 0.75 && m.metadata?.slug && !hasYearMismatch(query, m)
+					);
+					if (best) {
 						existingSlug = best.metadata.slug;
 						hasPdfs = true;
 						console.log(`[TriggerExtraction] Found existing PDFs: ${existingSlug} (score: ${best.score})`);
@@ -3476,3 +3516,5 @@ function mapOpenAIHistoryToGemini(history) {
 		return { role, parts };
 	});
 }
+
+export { hasYearMismatch };

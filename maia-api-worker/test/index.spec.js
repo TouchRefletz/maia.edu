@@ -1,41 +1,58 @@
-import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import worker from '../src';
+import { hasYearMismatch } from '../src';
 
-describe('Hello World user worker', () => {
-	describe('request for /message', () => {
-		it('/ responds with "Hello, World!" (unit style)', async () => {
-			const request = new Request('http://example.com/message');
-			// Create an empty context to pass to `worker.fetch()`.
-			const ctx = createExecutionContext();
-			const response = await worker.fetch(request, env, ctx);
-			// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
-			await waitOnExecutionContext(ctx);
-			expect(await response.text()).toMatchInlineSnapshot(`"Hello, World!"`);
-		});
-
-		it('responds with "Hello, World!" (integration style)', async () => {
-			const request = new Request('http://example.com/message');
-			const response = await SELF.fetch(request);
-			expect(await response.text()).toMatchInlineSnapshot(`"Hello, World!"`);
-		});
+describe('hasYearMismatch unit tests', () => {
+	it('returns true when there is a year mismatch between query and match metadata/slug/query', () => {
+		const query = '2020_pv_impresso_d1_cd1';
+		const match = {
+			metadata: {
+				slug: 'enem-2022-primeiro-dia-caderno-azul',
+				year: 2022,
+			},
+		};
+		expect(hasYearMismatch(query, match)).toBe(true);
 	});
 
-	describe('request for /random', () => {
-		it('/ responds with a random UUID (unit style)', async () => {
-			const request = new Request('http://example.com/random');
-			// Create an empty context to pass to `worker.fetch()`.
-			const ctx = createExecutionContext();
-			const response = await worker.fetch(request, env, ctx);
-			// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
-			await waitOnExecutionContext(ctx);
-			expect(await response.text()).toMatch(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/);
-		});
+	it('returns false when the years match', () => {
+		const query = '2020_pv_impresso_d1_cd1';
+		const match = {
+			metadata: {
+				slug: 'enem-2020-primeiro-dia-caderno-azul',
+				year: '2020',
+			},
+		};
+		expect(hasYearMismatch(query, match)).toBe(false);
+	});
 
-		it('responds with a random UUID (integration style)', async () => {
-			const request = new Request('http://example.com/random');
-			const response = await SELF.fetch(request);
-			expect(await response.text()).toMatch(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/);
-		});
+	it('returns false when the query does not specify a year', () => {
+		const query = 'enem primeiro dia caderno azul';
+		const match = {
+			metadata: {
+				slug: 'enem-2022-primeiro-dia-caderno-azul',
+				year: 2022,
+			},
+		};
+		expect(hasYearMismatch(query, match)).toBe(false);
+	});
+
+	it('returns false when the match metadata has no year information', () => {
+		const query = 'enem 2020';
+		const match = {
+			metadata: {
+				slug: 'enem-primeiro-dia',
+			},
+		};
+		expect(hasYearMismatch(query, match)).toBe(false);
+	});
+
+	it('correctly handles multiple years in query and allows matches with any of them', () => {
+		const query = 'enem 2020 ou 2021';
+		const match = {
+			metadata: {
+				slug: 'enem-2020',
+				year: 2020,
+			},
+		};
+		expect(hasYearMismatch(query, match)).toBe(false);
 	});
 });

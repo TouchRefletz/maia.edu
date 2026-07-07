@@ -711,12 +711,12 @@ export function setupFormLogic(elements, initialData) {
 
                 // Helper de busca no manifesto
                 const findInManifest = (hash, typeFilter) => {
-                  if (!hash) return null;
+                  if (!hash || hash === "null" || hash === "undefined") return null;
                   return manifestItems.find((item) => {
+                    const itemHash = item.visual_hash || item.hash;
+                    if (!itemHash || itemHash === "null" || itemHash === "undefined") return false;
                     // Verifica hash visual
-                    if (item.visual_hash === hash) return true;
-                    // Verifica nome do arquivo (fallback fraco, mas útil)
-                    // if (item.filename === ...) return true;
+                    if (itemHash === hash) return true;
                     return false;
                   });
                 };
