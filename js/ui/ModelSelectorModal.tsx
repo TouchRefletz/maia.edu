@@ -522,9 +522,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   // Group models by category, filtering for search if active
   const categories: { [key: string]: typeof IA_MODELS } = {};
   IA_MODELS.forEach((model) => {
-    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e Gemma 4 31B IT
+    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e Gemma 4 (31B / 26B)
     const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
-    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'models/gemma-4-31b-it') {
+    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'models/gemma-4-31b-it' && model.id !== 'models/gemma-4-26b-a4b-it') {
       return;
     }
     if (!categories[model.category]) {
