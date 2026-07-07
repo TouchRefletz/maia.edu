@@ -1099,7 +1099,12 @@ async function handleGeminiGenerate(request, env) {
 
 				let stream;
 				const config = {
-					...((thinking && (modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it')) ? { thinkingConfig: { includeThoughts: true } } : {}),
+					...((thinking && (modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it')) ? {
+						thinkingConfig: {
+							includeThoughts: true,
+							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
+						}
+					} : {}),
 					responseMimeType: jsonMode ? 'application/json' : undefined,
 					responseJsonSchema: jsonMode ? schema || undefined : undefined,
 					safetySettings,
@@ -1472,7 +1477,7 @@ async function handleGeminiSearch(request, env) {
 	});
 
 	// Modelos iniciais
-	const initialModels = model ? [model, ...DEFAULT_MODELS.filter((m) => m !== model)] : DEFAULT_MODELS;
+	const initialModels = model ? [model] : DEFAULT_MODELS;
 
 	// Fallbacks
 	const RECITATION_FALLBACKS = ['models/gemini-flash-latest', 'models/gemini-flash-lite-latest'];
@@ -1531,7 +1536,12 @@ async function handleGeminiSearch(request, env) {
 				const generationConfig = {
 					tools: [{ googleSearch: {} }],
 					safetySettings,
-					...((modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it') ? { thinkingConfig: { includeThoughts: true } } : {}),
+					...((modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it') ? {
+						thinkingConfig: {
+							includeThoughts: true,
+							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
+						}
+					} : {}),
 				};
 
 				if (schema) {
