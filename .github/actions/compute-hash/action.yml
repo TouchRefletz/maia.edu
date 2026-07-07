@@ -18,7 +18,7 @@ runs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: "20"
+        node-version: "22"
 
     - name: Install System Dependencies (Puppeteer)
       shell: bash
@@ -38,7 +38,7 @@ runs:
       run: |
         echo "Installing node dependencies..."
         # Using exact versions to match package.json to avoid surprises
-        npm install pdfjs-dist@3.11.174 puppeteer@24.34.0
+        npm install --omit=dev pdfjs-dist@3.11.174 puppeteer@24.34.0
 
     - name: Run Hash Computation
       id: compute

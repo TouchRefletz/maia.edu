@@ -28,6 +28,15 @@ jobs:
             exit 1
           fi
 
+          # Validate that the downloaded file is actually a PDF (not an HTML error page)
+          FILE_HEADER=$(head -c 5 temp_input.pdf)
+          if [ "$FILE_HEADER" != "%PDF-" ]; then
+            echo "::error::Downloaded file is not a valid PDF. Header: $FILE_HEADER"
+            echo "First 200 bytes of file:"
+            head -c 200 temp_input.pdf
+            exit 1
+          fi
+
       - name: Compute Hash (Composite Action)
         id: compute
         uses: ./.github/actions/compute-hash
