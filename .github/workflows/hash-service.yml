@@ -19,9 +19,23 @@ jobs:
 
       - name: Download File
         run: |
-          echo "Downloading file from: ${{ inputs.file_url }}"
-          # Use curl with a browser user-agent to bypass blocks on Wget
-          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o temp_input.pdf "${{ inputs.file_url }}"
+          FILE_URL="${{ inputs.file_url }}"
+          echo "Downloading file from: $FILE_URL"
+
+          # tmpfiles.org /dl/ URLs serve an HTML page, not the actual file.
+          # We need to scrape the real direct download link from that page.
+          if echo "$FILE_URL" | grep -q "tmpfiles.org"; then
+            echo "Detected tmpfiles.org URL, extracting direct download link..."
+            DIRECT_URL=$(curl -sL -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" "$FILE_URL" | grep -oP 'href="\K(https://tmpfiles\.org/dl/[^"]+\.pdf)')
+            if [ -z "$DIRECT_URL" ]; then
+              echo "::error::Could not extract direct download link from tmpfiles page."
+              exit 1
+            fi
+            echo "Direct URL: $DIRECT_URL"
+            FILE_URL="$DIRECT_URL"
+          fi
+
+          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o temp_input.pdf "$FILE_URL"
 
           if [ ! -s temp_input.pdf ]; then
             echo "::error::File download failed or empty."
