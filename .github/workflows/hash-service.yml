@@ -20,9 +20,8 @@ jobs:
       - name: Download File
         run: |
           echo "Downloading file from: ${{ inputs.file_url }}"
-          # Use a generic name 'temp_input.pdf' so the script path is predictable
-          # Or preserve name if possible? Let's use 'temp_input.pdf' for simplicity.
-          wget -O temp_input.pdf "${{ inputs.file_url }}"
+          # Use curl with a browser user-agent to bypass blocks on Wget
+          curl -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -o temp_input.pdf "${{ inputs.file_url }}"
 
           if [ ! -s temp_input.pdf ]; then
             echo "::error::File download failed or empty."

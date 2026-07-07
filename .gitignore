@@ -13,3 +13,4 @@ docs/.vitepress/cache
 __pycache__/
 *.pyc
 experiments/
+scratch/
