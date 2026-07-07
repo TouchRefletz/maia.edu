@@ -177,6 +177,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           chatMode: options.chatMode,
           history: options.history,
           systemInstruction: options.systemInstruction,
+          thinking: options.thinking !== undefined ? options.thinking : true,
         }),
       });
 
@@ -581,12 +582,18 @@ export async function realizarPesquisa(
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
+          console.log(msg);
+
+          if (msg.type === "meta" && msg.event === "attempt_start") {
+            handlers?.onStatus?.(`🤖 Modelo: ${msg.model}`);
+          }
 
           if (msg.type === "thought") {
             handlers?.onThought?.(msg.text);
           } else if (msg.type === "answer") {
             // No caso do Search, 'answer' é o texto do relatório
             reportText += msg.text;
+            handlers?.onStatus?.("🔎 Pesquisando e compilando relatório...");
           } else if (msg.type === "grounding") {
             groundingMetadata = msg.metadata;
           } else if (msg.type === "error") {
