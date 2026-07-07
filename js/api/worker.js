@@ -275,6 +275,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           } catch (e) {
             if (e.message === "RECITATION_ERROR") throw e;
             if (e.message === "RATE_LIMIT_ERROR") throw e;
+            if (e.message?.startsWith("WORKER_RUN_FAILED")) throw e;
             console.warn("Erro ao parsear chunk do worker:", line, e);
           }
         }
@@ -887,4 +888,79 @@ export async function gerarGabaritoComPesquisa(
   console.log("DEBUG: JSON FINAL GABARITO:", jsonFinal);
 
   return jsonFinal;
+}
+
+/**
+ * Analisa e limpa mensagens de erro brutas do worker (e dos modelos).
+ * Decodifica erros aninhados em JSON para extrair a causa raiz.
+ * @param {string} errorMessage - Mensagem de erro original
+ * @returns {string} Mensagem de erro amigável e limpa
+ */
+export function formatFriendlyError(errorMessage) {
+  if (!errorMessage) return "Erro desconhecido nos modelos.";
+
+  let cleanMsg = errorMessage.trim();
+  const prefixes = [
+    "Falha no Worker:",
+    "WORKER_RUN_FAILED:",
+    "Todos falharam:"
+  ];
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of prefixes) {
+      if (cleanMsg.startsWith(prefix)) {
+        cleanMsg = cleanMsg.slice(prefix.length).trim();
+        changed = true;
+      }
+    }
+  }
+
+  // Helper recursivo para extrair a mensagem de erros JSON aninhados
+  const extractFromJson = (obj) => {
+    if (!obj || typeof obj !== "object") return null;
+    const inner = obj.error || obj;
+    if (!inner || typeof inner !== "object") return null;
+    
+    let msg = inner.message || inner.error || null;
+    let status = inner.status || null;
+    let code = inner.code || null;
+
+    if (typeof msg === "string") {
+      try {
+        const nested = JSON.parse(msg);
+        const extracted = extractFromJson(nested);
+        if (extracted) {
+          return {
+            message: extracted.message,
+            status: extracted.status || status,
+            code: extracted.code || code
+          };
+        }
+      } catch (e) {}
+    }
+
+    return { message: msg, status, code };
+  };
+
+  try {
+    const parsed = JSON.parse(cleanMsg);
+    const result = extractFromJson(parsed);
+    if (result && result.message) {
+      let suffix = "";
+      if (result.status && result.code) {
+        suffix = ` (${result.status} - Código ${result.code})`;
+      } else if (result.status) {
+        suffix = ` (${result.status})`;
+      } else if (result.code) {
+        suffix = ` (Código ${result.code})`;
+      }
+      return `${result.message}${suffix}`;
+    }
+  } catch (e) {
+    // Falhou em parsear como JSON, retorna a mensagem limpa
+  }
+
+  return cleanMsg;
 }

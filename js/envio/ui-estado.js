@@ -1,6 +1,7 @@
 import {
   gerarConteudoEmJSONComImagemStream,
   gerarGabaritoComPesquisa,
+  formatFriendlyError,
 } from "../api/worker.js";
 import { obterConfiguracaoIA } from "../ia/config.js";
 import { DataNormalizer } from "../normalizer/data-normalizer.js";
@@ -161,9 +162,14 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
     console.warn("Aviso: A IA retornou vazio (provável sobrecarga).");
     userMessage =
       "⚠️ A IA não respondeu (possível sobrecarga). Por favor, tente novamente.";
+  } else if (error.message === "NETWORK_ERROR") {
+    userMessage =
+      "⚠️ Sem conexão de rede ou o servidor do Worker está inacessível. Verifique sua conexão e tente novamente.";
   } else {
     // Só loga erro real se não for o caso do vazio
     console.error("Erro no processamento:", error);
+    const friendlyDetail = formatFriendlyError(error.message);
+    userMessage = `❌ Falha na execução da IA: ${friendlyDetail}`;
   }
 
   // 1. Reset Global

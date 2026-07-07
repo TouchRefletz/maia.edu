@@ -50,7 +50,7 @@ import {
   updateThemeIcon,
 } from "../services/theme-service.js";
 import { safeMarkdown } from "../normalize/primitives.js";
-import { resolveLinkOnDemand } from "../api/worker.js";
+import { resolveLinkOnDemand, formatFriendlyError } from "../api/worker.js";
 import {
   initTopScrollSync,
   destroyTopScrollSync,
@@ -2761,6 +2761,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
         if (!messagesContainer) return;
 
+        const friendlyDetail = formatFriendlyError(error.message);
         const errorMessage = document.createElement("div");
         errorMessage.className = "chat-message chat-message--error visible";
         errorMessage.style.cssText = "margin: 16px 0; width: 100%;";
@@ -2773,7 +2774,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
               <div style="display: flex; flex-direction: column; gap: 2px;">
                 <span style="color: var(--color-text); font-weight: 600; font-size: 0.95rem; text-align: left;">Não foi possível gerar a sua resposta</span>
-                <span style="color: var(--color-text-secondary); font-size: 0.85rem; opacity: 0.9; text-align: left;">Tente novamente mais tarde.</span>
+                <span style="color: var(--color-text-secondary); font-size: 0.85rem; opacity: 0.9; text-align: left;">${friendlyDetail || "Tente novamente mais tarde."}</span>
               </div>
               <button onclick="window.regerarUltimaMensagem()" style="align-self: flex-start; background: var(--color-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s, transform 0.1s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.2);" onmouseover="this.style.opacity='0.95'" onmouseout="this.style.opacity='1'" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -1px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>

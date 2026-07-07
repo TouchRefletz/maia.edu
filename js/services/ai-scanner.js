@@ -1,4 +1,4 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js"; // USING STREAM
+import { gerarConteudoEmJSONComImagemStream, formatFriendlyError } from "../api/worker.js"; // USING STREAM
 import { CropperState } from "../cropper/cropper-state.js";
 import { loadSelectionsFromJson } from "../cropper/json-loader.js";
 import { ScannerUI } from "../ui/scanner-ui.js";
@@ -732,7 +732,8 @@ export class AiScanner {
       }
 
       console.error(`Erro pg ${pageNum}:`, e);
-      ScannerUI.updateAgentStatus(pageNum, "default", `Erro: ${e.message}`);
+      const friendlyDetail = formatFriendlyError(e.message);
+      ScannerUI.updateAgentStatus(pageNum, "default", `Erro: ${friendlyDetail}`);
     }
   }
 
