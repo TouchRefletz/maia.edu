@@ -632,6 +632,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
         accumulatedThoughts.push(thought);
         if (context.onThought) context.onThought(thought);
       },
+      onStatus: (status) => {
+        if (context.onStatus) context.onStatus(status);
+      },
       apiKey: context.apiKey,
       githubApiKey: context.githubApiKey,
       groqApiKey: context.groqApiKey,
@@ -999,6 +1002,7 @@ async function generateChatStreamed(params) {
     attachments = [],
     onStream,
     onThought,
+    onStatus,
     apiKey,
     githubApiKey,
     groqApiKey,
@@ -1042,7 +1046,10 @@ async function generateChatStreamed(params) {
 
   // Handlers para o worker
   const handlers = {
-    onStatus: (status) => console.log(`[Worker Status] ${status}`),
+    onStatus: (status) => {
+      console.log(`[Worker Status] ${status}`);
+      if (onStatus) onStatus(status);
+    },
     onThought: (thought) => {
       if (onThought) onThought(thought);
     },

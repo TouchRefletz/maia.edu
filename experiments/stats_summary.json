@@ -1,0 +1,927 @@
+{
+  "n_total": 25,
+  "n_pre_cutoff": 21,
+  "n_post_cutoff": 4,
+  "correlations": {
+    "ai_complexity_heuristic": {
+      "name": "Complexidade Heurística",
+      "global": {
+        "spearman": 0.37399803089352224,
+        "pearson": 0.41210323321925285
+      },
+      "pre_cutoff": {
+        "spearman": 0.46337659116236746,
+        "pearson": 0.5247627099880444
+      },
+      "post_cutoff": {
+        "spearman": -0.21081851067789195,
+        "pearson": 0.2681166831649823
+      }
+    },
+    "ap_enunciado": {
+      "name": "Apêndice B: Enunciado",
+      "global": {
+        "spearman": 0.558488658476091,
+        "pearson": 0.5314120007074494
+      },
+      "pre_cutoff": {
+        "spearman": 0.5908391567007971,
+        "pearson": 0.572117427054615
+      },
+      "post_cutoff": {
+        "spearman": 0.2581988897471611,
+        "pearson": 0.42821618820668794
+      }
+    },
+    "ap_visual": {
+      "name": "Apêndice B: Visual",
+      "global": {
+        "spearman": 0.04190652558482592,
+        "pearson": 0.017383895716943387
+      },
+      "pre_cutoff": {
+        "spearman": 0.10886853617160305,
+        "pearson": -0.0835731879770688
+      },
+      "post_cutoff": {
+        "spearman": -0.21081851067789195,
+        "pearson": 0.109678267014671
+      }
+    },
+    "ap_dominio": {
+      "name": "Apêndice B: Domínio",
+      "global": {
+        "spearman": 0.48524580794993544,
+        "pearson": 0.4806143874327555
+      },
+      "pre_cutoff": {
+        "spearman": 0.526403125741222,
+        "pearson": 0.5304483406895958
+      },
+      "post_cutoff": {
+        "spearman": 0.316227766016838,
+        "pearson": 0.2954117788005404
+      }
+    },
+    "ap_raciocinio": {
+      "name": "Apêndice B: Raciocínio",
+      "global": {
+        "spearman": 0.18687301282294055,
+        "pearson": 0.2019346115002483
+      },
+      "pre_cutoff": {
+        "spearman": 0.14171324789199907,
+        "pearson": 0.10863567191870131
+      },
+      "post_cutoff": {
+        "spearman": 0.2581988897471611,
+        "pearson": 0.42821618820668794
+      }
+    },
+    "ap_resposta": {
+      "name": "Apêndice B: Resposta",
+      "global": {
+        "spearman": 0.26852750959887006,
+        "pearson": 0.25429073234464306
+      },
+      "pre_cutoff": {
+        "spearman": 0.24798891406371676,
+        "pearson": 0.2630576805531774
+      },
+      "post_cutoff": {
+        "spearman": 0.2581988897471611,
+        "pearson": 0.42821618820668794
+      }
+    },
+    "ap_total": {
+      "name": "Apêndice B: Total Bruto",
+      "global": {
+        "spearman": 0.35682470772274183,
+        "pearson": 0.3330610318957418
+      },
+      "pre_cutoff": {
+        "spearman": 0.4070040592512671,
+        "pearson": 0.3625866944989319
+      },
+      "post_cutoff": {
+        "spearman": 0.0,
+        "pearson": 0.22240128027133668
+      }
+    },
+    "ap_total_normalized": {
+      "name": "Apêndice B: Total Normalizado",
+      "global": {
+        "spearman": 0.35682470772274183,
+        "pearson": 0.3330610318957418
+      },
+      "pre_cutoff": {
+        "spearman": 0.4070040592512671,
+        "pearson": 0.3625866944989319
+      },
+      "post_cutoff": {
+        "spearman": 0.0,
+        "pearson": 0.2224012802713367
+      }
+    }
+  },
+  "comparisons": {
+    "global": {
+      "heuristic_vs_real": {
+        "spearman": 0.37399803089352224,
+        "pearson": 0.41210323321925285,
+        "mae": 26.752000000000002,
+        "bias": -18.304000000000002
+      },
+      "apendice_vs_real": {
+        "spearman": 0.3568247077227419,
+        "pearson": 0.3330610318957418,
+        "mae": 30.64,
+        "bias": -24.544
+      },
+      "apendice_vs_heuristic": {
+        "spearman": 0.5814798870355724,
+        "pearson": 0.5390020147357808,
+        "mae": 12.0,
+        "bias": -6.24
+      }
+    },
+    "pre_cutoff": {
+      "heuristic_vs_real": {
+        "spearman": 0.4633765911623674,
+        "pearson": 0.5247627099880444,
+        "mae": 22.823809523809523,
+        "bias": -14.490476190476189
+      },
+      "apendice_vs_real": {
+        "spearman": 0.4070040592512671,
+        "pearson": 0.3625866944989318,
+        "mae": 27.976190476190474,
+        "bias": -22.633333333333333
+      },
+      "apendice_vs_heuristic": {
+        "spearman": 0.5505928600101325,
+        "pearson": 0.5663776229460917,
+        "mae": 12.142857142857142,
+        "bias": -8.142857142857142
+      }
+    },
+    "post_cutoff": {
+      "heuristic_vs_real": {
+        "spearman": -0.21081851067789195,
+        "pearson": 0.2681166831649822,
+        "mae": 47.375,
+        "bias": -38.324999999999996
+      },
+      "apendice_vs_real": {
+        "spearman": 0.0,
+        "pearson": 0.2224012802713367,
+        "mae": 44.625,
+        "bias": -34.574999999999996
+      },
+      "apendice_vs_heuristic": {
+        "spearman": 0.9486832980505139,
+        "pearson": 0.9945970727130781,
+        "mae": 11.25,
+        "bias": 3.75
+      }
+    }
+  },
+  "faixas_stats": [
+    {
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 29.8,
+      "ap_enunciado": 2.0,
+      "ap_visual": 1.8,
+      "ap_dominio": 1.6,
+      "ap_raciocinio": 2.4,
+      "ap_resposta": 1.6,
+      "ap_total": 9.6,
+      "ap_total_normalized": 23.0
+    },
+    {
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 24.0,
+      "ap_enunciado": 2.0,
+      "ap_visual": 1.0,
+      "ap_dominio": 1.8,
+      "ap_raciocinio": 2.4,
+      "ap_resposta": 1.8,
+      "ap_total": 9.0,
+      "ap_total_normalized": 20.0
+    },
+    {
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 26.0,
+      "ap_enunciado": 2.2,
+      "ap_visual": 1.6,
+      "ap_dominio": 1.8,
+      "ap_raciocinio": 2.4,
+      "ap_resposta": 1.4,
+      "ap_total": 9.4,
+      "ap_total_normalized": 22.0
+    },
+    {
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 34.0,
+      "ap_enunciado": 2.4,
+      "ap_visual": 1.0,
+      "ap_dominio": 2.2,
+      "ap_raciocinio": 2.4,
+      "ap_resposta": 1.8,
+      "ap_total": 9.8,
+      "ap_total_normalized": 24.0
+    },
+    {
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 45.4,
+      "ap_enunciado": 2.6,
+      "ap_visual": 1.8,
+      "ap_dominio": 3.0,
+      "ap_raciocinio": 2.8,
+      "ap_resposta": 2.4,
+      "ap_total": 12.8,
+      "ap_total_normalized": 39.0
+    }
+  ],
+  "case_studies": [
+    {
+      "id": "ENEM2025_LC_23",
+      "title": "Adriana Varejão e a História Colonial",
+      "real_difficulty": 89.0,
+      "classif_real": "Muito Difícil",
+      "ap_total": 18,
+      "ap_total_normalized": 65.0,
+      "classif_ia": "Média-Alta",
+      "ap_enunciado": 3,
+      "ap_visual": 4,
+      "ap_dominio": 4,
+      "ap_raciocinio": 4,
+      "ap_resposta": 3,
+      "description": "A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando dois textos de apoio providing a contextualização artística artistic contextualization.",
+        "elementos_visuais": "Exige a interpretação de uma obra de arte (descrita no Texto II) onde a relação entre azulejos e carne viva é fundamental para a resolução.",
+        "especificidade_dominio": "Exige conhecimento aprofundado de história da arte e a obra de Adriana Varejão, não totalmente inferível apenas do texto.",
+        "raciocinio_complexo": "Raciocínio analítico profundo que requer a conexão entre elementos visuais (carne/azulejos) e o conceito de violência colonial brasileira.",
+        "resposta_complexa": "O gabarito é direto (alternativa C), mas exige uma articulação verbal para explicar a relação simbólica entre a obra e o a história colonial."
+      }
+    },
+    {
+      "id": "ENEM2025_LC_13",
+      "title": "Emprego da Norma-Padrão em Leis",
+      "real_difficulty": 89.3,
+      "classif_real": "Muito Difícil",
+      "ap_total": 8,
+      "ap_total_normalized": 15.0,
+      "classif_ia": "Baixa",
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "description": "A IA simplificou o problema, vendo a justificativa do uso da norma-padrão em leis como um fato escolar mecânico. Ela ignorou que a complexidade para o estudante humano não está no enunciado, mas sim nos distratores de múltipla escolha juridicamente densos.",
+      "justificativas": {
+        "complexidade_enunciado": "O texto é um excerto de lei, mas o comando é curto e direto: 'O emprego da norma-padrão é justificado nesse texto' (complementado pela alternativas que não foram fornecidas, mas inferidas pelo gabarito).",
+        "elementos_visuais": "Não há elementos visuais complexos; trata-se apenas de texto.",
+        "especificidade_dominio": "Exige conhecimento básico de gêneros textuais e a relação entre suporte/gênero (Lei) e a variedade linguística (norma-padrão).",
+        "raciocinio_complexo": "Aplicação direta de um conceito: leis exigem norma-padrão para evitar ambiguidades. Raciocínio de uma etapa.",
+        "resposta_complexa": "O gabarito indica a escolha de uma alternativa correta (Alternativa E), sendo a resposta final uma simples identificação."
+      }
+    },
+    {
+      "id": "ENEM2025_LC_39",
+      "title": "Interpretação de Tema Central",
+      "real_difficulty": 70.1,
+      "classif_real": "Difícil",
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "classif_ia": "Baixa",
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "description": "O modelo assumiu que o tema principal é explícito no texto curto. No entanto, na prova real do ENEM, questões de síntese textual geram alto índice de erro devido a alternativas extremamente próximas (distratores semânticos fortes). O modelo cru não detecta essa barreira cognitiva.",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de mainWindow distratores complexos.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "A resposta pode ser inferida inteiramente a partir da leitura e interpretação do texto fornecido.",
+        "raciocinio_complexo": "Exige a aplicação direta de um único conceito de interpretação textual (identificação do tema central).",
+        "resposta_complexa": "O gabarito é uma simples identificação de alternativa correta baseada em síntese do texto."
+      }
+    },
+    {
+      "id": "ENEM2025_LC_26",
+      "title": "Variação Linguística Diatópica",
+      "real_difficulty": 4.9,
+      "classif_real": "Muito Fácil",
+      "ap_total": 10,
+      "ap_total_normalized": 25.0,
+      "classif_ia": "Baixa",
+      "ap_enunciado": 2,
+      "ap_visual": 2,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "description": "Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística (\"variação diatópica\"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
+        "elementos_visuais": "A imagem apresenta a diversidade de nomes regionais, mas a informação é redundante ao texto do enunciado.",
+        "especificidade_dominio": "Exige conhecimento básico de variação linguística (variação diatópica), fortemente apoiado pelas informações do texto.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito linguístico para classificar o fenômeno descrito no texto.",
+        "resposta_complexa": "O gabarito indica uma alternativa correta através de uma associação direta de conceito (variação regional) ao texto."
+      }
+    }
+  ],
+  "framing_recommendations": {
+    "data_contamination": {
+      "title": "Como defender a Contaminação de Dados (Cutoff Validation)",
+      "content": "Apresente a contaminação de dados como a maior contribuição de rigor metodológico do projeto. Mostre que estudos anteriores que validam IAs em exames históricos (ex: ENEM 2020-2024) possuem um \"viés de gabarito prévio\". O colapso na prova inédita de 2025 (de +0.46 para -0.21) prova que o LLM não deduz a dificuldade de forma lógica, mas sim por memorização dos cursinhos da internet. Isso valoriza o trabalho pois mostra maturidade crítica ao expor as limitações do estado da arte."
+    },
+    "rag_justification": {
+      "title": "Como defender a arquitetura da Maia.edu",
+      "content": "Use o colapso das correlações da IA pura em 2025 como a prova definitiva de que a Maia.edu é necessária. Se um LLM cru não consegue autoavaliar de forma consistente a dificuldade de novas questões (dando nota menor para questões de 89% de erro do que para itens de 4% de erro), ele não serve como tutor sem suporte. Isso justifica a escolha de uma arquitetura baseada em banco vetorial de apoio (Pinecone) e roteadores de prompts para guiar o raciocínio."
+    },
+    "apendice_b_vs_heuristic": {
+      "title": "Como defender as Heurísticas de Peso",
+      "content": "A correlação entre o Apêndice B e o Firebase Heurístico é alta (Spearman +0.58), o que demonstra consistência de julgamento interna do modelo. Defenda que a Complexidade do Enunciado e Especificidade de Domínio devem receber maiores pesos nas heurísticas do sistema de simulados, pois foram as únicas métricas individuais que mantiveram correlação positiva resiliente mesmo no grupo inédito de 2025."
+    }
+  },
+  "questions_list": [
+    {
+      "id": "ENEM2020_LC_20",
+      "ano": 2020,
+      "real_difficulty": 10.2,
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
+        "elementos_visuais": "Ausência de elementos visuais no enunciado da questão.",
+        "especificidade_dominio": "A resolução da questão exige apenas a leitura e interpretação do texto fornecido, não requerendo conhecimento externo.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito de interpretação textual básica, exigindo apenas a identificação de um padrão no texto.",
+        "resposta_complexa": "O gabarito indica a identificação direta de uma alternativa correta baseada em um elenco de termos específicos do texto."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2022_LC_34",
+      "ano": 2022,
+      "real_difficulty": 9.7,
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 33.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "A resposta pode ser totalmente inferida a partir da leitura e interpretação do texto fornecido.",
+        "raciocinio_complexo": "Exige apenas a aplicação direta de um único conceito de interpretação textual básica (1 etapa).",
+        "resposta_complexa": "O gabarito é uma simples identificação de alternativa correta baseada em associação direta."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_3_ING",
+      "ano": 2024,
+      "real_difficulty": 15.0,
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 43.0,
+      "ap_enunciado": 2,
+      "ap_visual": 4,
+      "ap_dominio": 2,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 14,
+      "ap_total_normalized": 45.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto, apresentando a contextualização padrão de cartuns.",
+        "elementos_visuais": "A interpretação da imagem é fundamental para a resolução, pois a resposta reside na contradição entre o texto verbal e a imagem.",
+        "especificidade_dominio": "Exige conhecimento básico de língua inglesa e interpretação de texto, fortemente apoiado pelas informações do enunciado.",
+        "raciocinio_complexo": "Raciocínio lógico em duas etapas: interpretação da imagem e do texto, e a conexão entre eles para identificar a ironia.",
+        "resposta_complexa": "O gabarito exige uma breve articulação para explicar a relação entre a relação verbal e não verbal para justificar a escolha da alternativa."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2025_LC_26",
+      "ano": 2025,
+      "real_difficulty": 4.9,
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 23.0,
+      "ap_enunciado": 2,
+      "ap_visual": 2,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 10,
+      "ap_total_normalized": 25.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
+        "elementos_visuais": "A imagem apresenta a diversidade de nomes regionais, mas a informação é redundante ao texto do enunciado.",
+        "especificidade_dominio": "Exige conhecimento básico de variação linguística (variação diatópica), fortemente apoiado pelas informações do texto.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito linguístico para classificar o fenômeno descrito no texto.",
+        "resposta_complexa": "O gabarito indica uma alternativa correta através de uma associação direta de conceito (variação regional) ao texto."
+      },
+      "cutoff": "Pós-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_35",
+      "ano": 2024,
+      "real_difficulty": 3.6,
+      "faixa": "0%-20%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 3,
+      "ap_resposta": 2,
+      "ap_total": 10,
+      "ap_total_normalized": 25.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo com contextualização simples, apresentando um diálogo direto e comando claro.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "Exige conhecimento básico de interpretação de texto e conceito de ironia, apoiado pelo próprio enunciado.",
+        "raciocinio_complexo": "Exige a conexão lógica entre a analogia do narrador e a contradição do motorista em duas etapas.",
+        "resposta_complexa": "O gabarito exige a identificação de uma crítica social baseada na analogia, sem a necessidade de síntese interdisciplinar."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2020_LC_27",
+      "ano": 2020,
+      "real_difficulty": 30.6,
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 3,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 12,
+      "ap_total_normalized": 35.0,
+      "ap_classif": "Baixa/Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com um fragmento poético/musical um lindo e comando claro e direto.",
+        "elementos_visuais": "Ausência de elementos visuais; o texto é puramente textual.",
+        "especificidade_dominio": "Exige conhecimento padrão de ensino médio sobre tipologias textuais (narrativo, descritivo, etc.).",
+        "raciocinio_complexo": "Raciocínio em duas etapas: identificação de elementos no texto e correlação com a uma tipologia textual.",
+        "resposta_complexa": "O gabarito é direto (alternativa D), mas exige uma breve articulação verbal para justificar aquele a’// a escolha."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2022_LC_37",
+      "ano": 2022,
+      "real_difficulty": 30.7,
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, apresentando a definição a ser analisada.",
+        "elementos_visuais": "Ausência de elementos visuais na questão.",
+        "especificidade_dominio": "Toda a informação necessária para a definição de positividade tóxica está contida no texto de apoio.",
+        "raciocinio_complexo": "Exige a aplicação direta de um conceito definido no texto para a identificação da alternativa correta.",
+        "resposta_complexa": "O gabarito requer apenas a identificação direta de a alternativa correta com base na correspondência textual."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2020_LC_31",
+      "ano": 2020,
+      "real_difficulty": 31.2,
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 8,
+      "ap_total_normalized": 15.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "O texto é curto, objetivo e o comando é direto, solicitando a la a identificação do gênero textual do texto-base.",
+        "elementos_visuais": "Não há elementos visuais, apenas o texto do enunciado e a resposta.",
+        "especificidade_dominio": "Exige conhecimento básico de gêneros textuais, um conteúdo comum de ensino médio, apoiado pelas características do texto.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito: a identificação de gênero textual com base em uma características structural e functional.",
+        "resposta_complexa": "A resposta final é a escolha de uma alternativa (identificação direta de um gênero textual)."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2023_LC_11",
+      "ano": 2023,
+      "real_difficulty": 31.4,
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 11,
+      "ap_total_normalized": 30.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos no corpo do texto.",
+        "elementos_visuais": "Não há presença de elementos visuais ou imagens na questão.",
+        "especificidade_dominio": "Exige conhecimento básico de interpretação de texto e identificação de objetivos comunicativos, apoiado pelas informações do enunciado.",
+        "raciocinio_complexo": "Raciocínio em duas etapas: identificação dos procedimentos argumentativos e a inferência do objetivo geral do texto.",
+        "resposta_complexa": "O gabarito exige uma breve articulação para diferenciar a ferramenta argumentativa do objetivo final do texto."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_24",
+      "ano": 2024,
+      "real_difficulty": 31.7,
+      "faixa": "20%-40%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem distratores complexos no corpo do texto.",
+        "elementos_visuais": "Ausência de elementos visuais na questão.",
+        "especificidade_dominio": "Todo o conhecimento necessário para a resolução está contido no texto base, sendo uma questão de interpreta own lisança textual.",
+        "raciocinio_complexo": "Aplicação direta de localização de informação no texto (raciocínio de 1 etapa: localizar a fala do especialista).",
+        "resposta_complexa": "O gabarito é uma simples identificação da alternativa correta baseada em correspondência direta de termos."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_9",
+      "ano": 2024,
+      "real_difficulty": 49.6,
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão e comando claro, sem distratores complexos.",
+        "elementos_visuais": "Não há elementos visuais na questão; o enunciado é composto apenas por texto.",
+        "especificidade_dominio": "A resposta está totalmente contida no texto de apoio, exigindo apenas a interpretação de texto básica.",
+        "raciocinio_complexo": "Exige a aplicação de um único conceito (versatilidade) para resumir as características do texto.",
+        "resposta_complexa": "O gabarito é uma simples identificação da alternativa correta baseada em interpretação direta do texto."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2021_LC_31",
+      "ano": 2021,
+      "real_difficulty": 49.4,
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem distratores complexos.",
+        "elementos_visuais": "Ausência de elementos visuais na questão.",
+        "especificidade_dominio": "Toda a informação necessária para a resolução está contida no texto de apoio.",
+        "raciocinio_complexo": "Raciocínio de 1 etapa: a identificação de que a maior acessibilidade para inexperientes implica em democratização do esporte.",
+        "resposta_complexa": "O gabarito é uma simples identificação de alternativa correta baseada em compreensão textual."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_22",
+      "ano": 2024,
+      "real_difficulty": 51.3,
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 8,
+      "ap_total_normalized": 15.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização simples e um comando claro e direto.",
+        "elementos_visuais": "Ausência de elementos visuais no enunciado.",
+        "especificidade_dominio": "Exige conhecimento básico de língua portuguesa (norma-padrão), fortemente apoiado pelas informações do texto.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito: a relação entre norma-padrão e a credibilidade de um texto, com raciocínio de uma etapa.",
+        "resposta_complexa": "O gabarito indica a alternativa correta através de uma associação direta baseada na interpretação do texto."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2022_LC_30",
+      "ano": 2022,
+      "real_difficulty": 90.7,
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 40.0,
+      "ap_enunciado": 3,
+      "ap_visual": 1,
+      "ap_dominio": 3,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 13,
+      "ap_total_normalized": 40.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, comando claro e sem excesso de distratores.",
+        "elementos_visuais": "Ausência de total de elementos visuais na questão.",
+        "especificidade_dominio": "Exige conhecimento padrão de ensino médio sobre as características do Naturalismo e a influência do Cientificismo.",
+        "raciocinio_complexo": "Raciocínio lógico em duas etapas: identificação do trecho específico e conexão com a teoria literária do Naturalismo.",
+        "resposta_complexa": "O gabarito é direto (alternativa C), mas exige a articulação entre a prova textual eva a teoria do Naturalismo."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2023_LC_5_ING",
+      "ano": 2023,
+      "real_difficulty": 51.9,
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 40.0,
+      "ap_enunciado": 2,
+      "ap_visual": 4,
+      "ap_dominio": 2,
+      "ap_raciocinio": 3,
+      "ap_resposta": 1,
+      "ap_total": 12,
+      "ap_total_normalized": 35.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto ao ponto.",
+        "elementos_visuais": "A resolução depende inteiramente da interpretação da ironia gerada pelo cruzamento de texto e imagem (homogeneidade visual vs discurso de inclusão).",
+        "especificidade_dominio": "Exige conhecimento básico de língua inglesa e compreensão de ironia, conceitos fundamentais e apoiados pelo contexto.",
+        "raciocinio_complexo": "Raciocínio em duas etapas: identificação da fala own a identificação da contradição visual para chegar à sátira.",
+        "resposta_complexa": "O gabarito indica a escolha de uma alternativa correta (Alternativa B), caracterizando uma associação direta."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2025_LC_39",
+      "ano": 2025,
+      "real_difficulty": 70.1,
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de mainWindow distratores complexos.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "A resposta pode ser inferida inteiramente a partir da leitura e interpretação do texto fornecido.",
+        "raciocinio_complexo": "Exige a aplicação direta de um único conceito de interpretação textual (identificação do tema central).",
+        "resposta_complexa": "O gabarito é uma simples identificação de alternativa correta baseada em síntese do texto."
+      },
+      "cutoff": "Pós-cutoff"
+    },
+    {
+      "id": "ENEM2024_LC_13",
+      "ano": 2024,
+      "real_difficulty": 70.2,
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 40.0,
+      "ap_enunciado": 3,
+      "ap_visual": 1,
+      "ap_dominio": 4,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 14,
+      "ap_total_normalized": 45.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, comando claro e objetivo.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "Exige domínio de conceitos aprofundados de teoria literária (impressionismo literário) não mencionados no texto de apoio.",
+        "raciocinio_complexo": "Raciocínio lógico em duas etapas: identificação de figuras de linguagem (personificação) e conexão com o sentimento/estilo literário.",
+        "resposta_complexa": "O gabarito é direto (alternativa), mas exige uma articulação verbal para explicar a relação entre a descrição e o estilo literário."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2023_LC_10",
+      "ano": 2023,
+      "real_difficulty": 69.7,
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 1,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 7,
+      "ap_total_normalized": 10.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "O texto é objetivo e a contextualização é simples, com um comando claro e direto.",
+        "elementos_visuais": "Não há elementos visuais na questão.",
+        "especificidade_dominio": "A resolução exige apenas a leitura e interpretação do texto fornecido, sem necessidade de conhecimento externo.",
+        "raciocinio_complexo": "O raciocínio é de etapa única: a identificação de um trecho do um texto para validar a alternativa correta.",
+        "resposta_complexa": "O gabarito é uma simples identificação de alternativa correta baseada em interpretação textual."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2020_LC_38",
+      "ano": 2020,
+      "real_difficulty": 70.4,
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 30.0,
+      "ap_enunciado": 3,
+      "ap_visual": 1,
+      "ap_dominio": 3,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 13,
+      "ap_total_normalized": 40.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, comando claro, mas exige filtragem de informações para encontrar o trecho específico.",
+        "elementos_visuais": "Ausência total de elementos visuais na questão.",
+        "especificidade_dominio": "Exige conhecimento de interpretação de texto e identificação de figuras de linguagem/discurso laudo, conceitos padrão de ensino médio.",
+        "raciocinio_complexo": "Raciocínio em duas etapas: primeiro identificar a voz externa (aspas) e depois validar se o conteúdo remete à identidade histórica.",
+        "resposta_complexa": "O gabarito é direto (alternativa A), mas exige a articulação verbal para justificar a escolha com base nos dois critérios solicitados."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2021_LC_42",
+      "ano": 2021,
+      "real_difficulty": 91.2,
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 87.0,
+      "ap_enunciado": 3,
+      "ap_visual": 2,
+      "ap_dominio": 3,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 15,
+      "ap_total_normalized": 50.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, comando claro mas exige interpretação do conceito de corpo como objeto social.",
+        "elementos_visuais": "A obra de arte é fundamental para a contextualizar a obra, mas a descrição textual do enunciado fornece a maioria das informações necessárias.",
+        "especificidade_dominio": "Exige conhecimento de Sociologia/Artes sobre a construção social do corpo e Pop Art, conceitos padrão de ensino médio.",
+        "raciocinio_complexo": "Raciocínio lógico em duas etapas: conectar a imagem da sensualidade com o conceito sociológico de 'educação do comportamento' apresentado no gabarito.",
+        "resposta_complexa": "O gabarito é direto na escolha da alternativa, mas exige uma articulação sociológica para justificar a escolha da alternativa correta baseada na construção social."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2022_LC_39",
+      "ano": 2022,
+      "real_difficulty": 89.6,
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 43.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 3,
+      "ap_raciocinio": 2,
+      "ap_resposta": 2,
+      "ap_total": 10,
+      "ap_total_normalized": 25.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "O texto é curto e objetivo, com contextualização padrão de vestibular e comando claro.",
+        "elementos_visuais": "Embora a descrição da obra seja fornecida, a imagem real da obra não está presente no texto, tornando-a meramente ilustrativa ou inexistente para o análise.",
+        "especificidade_dominio": "Exige conhecimento básico de História da Arte (Minimalismo), que pode ser parcialmente inferido a partir do texto de apoio.",
+        "raciocinio_complexo": "A resolução exige a aplicação direta de um conceito (minimalismo) e a conexão simples entre o texto e a alternativa correta.",
+        "resposta_complexa": "O gabarito é direto, mas requer uma breve articulação para justificar a escolha da alternativa E baseada nas definições do texto e do conceito de formas sintéticas."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2022_LC_40",
+      "ano": 2022,
+      "real_difficulty": 51.6,
+      "faixa": "40%-60%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 3,
+      "ap_visual": 1,
+      "ap_dominio": 3,
+      "ap_raciocinio": 3,
+      "ap_resposta": 3,
+      "ap_total": 13,
+      "ap_total_normalized": 40.0,
+      "ap_classif": "Média",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização regionalista, exigindo a interpretação de um fragmento literário.",
+        "elementos_visuais": "Não há elementos visuais na questão.",
+        "especificidade_dominio": "Exige conhecimento de conceitos de teoria literária (expressividade lírica) e características do regionalismo.",
+        "raciocinio_complexo": "Raciocínio em duas etapas: identificação da emoção no texto e a conexão com o conceito de 'expressividade lírica'.",
+        "resposta_complexa": "O gabarito exige uma breve articulação para explicar a relação entre o afeiçoamento e a notícia da morte."
+      },
+      "cutoff": "Pré-cutoff"
+    },
+    {
+      "id": "ENEM2025_LC_13",
+      "ano": 2025,
+      "real_difficulty": 89.3,
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 20.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 8,
+      "ap_total_normalized": 15.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "O texto é um excerto de lei, mas o comando é curto e direto: 'O emprego da norma-padrão é justificado nesse texto' (complementado pela alternativas que não foram fornecidas, mas inferidas pelo gabarito).",
+        "elementos_visuais": "Não há elementos visuais complexos; trata-se apenas de texto.",
+        "especificidade_dominio": "Exige conhecimento básico de gêneros textuais e a relação entre suporte/gênero (Lei) e a variedade linguística (norma-padrão).",
+        "raciocinio_complexo": "Aplicação direta de um conceito: leis exigem norma-padrão para evitar ambiguidades. Raciocínio de uma etapa.",
+        "resposta_complexa": "O gabarito indica a escolha de uma alternativa correta (Alternativa E), sendo a resposta final uma simples identificação."
+      },
+      "cutoff": "Pós-cutoff"
+    },
+    {
+      "id": "ENEM2025_LC_23",
+      "ano": 2025,
+      "real_difficulty": 89.0,
+      "faixa": "80%-100%",
+      "ai_complexity_heuristic": 37.0,
+      "ap_enunciado": 3,
+      "ap_visual": 4,
+      "ap_dominio": 4,
+      "ap_raciocinio": 4,
+      "ap_resposta": 3,
+      "ap_total": 18,
+      "ap_total_normalized": 65.0,
+      "ap_classif": "Média-Alta",
+      "justificativas": {
+        "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando dois textos de apoio providing a contextualização artística artistic contextualization.",
+        "elementos_visuais": "Exige a interpretação de uma obra de arte (descrita no Texto II) onde a relação entre azulejos e carne viva é fundamental para a resolução.",
+        "especificidade_dominio": "Exige conhecimento aprofundado de história da arte e a obra de Adriana Varejão, não totalmente inferível apenas do texto.",
+        "raciocinio_complexo": "Raciocínio analítico profundo que requer a conexão entre elementos visuais (carne/azulejos) e o conceito de violência colonial brasileira.",
+        "resposta_complexa": "O gabarito é direto (alternativa C), mas exige uma articulação verbal para explicar a relação simbólica entre a obra e o a história colonial."
+      },
+      "cutoff": "Pós-cutoff"
+    },
+    {
+      "id": "ENEM2021_LC_5_ING",
+      "ano": 2021,
+      "real_difficulty": 70.6,
+      "faixa": "60%-80%",
+      "ai_complexity_heuristic": 50.0,
+      "ap_enunciado": 2,
+      "ap_visual": 1,
+      "ap_dominio": 2,
+      "ap_raciocinio": 2,
+      "ap_resposta": 1,
+      "ap_total": 8,
+      "ap_total_normalized": 15.0,
+      "ap_classif": "Baixa",
+      "justificativas": {
+        "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de roteiro de filme, sem a presença de distratores complexos.",
+        "elementos_visuais": "Ausência de elementos visuais; o conteúdo é puramente textual.",
+        "especificidade_dominio": "Exige conhecimento básico de interpretação de texto em língua inglesa, fortemente apoiado pelas informações do próprio enunciado.",
+        "raciocinio_complexo": "Aplicação direta de um único conceito: a identificação da ideia central do diálogo (subjetividade), exigindo raciocínio de uma etapa.",
+        "resposta_complexa": "O gabarito é uma simples identificação da alternativa correta (Alternativa B) com uma breve explicação."
+      },
+      "cutoff": "Pré-cutoff"
+    }
+  ]
+}

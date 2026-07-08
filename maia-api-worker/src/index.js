@@ -3246,55 +3246,60 @@ FORMATO DE SAÍDA:
 			const img = images[i];
 			let desc = '';
 			
-			// Envia status e cabeçalho do pensamento inicial
-			await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com Gemma...` });
-			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com Gemma...]\n` });
+			if (i > 0) {
+				// Pequeno delay para evitar rate limits/concorrência na chave gratuita do Gemini
+				await new Promise((resolve) => setTimeout(resolve, 800));
+			}
 
-			try {
-				const stream = await client.models.generateContentStream({
-					model: 'models/gemma-4-31b-it',
-					contents: [
-						{
-							role: 'user',
-							parts: [
-								{ text: promptDescrever },
-								{ inlineData: { mimeType: img.mimeType, data: img.data } }
-							]
-						}
-					]
-				});
-				for await (const chunk of stream) {
-					const text = chunk.text;
-					if (text) {
-						desc += text;
-						await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
-					}
+			let successImage = false;
+			let lastGemmaError = null;
+
+			for (let attemptNum = 1; attemptNum <= 3; attemptNum++) {
+				if (attemptNum > 1) {
+					await writeNdjson({ type: 'status', text: `Gemma falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Gemma falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...]\n` });
+					await new Promise((resolve) => setTimeout(resolve, 1000));
+				} else {
+					await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com Gemma...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com Gemma...]\n` });
 				}
-			} catch (e) {
-				console.warn('[Image Description] gemma-4-31b-it failed, falling back to gemini-3.5-flash:', e);
-				await writeNdjson({ type: 'status', text: `Gemma falhou. Usando Gemini 3.5 Flash para descrever imagem ${i + 1}...` });
-				await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Gemma falhou. Usando Gemini 3.5 Flash para descrever imagem ${i + 1}...]\n` });
 
-				const stream = await client.models.generateContentStream({
-					model: 'models/gemini-3.5-flash',
-					contents: [
-						{
-							role: 'user',
-							parts: [
-								{ text: promptDescrever },
-								{ inlineData: { mimeType: img.mimeType, data: img.data } }
-							]
+				try {
+					const stream = await client.models.generateContentStream({
+						model: 'models/gemma-4-31b-it',
+						contents: [
+							{
+								role: 'user',
+								parts: [
+									{ text: promptDescrever },
+									{ inlineData: { mimeType: img.mimeType, data: img.data } }
+								]
+							}
+						]
+					});
+					for await (const chunk of stream) {
+						const text = chunk.text;
+						if (text) {
+							desc += text;
+							await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
 						}
-					]
-				});
-				for await (const chunk of stream) {
-					const text = chunk.text;
-					if (text) {
-						desc += text;
-						await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
 					}
+					successImage = true;
+					break;
+				} catch (gemmaError) {
+					console.warn(`[Image Description] Attempt ${attemptNum}/3 failed with Gemma:`, gemmaError);
+					lastGemmaError = gemmaError;
+					desc = ''; // Limpa qualquer conteúdo parcial da tentativa que falhou
 				}
 			}
+
+			if (!successImage) {
+				const errorMsg = `Falha ao descrever imagem ${i + 1} após 3 tentativas com Gemma. Erro original: ${lastGemmaError?.message || 'Erro desconhecido'}`;
+				await writeNdjson({ type: 'status', text: `Erro: Falha na descrição da imagem ${i + 1}.` });
+				await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[${errorMsg}]\n` });
+				throw new Error(errorMsg);
+			}
+
 			descriptions.push(desc);
 			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Fim da descrição da imagem ${i + 1}]\n` });
 		}

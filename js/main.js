@@ -352,6 +352,15 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASO 9.0a: Iniciar Modo Apêndice A ---
+    const gatilhoApendiceA = e.target.closest(".js-iniciar-apendice-a");
+    if (gatilhoApendiceA) {
+      import("./ui/apendice-a-screen.js").then(({ iniciarModoApendiceA }) => {
+        iniciarModoApendiceA();
+      });
+      return;
+    }
+
     // --- CASO 9.0b: Iniciar Modo Apêndice B ---
     const gatilhoApendiceB = e.target.closest(".js-iniciar-apendice-b");
     if (gatilhoApendiceB) {

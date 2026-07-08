@@ -347,6 +347,17 @@ function renderInitialUI() {
                                     <span class="model-item-desc">Ativa busca profunda para fundamentar resposta</span>
                                 </div>
                             </button>
+                            
+                            <!-- Item 5: Prompt Apêndice A (Admin Only) -->
+                            <button class="model-menu-item" id="chatApendiceAPromptBtn" style="display: none; justify-content: flex-start; gap: 12px;">
+                                <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                                    📝
+                                </div>
+                                <div class="model-item-content">
+                                    <span class="model-item-title">Prompt Apêndice A</span>
+                                    <span class="model-item-desc">Bloqueia o input com o prompt padrão</span>
+                                </div>
+                            </button>
                         </div>
                     </div>
 
@@ -1109,6 +1120,39 @@ function renderInitialUI() {
       e.stopPropagation();
       closeAllMenus();
       openAddQuestionsModal();
+    });
+  }
+
+  // Handler para botão "Prompt Apêndice A" (Admin Only)
+  const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+  if (apendiceAPromptBtn) {
+    apendiceAPromptBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeAllMenus();
+      
+      const inputField = document.querySelector(".chat-input-field");
+      if (inputField) {
+        const lockedText = "Considere a seguinte questão de vestibular anexada a essa solicitação. Resolva-a de maneira a não somente indicar a alternativa correta, mas também justificar de forma estruturada cada etapa do raciocínio utilizado até a resposta final.";
+        
+        if (inputField.readOnly && inputField.value === lockedText) {
+          // Unlock
+          inputField.readOnly = false;
+          inputField.value = "";
+          inputField.placeholder = "O que vamos estudar hoje?";
+          apendiceAPromptBtn.querySelector(".model-item-title").textContent = "Prompt Apêndice A";
+          customAlert("🔓 Prompt do Apêndice A removido e entrada desbloqueada.");
+        } else {
+          // Lock
+          inputField.value = lockedText;
+          inputField.readOnly = true;
+          inputField.placeholder = "Prompt travado para o Apêndice A.";
+          // Auto-resize
+          inputField.style.height = '';
+          inputField.style.height = inputField.scrollHeight + 'px';
+          apendiceAPromptBtn.querySelector(".model-item-title").textContent = "🔓 Desbloquear Input";
+          customAlert("🔒 Prompt do Apêndice A inserido e entrada travada.");
+        }
+      }
     });
   }
 
@@ -2417,6 +2461,54 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         const messagesContainer = document.getElementById("chatMessages");
         if (!messagesContainer) return;
 
+        if (window._currentChatPhase === "vision") {
+          // Lógica especial para streaming de descrição de imagens na aba de etapas
+          const currentImg = window._currentVisionImageIndex || 1;
+          
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            "vision",
+            window._lastVisionStatusText || `Descrevendo imagem ${currentImg}...`
+          );
+
+          if (window._lastVisionImageIndexForThought !== currentImg) {
+            window._lastVisionImageIndexForThought = currentImg;
+            window._visionDescriptionAccumulator = "";
+          }
+
+          window._visionDescriptionAccumulator = (window._visionDescriptionAccumulator || "") + thoughtText;
+
+          let card = document.getElementById(`vision-thought-card-${currentImg}`);
+          if (!card) {
+            card = criarElementoCardPensamento(`Descrição da Imagem ${currentImg}`, "");
+            card.id = `vision-thought-card-${currentImg}`;
+            const skeletonCard = thoughtListEl?.querySelector(
+              ".maia-thought-card--skeleton",
+            );
+            if (skeletonCard) {
+              thoughtListEl.insertBefore(card, skeletonCard);
+            } else if (thoughtListEl) {
+              thoughtListEl.appendChild(card);
+            }
+          }
+
+          const bodyEl = card.querySelector(".maia-thought-body");
+          if (bodyEl) {
+            // Limpa as tags de marcação do texto para ficar legível na UI
+            let cleanText = window._visionDescriptionAccumulator
+              .replace(/\[Descrevendo imagem[^\]]*\]/gi, "")
+              .replace(/\[Gemma falhou[^\]]*\]/gi, "")
+              .replace(/\[Fim da descrição[^\]]*\]/gi, "")
+              .trim();
+            bodyEl.textContent = cleanText;
+          }
+
+          if (inner && inner.scrollHeight > inner.clientHeight) {
+            inner.scrollTop = inner.scrollHeight;
+          }
+          return;
+        }
+
         let phaseTitle = "Processando raciocínio...";
         const currentPhase = window._currentChatPhase || "generation";
         if (currentPhase === "memory")
@@ -2451,6 +2543,35 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
           if (inner && inner.scrollHeight > inner.clientHeight) {
             inner.scrollTop = inner.scrollHeight;
+          }
+        }
+      },
+
+      onStatus: (statusText) => {
+        const isVisionStatus = statusText.toLowerCase().includes("descrevendo imagem") || 
+                               statusText.toLowerCase().includes("descrever imagem") ||
+                               statusText.toLowerCase().includes("descrevendo as imagens") ||
+                               statusText.toLowerCase().includes("gemini 3.5 para descrever") ||
+                               statusText.toLowerCase().includes("gemini 3.5 flash para descrever") ||
+                               statusText.toLowerCase().includes("erro ao descrever");
+        if (isVisionStatus) {
+          window._currentChatPhase = "vision";
+          window._lastVisionStatusText = statusText;
+
+          // Extrai o índice da imagem atual da string de status
+          const match = statusText.match(/(\d+)\/(\d+)/);
+          if (match) {
+            window._currentVisionImageIndex = parseInt(match[1]);
+          } else {
+            const fallbackMatch = statusText.match(/descrever imagem (\d+)/i);
+            if (fallbackMatch) {
+              window._currentVisionImageIndex = parseInt(fallbackMatch[1]);
+            }
+          }
+
+          const messagesContainer = document.getElementById("chatMessages");
+          if (messagesContainer) {
+            getOrCreatePhaseContainer(messagesContainer, "vision", statusText);
           }
         }
       },
@@ -2493,6 +2614,13 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       },
 
       onComplete: (dataObj) => {
+        // Limpeza de variáveis de visão
+        window._currentChatPhase = null;
+        window._lastVisionStatusText = null;
+        window._currentVisionImageIndex = null;
+        window._lastVisionImageIndexForThought = null;
+        window._visionDescriptionAccumulator = null;
+
         // dataObj pode ser o { mode, response } ou fallback antigo
         const finalData = dataObj?.response || dataObj;
         console.log(`[Chat] Resposta completa.`, finalData);
@@ -2617,6 +2745,13 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
       // Erro
       onError: (error) => {
+        // Limpeza de variáveis de visão
+        window._currentChatPhase = null;
+        window._lastVisionStatusText = null;
+        window._currentVisionImageIndex = null;
+        window._lastVisionImageIndexForThought = null;
+        window._visionDescriptionAccumulator = null;
+
         console.warn("[Chat] Pipeline Error/Abort:", error);
 
         const messagesContainer = document.getElementById("chatMessages");
@@ -2800,6 +2935,7 @@ const STEP_ICONS = {
   saving: `<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
   extraction: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
   research: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v6M8 11h6" opacity=".5"/></svg>`,
+  vision: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>`,
 };
 
 const STEP_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -2952,6 +3088,12 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   let stepRow = document.getElementById(`phaseContainer-${phaseId}`);
 
   if (stepRow) {
+    if (initialTitle) {
+      const titleEl = stepRow.querySelector(".step-row-title");
+      if (titleEl) {
+        titleEl.textContent = initialTitle;
+      }
+    }
     return {
       container: stepRow,
       inner: stepRow.querySelector(".step-row-content"),
@@ -6118,6 +6260,7 @@ function renderFileAttachment(file) {
 export async function verificarAdminEShowSidebar(user) {
   if (!user || user.isAnonymous) {
     document.querySelector(".js-iniciar-admin")?.remove();
+    document.querySelector(".js-iniciar-apendice-a")?.remove();
     document.querySelector(".js-iniciar-apendice-b")?.remove();
     return;
   }
@@ -6150,11 +6293,28 @@ export async function verificarAdminEShowSidebar(user) {
           }
         }
 
+        if (!document.querySelector(".js-iniciar-apendice-a")) {
+          const btnApendiceA = document.createElement("button");
+          btnApendiceA.className = "nav-sidebar-item nav-item--apendice-a js-iniciar-apendice-a";
+          btnApendiceA.innerHTML = `
+            <span class="nav-icon">🧪</span>
+            <span class="nav-label">
+              <span class="nav-title">Apêndice A</span>
+              <span class="nav-desc">Crossover de Modelos</span>
+            </span>
+          `;
+          if (divider) {
+            sidebarItems.insertBefore(btnApendiceA, divider);
+          } else {
+            sidebarItems.appendChild(btnApendiceA);
+          }
+        }
+
         if (!document.querySelector(".js-iniciar-apendice-b")) {
           const btnApendiceB = document.createElement("button");
           btnApendiceB.className = "nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b";
           btnApendiceB.innerHTML = `
-            <span class="nav-icon">🧪</span>
+            <span class="nav-icon">🔬</span>
             <span class="nav-label">
               <span class="nav-title">Apêndice B</span>
               <span class="nav-desc">Triagem do Gemma 4</span>
@@ -6166,10 +6326,21 @@ export async function verificarAdminEShowSidebar(user) {
             sidebarItems.appendChild(btnApendiceB);
           }
         }
+        // Mostra o botão Prompt Apêndice A no menu +
+        const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+        if (apendiceAPromptBtn) {
+          apendiceAPromptBtn.style.display = "flex";
+        }
       }
     } else {
       document.querySelector(".js-iniciar-admin")?.remove();
+      document.querySelector(".js-iniciar-apendice-a")?.remove();
       document.querySelector(".js-iniciar-apendice-b")?.remove();
+      
+      const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+      if (apendiceAPromptBtn) {
+        apendiceAPromptBtn.style.display = "none";
+      }
     }
   } catch (error) {
     console.error("Erro ao verificar admin para sidebar:", error);
