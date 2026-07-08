@@ -1,40 +1,16 @@
 import {
-  endBefore,
   get,
-  limitToLast,
-  orderByKey,
-  query,
   ref,
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import { ensureLibsLoaded, renderLatexIn } from "../libs/loader.tsx";
 import { TAMANHO_PAGINA, bancoState, db } from "../main.js";
 import { criarCardTecnico } from "./card-template.js";
 import { popularFiltrosDinamicos } from "./filtros-dinamicos.js";
-
-export function construirConsultaFirebase(dbRef) {
-  // Se não tem cursor anterior, pega as últimas X
-  if (!bancoState.ultimoKeyCarregada) {
-    return query(dbRef, orderByKey(), limitToLast(TAMANHO_PAGINA));
-  }
-  // Se tem cursor, pega as X anteriores a ele (paginação reversa)
-  else {
-    return query(
-      dbRef,
-      orderByKey(),
-      endBefore(bancoState.ultimoKeyCarregada),
-      limitToLast(TAMANHO_PAGINA),
-    );
-  }
-}
+import { capturarValoresFiltros, itemAtendeFiltros } from "./filtros-ui.js";
 
 export function processarDadosSnapshot(data) {
   // 1. Inverte para mostrar as mais recentes primeiro
   const listaProvas = Object.entries(data).reverse();
-
-  // 2. Calcula o novo cursor para a próxima página
-  const novoCursor = listaProvas[listaProvas.length - 1][0];
-
-  // 3. Achata a estrutura: Prova -> Questões
   const questoesProcessadas = [];
 
   listaProvas.forEach(([nomeProva, mapQuestoes]) => {
@@ -49,38 +25,67 @@ export function processarDadosSnapshot(data) {
           fullData.meta.material_origem = nomeProva.replace(/_/g, " ");
         }
 
-        // Adiciona na lista plana
+        // ID composto único para o DOM (evita conflito entre provas com mesma questão)
+        const domId = `${nomeProva}___${idQuestao}`;
+
+        // Adiciona na lista plana com a mesma estrutura esperada pelos filtros
         questoesProcessadas.push({
-          id: idQuestao,
-          prova: nomeProva, // Needed for review path
-          fullData: fullData,
+          key: domId,          // Key para filtros e DOM
+          id: idQuestao,       // ID original do Firebase
+          prova: nomeProva,    // Nome da prova
+          domId: domId,        // ID único para DOM elements
+          ...fullData,         // Conteúdo original da questão
         });
       });
     }
   });
 
-  return { novoCursor, questoesProcessadas };
+  return questoesProcessadas;
 }
 
 export function renderizarLoteQuestoes(listaQuestoes, container) {
   listaQuestoes.forEach((item) => {
-    const { id, fullData } = item;
+    const { domId } = item;
 
-    // 1. Adiciona ao cache local global
-    bancoState.todasQuestoesCache.push({ key: id, ...fullData });
-
-    // 2. Renderiza o card
-    const card = criarCardTecnico(id, fullData);
+    // Renderiza o card com o ID único
+    const card = criarCardTecnico(domId, item);
     container.appendChild(card);
 
-    // 3. Renderiza LaTeX (Matemática)
+    // Renderiza LaTeX (Matemática)
     if (typeof renderLatexIn === "function") {
       renderLatexIn(card);
     }
   });
 }
 
-// Helper para buscar status
+// Helper para buscar status da sentinela localmente
+export function atualizarStatusSentinelaLocal() {
+  const s = document.getElementById("sentinelaScroll");
+  if (!s) return;
+
+  const total = bancoState.questoesFiltradas.length;
+  const rendered = bancoState.renderedCount;
+
+  if (total === 0) {
+    s.innerHTML = '<p style="color:var(--color-warning); font-weight: 500;">Nenhuma questão encontrada com esses filtros.</p>';
+  } else if (rendered >= total) {
+    s.innerHTML = `<p style="color:var(--color-text-secondary); font-size: 0.9rem;">Fim do banco de questões (${total} visíveis).</p>`;
+    if (bancoState.observadorScroll) {
+      bancoState.observadorScroll.disconnect();
+    }
+  } else {
+    s.innerHTML = `
+      <div class="spinner" style="margin: 0 auto; display: none;"></div>
+      <p style="color:var(--color-primary); font-size: 0.9rem; font-weight: 500;">${rendered} de ${total} questões exibidas (role para carregar mais).</p>
+    `;
+    // Garante que o observer volte a observar se tem mais para carregar
+    if (bancoState.observadorScroll) {
+      bancoState.observadorScroll.observe(s);
+    }
+  }
+}
+
+// Helper genérico legado para exibir mensagens de status
 export function atualizarStatusSentinela(status, mensagem = "") {
   const s = document.getElementById("sentinelaScroll");
   if (!s) return;
@@ -101,7 +106,7 @@ export function configurarObserverScroll() {
   bancoState.observadorScroll = new IntersectionObserver(
     (entries) => {
       if (entries[0].isIntersecting) {
-        // Chama a função global de carregar dados
+        // Carrega mais do cache local de forma suave
         carregarBancoDados();
       }
     },
@@ -112,7 +117,7 @@ export function configurarObserverScroll() {
   if (sentinela) bancoState.observadorScroll.observe(sentinela);
 }
 
-// Helper para buscar status
+// Helper para buscar status de revisão
 async function hidratarStatusRevisao(listaQuestoes) {
   if (!listaQuestoes || listaQuestoes.length === 0) return;
 
@@ -125,12 +130,7 @@ async function hidratarStatusRevisao(listaQuestoes) {
     try {
       const snap = await get(child(ref(db), path));
       if (snap.exists()) {
-        item.fullData.reviewStatus = snap.val();
-
-        // Atualiza cache se ja foi inserido (race condition com render)
-        // O render acontece antes? Se sim, o objeto 'fullData' é referência?
-        // Sim, objetos JS são referência. Se eu mudo aqui, muda no cache.
-        // Mas não muda no DOM atributes. O filtro olha pro CACHE. entao ta safe.
+        item.reviewStatus = snap.val();
       }
     } catch (e) {
       console.warn("Erro ao buscar status revisão:", path, e);
@@ -173,6 +173,11 @@ async function hidratarStatusApendiceB(listaQuestoes) {
   await Promise.all(promises);
 }
 
+/**
+ * Carrega e gerencia a paginação e renderização de questões.
+ * Carrega todo o banco do Firebase uma única vez no início e depois
+ * gerencia filtros e paginação localmente de forma instantânea e sem travamento de UI.
+ */
 export async function carregarBancoDados() {
   if (bancoState.carregandoMais) return;
   bancoState.carregandoMais = true;
@@ -181,75 +186,63 @@ export async function carregarBancoDados() {
     await ensureLibsLoaded();
 
     const container = document.getElementById("bankStream");
-    const loteParaRenderizar = [];
 
-    // 1. Drena questões pendentes do buffer (sobra da prova anterior)
-    while (
-      bancoState.questoesPendentes.length > 0 &&
-      loteParaRenderizar.length < TAMANHO_PAGINA
-    ) {
-      loteParaRenderizar.push(bancoState.questoesPendentes.shift());
-    }
+    // 1. Carrega todo o banco do Firebase de uma única vez na inicialização
+    if (!bancoState.dbCarregado) {
+      const s = document.getElementById("sentinelaScroll");
+      if (s) {
+        s.innerHTML = `
+          <div class="spinner" style="margin: 20px auto;"></div>
+          <p style="color:var(--color-text-secondary); font-size:12px; margin-top:10px;">Carregando banco de dados do servidor...</p>
+        `;
+      }
 
-    // 2. Se ainda não atingiu o limite, busca novas provas do Firebase
-    let fimDoBanco = false;
-
-    while (loteParaRenderizar.length < TAMANHO_PAGINA && !fimDoBanco) {
       const dbRef = ref(db, "questoes");
-      const consulta = construirConsultaFirebase(dbRef);
-      const snapshot = await get(consulta);
+      const snapshot = await get(dbRef);
 
-      if (!snapshot.exists()) {
-        fimDoBanco = true;
-        break;
-      }
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        bancoState.todasQuestoesCache = processarDadosSnapshot(data);
+        bancoState.dbCarregado = true;
+        bancoState.renderedCount = 0;
 
-      const data = snapshot.val();
-      const { novoCursor, questoesProcessadas } =
-        processarDadosSnapshot(data);
-
-      // Atualiza cursor para a próxima busca
-      bancoState.ultimoKeyCarregada = novoCursor;
-
-      // Distribui as questões processadas: preenche o lote até o limite,
-      // o restante vai pro buffer pendente
-      for (const q of questoesProcessadas) {
-        if (loteParaRenderizar.length < TAMANHO_PAGINA) {
-          loteParaRenderizar.push(q);
-        } else {
-          bancoState.questoesPendentes.push(q);
+        // Inicializa filtros com base no banco COMPLETO!
+        if (typeof popularFiltrosDinamicos === "function") {
+          popularFiltrosDinamicos();
         }
-      }
-
-      // Se a query retornou menos provas do que o pedido,
-      // significa que acabou o banco
-      const numProvasRetornadas = Object.keys(data).length;
-      if (numProvasRetornadas < TAMANHO_PAGINA) {
-        fimDoBanco = true;
+      } else {
+        bancoState.todasQuestoesCache = [];
+        bancoState.dbCarregado = true;
       }
     }
 
-    // 3. Renderiza o lote (se houver questões)
+    // 2. Filtra localmente com base nos filtros atuais selecionados na tela
+    const filtros = capturarValoresFiltros();
+    bancoState.questoesFiltradas = bancoState.todasQuestoesCache.filter((item) =>
+      itemAtendeFiltros(item, filtros)
+    );
+
+    // 3. Determina o lote a ser renderizado a partir do cache filtrado
+    const start = bancoState.renderedCount;
+    const end = Math.min(start + TAMANHO_PAGINA, bancoState.questoesFiltradas.length);
+    const loteParaRenderizar = bancoState.questoesFiltradas.slice(start, end);
+
     if (loteParaRenderizar.length > 0) {
-      // 3.1 Hidrata status em paralelo
+      // 3.1 Busca status de revisão e experimentos em paralelo para o lote atual
       await Promise.all([
         hidratarStatusRevisao(loteParaRenderizar),
         hidratarStatusApendiceB(loteParaRenderizar),
       ]);
 
-      // 3.2 Renderiza na tela
+      // 3.2 Renderiza o lote suavemente no container DOM
       renderizarLoteQuestoes(loteParaRenderizar, container);
 
-      // 3.3 Atualiza filtros
-      if (typeof popularFiltrosDinamicos === "function") {
-        popularFiltrosDinamicos();
-      }
+      bancoState.renderedCount = end;
     }
 
-    // 4. Se acabou o banco E não tem mais pendentes, sinaliza fim
-    if (fimDoBanco && bancoState.questoesPendentes.length === 0) {
-      atualizarStatusSentinela("fim");
-    }
+    // 4. Atualiza a mensagem e estado da sentinela de scroll
+    atualizarStatusSentinelaLocal();
+
   } catch (e) {
     console.error("Erro ao carregar banco:", e);
     atualizarStatusSentinela("erro", e.message);

@@ -205,12 +205,15 @@ export function gerarHtmlHeader(id, fullData) {
                         <span>${dc.icon}</span> ${calc.nivel.texto}
                     </span>`;
   }
+  // Clean ID for UI display (remove composite prefix if present)
+  const displayId = id.includes("___") ? id.split("___")[1] : id;
+
   return `
         <div class="q-header">
             <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
                 
                 <!-- ID Badge -->
-                <span class="q-id-badge">${id}</span>
+                <span class="q-id-badge">${displayId}</span>
                 
                 <!-- Título (Inst e Prova) -->
                 <span style="font-weight:bold; color:var(--color-text); font-size:0.95rem;">

@@ -126,13 +126,14 @@ export const uploadState = {
   imagensConvertidas: 0,
 };
 
-// Variáveis de controle
 export const bancoState = {
   ultimoKeyCarregada: null,
   observadorScroll: null,
   carregandoMais: false,
   todasQuestoesCache: [], // Cache local para filtros rápidos
-  questoesPendentes: [], // Buffer de questões processadas mas ainda não renderizadas
+  questoesFiltradas: [], // Cache de questões filtradas ativas
+  renderedCount: 0, // Contador de itens atualmente renderizados
+  dbCarregado: false, // Flag indicando se todo o banco do Firebase foi carregado
 };
 export const TAMANHO_PAGINA = 20;
 
@@ -392,7 +393,7 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
-    // --- CASO 10: BotÃ£o Aplicar Filtros (Busca) ---
+    // --- CASO 10: Botão Aplicar Filtros (Busca) ---
     const gatilhoFiltrar = e.target.closest(".js-aplicar-filtros");
     if (gatilhoFiltrar) {
       aplicarFiltrosBanco();

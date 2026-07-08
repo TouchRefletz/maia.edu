@@ -453,24 +453,14 @@ export function itemAtendeFiltros(item, f) {
 }
 
 export function aplicarFiltrosBanco() {
-  const filtros = capturarValoresFiltros();
-  let visiveis = 0;
-
-  bancoState.todasQuestoesCache.forEach((item) => {
-    const show = itemAtendeFiltros(item, filtros);
-    const cardEl = document.getElementById(`card_${item.key}`);
-    if (cardEl) {
-      cardEl.style.display = show ? "block" : "none";
-      if (show) visiveis++;
-    }
-  });
-
-  const s = document.getElementById("sentinelaScroll");
-  if (s) {
-    if (visiveis === 0) {
-      s.innerHTML = `<p style="color:var(--color-warning);">Nenhuma questão encontrada com esses filtros.</p>`;
-    } else {
-      s.innerHTML = `<p style="color:var(--color-primary);">${visiveis} questões visíveis (carregue mais rolando para baixo).</p>`;
-    }
+  const container = document.getElementById("bankStream");
+  if (container) {
+    container.innerHTML = "";
   }
+  bancoState.renderedCount = 0;
+
+  // Import dinâmico para evitar dependência circular estática com paginacao-e-carregamento.js
+  import("./paginacao-e-carregamento.js").then(({ carregarBancoDados }) => {
+    carregarBancoDados();
+  });
 }
