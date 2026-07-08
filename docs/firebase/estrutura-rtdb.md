@@ -104,6 +104,12 @@ No Painel Server-Side do Google Firebase Console. O arquivo `.rules` aplica a Co
 /* O arquivo Database.rules.json Protegido por Firebase Admin */
 {
   "rules": {
+    "admins": {
+      "$uid": {
+        // Permite que qualquer usuário autenticado (mesmo anônimo) verifique se é administrador
+        ".read": "auth != null && auth.uid == $uid"
+      }
+    },
     "questoes": {
       // 1. Leitura Aberta (Read): Crianças logadas e Testadores Anônimos podem navegar nas VDB.
       ".read": "(auth != null) || (auth.token.firebase.sign_in_provider == 'anonymous')",
@@ -118,6 +124,17 @@ No Painel Server-Side do Google Firebase Console. O arquivo `.rules` aplica a Co
           ".validate": "newData.hasChildren(['questaoFinal', 'gabaritoLimpo']) && newData.child('questaoFinal').isString()"
         }
       }
+    },
+    "experimentos_apendice_b_status": {
+      // 1. Leitura Aberta: Qualquer usuário autenticado ou anônimo pode ler o status do experimento para exibir badges de UI
+      ".read": "(auth != null) || (auth.token.firebase.sign_in_provider == 'anonymous')",
+      // 2. Gravação Restrita: Só administradores podem rodar ou marcar experimentos como concluídos
+      ".write": "root.child('admins').child(auth.uid).exists()"
+    },
+    "experimentos_apendice_b": {
+      // Leitura/Gravação Restrita: Apenas administradores têm acesso aos relatórios e dados completos de execução do Apêndice B
+      ".read": "root.child('admins').child(auth.uid).exists()",
+      ".write": "root.child('admins').child(auth.uid).exists()"
     },
     // Usuários Jamais lêem os Histories de outros Usuários (Segregação AuthUID)
     "users": {
