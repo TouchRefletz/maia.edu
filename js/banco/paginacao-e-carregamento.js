@@ -180,37 +180,74 @@ export async function carregarBancoDados() {
   try {
     await ensureLibsLoaded();
 
-    // 1. Busca os dados
-    const dbRef = ref(db, "questoes");
-    const consulta = construirConsultaFirebase(dbRef);
-    const snapshot = await get(consulta);
+    const container = document.getElementById("bankStream");
+    const loteParaRenderizar = [];
 
-    if (snapshot.exists()) {
+    // 1. Drena questões pendentes do buffer (sobra da prova anterior)
+    while (
+      bancoState.questoesPendentes.length > 0 &&
+      loteParaRenderizar.length < TAMANHO_PAGINA
+    ) {
+      loteParaRenderizar.push(bancoState.questoesPendentes.shift());
+    }
+
+    // 2. Se ainda não atingiu o limite, busca novas provas do Firebase
+    let fimDoBanco = false;
+
+    while (loteParaRenderizar.length < TAMANHO_PAGINA && !fimDoBanco) {
+      const dbRef = ref(db, "questoes");
+      const consulta = construirConsultaFirebase(dbRef);
+      const snapshot = await get(consulta);
+
+      if (!snapshot.exists()) {
+        fimDoBanco = true;
+        break;
+      }
+
       const data = snapshot.val();
+      const { novoCursor, questoesProcessadas } =
+        processarDadosSnapshot(data);
 
-      // 2. Processa os dados (Transforma e pega cursor)
-      const { novoCursor, questoesProcessadas } = processarDadosSnapshot(data);
-
-      // Atualiza variavel global de paginação
+      // Atualiza cursor para a próxima busca
       bancoState.ultimoKeyCarregada = novoCursor;
 
-      // 2.1 HIDRATAÇÃO DE STATUS (NOVO)
-      // Buscamos em paralelo os status das revisoes e do Apêndice B
+      // Distribui as questões processadas: preenche o lote até o limite,
+      // o restante vai pro buffer pendente
+      for (const q of questoesProcessadas) {
+        if (loteParaRenderizar.length < TAMANHO_PAGINA) {
+          loteParaRenderizar.push(q);
+        } else {
+          bancoState.questoesPendentes.push(q);
+        }
+      }
+
+      // Se a query retornou menos provas do que o pedido,
+      // significa que acabou o banco
+      const numProvasRetornadas = Object.keys(data).length;
+      if (numProvasRetornadas < TAMANHO_PAGINA) {
+        fimDoBanco = true;
+      }
+    }
+
+    // 3. Renderiza o lote (se houver questões)
+    if (loteParaRenderizar.length > 0) {
+      // 3.1 Hidrata status em paralelo
       await Promise.all([
-        hidratarStatusRevisao(questoesProcessadas),
-        hidratarStatusApendiceB(questoesProcessadas),
+        hidratarStatusRevisao(loteParaRenderizar),
+        hidratarStatusApendiceB(loteParaRenderizar),
       ]);
 
-      // 3. Renderiza na tela
-      const container = document.getElementById("bankStream");
-      renderizarLoteQuestoes(questoesProcessadas, container);
+      // 3.2 Renderiza na tela
+      renderizarLoteQuestoes(loteParaRenderizar, container);
 
-      // 4. Atualiza filtros
+      // 3.3 Atualiza filtros
       if (typeof popularFiltrosDinamicos === "function") {
         popularFiltrosDinamicos();
       }
-    } else {
-      // Não existem mais dados
+    }
+
+    // 4. Se acabou o banco E não tem mais pendentes, sinaliza fim
+    if (fimDoBanco && bancoState.questoesPendentes.length === 0) {
       atualizarStatusSentinela("fim");
     }
   } catch (e) {

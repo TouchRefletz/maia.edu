@@ -310,18 +310,20 @@ export function itemAtendeFiltros(item, f) {
     // Se item não tem valores, falha (pois filtro exige algo)
     if (!itemValues || itemValues.length === 0) return false;
 
-    // Verifica intersecção
-    return selectedValues.some((sv) =>
-      itemValues.some((iv) => iv.includes(sv)),
-    );
+    // Verifica intersecção com igualdade exata (normalizada)
+    return selectedValues.some((sv) => {
+      const svNorm = sv.toLowerCase().trim();
+      return itemValues.some((iv) => iv.toLowerCase().trim() === svNorm);
+    });
   };
 
-  // Helper para valores simples (string vs array filter)
+  // Helper para valores simples (string vs array filter) — igualdade exata
   const matchSimple = (selectedValues, itemValueStr) => {
     if (!selectedValues || selectedValues.length === 0) return true;
     if (!itemValueStr) return false;
-    // Verifica se itemValueStr contém ALGUM dos valores selecionados
-    return selectedValues.some((sv) => itemValueStr.includes(sv));
+    // Verifica se itemValueStr é IGUAL a algum dos valores selecionados
+    const norm = itemValueStr.toLowerCase().trim();
+    return selectedValues.some((sv) => norm === sv.toLowerCase().trim());
   };
 
   // 2. Matéria

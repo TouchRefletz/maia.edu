@@ -132,6 +132,7 @@ export const bancoState = {
   observadorScroll: null,
   carregandoMais: false,
   todasQuestoesCache: [], // Cache local para filtros rápidos
+  questoesPendentes: [], // Buffer de questões processadas mas ainda não renderizadas
 };
 export const TAMANHO_PAGINA = 20;
 
