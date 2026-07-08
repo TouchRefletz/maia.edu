@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run docs:dev\"",
-    "build": "vite build && vitepress build docs && node -e \"fs.cpSync('docs/.vitepress/dist', 'dist/docs', { recursive: true })\"",
+    "build": "vite build && vitepress build docs && node -e \"fs.cpSync('docs/.vitepress/dist', 'dist/docs', { recursive: true }); fs.cpSync('experiments', 'dist/experiments', { recursive: true })\"",
     "docs:dev": "vitepress dev docs",
     "preview": "vite preview"
   },
