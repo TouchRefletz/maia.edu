@@ -358,6 +358,25 @@ function renderInitialUI() {
                                     <span class="model-item-desc">Bloqueia o input com o prompt padrão</span>
                                 </div>
                             </button>
+
+                            <!-- Item 6: Bloquear Extração de Questões (Admin Only) -->
+                            <div class="model-menu-item" id="chatBlockExtractionWrapper" style="display: none; align-items: center; justify-content: space-between; gap: 8px; user-select: none; width: 100%; padding-top: 8px; margin-top: 8px;">
+                                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                    <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                                        🚫
+                                    </div>
+                                    <div class="model-item-content">
+                                        <span class="model-item-title">Bloquear IA</span>
+                                        <span class="model-item-desc">Evita extração de novas questões</span>
+                                    </div>
+                                </div>
+                                <label id="toggleBlockExtractionContainer" style="position: relative; display: inline-flex; align-items: center; cursor: pointer; margin-right: 8px;">
+                                    <input type="checkbox" id="toggleBlockExtraction" style="display: none;">
+                                    <div id="toggleBlockExtractionSlider" style="position: relative; width: 36px; height: 20px; background-color: var(--color-border); border-radius: 10px; transition: background-color 0.2s;">
+                                        <div id="toggleBlockExtractionKnob" style="position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background-color: #ffffff; border-radius: 50%; transition: left 0.2s;"></div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -524,6 +543,30 @@ function renderInitialUI() {
     configurable: true
   });
 
+  function updatePlusMenuMaxHeight() {
+    if (!plusBtn || !plusMenu) return;
+    const isChatMode = document.querySelector(".maia-ai-container")?.classList.contains("chat-mode");
+    const rect = plusBtn.getBoundingClientRect();
+    let maxHeight;
+    if (isChatMode) {
+      // Abre para cima
+      maxHeight = rect.top - 30; // 30px do topo da tela
+    } else {
+      // Abre para baixo
+      maxHeight = window.innerHeight - rect.bottom - 30; // 30px do chão da tela
+    }
+    // Mantém o menu principal compacto (máximo 340px) mas ajusta em telas pequenas
+    maxHeight = Math.min(340, Math.max(150, maxHeight));
+    plusMenu.style.maxHeight = `${maxHeight}px`;
+  }
+
+  // Update on resize
+  window.addEventListener("resize", () => {
+    if (plusMenu && plusMenu.classList.contains("active")) {
+      updatePlusMenuMaxHeight();
+    }
+  });
+
   function closeAllMenus() {
     plusMenu?.classList.remove("active");
     modeMenu?.classList.remove("active");
@@ -535,7 +578,10 @@ function renderInitialUI() {
       e.stopPropagation();
       const isActive = plusMenu.classList.contains("active");
       closeAllMenus(); // Fecha outros primeiro
-      if (!isActive) plusMenu.classList.add("active");
+      if (!isActive) {
+        updatePlusMenuMaxHeight();
+        plusMenu.classList.add("active");
+      }
     });
   }
 
@@ -726,6 +772,10 @@ function renderInitialUI() {
       if (metodologiaTrigger) metodologiaTrigger.style.display = "none";
       if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = "none";
     }
+
+    if (typeof window.syncBlockExtractionVisibility === "function") {
+      window.syncBlockExtractionVisibility();
+    }
   }
 
   // Toggle de Arquitetura Maia.edu
@@ -737,6 +787,46 @@ function renderInitialUI() {
 
     toggleCheckbox.addEventListener("change", () => {
       syncMaiaArchitectureUI(toggleCheckbox.checked);
+    });
+  }
+
+  // Toggle de Bloqueio de Extração de Questões (Admin Only)
+  function syncBlockExtractionUI(checked) {
+    window.blockQuestionExtraction = checked;
+    localStorage.setItem("blockQuestionExtraction", checked);
+    const blockCheckbox = document.getElementById("toggleBlockExtraction");
+    const blockSlider = document.getElementById("toggleBlockExtractionSlider");
+    const blockKnob = document.getElementById("toggleBlockExtractionKnob");
+
+    if (blockCheckbox) blockCheckbox.checked = checked;
+
+    if (checked) {
+      if (blockSlider) blockSlider.style.backgroundColor = "var(--color-primary)";
+      if (blockKnob) blockKnob.style.left = "18px";
+    } else {
+      if (blockSlider) blockSlider.style.backgroundColor = "var(--color-border)";
+      if (blockKnob) blockKnob.style.left = "2px";
+    }
+  }
+
+  window.syncBlockExtractionVisibility = function() {
+    const wrapper = document.getElementById("chatBlockExtractionWrapper");
+    if (!wrapper) return;
+    if (window.isAdmin && window.useMaiaArchitecture !== false) {
+      wrapper.style.display = "flex";
+    } else {
+      wrapper.style.display = "none";
+    }
+  };
+
+  const blockCheckbox = document.getElementById("toggleBlockExtraction");
+  if (blockCheckbox) {
+    const savedState = localStorage.getItem("blockQuestionExtraction");
+    const initialState = savedState === "true";
+    syncBlockExtractionUI(initialState);
+
+    blockCheckbox.addEventListener("change", () => {
+      syncBlockExtractionUI(blockCheckbox.checked);
     });
   }
 
@@ -791,26 +881,76 @@ function renderInitialUI() {
   if (metodologiaTrigger && metodologiaSubmenu) {
     let submenuTimeout;
 
+    const updateSubmenuPosition = () => {
+      const rect = metodologiaTrigger.getBoundingClientRect();
+      metodologiaSubmenu.style.left = `${rect.right - 2}px`; // Sobrepõe 2px para eliminar qualquer gap de hover
+
+      // Altura máxima limitada e compacta (máximo 340px) para forçar o scroll, reduzindo se a tela for pequena
+      const maxSubHeight = Math.min(340, window.innerHeight - 40);
+      metodologiaSubmenu.style.maxHeight = `${maxSubHeight}px`;
+
+      // Posiciona verticalmente de acordo com a posição do trigger
+      let topPos = rect.top - 10;
+      const estimatedHeight = Math.min(maxSubHeight, metodologiaSubmenu.scrollHeight || 300);
+
+      // Se estourar a tela embaixo, sobe o submenu
+      if (topPos + estimatedHeight > window.innerHeight - 20) {
+        topPos = window.innerHeight - estimatedHeight - 20;
+      }
+      topPos = Math.max(20, topPos); // Margem mínima do topo
+      metodologiaSubmenu.style.top = `${topPos}px`;
+    };
+
     metodologiaTrigger.addEventListener("mouseenter", () => {
       clearTimeout(submenuTimeout);
+      updateSubmenuPosition();
       metodologiaSubmenu.classList.add("active");
     });
 
-    metodologiaTrigger.addEventListener("mouseleave", () => {
+    metodologiaTrigger.addEventListener("mouseleave", (e) => {
+      // Se estiver se movendo diretamente para o submenu, não agenda fechamento imediato
+      if (e.relatedTarget && metodologiaSubmenu.contains(e.relatedTarget)) {
+        return;
+      }
       submenuTimeout = setTimeout(() => {
-        metodologiaSubmenu.classList.remove("active");
-      }, 150);
+        if (!metodologiaSubmenu.matches(":hover") && !metodologiaTrigger.matches(":hover")) {
+          metodologiaSubmenu.classList.remove("active");
+        }
+      }, 300); // 300ms de tolerância
     });
 
     metodologiaSubmenu.addEventListener("mouseenter", () => {
       clearTimeout(submenuTimeout);
     });
 
-    metodologiaSubmenu.addEventListener("mouseleave", () => {
+    metodologiaSubmenu.addEventListener("mouseleave", (e) => {
+      // Se estiver voltando diretamente para o trigger, não agenda fechamento imediato
+      if (e.relatedTarget && metodologiaTrigger.contains(e.relatedTarget)) {
+        return;
+      }
       submenuTimeout = setTimeout(() => {
-        metodologiaSubmenu.classList.remove("active");
-      }, 150);
+        if (!metodologiaSubmenu.matches(":hover") && !metodologiaTrigger.matches(":hover")) {
+          metodologiaSubmenu.classList.remove("active");
+        }
+      }, 300); // 300ms de tolerância
     });
+
+    // Se o mouse entrar em qualquer outro item do menu principal, fecha imediatamente o submenu!
+    if (plusMenu) {
+      plusMenu.querySelectorAll(".model-menu-item").forEach((item) => {
+        if (item !== metodologiaTrigger) {
+          item.addEventListener("mouseenter", () => {
+            metodologiaSubmenu.classList.remove("active");
+          });
+        }
+      });
+
+      plusMenu.addEventListener("scroll", () => {
+        if (metodologiaSubmenu.classList.contains("active")) {
+          updateSubmenuPosition();
+        }
+      });
+    }
 
     // Seleção de item
     metodologiaSubmenu.querySelectorAll(".metodologia-item").forEach((item) => {
@@ -6259,9 +6399,18 @@ function renderFileAttachment(file) {
  */
 export async function verificarAdminEShowSidebar(user) {
   if (!user || user.isAnonymous) {
+    window.isAdmin = false;
     document.querySelector(".js-iniciar-admin")?.remove();
     document.querySelector(".js-iniciar-apendice-a")?.remove();
     document.querySelector(".js-iniciar-apendice-b")?.remove();
+    
+    const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+    if (apendiceAPromptBtn) {
+      apendiceAPromptBtn.style.display = "none";
+    }
+    if (typeof window.syncBlockExtractionVisibility === "function") {
+      window.syncBlockExtractionVisibility();
+    }
     return;
   }
 
@@ -6270,6 +6419,8 @@ export async function verificarAdminEShowSidebar(user) {
     const adminRef = ref(db, `admins/${user.uid}`);
     const snapshot = await get(adminRef);
     const isAdmin = snapshot.exists() && snapshot.val() === true;
+
+    window.isAdmin = isAdmin;
 
     if (isAdmin) {
       const sidebarItems = document.querySelector(".nav-sidebar-items");
@@ -6341,6 +6492,10 @@ export async function verificarAdminEShowSidebar(user) {
       if (apendiceAPromptBtn) {
         apendiceAPromptBtn.style.display = "none";
       }
+    }
+    
+    if (typeof window.syncBlockExtractionVisibility === "function") {
+      window.syncBlockExtractionVisibility();
     }
   } catch (error) {
     console.error("Erro ao verificar admin para sidebar:", error);

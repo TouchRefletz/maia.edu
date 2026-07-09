@@ -185,6 +185,14 @@ Responda com o JSON estruturado.`;
  */
 export async function triggerQuestionExtraction(buscaQuestao, context) {
   try {
+    const isBlocked = (typeof localStorage !== "undefined" && localStorage.getItem("blockQuestionExtraction") === "true") || 
+                      (typeof window !== "undefined" && window.blockQuestionExtraction === true);
+                      
+    if (isBlocked) {
+      console.log("[GapDetector] 🚫 Question extraction blocked by Admin toggle (localStorage/window).");
+      return;
+    }
+
     console.log(
       "[GapDetector] 🔍 Triggering question extraction for:",
       buscaQuestao.conteudo,
