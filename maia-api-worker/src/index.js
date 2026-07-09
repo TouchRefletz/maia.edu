@@ -3272,6 +3272,7 @@ async function handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson)
 	}
 
 	if (images.length > 0 && groqModelId.includes('gpt-oss-120b')) {
+		const startGemmaTime = performance.now();
 		const descriptions = [];
 		const promptDescrever = `Você é um transcritor visual acadêmico especializado em provas de vestibulares brasileiros. Sua tarefa é descrever, com absurdamente alto detalhamento, TODOS os elementos visuais presentes na imagem anexa de uma questão de vestibular.
 REGRAS:
@@ -3356,6 +3357,9 @@ FORMATO DE SAÍDA:
 			descriptions.push(desc);
 			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Fim da descrição da imagem ${i + 1}]\n` });
 		}
+
+		const gemmaLatencyMs = Math.round(performance.now() - startGemmaTime);
+		await writeNdjson({ type: 'gemma_latency', latency_ms: gemmaLatencyMs });
 
 		const formattedDescriptions = descriptions.map((desc, idx) => `[DESCRIÇÃO DA IMAGEM ${idx + 1}]:\n${desc}`).join('\n\n');
 		textWithDescriptions = `${textWithDescriptions}\n\n=== DESCRIÇÃO VISUAL DAS IMAGENS DA QUESTÃO ===\n${formattedDescriptions}\n===============================================`;

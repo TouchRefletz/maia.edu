@@ -189,6 +189,7 @@ export async function runChatPipeline(
       router_ms: 0,
       rag_ms: 0,
       search_ms: 0,
+      gemma_image_ms: 0,
       generation_ms: 0,
     },
     routing_details: null,
@@ -702,6 +703,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       onStatus: (status) => {
         if (context.onStatus) context.onStatus(status);
       },
+      onGemmaLatency: (latency) => {
+        debugLog.latencies.gemma_image_ms = latency;
+      },
       apiKey: context.apiKey,
       githubApiKey: context.githubApiKey,
       groqApiKey: context.groqApiKey,
@@ -709,7 +713,8 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
       signal: context.signal,
     });
-    debugLog.latencies.generation_ms = Math.round(performance.now() - startGen);
+    debugLog.latencies.gemma_image_ms = debugLog.latencies.gemma_image_ms || 0;
+    debugLog.latencies.generation_ms = Math.max(0, Math.round(performance.now() - startGen) - debugLog.latencies.gemma_image_ms);
 
     // A resposta final agora é o objeto estruturado completo ({ layout, conteudo })
     let finalContent;
@@ -1070,6 +1075,7 @@ async function generateChatStreamed(params) {
     onStream,
     onThought,
     onStatus,
+    onGemmaLatency,
     apiKey,
     githubApiKey,
     groqApiKey,
@@ -1132,6 +1138,9 @@ async function generateChatStreamed(params) {
     onStatus: (status) => {
       console.log(`[Worker Status] ${status}`);
       if (onStatus) onStatus(status);
+    },
+    onGemmaLatency: (latency) => {
+      if (onGemmaLatency) onGemmaLatency(latency);
     },
     onThought: (thought) => {
       if (onThought) onThought(thought);

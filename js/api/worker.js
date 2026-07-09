@@ -230,6 +230,12 @@ export async function gerarConteudoEmJSONComImagemStream(
               } catch (err) {
                 console.error("Error in onThought handler:", err);
               }
+            } else if (msg.type === "gemma_latency") {
+              try {
+                handlers?.onGemmaLatency?.(msg.latency_ms);
+              } catch (err) {
+                console.error("Error in onGemmaLatency handler:", err);
+              }
             } else if (msg.type === "answer") {
               // Accumulate FIRST to ensure data integrity
               answerText += msg.text;
