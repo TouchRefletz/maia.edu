@@ -86,14 +86,16 @@ window.downloadMessageDebug = (msgIndex) => {
     }
     return value;
   }, 2);
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
+  const blob = new Blob([safeJson], { type: "application/json;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
   const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("href", url);
   const formattedTime = log.timestamp.replace(/[:.]/g, "-");
   downloadAnchor.setAttribute("download", `maia_debug_${log.use_maia_architecture ? 'com' : 'sem'}_arq_${formattedTime}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
 window.toggleMessageDebugMenu = (btn, event) => {

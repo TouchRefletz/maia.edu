@@ -1,4 +1,18 @@
 import { parseStreamedJSON } from "../utils/json-stream-parser.js";
+
+/**
+ * Limpa blocos de código markdown (como ```json e ```) no início/fim de uma string JSON.
+ */
+function cleanJsonString(str) {
+  if (typeof str !== "string") return str;
+  let cleaned = str.trim();
+  // Remove markdown codeblock no início (ex: ```json ou ```)
+  cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "");
+  // Remove markdown codeblock no final (ex: ```)
+  cleaned = cleaned.replace(/\s*```$/, "");
+  return cleaned.trim();
+}
+
 // --- CONFIGURAÇÃO DO WORKER ---
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
@@ -268,6 +282,13 @@ export async function gerarConteudoEmJSONComImagemStream(
                 "♻️ Tentativa falhou com RECITATION. Reiniciando buffer...",
               );
               answerText = "";
+              if (handlers?.onReset) {
+                try {
+                  handlers.onReset();
+                } catch (err) {
+                  console.error("Error in onReset handler:", err);
+                }
+              }
               handlers?.onStatus?.(
                 "Recitation detectado. Tentando novamente...",
               );
@@ -296,13 +317,15 @@ export async function gerarConteudoEmJSONComImagemStream(
 
       console.log(answerText);
 
+      const cleanedAnswer = cleanJsonString(answerText);
+
       try {
-        return JSON.parse(answerText);
+        return JSON.parse(cleanedAnswer);
       } catch (pe) {
         if (schema) {
           console.warn("[Worker] Resposta não é JSON perfeito. Tentando recuperar...");
-          const parsedRecovered = parseStreamedJSON(answerText);
-          if (parsedRecovered && typeof parsedRecovered === "object" && parsedRecovered.layout && parsedRecovered.conteudo) {
+          const parsedRecovered = parseStreamedJSON(cleanedAnswer);
+          if (parsedRecovered && typeof parsedRecovered === "object") {
             console.log("[Worker] JSON recuperado com sucesso via best-effort!");
             return parsedRecovered;
           }
@@ -319,6 +342,7 @@ export async function gerarConteudoEmJSONComImagemStream(
       // Classifica se o erro é temporário/elegível para nova tentativa (incluindo falha de modelo e rede)
       const isRetryable =
         error.message === "EMPTY_RESPONSE_ERROR" ||
+        error.message === "INVALID_JSON_STRUCTURE" ||
         error.message.startsWith("WORKER_RUN_FAILED") ||
         (error.name === "TypeError" && error.message.includes("Failed to fetch")) ||
         error.message === "NETWORK_ERROR";
@@ -602,6 +626,13 @@ export async function realizarPesquisa(
           } else if (msg.type === "reset") {
             // Limpa relatório se houver reset (recitation)
             reportText = "";
+            if (handlers?.onReset) {
+              try {
+                handlers.onReset();
+              } catch (err) {
+                console.error("Error in onReset handler:", err);
+              }
+            }
             handlers?.onStatus?.(
               "Recitation detectado na pesquisa. Tentando novo modelo...",
             );
@@ -723,6 +754,13 @@ export async function realizarPesquisaGeral(
             throw new Error(msg.message || "Erro no worker de pesquisa");
           } else if (msg.type === "reset") {
             reportText = "";
+            if (handlers?.onReset) {
+              try {
+                handlers.onReset();
+              } catch (err) {
+                console.error("Error in onReset handler:", err);
+              }
+            }
             handlers?.onStatus?.(
               "Recitation detectado na pesquisa. Tentando novo modelo...",
             );

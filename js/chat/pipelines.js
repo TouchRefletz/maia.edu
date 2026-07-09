@@ -6,6 +6,7 @@ import * as MemoryService from "../services/memory-service.js"; // Import Memory
 import { findBestQuestion } from "../services/question-service.js"; // Import question service
 import { fileToBase64 } from "../utils/file-utils.js";
 import { parseStreamedJSON } from "../utils/json-stream-parser.js";
+import { cleanQuestionDataForAI } from "../utils/question-cleaner.js";
 import { getGenerationParams, getModeConfig } from "./config.js";
 import { getMetodologia } from "./metodologias-config.js";
 import {
@@ -150,6 +151,27 @@ export async function runChatPipeline(
   let additionalContextMessage = "";
   let memoryContextForRouter = "";
   let questionData = null;
+  let attachedQuestionData = null;
+  if (Array.isArray(attachments)) {
+    for (const file of attachments) {
+      if (file.name && file.name.endsWith(".json")) {
+        try {
+          const text = await file.text();
+          const parsed = JSON.parse(text);
+          if (parsed.dados_questao || parsed.dados_gabarito) {
+            attachedQuestionData = {
+              id: parsed.dados_questao?.identificacao || file.name,
+              fullData: parsed
+            };
+            console.log("[Pipeline] Encontrada questão anexada diretamente:", attachedQuestionData.id);
+            break;
+          }
+        } catch (e) {
+          console.warn("[Pipeline] Erro ao analisar JSON anexado:", e);
+        }
+      }
+    }
+  }
   let searchSources = [];
   let searchReport = "";
   
@@ -316,7 +338,8 @@ export async function runChatPipeline(
         }
       } catch (err) {
         if (err.name === "AbortError") throw err; // Propagate abort
-        console.warn("[Pipeline] ⚠️ Erro no sistema de memória:", err);
+        console.error("[Pipeline] ⚠️ Erro no sistema de memória:", err);
+        throw err;
       }
     }
 
@@ -401,67 +424,89 @@ export async function runChatPipeline(
     }
 
     // Verifica tb se precisa buscar questão (AGORA RODA JUNTO COM SCAFFOLDING SE NECESSÁRIO)
-    if (isMaiaActive && wasRouted && routerResult?.busca_questao) {
-      console.log(
-        "[Pipeline] 🔎 Router solicitou busca de questão:",
-        routerResult.busca_questao,
-      );
-      try {
-        const startRAG = performance.now();
-        questionData = await findBestQuestion({
-          query: routerResult.busca_questao.conteudo,
-          ...routerResult.busca_questao.props,
-        });
-        debugLog.latencies.rag_ms = Math.round(performance.now() - startRAG);
+    if (isMaiaActive && wasRouted) {
+      if (attachedQuestionData) {
+        questionData = attachedQuestionData;
+        console.log("[Pipeline] ✅ Utilizando questão anexada diretamente (sem RAG):", questionData.id);
 
-        if (questionData) {
-          console.log(
-            "[Pipeline] ✅ Questão encontrada e injetada no contexto:",
-            questionData.id,
-          );
-          
-          debugLog.rag_details = {
-            id: questionData.id,
-            score: questionData.score,
-            fullData: questionData.fullData
-          };
+        debugLog.rag_details = {
+          id: questionData.id,
+          score: 1.0,
+          fullData: questionData.fullData
+        };
 
-          // REGISTRA QUERY USADA PARA NÃO REPETIR
-          context.previousQueries.push(routerResult.busca_questao.conteudo);
-
-          // SEMPRE injeta no contexto (mesmo com gap)
-          additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário solicitou uma questão. Use os dados abaixo para gerar o bloco 'questao' na resposta. Não invente, use estes dados:\n${JSON.stringify(questionData.fullData)}`;
-
-          // GAP DETECTION: Check if result is genuinely relevant
-          // Runs in parallel — don't block the chat response
-          checkQuestionRelevance(
-            routerResult.busca_questao.conteudo,
-            questionData,
-            context.apiKey,
-            context.signal,
-          )
-            .then((relevance) => {
-              console.log("[Pipeline] 🔍 Relevance check:", relevance);
-              if (!relevance.relevant || relevance.needs_more) {
-                console.log("[Pipeline] 🔍 Gap detected — triggering extraction");
-                triggerQuestionExtraction(routerResult.busca_questao, context);
-              }
-            })
-            .catch((err) => {
-              if (err.name !== "AbortError") {
-                console.warn("[Pipeline] ⚠️ Gap detection error:", err);
-              }
-            });
+        const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
+        if (finalMode === "scaffolding") {
+          additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
         } else {
-          // No results at all — trigger extraction
-          console.log("[Pipeline] ❌ No question found — triggering extraction");
-          triggerQuestionExtraction(routerResult.busca_questao, context);
+          additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
         }
-      } catch (err) {
-        console.warn(
-          "[Pipeline] ⚠️ Falha ao buscar questão sugerida pelo router:",
-          err,
+      } else if (routerResult?.busca_questao) {
+        console.log(
+          "[Pipeline] 🔎 Router solicitou busca de questão:",
+          routerResult.busca_questao,
         );
+        try {
+          const startRAG = performance.now();
+          questionData = await findBestQuestion({
+            query: routerResult.busca_questao.conteudo,
+            ...routerResult.busca_questao.props,
+          });
+          debugLog.latencies.rag_ms = Math.round(performance.now() - startRAG);
+
+          if (questionData) {
+            console.log(
+              "[Pipeline] ✅ Questão encontrada e injetada no contexto:",
+              questionData.id,
+            );
+
+            debugLog.rag_details = {
+              id: questionData.id,
+              score: questionData.score,
+              fullData: questionData.fullData
+            };
+
+            // REGISTRA QUERY USADA PARA NÃO REPETIR
+            context.previousQueries.push(routerResult.busca_questao.conteudo);
+
+            const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
+            if (finalMode === "scaffolding") {
+              additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
+            } else {
+              additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
+            }
+
+            // GAP DETECTION: Check if result is genuinely relevant
+            // Runs in parallel — don't block the chat response
+            checkQuestionRelevance(
+              routerResult.busca_questao.conteudo,
+              questionData,
+              context.apiKey,
+              context.signal,
+            )
+              .then((relevance) => {
+                console.log("[Pipeline] 🔍 Relevance check:", relevance);
+                if (!relevance.relevant || relevance.needs_more) {
+                  console.log("[Pipeline] 🔍 Gap detected — triggering extraction");
+                  triggerQuestionExtraction(routerResult.busca_questao, context);
+                }
+              })
+              .catch((err) => {
+                if (err.name !== "AbortError") {
+                  console.warn("[Pipeline] ⚠️ Gap detection error:", err);
+                }
+              });
+          } else {
+            // No results at all — trigger extraction
+            console.log("[Pipeline] ❌ No question found — triggering extraction");
+            triggerQuestionExtraction(routerResult.busca_questao, context);
+          }
+        } catch (err) {
+          console.warn(
+            "[Pipeline] ⚠️ Falha ao buscar questão sugerida pelo router:",
+            err,
+          );
+        }
       }
     }
 
@@ -475,11 +520,18 @@ export async function runChatPipeline(
         context.onProcessingStatus("loading", "Realizando pesquisa aprofundada");
       }
 
-      try {
-        const searchQuery = routerResult?.instrucao_pesquisa || message;
-        
-        // Instrução específica para o Agente de Pesquisa (Grounding)
-        const researcherPrompt = `Você é um Pesquisador Especializado da Maia.edu. 
+      const MAX_RESEARCH_RETRIES = 3;
+      let researchAttempt = 0;
+      let researchSuccess = false;
+      let researchError = null;
+
+      while (researchAttempt < MAX_RESEARCH_RETRIES && !researchSuccess) {
+        researchAttempt++;
+        try {
+          const searchQuery = routerResult?.instrucao_pesquisa || message;
+          
+          // Instrução específica para o Agente de Pesquisa (Grounding)
+          const researcherPrompt = `Você é um Pesquisador Especializado da Maia.edu. 
 Sua tarefa é realizar uma pesquisa profunda e gerar um relatório técnico fundamentado sobre o tema abaixo.
 
 REGRAS DE OURO:
@@ -491,55 +543,70 @@ REGRAS DE OURO:
 
 TEMA DA PESQUISA: ${searchQuery}`;
 
-        const startSearch = performance.now();
-        const searchResult = await realizarPesquisaGeral(
-          researcherPrompt,
-          attachments,
-          {
-            onStatus: context.onProcessingStatus,
-            onThought: context.onThought,
-            signal: context.signal,
+          if (researchAttempt > 1 && context.onProcessingStatus) {
+            context.onProcessingStatus("loading", `Realizando pesquisa aprofundada (tentativa ${researchAttempt}/${MAX_RESEARCH_RETRIES})...`);
           }
-        );
-        debugLog.latencies.search_ms = Math.round(performance.now() - startSearch);
 
-        searchReport = searchResult.report;
-        searchSources = searchResult.sources || [];
-        
-        debugLog.search_details = {
-          query: searchQuery,
-          report: searchReport,
-          sources: searchSources
-        };
+          const startSearch = performance.now();
+          const searchResult = await realizarPesquisaGeral(
+            researcherPrompt,
+            attachments,
+            {
+              onStatus: context.onProcessingStatus,
+              onThought: context.onThought,
+              signal: context.signal,
+            }
+          );
+          debugLog.latencies.search_ms = Math.round(performance.now() - startSearch);
 
-        if (searchReport) {
-          additionalContextMessage += `\n\n--- INÍCIO DO CONHECIMENTO PESQUISADO (Uso Obrigatório) ---\n${searchReport}\n--- FIM DO CONHECIMENTO ---\n`;
-          additionalContextMessage += `\n[SISTEMA]: Você acaba de realizar uma pesquisa profunda. Fale sobre o assunto com TOTAL AUTORIDADE, incorporando os dados acima como seu próprio conhecimento specialized. 
+          searchReport = searchResult.report;
+          searchSources = searchResult.sources || [];
+          
+          debugLog.search_details = {
+            query: searchQuery,
+            report: searchReport,
+            sources: searchSources
+          };
+          researchSuccess = true;
+        } catch (err) {
+          if (err.name === "AbortError") throw err;
+          console.warn(`[Pipeline] ⚠️ Tentativa de pesquisa ${researchAttempt}/${MAX_RESEARCH_RETRIES} falhou:`, err);
+          researchError = err;
+          if (researchAttempt < MAX_RESEARCH_RETRIES) {
+            await new Promise((r) => setTimeout(r, 1000 * researchAttempt));
+          }
+        }
+      }
+
+      if (!researchSuccess) {
+        console.error("[Pipeline] ❌ Todas as tentativas de pesquisa profunda falharam.");
+        throw researchError || new Error("Falha na etapa de pesquisa profunda.");
+      }
+
+      if (searchReport) {
+        additionalContextMessage += `\n\n--- INÍCIO DO CONHECIMENTO PESQUISADO (Uso Obrigatório) ---\n${searchReport}\n--- FIM DO CONHECIMENTO ---\n`;
+        additionalContextMessage += `\n[SISTEMA]: Você acaba de realizar uma pesquisa profunda. Fale sobre o assunto com TOTAL AUTORIDADE, incorporando os dados acima como seu próprio conhecimento specialized. 
 JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou "o relatório aponta". 
 Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex: "O MEC estabelece que...", "Dados da NASA confirmam...", "A Wikipedia registra que...") para passar credibilidade. 
 Sua resposta deve ser fluida, natural e baseada em evidências.`;
+        
+        if (context.onProcessingStatus) {
+          context.onProcessingStatus("research_done", {
+            report: searchReport,
+            sources: searchSources
+          });
           
-          if (context.onProcessingStatus) {
-            context.onProcessingStatus("research_done", {
-              report: searchReport,
-              sources: searchSources
+          if (chatId) {
+            consolidatedTurnMessages.push({
+              role: "system",
+              content: {
+                type: "research_results",
+                report: searchReport,
+                sources: searchSources,
+              },
             });
-            
-            if (chatId) {
-              consolidatedTurnMessages.push({
-                role: "system",
-                content: {
-                  type: "research_results",
-                  report: searchReport,
-                  sources: searchSources,
-                },
-              });
-            }
           }
         }
-      } catch (err) {
-        if (err.name === "AbortError") throw err;
-        console.warn("[Pipeline] ⚠️ Falha na etapa de pesquisa profunda:", err);
       }
     }
 
@@ -671,7 +738,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     debugLog.latencies.total_ms = debugLog.latency_ms;
     // Store a serializable snapshot to avoid circular refs (debugLog -> finalContent -> _debugLog -> debugLog)
     try {
-      debugLog.response_text = JSON.stringify(finalContent).substring(0, 2000);
+      debugLog.response_text = JSON.stringify(finalContent);
     } catch (_e) {
       debugLog.response_text = "[não serializável]";
     }
@@ -1026,10 +1093,26 @@ async function generateChatStreamed(params) {
   let mimeType = "image/jpeg";
 
   for (const file of attachments) {
+    // Se for arquivo JSON de questão que já foi processado e injetado no prompt,
+    // pula o envio como anexo para evitar duplicação de dados no worker.
+    if (file.name && file.name.endsWith(".json")) {
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (parsed.dados_questao || parsed.dados_gabarito) {
+          console.log("[Pipeline] Pulando anexo JSON de questão para evitar duplicação:", file.name);
+          continue;
+        }
+      } catch (e) {
+        // Ignora erros e processa normalmente
+      }
+    }
+
     const base64 = await fileToBase64(file);
     arquivosProcessados.push({
       data: base64,
       mimeType: file.type || "application/octet-stream",
+      name: file.name || "arquivo",
     });
     // Se for o primeiro, define o mimeType "principal" (apenas para compatibilidade de assinatura, embora o worker agora use o array de files)
     if (arquivosProcessados.length === 1) {
@@ -1052,6 +1135,15 @@ async function generateChatStreamed(params) {
     },
     onThought: (thought) => {
       if (onThought) onThought(thought);
+    },
+    onReset: () => {
+      console.log("[Pipeline] Resetting streaming buffer due to worker reset.");
+      jsonBuffer = "";
+      lastParsedJson = null;
+      answerText = "";
+      if (onStream) {
+        onStream(isJsonMode ? null : "");
+      }
     },
     onAnswerDelta: (delta) => {
       if (!isJsonMode) {

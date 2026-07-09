@@ -1,8 +1,6 @@
-/**
- * Scaffolding Service
- * Gerencia a lógica de negócio do modo "Verdadeiro ou Falso" (Scaffolding).
- * Responsável pelos cálculos de proficiência e decisão de próximos passos.
- */
+import { cleanQuestionDataForAI } from "../../utils/question-cleaner.js";
+
+
 
 export const ScaffoldingService = {
   /**
@@ -122,14 +120,14 @@ export const ScaffoldingService = {
 
     // 3. CONSTRUÇÃO DO PROMPT
     const alvo = proximoStatus ? "VERDADEIRA" : "FALSA";
-
     // Formatação do Contexto Rico (Se disponível)
     let contextoRico = "";
     if (typeof questaoAlvo === "object") {
       contextoRico += `\n    === CONTEXTO COMPLETO DA QUESTÃO (METADADOS E GABARITO) ===\n`;
       // Tenta extrair partes comuns do JSON rico (ex: dados_questao, dados_gabarito)
       if (questaoAlvo.dados_questao || questaoAlvo.dados_gabarito) {
-        contextoRico += JSON.stringify(questaoAlvo, null, 2);
+        const cleanedQuestao = cleanQuestionDataForAI(questaoAlvo);
+        contextoRico += JSON.stringify(cleanedQuestao, null, 2);
       } else {
         // Fallback para objetos simples
         contextoRico += `    Questão: "${questaoAlvo.questao || questaoAlvo.enunciado || "N/A"}"\n`;

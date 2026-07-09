@@ -1010,11 +1010,8 @@ async function handleGeminiGenerate(request, env) {
 
 	const encoder = new TextEncoder();
 
-	// Prepare parts
-	const parts = [];
-	if (texto) {
-		parts.push({ text: texto });
-	}
+	let textWithFiles = texto || '';
+	const nonTextParts = [];
 
 	// Helper to process files/images
 	const processAttachments = (items, defaultMime) => {
@@ -1022,11 +1019,13 @@ async function handleGeminiGenerate(request, env) {
 			items.forEach((item) => {
 				let data = item;
 				let mimeType = defaultMime;
+				let name = 'arquivo';
 
 				// Handle object structure { mimeType, data }
 				if (typeof item === 'object' && item.data) {
 					data = item.data;
 					if (item.mimeType) mimeType = item.mimeType;
+					if (item.name) name = item.name;
 				}
 				// Handle base64 string with prefix
 				else if (typeof item === 'string' && item.includes('base64,')) {
@@ -1037,7 +1036,12 @@ async function handleGeminiGenerate(request, env) {
 					}
 				}
 
-				parts.push({ inlineData: { mimeType, data } });
+				if (isTextMimeType(mimeType)) {
+					const decodedText = decodeBase64ToUtf8(data);
+					textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+				} else {
+					nonTextParts.push({ inlineData: { mimeType, data } });
+				}
 			});
 		}
 	};
@@ -1047,6 +1051,13 @@ async function handleGeminiGenerate(request, env) {
 	if (body.files) {
 		processAttachments(body.files, 'application/pdf');
 	}
+
+	// Prepare parts
+	const parts = [];
+	if (textWithFiles) {
+		parts.push({ text: textWithFiles });
+	}
+	parts.push(...nonTextParts);
 
 	const { readable, writable } = new TransformStream();
 	const writer = writable.getWriter();
@@ -1082,16 +1093,24 @@ async function handleGeminiGenerate(request, env) {
 			attemptHistory.push({ attempt, model: modelo, status: 'started' });
 			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo });
 
+			let wroteSomethingThisAttempt = false;
+			const wrappedWriteNdjson = async (obj) => {
+				if (obj && (obj.type === 'answer' || obj.type === 'thought')) {
+					wroteSomethingThisAttempt = true;
+				}
+				await writeNdjson(obj);
+			};
+
 			try {
 				if (modelo.startsWith('github/') || GITHUB_MODELS.includes(modelo)) {
-					await handleGithubGenerateStream(modelo, body, env, attempt, writeNdjson);
+					await handleGithubGenerateStream(modelo, body, env, attempt, wrappedWriteNdjson);
 					attemptHistory[attemptHistory.length - 1].status = 'success';
 					success = true;
 					break;
 				}
 
 				if (modelo.startsWith('groq/') || GROQ_MODELS.includes(modelo)) {
-					await handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson);
+					await handleGroqGenerateStream(modelo, body, env, attempt, wrappedWriteNdjson);
 					attemptHistory[attemptHistory.length - 1].status = 'success';
 					success = true;
 					break;
@@ -1136,8 +1155,6 @@ async function handleGeminiGenerate(request, env) {
 					});
 				}
 
-				let wroteSomethingThisAttempt = false;
-
 				for await (const chunk of stream) {
 					const cand = chunk?.candidates?.[0];
 					const partsResp = cand?.content?.parts || [];
@@ -1145,13 +1162,12 @@ async function handleGeminiGenerate(request, env) {
 					// Sempre escreva os parts (streaming incremental)
 					for (const part of partsResp) {
 						if (!part?.text) continue;
-						wroteSomethingThisAttempt = true;
 
 						if (part.thought) {
 							// Se a API retornar um part = { text: "...", thought: true } ou algo similiar, manda pra thought
-							await writeNdjson({ type: 'thought', attempt, model: modelo, text: part.text });
+							await wrappedWriteNdjson({ type: 'thought', attempt, model: modelo, text: part.text });
 						} else {
-							await writeNdjson({ type: 'answer', attempt, model: modelo, text: part.text });
+							await wrappedWriteNdjson({ type: 'answer', attempt, model: modelo, text: part.text });
 						}
 					}
 
@@ -1239,6 +1255,18 @@ async function handleGeminiGenerate(request, env) {
 
 				console.warn(`Erro model ${modelo}`, erro);
 				lastError = erro;
+
+				// Se escreveu algo nesta tentativa, limpa no front para o próximo modelo começar limpo
+				if (wroteSomethingThisAttempt) {
+					await writeNdjson({
+						type: 'reset',
+						attempt,
+						model: modelo,
+						reason: 'FAIL_FALLBACK',
+						clear: 'attempt',
+					});
+				}
+
 				continue;
 			}
 		}
@@ -1484,8 +1512,8 @@ async function handleGeminiSearch(request, env) {
 
 	const encoder = new TextEncoder();
 
-	// Prepare parts
-	const parts = [{ text: texto }];
+	let textWithFiles = texto || '';
+	const nonTextParts = [];
 
 	// Helper to process files/images (Shared logic, copied for independence)
 	const processAttachments = (items, defaultMime) => {
@@ -1493,10 +1521,12 @@ async function handleGeminiSearch(request, env) {
 			items.forEach((item) => {
 				let data = item;
 				let mimeType = defaultMime;
+				let name = 'arquivo';
 
 				if (typeof item === 'object' && item.data) {
 					data = item.data;
 					if (item.mimeType) mimeType = item.mimeType;
+					if (item.name) name = item.name;
 				} else if (typeof item === 'string' && item.includes('base64,')) {
 					const matches = item.match(/^data:(.+);base64,(.+)$/);
 					if (matches) {
@@ -1504,7 +1534,12 @@ async function handleGeminiSearch(request, env) {
 						data = matches[2];
 					}
 				}
-				parts.push({ inlineData: { mimeType, data } });
+				if (isTextMimeType(mimeType)) {
+					const decodedText = decodeBase64ToUtf8(data);
+					textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+				} else {
+					nonTextParts.push({ inlineData: { mimeType, data } });
+				}
 			});
 		}
 	};
@@ -1513,6 +1548,13 @@ async function handleGeminiSearch(request, env) {
 	if (body.files) {
 		processAttachments(body.files, 'application/pdf');
 	}
+
+	// Prepare parts
+	const parts = [];
+	if (textWithFiles) {
+		parts.push({ text: textWithFiles });
+	}
+	parts.push(...nonTextParts);
 
 	const { readable, writable } = new TransformStream();
 	const writer = writable.getWriter();
@@ -3056,20 +3098,19 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 
 	const githubModelId = modelo.replace('github/', '');
 
-	// Process attachments to parts
-	const currentParts = [];
-	if (texto) {
-		currentParts.push({ text: texto });
-	}
+	let textWithFiles = texto || '';
+	const nonTextParts = [];
 
 	const processAttachmentsToParts = (items, defaultMime) => {
 		if (Array.isArray(items)) {
 			items.forEach((item) => {
 				let data = item;
 				let mimeType = defaultMime;
+				let name = 'arquivo';
 				if (typeof item === 'object' && item.data) {
 					data = item.data;
 					if (item.mimeType) mimeType = item.mimeType;
+					if (item.name) name = item.name;
 				} else if (typeof item === 'string' && item.includes('base64,')) {
 					const matches = item.match(/^data:(.+);base64,(.+)$/);
 					if (matches) {
@@ -3077,7 +3118,12 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 						data = matches[2];
 					}
 				}
-				currentParts.push({ inlineData: { mimeType, data } });
+				if (isTextMimeType(mimeType)) {
+					const decodedText = decodeBase64ToUtf8(data);
+					textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+				} else {
+					nonTextParts.push({ inlineData: { mimeType, data } });
+				}
 			});
 		}
 	};
@@ -3086,6 +3132,13 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 	if (body.files) {
 		processAttachmentsToParts(body.files, 'application/pdf');
 	}
+
+	// Process attachments to parts
+	const currentParts = [];
+	if (textWithFiles) {
+		currentParts.push({ text: textWithFiles });
+	}
+	currentParts.push(...nonTextParts);
 
 	// Bidirectional mapping: Convert Gemini history to OpenAI format
 	const openAIMessages = mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction);
@@ -3308,19 +3361,19 @@ FORMATO DE SAÍDA:
 		textWithDescriptions = `${textWithDescriptions}\n\n=== DESCRIÇÃO VISUAL DAS IMAGENS DA QUESTÃO ===\n${formattedDescriptions}\n===============================================`;
 	}
 
-	const currentParts = [];
-	if (textWithDescriptions) {
-		currentParts.push({ text: textWithDescriptions });
-	}
+	let textWithFiles = textWithDescriptions || '';
+	const nonTextParts = [];
 
 	const processNonImageAttachmentsToParts = (items, defaultMime) => {
 		if (Array.isArray(items)) {
 			items.forEach((item) => {
 				let data = item;
 				let mimeType = defaultMime;
+				let name = 'arquivo';
 				if (typeof item === 'object' && item.data) {
 					data = item.data;
 					if (item.mimeType) mimeType = item.mimeType;
+					if (item.name) name = item.name;
 				} else if (typeof item === 'string' && item.includes('base64,')) {
 					const matches = item.match(/^data:(.+);base64,(.+)$/);
 					if (matches) {
@@ -3329,7 +3382,12 @@ FORMATO DE SAÍDA:
 					}
 				}
 				if (mimeType && !mimeType.startsWith('image/')) {
-					currentParts.push({ inlineData: { mimeType, data } });
+					if (isTextMimeType(mimeType)) {
+						const decodedText = decodeBase64ToUtf8(data);
+						textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+					} else {
+						nonTextParts.push({ inlineData: { mimeType, data } });
+					}
 				}
 			});
 		}
@@ -3337,13 +3395,16 @@ FORMATO DE SAÍDA:
 
 	if (!groqModelId.includes('gpt-oss-120b')) {
 		processNonImageAttachmentsToParts(body.listaImagensBase64, body.mimeType || 'image/jpeg');
-	} else {
-		processNonImageAttachmentsToParts(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+		if (body.files) {
+			processNonImageAttachmentsToParts(body.files, 'application/pdf');
+		}
 	}
 
-	if (body.files) {
-		processNonImageAttachmentsToParts(body.files, 'application/pdf');
+	const currentParts = [];
+	if (textWithFiles) {
+		currentParts.push({ text: textWithFiles });
 	}
+	currentParts.push(...nonTextParts);
 
 	// Bidirectional mapping: Convert Gemini history to OpenAI format
 	let openAIMessages = mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction);
@@ -3530,6 +3591,96 @@ function mapOpenAIHistoryToGemini(history) {
 		}
 		return { role, parts };
 	});
+}
+
+function isTextMimeType(mimeType) {
+	if (!mimeType) return false;
+	const m = mimeType.toLowerCase();
+	return m.startsWith('text/') || 
+		m.includes('json') || 
+		m.includes('javascript') || 
+		m.includes('typescript') ||
+		m.includes('xml') ||
+		m === 'application/x-python' ||
+		m === 'text/x-python';
+}
+
+function decodeBase64ToUtf8(base64Data) {
+	try {
+		const binString = atob(base64Data);
+		const len = binString.length;
+		const bytes = new Uint8Array(len);
+		for (let i = 0; i < len; i++) {
+			bytes[i] = binString.charCodeAt(i);
+		}
+		const decodedText = new TextDecoder('utf-8').decode(bytes);
+
+		// If it's a JSON file, parse and sanitize it to avoid injecting massive base64 images or binary blobs
+		try {
+			const parsed = JSON.parse(decodedText);
+			const sanitized = sanitizeJsonForPrompt(parsed);
+			return JSON.stringify(sanitized, null, 2);
+		} catch (e) {
+			// Not a JSON file, or invalid JSON, return raw text
+			return decodedText;
+		}
+	} catch (e) {
+		console.error('[decodeBase64ToUtf8 Error]', e);
+		return '';
+	}
+}
+
+function sanitizeJsonForPrompt(obj) {
+	if (typeof obj === 'string') {
+		// If it's a long string and looks like base64 or data URL, strip or truncate it
+		if (obj.length > 200 && (obj.startsWith('data:') || !obj.includes(' ') || /^[A-Za-z0-9+/=]+$/.test(obj.substring(0, 100)))) {
+			return `[BASE64/DATA_URL TRUNCATED: ${obj.length} chars]`;
+		}
+		// Truncate long text strings to save tokens
+		if (obj.length > 1500) {
+			return obj.substring(0, 1500) + `... [TRUNCATED: ${obj.length - 1500} chars]`;
+		}
+		return obj;
+	}
+	if (Array.isArray(obj)) {
+		return obj.map(sanitizeJsonForPrompt);
+	}
+	if (typeof obj === 'object' && obj !== null) {
+		const cleaned = {};
+		const keysToStrip = [
+			'fotos_originais',
+			'fontes_externas',
+			'pdfjs_crop_h',
+			'pdfjs_crop_w',
+			'pdfjs_source_h',
+			'pdfjs_source_w',
+			'pdfjs_x',
+			'pdfjs_y',
+			'pdf_height',
+			'pdf_width',
+			'pdf_zoom',
+			'norm_h',
+			'norm_w',
+			'norm_x',
+			'norm_y',
+			'pdf_url',
+			'previewurl'
+		];
+		for (const [key, val] of Object.entries(obj)) {
+			const lowerKey = key.toLowerCase();
+			if (keysToStrip.includes(lowerKey)) {
+				continue; // Strip completely
+			}
+			// Skip or sanitize specific keys that are likely to contain large images or binary data
+			if (['imagem', 'imagens', 'base64', 'data', 'file', 'content_base64', 'imagebase64', 'screenshot'].includes(lowerKey) && typeof val === 'string' && val.length > 100) {
+				cleaned[key] = `[CONTENT TRUNCATED: ${val.length} chars]`;
+			} else {
+				cleaned[key] = sanitizeJsonForPrompt(val);
+			}
+		}
+		return cleaned;
+	}
+	return obj;
 }
 
 export { hasYearMismatch };

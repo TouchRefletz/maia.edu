@@ -10,6 +10,7 @@ import {
   PROMPT_SINTETIZADOR_CONTEXTO,
 } from "../chat/prompts/memory-prompts.js";
 import { auth } from "../firebase/init.js";
+import { fileToBase64 } from "../utils/file-utils.js";
 
 const DB_NAME = "maia_memory";
 const MIN_SCORE = 0.6; // Local
@@ -508,6 +509,7 @@ export async function synthesizeContext(
             return {
               data: base64,
               mimeType: file.type || "application/octet-stream",
+              name: file.name || "arquivo",
             };
           }),
         );
@@ -534,9 +536,8 @@ export async function synthesizeContext(
 
     return ""; // Fallback
   } catch (error) {
-    console.warn("[MemoryService] Falha na síntese de contexto:", error);
-    // Fallback para formatação simples em caso de erro
-    return formatFactsForSynthesis(facts);
+    console.error("[MemoryService] Falha na síntese de contexto:", error);
+    throw error;
   }
 }
 
@@ -647,6 +648,7 @@ export async function extractAndSaveNarrative(
             return {
               data: base64,
               mimeType: file.type || "application/octet-stream",
+              name: file.name || "arquivo",
             };
           }),
         );

@@ -248,6 +248,10 @@ async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, 
         thoughtsBox.scrollTop = thoughtsBox.scrollHeight;
       }
     },
+    onReset: () => {
+      if (thoughtsBox) thoughtsBox.textContent = "";
+      if (responseBox) responseBox.textContent = "";
+    },
     onAnswerDelta: (delta) => {
       if (responseBox) {
         responseBox.textContent += delta;

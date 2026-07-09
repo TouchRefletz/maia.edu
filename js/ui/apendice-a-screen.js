@@ -616,6 +616,10 @@ export async function iniciarModoApendiceA() {
           thoughtsBox.textContent += thought;
           thoughtsBox.scrollTop = thoughtsBox.scrollHeight;
         },
+        onReset: () => {
+          thoughtsBox.textContent = `=== CADEIA DE RACIOCÍNIO DO JUIZ (${judgeLabel}) ===\n\n`;
+          responseBox.textContent = `=== RESPOSTA ESTRUTURADA DA AVALIAÇÃO (${judgeLabel}) ===\n\n`;
+        },
         onAnswerDelta: (delta) => {
           responseBox.textContent += delta;
           responseBox.scrollTop = responseBox.scrollHeight;

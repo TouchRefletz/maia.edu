@@ -14,7 +14,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import { criarCardTecnico } from "../banco/card-template.js";
 import { renderLatexIn } from "../libs/loader.tsx";
-import { db } from "../main.js";
+import { db, auth } from "../main.js";
 
 // Estado do modal
 let selectedQuestions = new Map();
