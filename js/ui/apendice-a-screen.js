@@ -154,10 +154,14 @@ export async function iniciarModoApendiceA() {
             <div id="evaluationConfigArea" style="border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; background: rgba(255,255,255,0.01); display: none; flex-direction: column; gap: 14px;">
               <h3 style="margin: 0; font-size: 1rem; color: var(--color-text-shine);">⚙️ 3. Configurações da Avaliação</h3>
               
-              <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+              <div style="display: flex; flex-direction: column; gap: 10px;">
                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--color-text);">
                   <input type="checkbox" id="checkMaiaApendiceA" style="width: 16px; height: 16px; cursor: pointer;" />
                   Com Arquitetura Maia.edu (Muda sufixo do debug baixado)
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--color-text);">
+                  <input type="checkbox" id="checkInterdisciplinaryApendiceA" style="width: 16px; height: 16px; cursor: pointer;" />
+                  Avaliar Critério Interdisciplinar FUVEST (K6)
                 </label>
               </div>
 
@@ -541,6 +545,15 @@ export async function iniciarModoApendiceA() {
       const selected = questions[0];
       state.selectedQuestion = selected;
       renderQuestionPreview();
+      
+      const checkInter = document.getElementById("checkInterdisciplinaryApendiceA");
+      if (checkInter) {
+        const isFuvest = String(selected.prova || "").toUpperCase().includes("FUVEST") ||
+                         String(selected.area || "").toUpperCase().includes("FUVEST") ||
+                         String(selected.id || "").toUpperCase().includes("FUVEST");
+        checkInter.checked = isFuvest;
+      }
+      
       checkInputsAndShowConfig();
     }
   };
@@ -597,9 +610,8 @@ export async function iniciarModoApendiceA() {
 
       const respostaIA = state.uploadedJSON.response_text || "";
       
-      const isInterdisciplinary = String(state.selectedQuestion.prova || "").toUpperCase().includes("FUVEST") ||
-                                  String(state.selectedQuestion.area || "").toUpperCase().includes("FUVEST") ||
-                                  String(state.selectedQuestion.id || "").toUpperCase().includes("FUVEST");
+      const checkInter = document.getElementById("checkInterdisciplinaryApendiceA");
+      const isInterdisciplinary = checkInter ? checkInter.checked : false;
 
       const { executarAvaliacaoApendiceA } = await import("../chat/apendice-a-pipeline.js");
 

@@ -1,7 +1,7 @@
 import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
 import {
-  JUDGE_SYSTEM_PROMPT,
-  JUDGE_RESPONSE_SCHEMA,
+  getJudgeSystemPrompt,
+  getJudgeResponseSchema,
   buildJudgePrompt,
 } from "./prompts/judge-prompt.js";
 
@@ -51,13 +51,16 @@ export async function executarAvaliacaoApendiceA(
   let thoughtsAccumulated = "";
   let rawResponseAccumulated = "";
 
+  const systemInstruction = getJudgeSystemPrompt(isInterdisciplinary);
+  const responseSchema = getJudgeResponseSchema(isInterdisciplinary);
+
   const options = {
     model: modelJudgeId,
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: JUDGE_RESPONSE_SCHEMA,
+      responseSchema: responseSchema,
     },
-    systemInstruction: JUDGE_SYSTEM_PROMPT,
+    systemInstruction: systemInstruction,
   };
 
   const localHandlers = {
@@ -78,7 +81,7 @@ export async function executarAvaliacaoApendiceA(
   try {
     const finalResult = await gerarConteudoEmJSONComImagemStream(
       promptOriginal,
-      JUDGE_RESPONSE_SCHEMA,
+      responseSchema,
       [], // Sem imagens anexadas na avaliação do juiz
       "image/jpeg",
       localHandlers,
@@ -91,7 +94,7 @@ export async function executarAvaliacaoApendiceA(
     return {
       model: modelJudgeId,
       prompt_original: promptOriginal,
-      prompt_compiled: `${JUDGE_SYSTEM_PROMPT}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${promptOriginal}\n=== FIM DO PROMPT ===`,
+      prompt_compiled: `${systemInstruction}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${promptOriginal}\n=== FIM DO PROMPT ===`,
       response_text: typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2),
       thoughts: thoughtsAccumulated,
       latency_ms: latencyMs,

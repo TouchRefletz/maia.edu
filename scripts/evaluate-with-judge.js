@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
-import { JUDGE_SYSTEM_PROMPT, buildJudgePrompt, JUDGE_RESPONSE_SCHEMA } from "../js/chat/prompts/judge-prompt.js";
+import { getJudgeSystemPrompt, getJudgeResponseSchema, buildJudgePrompt, JUDGE_RESPONSE_SCHEMA } from "../js/chat/prompts/judge-prompt.js";
 
 // Helper para ler entrada do console se a chave API não estiver no env
 function askQuestion(query) {
@@ -204,12 +204,14 @@ async function run() {
 
         try {
           let responseText = "";
+          const systemInstruction = getJudgeSystemPrompt(isFuvest);
+          const responseSchema = getJudgeResponseSchema(isFuvest);
           if (judge === "gemini") {
-            responseText = await callGeminiAPI(apiKeys.gemini, "gemini-3.5-flash", JUDGE_SYSTEM_PROMPT, promptJuiz, true);
+            responseText = await callGeminiAPI(apiKeys.gemini, "gemini-3.5-flash", systemInstruction, promptJuiz, true, responseSchema);
           } else if (judge === "gemma") {
-            responseText = await callGeminiAPI(apiKeys.gemma, "gemma-4-31b-it", JUDGE_SYSTEM_PROMPT, promptJuiz, false);
+            responseText = await callGeminiAPI(apiKeys.gemma, "gemma-4-31b-it", systemInstruction, promptJuiz, false);
           } else if (judge === "o1") {
-            responseText = await callOpenAIAPI(apiKeys.o1, JUDGE_SYSTEM_PROMPT, promptJuiz);
+            responseText = await callOpenAIAPI(apiKeys.o1, systemInstruction, promptJuiz, responseSchema);
           }
 
           let avaliacao = null;
@@ -236,7 +238,7 @@ async function run() {
   console.log(`\n🎉 Concluído! ${evaluatedCount} novas avaliações salvas.`);
 }
 
-async function callGeminiAPI(apiKey, model, systemInstruction, prompt, forceSchema = true) {
+async function callGeminiAPI(apiKey, model, systemInstruction, prompt, forceSchema = true, responseSchema = null) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const body = {
@@ -249,7 +251,7 @@ async function callGeminiAPI(apiKey, model, systemInstruction, prompt, forceSche
 
   if (forceSchema) {
     body.generationConfig.responseMimeType = "application/json";
-    body.generationConfig.responseSchema = JUDGE_RESPONSE_SCHEMA;
+    body.generationConfig.responseSchema = responseSchema || JUDGE_RESPONSE_SCHEMA;
   }
 
   const response = await fetch(url, {
@@ -270,7 +272,7 @@ async function callGeminiAPI(apiKey, model, systemInstruction, prompt, forceSche
   throw new Error("Resposta vazia da API do Google.");
 }
 
-async function callOpenAIAPI(apiKey, systemInstruction, prompt) {
+async function callOpenAIAPI(apiKey, systemInstruction, prompt, responseSchema = null) {
   const isGithubKey = apiKey.startsWith("github_") || apiKey.length > 35; // Diferencia chave da API Github Models do OpenAI
   const url = isGithubKey
     ? "https://models.inference.ai.azure.com/chat/completions"
@@ -291,12 +293,13 @@ async function callOpenAIAPI(apiKey, systemInstruction, prompt) {
 
   // Se for API oficial do OpenAI, força o JSON estruturado nativo via response_format
   if (!isGithubKey) {
+    const targetSchema = responseSchema || JUDGE_RESPONSE_SCHEMA;
     body.response_format = {
       type: "json_schema",
       json_schema: {
         name: "avaliacao_apendice_a",
         strict: true,
-        schema: convertToStandardJsonSchema(JUDGE_RESPONSE_SCHEMA)
+        schema: convertToStandardJsonSchema(targetSchema)
       }
     };
   }
