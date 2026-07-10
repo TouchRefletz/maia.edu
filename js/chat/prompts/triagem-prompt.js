@@ -51,48 +51,48 @@ Você deve retornar estritamente um objeto JSON válido, sem texto adicional, co
 export const TRIAGEM_RUBRIC = ``;
 
 export const TRIAGEM_RESPONSE_SCHEMA = {
-  type: "OBJECT",
+  type: "object",
   properties: {
     criterios: {
-      type: "OBJECT",
+      type: "object",
       properties: {
         complexidade_enunciado: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            nota: { type: "INTEGER" },
-            justificativa: { type: "STRING" }
+            nota: { type: "integer" },
+            justificativa: { type: "string" }
           },
           required: ["nota", "justificativa"]
         },
         elementos_visuais: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            nota: { type: "INTEGER" },
-            justificativa: { type: "STRING" }
+            nota: { type: "integer" },
+            justificativa: { type: "string" }
           },
           required: ["nota", "justificativa"]
         },
         especificidade_dominio: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            nota: { type: "INTEGER" },
-            justificativa: { type: "STRING" }
+            nota: { type: "integer" },
+            justificativa: { type: "string" }
           },
           required: ["nota", "justificativa"]
         },
         raciocinio_complexo: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            nota: { type: "INTEGER" },
-            justificativa: { type: "STRING" }
+            nota: { type: "integer" },
+            justificativa: { type: "string" }
           },
           required: ["nota", "justificativa"]
         },
         resposta_complexa: {
-          type: "OBJECT",
+          type: "object",
           properties: {
-            nota: { type: "INTEGER" },
-            justificativa: { type: "STRING" }
+            nota: { type: "integer" },
+            justificativa: { type: "string" }
           },
           required: ["nota", "justificativa"]
         }
@@ -105,8 +105,8 @@ export const TRIAGEM_RESPONSE_SCHEMA = {
         "resposta_complexa"
       ]
     },
-    pontuacao_final_complexidade: { type: "INTEGER" },
-    classificacao_dificuldade: { type: "STRING" }
+    pontuacao_final_complexidade: { type: "integer" },
+    classificacao_dificuldade: { type: "string" }
   },
   required: ["criterios", "pontuacao_final_complexidade", "classificacao_dificuldade"]
 };

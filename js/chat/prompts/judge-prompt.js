@@ -92,42 +92,42 @@ export const JUDGE_RUBRIC = ``;
 export function getJudgeResponseSchema(isInterdisciplinary = false) {
   const baseProperties = {
     precisao: {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     },
     raciocinio: {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     },
     alucinacao: {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     },
     aderencia_enunciado: {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     },
     pedagogia: {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     }
@@ -137,10 +137,10 @@ export function getJudgeResponseSchema(isInterdisciplinary = false) {
 
   if (isInterdisciplinary) {
     baseProperties.integracao_interdisciplinar = {
-      type: "OBJECT",
+      type: "object",
       properties: {
-        nota: { type: "INTEGER" },
-        justificativa: { type: "STRING" }
+        nota: { type: "integer" },
+        justificativa: { type: "string" }
       },
       required: ["nota", "justificativa"]
     };
@@ -148,15 +148,15 @@ export function getJudgeResponseSchema(isInterdisciplinary = false) {
   }
 
   return {
-    type: "OBJECT",
+    type: "object",
     properties: {
       criterios: {
-        type: "OBJECT",
+        type: "object",
         properties: baseProperties,
         required: requiredCriterios
       },
-      pontuacao_total: { type: "INTEGER" },
-      comentario_geral: { type: "STRING" }
+      pontuacao_total: { type: "integer" },
+      comentario_geral: { type: "string" }
     },
     required: ["criterios", "pontuacao_total", "comentario_geral"]
   };

@@ -1005,35 +1005,35 @@ export async function generatePersonaSimulation(
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: "OBJECT",
+        type: "object",
         properties: {
           aluno_avancado: {
-            type: "OBJECT",
+            type: "object",
             properties: {
-              resposta: { type: "STRING" },
-              certeza: { type: "INTEGER" },
-              tempo_gasto: { type: "INTEGER" },
-              pensamento: { type: "STRING" }
+              resposta: { type: "string" },
+              certeza: { type: "integer" },
+              tempo_gasto: { type: "integer" },
+              pensamento: { type: "string" }
             },
             required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
           },
           aluno_inseguro: {
-            type: "OBJECT",
+            type: "object",
             properties: {
-              resposta: { type: "STRING" },
-              certeza: { type: "INTEGER" },
-              tempo_gasto: { type: "INTEGER" },
-              pensamento: { type: "STRING" }
+              resposta: { type: "string" },
+              certeza: { type: "integer" },
+              tempo_gasto: { type: "integer" },
+              pensamento: { type: "string" }
             },
             required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
           },
           aluno_chutador: {
-            type: "OBJECT",
+            type: "object",
             properties: {
-              resposta: { type: "STRING" },
-              certeza: { type: "INTEGER" },
-              tempo_gasto: { type: "INTEGER" },
-              pensamento: { type: "STRING" }
+              resposta: { type: "string" },
+              certeza: { type: "integer" },
+              tempo_gasto: { type: "integer" },
+              pensamento: { type: "string" }
             },
             required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
           }

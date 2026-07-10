@@ -3073,6 +3073,56 @@ async function handleResolveLink(request, env) {
 	}
 }
 
+
+/**
+ * Normalizes a schema object to standard JSON Schema (lowercase types)
+ */
+function normalizeSchemaToStandard(schema) {
+	if (!schema || typeof schema !== 'object') {
+		return schema;
+	}
+
+	const clone = JSON.parse(JSON.stringify(schema));
+
+	const convertNode = (node) => {
+		if (!node || typeof node !== 'object') return;
+
+		if (typeof node.type === 'string') {
+			const t = node.type.toUpperCase();
+			if (t === 'INTEGER') {
+				node.type = 'integer';
+			} else if (t === 'STRING') {
+				node.type = 'string';
+			} else if (t === 'OBJECT') {
+				node.type = 'object';
+			} else if (t === 'ARRAY') {
+				node.type = 'array';
+			} else if (t === 'BOOLEAN') {
+				node.type = 'boolean';
+			} else if (t === 'NUMBER') {
+				node.type = 'number';
+			} else if (t === 'NULL') {
+				node.type = 'null';
+			} else {
+				node.type = node.type.toLowerCase();
+			}
+		}
+
+		if (node.properties && typeof node.properties === 'object') {
+			for (const key of Object.keys(node.properties)) {
+				convertNode(node.properties[key]);
+			}
+		}
+
+		if (node.items && typeof node.items === 'object') {
+			convertNode(node.items);
+		}
+	};
+
+	convertNode(clone);
+	return clone;
+}
+
 /**
  * Helper to generate chat stream using GitHub Models (OpenAI compatible)
  */
@@ -3154,7 +3204,7 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 			type: 'json_schema',
 			json_schema: {
 				name: 'response_schema',
-				schema: schema,
+				schema: normalizeSchemaToStandard(schema),
 			},
 		};
 	}
@@ -3437,7 +3487,7 @@ FORMATO DE SAÍDA:
 			type: 'json_schema',
 			json_schema: {
 				name: 'response_schema',
-				schema: schema,
+				schema: normalizeSchemaToStandard(schema),
 			},
 		};
 	}

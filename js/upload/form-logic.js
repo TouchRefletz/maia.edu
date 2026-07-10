@@ -905,11 +905,11 @@ export function setupFormLogic(elements, initialData) {
                   texto: prompt,
                   model: "models/gemma-4-31b-it", // Use Gemma for verification
                   schema: {
-                    type: "OBJECT",
+                    type: "object",
                     properties: {
-                      protected: { type: "BOOLEAN" },
-                      reason: { type: "STRING" },
-                      confidence: { type: "NUMBER" },
+                      protected: { type: "boolean" },
+                      reason: { type: "string" },
+                      confidence: { type: "number" },
                     },
                     required: ["protected", "reason"],
                   },
