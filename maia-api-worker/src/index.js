@@ -994,7 +994,7 @@ async function handleGeminiGenerate(request, env) {
 
 	const client = new GoogleGenAI({
 		apiKey: finalApiKey,
-		httpOptions: { timeout: 60000 },
+		httpOptions: { timeout: 300000 },
 	});
 
 	// Modelos iniciais: Se o usuário/cliente solicitou um modelo específico, respeita e tenta APENAS ele.
@@ -1501,7 +1501,7 @@ async function handleGeminiSearch(request, env) {
 
 	const client = new GoogleGenAI({
 		apiKey: finalApiKey,
-		httpOptions: { timeout: 60000 },
+		httpOptions: { timeout: 300000 },
 	});
 
 	// Modelos iniciais
@@ -3293,7 +3293,7 @@ FORMATO DE SAÍDA:
 		}
 		const client = new GoogleGenAI({
 			apiKey: finalGeminiApiKey,
-			httpOptions: { timeout: 60000 },
+			httpOptions: { timeout: 300000 },
 		});
 
 		for (let i = 0; i < images.length; i++) {
