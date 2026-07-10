@@ -482,6 +482,7 @@ export async function synthesizeContext(
       onThought: opts.onThought || (() => {}),
       onAnswerDelta: () => {},
       signal: opts.signal, // Pass signal
+      onAttemptStart: opts.onAttemptStart,
     };
 
     // Precisamos de uma funçao que retorne texto puro. A `gerarConteudoEmJSONComImagemStream` foca em JSON.

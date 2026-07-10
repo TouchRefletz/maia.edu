@@ -73,6 +73,13 @@ export async function routeMessage(
   while (attempt < MAX_RETRIES) {
     attempt++;
     try {
+      if (options.onAttemptStart) {
+        try {
+          options.onAttemptStart();
+        } catch (e) {
+          console.error("[Router] Error in onAttemptStart handler:", e);
+        }
+      }
       // Extrai previousQueries das options se existir
       const previousQueries = options.previousQueries || [];
 

@@ -151,6 +151,14 @@ export async function gerarConteudoEmJSONComImagemStream(
     attempt++;
     const isRetry = attempt > 1;
 
+    if (handlers?.onAttemptStart) {
+      try {
+        handlers.onAttemptStart();
+      } catch (err) {
+        console.error("[Worker] Error in onAttemptStart handler:", err);
+      }
+    }
+
     // Atualiza status na UI
     if (handlers?.onStatus) {
       if (isRetry) {

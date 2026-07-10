@@ -95,6 +95,8 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
     systemInstruction: TRIAGEM_SYSTEM_PROMPT,
   };
 
+  let startTime = performance.now();
+
   const localHandlers = {
     onStatus: handlers.onStatus,
     onThought: (thought) => {
@@ -105,10 +107,11 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
       rawResponseAccumulated += delta;
       if (handlers.onAnswerDelta) handlers.onAnswerDelta(delta);
     },
+    onAttemptStart: () => {
+      startTime = performance.now();
+    },
     signal,
   };
-
-  const startTime = performance.now();
 
   try {
     const finalResult = await gerarConteudoEmJSONComImagemStream(

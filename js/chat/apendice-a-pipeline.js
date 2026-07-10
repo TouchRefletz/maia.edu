@@ -63,6 +63,8 @@ export async function executarAvaliacaoApendiceA(
     systemInstruction: systemInstruction,
   };
 
+  let startTime = performance.now();
+
   const localHandlers = {
     onStatus: handlers.onStatus,
     onThought: (thought) => {
@@ -73,10 +75,11 @@ export async function executarAvaliacaoApendiceA(
       rawResponseAccumulated += delta;
       if (handlers.onAnswerDelta) handlers.onAnswerDelta(delta);
     },
+    onAttemptStart: () => {
+      startTime = performance.now();
+    },
     signal,
   };
-
-  const startTime = performance.now();
 
   try {
     const finalResult = await gerarConteudoEmJSONComImagemStream(

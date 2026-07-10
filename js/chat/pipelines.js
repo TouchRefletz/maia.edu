@@ -139,7 +139,7 @@ export async function runChatPipeline(
   attachments = [],
   context = {},
 ) {
-  const startTime = performance.now();
+  let startTime = performance.now();
   const isMaiaActive = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
   
   let executionMode = selectedMode;
@@ -191,6 +191,7 @@ export async function runChatPipeline(
       search_ms: 0,
       gemma_image_ms: 0,
       generation_ms: 0,
+      memory_ms: 0,
     },
     routing_details: null,
     rag_details: null,
@@ -274,6 +275,7 @@ export async function runChatPipeline(
 
     // 2. === MEMORY SYSTEM INTEGRATION (PRE-ROUTING) ===
     if (isMaiaActive) {
+      let startMemory = performance.now();
       try {
         console.log("[Pipeline] 🧠 Consultando Memória Contextual...");
         // Update UI: "Recuperando informações..."
@@ -299,6 +301,15 @@ export async function runChatPipeline(
               selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
               githubApiKey: context.githubApiKey,
               groqApiKey: context.groqApiKey,
+              onAttemptStart: () => {
+                const now = performance.now();
+                const elapsed = now - startMemory;
+                if (elapsed > 0) {
+                  startTime += elapsed;
+                  startMemory = now;
+                  console.log(`[Memory Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`);
+                }
+              }
             }, // Repassa callbacks pro service
           );
 
@@ -341,6 +352,8 @@ export async function runChatPipeline(
         if (err.name === "AbortError") throw err; // Propagate abort
         console.error("[Pipeline] ⚠️ Erro no sistema de memória:", err);
         throw err;
+      } finally {
+        debugLog.latencies.memory_ms = Math.round(performance.now() - startMemory);
       }
     }
 
@@ -354,7 +367,7 @@ export async function runChatPipeline(
       }
 
       window._currentChatPhase = "mode"; // Garante que a UI de pensamentos do router renderize na caixa dele
-      const startRouter = performance.now();
+      let startRouter = performance.now();
       const routedResult = await determineFinalMode(
         selectedMode,
         message,
@@ -368,6 +381,15 @@ export async function runChatPipeline(
           groqApiKey: context.groqApiKey,
           onThought: context.onThought, // Hook de pensamentos pro router usar
           selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it", // Pass router model
+          onAttemptStart: () => {
+            const now = performance.now();
+            const elapsed = now - startRouter;
+            if (elapsed > 0) {
+              startTime += elapsed;
+              startRouter = now;
+              console.log(`[Router Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`);
+            }
+          }
         },
       );
       debugLog.latencies.router_ms = Math.round(performance.now() - startRouter);
@@ -678,7 +700,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     debugLog.model = finalModelToUse;
     debugLog.prompt_compiled = fullPromptCompiled;
 
-    const startGen = performance.now();
+    let startGen = performance.now();
     const fullResponse = await generateChatStreamed({
       model: finalModelToUse,
       generationConfig: isMaiaActive ? getGenerationParams(configMode) : { responseMimeType: "text/plain", temperature: 1 },
@@ -705,6 +727,15 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       },
       onGemmaLatency: (latency) => {
         debugLog.latencies.gemma_image_ms = latency;
+      },
+      onAttemptStart: () => {
+        const now = performance.now();
+        const elapsedSinceGenStart = now - startGen;
+        if (elapsedSinceGenStart > 0) {
+          startTime += elapsedSinceGenStart;
+          startGen = now;
+          console.log(`[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`);
+        }
       },
       apiKey: context.apiKey,
       githubApiKey: context.githubApiKey,
@@ -1174,6 +1205,15 @@ async function generateChatStreamed(params) {
         // Envia o objeto COMPLETO para a UI a cada update
         if (onStream) onStream(normalizedAnswer);
         lastParsedJson = normalizedAnswer;
+      }
+    },
+    onAttemptStart: () => {
+      if (params.onAttemptStart) {
+        try {
+          params.onAttemptStart();
+        } catch (e) {
+          console.error("[generateChatStreamed] Error in onAttemptStart handler:", e);
+        }
       }
     },
     signal, // Pass signal to worker handlers
