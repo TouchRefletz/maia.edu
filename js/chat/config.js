@@ -212,8 +212,8 @@ export const CHAT_CONFIG = {
    * Timeout em ms para cada etapa
    */
   timeouts: {
-    router: 10000, // 10s para classificação
-    response: 60000, // 60s para resposta principal
+    router: 300000, // 300s (5 minutos) para classificação
+    response: 300000, // 300s (5 minutos) para resposta principal
   },
 };
 

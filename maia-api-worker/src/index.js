@@ -1061,6 +1061,8 @@ async function handleGeminiGenerate(request, env) {
 
 	const { readable, writable } = new TransformStream();
 	const writer = writable.getWriter();
+	// Envia imediatamente uma quebra de linha para abrir o stream e evitar erro 524 de proxy timeout do Cloudflare
+	writer.write(encoder.encode('\n'));
 
 	// Helpers
 	const writeNdjson = async (obj) => {
@@ -1558,6 +1560,8 @@ async function handleGeminiSearch(request, env) {
 
 	const { readable, writable } = new TransformStream();
 	const writer = writable.getWriter();
+	// Envia imediatamente uma quebra de linha para abrir o stream e evitar erro 524 de proxy timeout do Cloudflare
+	writer.write(encoder.encode('\n'));
 
 	const writeNdjson = async (obj) => {
 		await writer.write(encoder.encode(JSON.stringify(obj) + '\n'));
