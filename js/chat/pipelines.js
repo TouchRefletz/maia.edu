@@ -180,6 +180,12 @@ export async function runChatPipeline(
     timestamp: new Date().toISOString(),
     use_maia_architecture: isMaiaActive,
     model: null,
+    models: {
+      router: null,
+      memory: null,
+      search: null,
+      generation: null,
+    },
     prompt_original: message,
     prompt_compiled: null,
     images_attached: attachments.length,
@@ -354,6 +360,7 @@ export async function runChatPipeline(
         throw err;
       } finally {
         debugLog.latencies.memory_ms = Math.round(performance.now() - startMemory);
+        debugLog.models.memory = (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it";
       }
     }
 
@@ -393,6 +400,7 @@ export async function runChatPipeline(
         },
       );
       debugLog.latencies.router_ms = Math.round(performance.now() - startRouter);
+      debugLog.models.router = (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it";
       finalMode = routedResult.finalMode;
       wasRouted = routedResult.wasRouted;
       routerResult = routedResult.routerResult;
@@ -581,6 +589,7 @@ TEMA DA PESQUISA: ${searchQuery}`;
             }
           );
           debugLog.latencies.search_ms = Math.round(performance.now() - startSearch);
+          debugLog.models.search = (typeof window !== "undefined" ? window.selectedModelSearch : null) || "models/gemini-3.5-flash";
 
           searchReport = searchResult.report;
           searchSources = searchResult.sources || [];
@@ -698,6 +707,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     const fullPromptCompiled = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`;
     
     debugLog.model = finalModelToUse;
+    debugLog.models.generation = finalModelToUse;
     debugLog.prompt_compiled = fullPromptCompiled;
 
     let startGen = performance.now();
@@ -1307,7 +1317,7 @@ RESPOSTA (apenas o título, texto puro):`;
         },
       },
       {
-        model: "models/gemma-4-31b-it", // Modelo solicitado pelo usuário (Gemma 4)
+        model: (typeof window !== "undefined" ? window.selectedModelTitle : null) || "models/gemma-4-31b-it",
         generationConfig: { responseMimeType: "text/plain" }, // Força texto plano
       },
     );

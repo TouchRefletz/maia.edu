@@ -424,3 +424,12 @@
   background: rgba(239, 68, 68, 0.1);
   /* Red tint for logout */
 }
+
+/* Puter limits item neutral color overrides */
+.dropdown-item.js-puter-limits-btn {
+  color: var(--color-text, #fff);
+}
+
+.dropdown-item.js-puter-limits-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

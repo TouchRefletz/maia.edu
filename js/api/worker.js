@@ -2,15 +2,217 @@ import { parseStreamedJSON } from "../utils/json-stream-parser.js";
 
 /**
  * Limpa blocos de código markdown (como ```json e ```) no início/fim de uma string JSON.
+ * Se necessário, tenta extrair a primeira ocorrência de um objeto ou array JSON.
  */
 function cleanJsonString(str) {
   if (typeof str !== "string") return str;
   let cleaned = str.trim();
+  
   // Remove markdown codeblock no início (ex: ```json ou ```)
   cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "");
   // Remove markdown codeblock no final (ex: ```)
   cleaned = cleaned.replace(/\s*```$/, "");
+  cleaned = cleaned.trim();
+  
+  // Se ainda não começar com '{' ou '[', tenta encontrar o primeiro '{' ou '[' e o último correspondente
+  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+    const firstBrace = cleaned.indexOf("{");
+    const firstBracket = cleaned.indexOf("[");
+    let startIdx = -1;
+    let endChar = "";
+    
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+      startIdx = firstBrace;
+      endChar = "}";
+    } else if (firstBracket !== -1) {
+      startIdx = firstBracket;
+      endChar = "]";
+    }
+    
+    if (startIdx !== -1) {
+      const lastIdx = cleaned.lastIndexOf(endChar);
+      if (lastIdx > startIdx) {
+        cleaned = cleaned.substring(startIdx, lastIdx + 1);
+      }
+    }
+  }
+  
   return cleaned.trim();
+}
+
+function dataURLtoFile(dataurl, filename) {
+  var arr = dataurl.split(','),
+      mime = arr[0].match(/:(.*?);/)[1],
+      bstr = atob(arr[arr.length - 1]), 
+      n = bstr.length, 
+      u8arr = new Uint8Array(n);
+  while(n--){
+      u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, {type:mime});
+}
+
+async function ensurePuterLoaded() {
+  if (typeof window !== "undefined" && window.puter) return window.puter;
+  if (typeof window !== "undefined" && window.__loadingPuter) return window.__loadingPuter;
+  
+  if (typeof window !== "undefined") {
+    window.__loadingPuter = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://js.puter.com/v2/";
+      script.onload = () => resolve(window.puter);
+      script.onerror = (e) => {
+        window.__loadingPuter = null;
+        reject(new Error("Falha ao carregar puter.js: " + e));
+      };
+      document.head.appendChild(script);
+    });
+    return window.__loadingPuter;
+  }
+  throw new Error("Puter só pode ser executado no navegador.");
+}
+
+async function chamarPuterAI(
+  texto,
+  schema = null,
+  attachments = [],
+  mimeType = "image/jpeg",
+  handlers = {},
+  options = {}
+) {
+  const puter = await ensurePuterLoaded();
+  
+  // Garantir autenticação (não anonimizado)
+  if (!puter.auth.isSignedIn()) {
+    const msg = "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+    alert(msg);
+    throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
+  }
+  
+  handlers?.onStatus?.("Conectando ao Puter AI...");
+  
+  const modelName = options.model.replace("puter/", "");
+  const isSearchStage = options.isSearchStage || false;
+  
+  // Configuração se for modelo OpenAI e em etapa de pesquisa
+  const isOpenAI = modelName.startsWith("openai/") || modelName.includes("gpt");
+  
+  const puterOptions = {
+    model: modelName
+  };
+  
+  if (isOpenAI && isSearchStage) {
+    puterOptions.tools = [{ type: "web_search" }];
+  }
+  
+  // Converter imagens/anexos se existirem
+  let filesToUpload = [];
+  if (attachments && attachments.length > 0) {
+    for (let i = 0; i < attachments.length; i++) {
+      const att = attachments[i];
+      let fileObj;
+      if (typeof att === "string") {
+        const dataUrl = `data:${mimeType};base64,${att}`;
+        fileObj = dataURLtoFile(dataUrl, `image_${i}.jpg`);
+      } else if (att && typeof att === "object" && att.data) {
+        const dataUrl = `data:${att.mimeType || mimeType};base64,${att.data}`;
+        fileObj = dataURLtoFile(dataUrl, `file_${i}.${(att.mimeType || 'image/jpeg').split('/')[1]}`);
+      }
+      if (fileObj) {
+        filesToUpload.push(fileObj);
+      }
+    }
+  }
+  
+  if (filesToUpload.length > 0) {
+    puterOptions.media = filesToUpload[0]; // Puter suporta um File em media
+  }
+  
+  // Se houver schema, usamos a chamada de função (Function Calling / Tools) do Puter com stream: false
+  if (schema) {
+    puterOptions.stream = false;
+    puterOptions.tools = [{
+      type: "function",
+      function: {
+        name: "retornar_dados_estruturados",
+        description: "Retorna a resposta estruturada contendo os dados solicitados de acordo com o schema.",
+        parameters: schema
+      }
+    }];
+    
+    // Tenta forçar a chamada de função configurando tool_choice se suportado
+    puterOptions.tool_choice = {
+      type: "function",
+      function: { name: "retornar_dados_estruturados" }
+    };
+    
+    const systemPrompt = 
+      "Você é um assistente especializado em retornar dados estruturados. " +
+      "Você deve responder obrigatoriamente em formato JSON válido que siga estritamente o schema JSON fornecido abaixo.\n\n" +
+      "SCHEMA:\n" + JSON.stringify(schema, null, 2) + "\n\n" +
+      "REGRAS DE RESPOSTA:\n" +
+      "1. Se você puder usar ferramentas/funções, chame obrigatoriamente a função 'retornar_dados_estruturados' passando a resposta correspondente nos argumentos.\n" +
+      "2. Se você NÃO puder usar ferramentas ou a chamada de função falhar/não for suportada, você deve responder APENAS com o objeto JSON válido diretamente no corpo do texto, sem blocos de código markdown (como ```json ou ```) e sem qualquer texto explicativo.";
+
+    const messages = [
+      {
+        role: "system",
+        content: systemPrompt
+      },
+      {
+        role: "user",
+        content: texto + "\n\nLembre-se: Responda estritamente com JSON válido seguindo o schema."
+      }
+    ];
+    
+    console.log(`[Puter Tool Call] Executando modelo ${modelName} com schema:`, schema);
+    let response;
+    try {
+      response = await puter.ai.chat(messages, puterOptions);
+    } catch (err) {
+      console.warn("[Puter Tool Call] Erro com tool_choice, tentando sem forçar tool_choice...", err);
+      delete puterOptions.tool_choice;
+      try {
+        response = await puter.ai.chat(messages, puterOptions);
+      } catch (err2) {
+        console.warn("[Puter Tool Call] Erro com tools completo, tentando chamada simples de texto como fallback...", err2);
+        delete puterOptions.tools;
+        puterOptions.stream = false;
+        response = await puter.ai.chat(messages, puterOptions);
+      }
+    }
+    
+    console.log("[Puter Tool Call] Resposta recebida:", response);
+    const message = response?.message;
+    if (message && message.tool_calls && message.tool_calls.length > 0) {
+      const toolCall = message.tool_calls[0];
+      const argsString = toolCall.function.arguments;
+      console.log("[Puter Tool Call] Argumentos extraídos:", argsString);
+      return argsString;
+    } else {
+      // Se por algum motivo o modelo respondeu com texto normal mesmo com tools configurados
+      console.warn("[Puter Tool Call] Modelo não invocou a ferramenta, usando resposta em texto.");
+      return message?.content || response?.toString() || "";
+    }
+  }
+  
+  // Caso contrário, chamada padrão com streaming de texto
+  puterOptions.stream = true;
+  console.log(`[Puter Stream] Executando modelo ${modelName} com prompt:`, texto);
+  const responseStream = await puter.ai.chat(texto, puterOptions);
+  
+  let answerText = "";
+  for await (const part of responseStream) {
+    const textChunk = (typeof part === 'string') ? part : (part?.text || part?.content || '');
+    answerText += textChunk;
+    handlers?.onAnswerDelta?.(textChunk);
+  }
+  
+  if (!answerText || !answerText.trim()) {
+    throw new Error("Resposta do Puter vazia.");
+  }
+  
+  return answerText;
 }
 
 // --- CONFIGURAÇÃO DO WORKER ---
@@ -130,6 +332,33 @@ export async function gerarConteudoEmJSONComImagemStream(
   handlers = {},
   options = {},
 ) {
+  const isPuter = options?.model && options.model.startsWith("puter/");
+  if (isPuter) {
+    try {
+      const answerText = await chamarPuterAI(texto, schema, attachments, mimeType, handlers, options);
+      const cleanedAnswer = cleanJsonString(answerText);
+
+      try {
+        return JSON.parse(cleanedAnswer);
+      } catch (pe) {
+        if (schema) {
+          console.warn("[Puter] Resposta não é JSON perfeito. Tentando recuperar...");
+          const parsedRecovered = parseStreamedJSON(cleanedAnswer);
+          if (parsedRecovered && typeof parsedRecovered === "object") {
+            console.log("[Puter] JSON recuperado com sucesso via best-effort!");
+            return parsedRecovered;
+          }
+          throw new Error("INVALID_JSON_STRUCTURE");
+        }
+        console.log("[Puter] Resposta não é JSON válido. Retornando texto bruto.", pe.message);
+        return answerText;
+      }
+    } catch (error) {
+      console.error("[Puter] Erro na chamada:", error);
+      throw error;
+    }
+  }
+
   const MAX_RETRIES = 3;
   let attempt = 0;
 
@@ -568,6 +797,36 @@ export async function realizarPesquisa(
   schema = null,
   model = null,
 ) {
+  const isPuter = model && model.startsWith("puter/");
+  if (isPuter) {
+    try {
+      const reportText = await chamarPuterAI(texto, schema, listaImagensBase64, "image/jpeg", handlers, {
+        model: model,
+        isSearchStage: true
+      });
+      const urlRegex = /https?:\/\/[^\s)\]]+/g;
+      const foundUrls = reportText.match(urlRegex) || [];
+      const sources = Array.from(new Set(foundUrls)).map(url => {
+        try {
+          return {
+            uri: url,
+            title: new URL(url).hostname || url
+          };
+        } catch(e) {
+          return { uri: url, title: url };
+        }
+      });
+      return {
+        report: reportText,
+        sources: sources,
+        rawMetadata: null
+      };
+    } catch (error) {
+      console.error("[Puter Search] Erro:", error);
+      throw error;
+    }
+  }
+
   handlers?.onStatus?.("Conectando ao Researcher...");
 
   try {
@@ -705,6 +964,37 @@ export async function realizarPesquisaGeral(
   handlers = {},
   schema = null,
 ) {
+  const model = typeof window !== "undefined" ? window.selectedModelSearch : null;
+  const isPuter = model && model.startsWith("puter/");
+  if (isPuter) {
+    try {
+      const reportText = await chamarPuterAI(texto, schema, listaImagensBase64, "image/jpeg", handlers, {
+        model: model,
+        isSearchStage: true
+      });
+      const urlRegex = /https?:\/\/[^\s)\]]+/g;
+      const foundUrls = reportText.match(urlRegex) || [];
+      const sources = Array.from(new Set(foundUrls)).map(url => {
+        try {
+          return {
+            uri: url,
+            title: new URL(url).hostname || url
+          };
+        } catch(e) {
+          return { uri: url, title: url };
+        }
+      });
+      return {
+        report: reportText,
+        sources: sources,
+        rawMetadata: null
+      };
+    } catch (error) {
+      console.error("[Puter Search] Erro:", error);
+      throw error;
+    }
+  }
+
   handlers?.onStatus?.("Conectando ao sistema de pesquisa profunda...");
 
   try {
@@ -1016,3 +1306,162 @@ export function formatFriendlyError(errorMessage) {
 
   return cleanMsg;
 }
+
+async function chamarPuterAIViaFetchMock(url, options) {
+  const bodyObj = JSON.parse(options.body);
+  const puterModel = bodyObj.model;
+  const texto = bodyObj.texto;
+  const schema = bodyObj.schema;
+  
+  // Extract attachments (could be files or base64 images)
+  const attachments = bodyObj.files || bodyObj.listaImagensBase64 || [];
+  const mimeType = bodyObj.mimeType || "image/jpeg";
+  const isSearchStage = url.includes("/search");
+  
+  const encoder = new TextEncoder();
+  
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const puter = await ensurePuterLoaded();
+        
+        // 1. Runtime authentication check (failure when not signed in)
+        if (!puter.auth.isSignedIn()) {
+          const msg = "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+          alert(msg);
+          const errPayload = { type: "error", message: msg };
+          controller.enqueue(encoder.encode(JSON.stringify(errPayload) + "\n"));
+          controller.close();
+          throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
+        }
+        
+        // Notify attempt start
+        const attemptPayload = { type: "meta", event: "attempt_start", model: puterModel };
+        controller.enqueue(encoder.encode(JSON.stringify(attemptPayload) + "\n"));
+        
+        const modelName = puterModel.replace("puter/", "");
+        const isOpenAI = modelName.startsWith("openai/") || modelName.includes("gpt");
+        
+        const puterOptions = { model: modelName };
+        if (isOpenAI && isSearchStage) {
+          puterOptions.tools = [{ type: "web_search" }];
+        }
+        
+        // Process attachments
+        let filesToUpload = [];
+        if (attachments && attachments.length > 0) {
+          for (let i = 0; i < attachments.length; i++) {
+            const att = attachments[i];
+            let fileObj;
+            if (typeof att === "string") {
+              const dataUrl = `data:${mimeType};base64,${att}`;
+              fileObj = dataURLtoFile(dataUrl, `image_${i}.jpg`);
+            } else if (att && typeof att === "object" && att.data) {
+              const dataUrl = `data:${att.mimeType || mimeType};base64,${att.data}`;
+              fileObj = dataURLtoFile(dataUrl, `file_${i}.${(att.mimeType || 'image/jpeg').split('/')[1]}`);
+            }
+            if (fileObj) {
+              filesToUpload.push(fileObj);
+            }
+          }
+        }
+        
+        if (filesToUpload.length > 0) {
+          puterOptions.media = filesToUpload[0];
+        }
+        
+        if (schema) {
+          puterOptions.stream = false;
+          puterOptions.tools = [{
+            type: "function",
+            function: {
+              name: "retornar_dados_estruturados",
+              description: "Retorna a resposta estruturada contendo os dados solicitados.",
+              parameters: schema
+            }
+          }];
+          
+          const messages = [
+            {
+              role: "system",
+              content: "Você é um assistente especializado em retornar dados estruturados. Você deve obrigatoriamente responder invocando a função 'retornar_dados_estruturados' com os parâmetros estruturados especificados."
+            },
+            {
+              role: "user",
+              content: texto
+            }
+          ];
+          
+          console.log(`[Puter Fetch Mock Tool Call] Executando ${modelName} com schema:`, schema);
+          const response = await puter.ai.chat(messages, puterOptions);
+          console.log("[Puter Fetch Mock Tool Call] Resposta:", response);
+          
+          const message = response?.message;
+          if (message && message.tool_calls && message.tool_calls.length > 0) {
+            const toolCall = message.tool_calls[0];
+            const argsString = toolCall.function.arguments;
+            const answerPayload = { type: "answer", text: argsString };
+            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
+          } else {
+            const answerPayload = { type: "answer", text: response?.toString() || "" };
+            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
+          }
+        } else {
+          puterOptions.stream = true;
+          console.log(`[Puter Fetch Mock Stream] Executando ${modelName} com prompt:`, texto);
+          const responseStream = await puter.ai.chat(texto, puterOptions);
+          
+          let reportText = "";
+          for await (const part of responseStream) {
+            const textChunk = (typeof part === 'string') ? part : (part?.text || part?.content || '');
+            reportText += textChunk;
+            const answerPayload = { type: "answer", text: textChunk };
+            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
+          }
+          
+          if (isSearchStage) {
+            const urlRegex = /https?:\/\/[^\s)\]]+/g;
+            const foundUrls = reportText.match(urlRegex) || [];
+            const groundingChunks = Array.from(new Set(foundUrls)).map(url => {
+              try {
+                return { web: { uri: url, title: new URL(url).hostname || url } };
+              } catch(e) {
+                return { web: { uri: url, title: url } };
+              }
+            });
+            const groundingPayload = { type: "grounding", metadata: { groundingChunks } };
+            controller.enqueue(encoder.encode(JSON.stringify(groundingPayload) + "\n"));
+          }
+        }
+      } catch (err) {
+        console.error("[Puter Fetch Mock] Erro:", err);
+        const errPayload = { type: "error", message: err.message };
+        controller.enqueue(encoder.encode(JSON.stringify(errPayload) + "\n"));
+      } finally {
+        controller.close();
+      }
+    }
+  });
+  
+  return new Response(stream, {
+    status: 200,
+    headers: { "Content-Type": "application/x-ndjson" }
+  });
+}
+
+// Configura o patch global de window.fetch para interceptar requisições do Puter
+const originalFetch = window.fetch;
+window.fetch = async function(url, options) {
+  const urlStr = String(url);
+  if (
+    options &&
+    options.method === "POST" &&
+    (urlStr.includes("/generate") || urlStr.includes("/search")) &&
+    options.body &&
+    typeof options.body === "string" &&
+    options.body.includes('"model":"puter/')
+  ) {
+    return chamarPuterAIViaFetchMock(urlStr, options);
+  }
+  return originalFetch.apply(this, arguments);
+};

@@ -507,14 +507,15 @@ function renderInitialUI() {
 
   const specificModelBtn = document.getElementById("chatSpecificModelBtn");
 
-  // Definir modelo padrão por padrão inicial (granularizado em 6 etapas)
+  // Definir modelo padrão por padrão inicial (granularizado em 7 etapas)
   const defaultModels = {
     chat: "models/gemini-3.5-flash",
     router: "models/gemma-4-31b-it",
     memory: "models/gemma-4-31b-it",
     search: "models/gemini-3.5-flash",
     corrector: "models/gemini-3.5-flash",
-    scaffolding: "models/gemini-3-flash-preview"
+    scaffolding: "models/gemini-3-flash-preview",
+    title: "models/gemma-4-31b-it"
   };
 
   window.selectedModelChat = localStorage.getItem("selectedModelChat") || defaultModels.chat;
@@ -523,6 +524,7 @@ function renderInitialUI() {
   window.selectedModelSearch = localStorage.getItem("selectedModelSearch") || defaultModels.search;
   window.selectedModelCorrector = localStorage.getItem("selectedModelCorrector") || defaultModels.corrector;
   window.selectedModelScaffolding = localStorage.getItem("selectedModelScaffolding") || defaultModels.scaffolding;
+  window.selectedModelTitle = localStorage.getItem("selectedModelTitle") || defaultModels.title;
 
   // Extrator de questões (granularizado em 7 etapas)
   window.selectedModelScannerDetect = localStorage.getItem("selectedModelScannerDetect") || "models/gemini-3.5-flash";
@@ -609,7 +611,8 @@ function renderInitialUI() {
       router: "models/gemma-4-31b-it",
       memory: "models/gemma-4-31b-it",
       search: "models/gemini-3.5-flash",
-      corrector: "models/gemini-3.5-flash"
+      corrector: "models/gemini-3.5-flash",
+      title: "models/gemma-4-31b-it"
     };
 
     const isChatCustom = (window.selectedModelChat || defaultModels.chat) !== defaultModels.chat;
@@ -617,11 +620,18 @@ function renderInitialUI() {
     const isMemoryCustom = (window.selectedModelMemory || defaultModels.memory) !== defaultModels.memory;
     const isSearchCustom = (window.selectedModelSearch || defaultModels.search) !== defaultModels.search;
     const isCorrectorCustom = (window.selectedModelCorrector || defaultModels.corrector) !== defaultModels.corrector;
+    const isTitleCustom = (window.selectedModelTitle || defaultModels.title) !== defaultModels.title;
 
-    const isAnyCustom = isChatCustom || isRouterCustom || isMemoryCustom || isSearchCustom || isCorrectorCustom;
+    const isAnyCustom = isChatCustom || isRouterCustom || isMemoryCustom || isSearchCustom || isCorrectorCustom || isTitleCustom;
 
     const chatModelId = window.selectedModelChat || defaultModels.chat;
-    const modelObj = IA_MODELS.find(m => m.id === chatModelId) || { title: "Gemini 3.5 Flash" };
+    let modelObj = IA_MODELS.find(m => m.id === chatModelId);
+    if (!modelObj && chatModelId && chatModelId.startsWith("puter/")) {
+      modelObj = { title: chatModelId.replace("puter/", "Puter: ") };
+    }
+    if (!modelObj) {
+      modelObj = { title: "Gemini 3.5 Flash" };
+    }
 
     if (subtext) {
       subtext.textContent = isAnyCustom ? "Personalizado" : modelObj.title;
@@ -714,12 +724,14 @@ function renderInitialUI() {
       window.selectedModelMemory = "models/gemma-4-31b-it";
       window.selectedModelSearch = "models/gemini-3.5-flash";
       window.selectedModelCorrector = "models/gemini-3.5-flash";
+      window.selectedModelTitle = "models/gemma-4-31b-it";
 
       localStorage.setItem("selectedModelChat", "models/gemini-3.5-flash");
       localStorage.setItem("selectedModelRouter", "models/gemma-4-31b-it");
       localStorage.setItem("selectedModelMemory", "models/gemma-4-31b-it");
       localStorage.setItem("selectedModelSearch", "models/gemini-3.5-flash");
       localStorage.setItem("selectedModelCorrector", "models/gemini-3.5-flash");
+      localStorage.setItem("selectedModelTitle", "models/gemma-4-31b-it");
 
       updateModelChip();
       console.log("Todos os modelos redefinidos para os padrões de fábrica");
@@ -1597,6 +1609,10 @@ export function renderUserButton(user) {
             </button>
             
             <div class="user-dropdown-menu" id="userDropdownMenu" style="width: 100%; left: 0;">
+                <button class="dropdown-item js-puter-limits-btn">
+                    Limites do Puter
+                </button>
+                <div class="dropdown-divider"></div>
                 <button class="dropdown-item js-logout-btn">
                     Sair
                 </button>
@@ -1634,6 +1650,15 @@ export function renderUserButton(user) {
         }
       });
 
+      // Puter Limits
+      const puterLimitsBtn = dropdown.querySelector(".js-puter-limits-btn");
+      if (puterLimitsBtn) {
+        puterLimitsBtn.addEventListener("click", () => {
+          dropdown.classList.remove("visible");
+          showPuterLimitsModal();
+        });
+      }
+
       // Logout
       const logoutBtn = dropdown.querySelector(".js-logout-btn");
       if (logoutBtn) {
@@ -1661,6 +1686,263 @@ export function renderUserButton(user) {
     apiKeyBtns.forEach((btn) =>
       btn.addEventListener("click", () => mountApiKeyModal()),
     );
+  }
+}
+
+/**
+ * Mostra o modal com limites de uso da conta Puter.js
+ */
+async function showPuterLimitsModal() {
+  const { showGenericModal } = await import("../ui/modal-generic.js");
+  
+  const contentEl = document.createElement("div");
+  contentEl.style.cssText = "color: var(--color-text); font-family: sans-serif; display: flex; flex-direction: column; gap: 16px;";
+  contentEl.innerHTML = `
+    <div style="text-align: center; padding: 20px 0;">
+      <div style="border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--color-primary, #4e82ee); border-radius: 50%; width: 30px; height: 30px; animation: puter-limits-spin 1s linear infinite; margin: 0 auto 12px;"></div>
+      <span>Carregando limites do Puter...</span>
+    </div>
+    <style>
+      @keyframes puter-limits-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+  `;
+
+  showGenericModal({
+    title: "🔒 Limites da sua conta Puter.js",
+    content: contentEl,
+    maxWidth: "500px"
+  });
+
+  try {
+    if (typeof window.puter === "undefined") {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://js.puter.com/v2/";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    const puter = window.puter;
+    if (!puter.auth.isSignedIn()) {
+      contentEl.innerHTML = `
+        <div style="text-align: center; padding: 10px 0; display: flex; flex-direction: column; gap: 12px; align-items: center;">
+          <p style="margin: 0; font-size: 0.95rem; color: var(--color-text-secondary);">Você não está conectado à sua conta do Puter.</p>
+          <p style="margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); max-width: 320px;">A conexão com o Puter permite utilizar modelos de IA adicionais de forma gratuita e acompanhar seus limites mensais.</p>
+          <button id="btnPuterModalLogin" class="btn btn--primary" style="margin-top: 10px; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; background: var(--color-primary, #4e82ee); border: none; color: #fff;">
+            Conectar conta Puter
+          </button>
+        </div>
+      `;
+      document.getElementById("btnPuterModalLogin")?.addEventListener("click", async () => {
+        try {
+          await puter.auth.signIn();
+          // Fechar modal atual e reabrir
+          const overlay = document.querySelector(".custom-generic-overlay");
+          if (overlay && document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+          }
+          showPuterLimitsModal();
+        } catch (e) {
+          console.error("Erro ao autenticar com Puter:", e);
+        }
+      });
+      return;
+    }
+
+    const usage = await puter.auth.getMonthlyUsage();
+    console.log("Usage retrieved from Puter:", usage);
+
+    let allowance = 0;
+    let remaining = 0;
+
+    if (usage.monthUsageAllowance !== undefined) {
+      allowance = usage.monthUsageAllowance;
+    } else if (usage.allowanceInfo) {
+      if (typeof usage.allowanceInfo.monthUsageAllowance === 'number') {
+        allowance = usage.allowanceInfo.monthUsageAllowance;
+      } else if (Array.isArray(usage.allowanceInfo) && usage.allowanceInfo[0]) {
+        allowance = usage.allowanceInfo[0].allowance || 0;
+      }
+    }
+
+    if (usage.remaining !== undefined) {
+      remaining = usage.remaining;
+    } else if (usage.allowanceInfo) {
+      if (typeof usage.allowanceInfo.remaining === 'number') {
+        remaining = usage.allowanceInfo.remaining;
+      } else if (Array.isArray(usage.allowanceInfo) && usage.allowanceInfo[0]) {
+        remaining = usage.allowanceInfo[0].remaining || 0;
+      }
+    }
+
+    const used = Math.max(0, allowance - remaining);
+
+    const pctUsed = allowance > 0 ? Math.min(100, Math.round((used / allowance) * 100)) : 0;
+    const pctRemaining = 100 - pctUsed;
+
+    let allowanceInfoHtml = "";
+    if (usage.allowanceInfo && Array.isArray(usage.allowanceInfo)) {
+      allowanceInfoHtml = `
+        <div style="margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px;">
+          <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text);">Detalhamento por Serviço</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${usage.allowanceInfo.map(info => {
+              const infoUsed = Math.max(0, (info.allowance || 0) - (info.remaining || 0));
+              const infoPct = info.allowance > 0 ? Math.min(100, Math.round((infoUsed / info.allowance) * 100)) : 0;
+              return `
+                <div style="font-size: 0.8rem; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--color-border);">
+                  <div style="display: flex; justify-content: space-between; font-weight: 600; text-transform: capitalize; margin-bottom: 4px;">
+                    <span>${info.service_name || info.name || 'Serviço'}</span>
+                    <span style="color: var(--color-text-secondary);">${infoPct}% usado</span>
+                  </div>
+                  <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin: 6px 0;">
+                    <div style="width: ${infoPct}%; height: 100%; background: var(--color-primary, #4e82ee);"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: 0.75rem;">
+                    <span>Restante: ${info.remaining?.toLocaleString() || 0}</span>
+                    <span>Total: ${info.allowance?.toLocaleString() || 0}</span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    } else if (usage.usage && typeof usage.usage === 'object') {
+      const providerMap = {
+        openai: 'OpenAI',
+        google: 'Google',
+        anthropic: 'Anthropic',
+        meta: 'Meta',
+        mistral: 'Mistral',
+        cohere: 'Cohere',
+        alibaba: 'Alibaba',
+        microsoft: 'Microsoft'
+      };
+
+      const formatServiceKey = (key) => {
+        const parts = key.split(':');
+        if (parts.length >= 3) {
+          const provKey = parts[0].toLowerCase();
+          const provider = providerMap[provKey] || (parts[0].charAt(0).toUpperCase() + parts[0].slice(1));
+          const model = parts[1].split('-').map(w => {
+            const lw = w.toLowerCase();
+            if (lw === 'vl') return 'VL';
+            if (lw === 'gpt') return 'GPT';
+            return w.charAt(0).toUpperCase() + w.slice(1);
+          }).join(' ');
+          let type = parts[2].replace(/_/g, ' ');
+          type = type.charAt(0).toUpperCase() + type.slice(1);
+          if (parts[2] === 'prompt_tokens') type = 'Entrada (Prompt)';
+          if (parts[2] === 'completion_tokens') type = 'Saída (Completion)';
+          return { name: `${provider} ${model}`, type };
+        } else if (parts.length === 2) {
+          const name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          let type = parts[1].replace(/_/g, ' ');
+          type = type.charAt(0).toUpperCase() + type.slice(1);
+          if (parts[1] === 'prompt_tokens') type = 'Entrada (Prompt)';
+          if (parts[1] === 'completion_tokens') type = 'Saída (Completion)';
+          return { name, type };
+        } else {
+          const name = key.replace(/_/g, ' ').replace(/:/g, ' ');
+          return { name: name.charAt(0).toUpperCase() + name.slice(1), type: null };
+        }
+      };
+
+      const items = Object.entries(usage.usage)
+        .filter(([key]) => key !== 'total')
+        .map(([key, details]) => {
+          const formatted = formatServiceKey(key);
+          const cost = details.cost || 0;
+          const count = details.count || 0;
+          const units = details.units || 0;
+          return { name: formatted.name, type: formatted.type, cost, count, units };
+        });
+
+      if (items.length > 0) {
+        allowanceInfoHtml = `
+          <div style="margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px;">
+            <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text);">Detalhamento por Modelo</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
+              ${items.map(item => {
+                return `
+                  <div style="font-size: 0.8rem; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                      <span style="font-weight: 600; color: var(--color-text); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 65%;" title="${item.name}">${item.name}</span>
+                      ${item.type ? `<span style="font-size: 0.7rem; background: rgba(167, 93, 244, 0.1); color: #c084fc; padding: 2px 6px; border-radius: 4px; font-weight: 500; white-space: nowrap;">${item.type}</span>` : ''}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; color: var(--color-text-secondary); font-size: 0.75rem;">
+                      <span>Chamadas: <strong>${item.count.toLocaleString()}</strong></span>
+                      <span>Tokens: <strong>${item.units.toLocaleString()}</strong></span>
+                      <span style="color: var(--color-primary, #4e82ee); font-weight: 600;">${item.cost.toLocaleString()} units</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    contentEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: center; gap: 14px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); padding: 14px 18px; border-radius: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.03);">
+          <span style="font-size: 1.5rem; filter: drop-shadow(0 2px 4px rgba(16, 185, 129, 0.2));">✅</span>
+          <div>
+            <h4 style="margin: 0; font-size: 0.9rem; color: #34d399; font-weight: 600;">Sua conta está conectada</h4>
+            <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.3;">Recursos de IA e APIs fornecidos pela plataforma Puter.js.</p>
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); padding: 18px; border-radius: 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 0 12px rgba(255,255,255,0.01);">
+          <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--color-text);">Consumo Mensal de Créditos</h4>
+          
+          <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-top: 4px; display: flex;">
+            <div style="width: ${pctUsed}%; height: 100%; background: linear-gradient(90deg, #4e82ee, #a75df4); border-radius: 5px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--color-text-secondary);">
+            <span>Usado: <strong style="color: var(--color-text);">${pctUsed}%</strong> (${used.toLocaleString()} units)</span>
+            <span>Restante: <strong style="color: #34d399;">${pctRemaining}%</strong> (${remaining.toLocaleString()} units)</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; font-size: 0.85rem; color: var(--color-text);">
+            <span>Franquia Total do Mês:</span>
+            <strong>${allowance.toLocaleString()} units</strong>
+          </div>
+        </div>
+
+        ${allowanceInfoHtml}
+
+        <p style="margin: 4px 0 0 0; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; text-align: center;">
+          Os limites são redefinidos automaticamente a cada mês. Se você precisar de mais franquia, pode adicionar saldo ou fazer upgrade em seu painel no <a href="https://puter.com" target="_blank" style="color: var(--color-primary, #4e82ee); text-decoration: underline;">puter.com</a>.
+        </p>
+      </div>
+    `;
+
+  } catch (e) {
+    console.error("Erro ao carregar limites do Puter:", e);
+    contentEl.innerHTML = `
+      <div style="text-align: center; padding: 10px 0; color: #f87171;">
+        <span style="font-size: 2rem;">⚠️</span>
+        <p style="margin: 10px 0 0 0; font-size: 0.9rem; font-weight: 600;">Não foi possível obter os limites da conta</p>
+        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">${e.message || "Erro de conexão com o Puter API"}</p>
+        <button id="btnPuterModalRetry" class="btn btn--outline" style="margin-top: 12px; padding: 6px 12px; font-size: 0.8rem;">
+          Tentar Novamente
+        </button>
+      </div>
+    `;
+    document.getElementById("btnPuterModalRetry")?.addEventListener("click", () => {
+      // Fechar modal atual e reabrir
+      const overlay = document.querySelector(".custom-generic-overlay");
+      if (overlay && document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      showPuterLimitsModal();
+    });
   }
 }
 

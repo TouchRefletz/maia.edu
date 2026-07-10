@@ -33,6 +33,83 @@ const GROQ_LOGO = (
   </svg>
 );
 
+const PUTER_LOGO = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#3b82f6', marginRight: '8px', flexShrink: 0 }}>
+    <path d="m5 16 1.86-1.86a6.08 6.08 0 0 1 8.28 0L17 16" />
+    <path d="M9 11h.01" />
+    <path d="M15 11h.01" />
+    <path d="M11 14h2" />
+    <rect width="20" height="16" x="2" y="4" rx="4" />
+  </svg>
+);
+
+const CLAUDE_LOGO = (
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Claude_AI_symbol.svg/3840px-Claude_AI_symbol.svg.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Claude" />
+);
+
+const MISTRAL_LOGO = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#ff6600', marginRight: '8px', flexShrink: 0 }}>
+    <path d="M3 3h18v18H3z" />
+    <path d="M12 9v6M9 12h6" />
+  </svg>
+);
+
+const ALIBABA_LOGO = (
+  <img src="https://static.vecteezy.com/system/resources/thumbnails/074/690/621/small/alibaba-icon-orange-and-black-color-symbol-mark-illustration-free-png.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Alibaba" />
+);
+
+const MOONSHOT_LOGO = (
+  <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light/moonshot.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Moonshot" />
+);
+
+const OPENROUTER_LOGO = (
+  <img src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/openrouter-icon.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="OpenRouter" />
+);
+
+const getProviderLogo = (provider: string) => {
+  const p = (provider || '').toLowerCase();
+  if (p.includes('openai')) return OPENAI_LOGO;
+  if (p.includes('gemini') || p.includes('google')) return GEMINI_LOGO;
+  if (p.includes('groq')) return GROQ_LOGO;
+  if (p.includes('claude') || p.includes('anthropic')) return CLAUDE_LOGO;
+  if (p.includes('mistral') || p.includes('pixtral')) return MISTRAL_LOGO;
+  if (p.includes('alibaba') || p.includes('qwen')) return ALIBABA_LOGO;
+  if (p.includes('moonshot')) return MOONSHOT_LOGO;
+  if (p.includes('openrouter')) return OPENROUTER_LOGO;
+  if (p.includes('grok') || p.includes('xai')) {
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ color: '#ffffff', marginRight: '8px', flexShrink: 0 }}>
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+      </svg>
+    );
+  }
+  return PUTER_LOGO;
+};
+
+const formatPuterCost = (cost: any) => {
+  if (!cost) return "Cortesia (Puter)";
+  const input = cost.input ?? 0;
+  const output = cost.output ?? 0;
+  if (input === 0 && output === 0) return "Cortesia (Puter)";
+  
+  const formatVal = (val: number) => {
+    if (val === 0) return "0.00";
+    if (val < 0.01) return val.toFixed(4);
+    return val.toFixed(2);
+  };
+  
+  return `In: ${formatVal(input)}¢ / Out: ${formatVal(output)}¢`;
+};
+
+const formatPuterContext = (contextLimit: any) => {
+  if (!contextLimit) return "N/A";
+  const limitNum = Number(contextLimit);
+  if (isNaN(limitNum)) return String(contextLimit);
+  if (limitNum >= 1000000) return `${(limitNum / 1000000).toFixed(1)}M`;
+  if (limitNum >= 1000) return `${(limitNum / 1000).toFixed(0)}K`;
+  return String(limitNum);
+};
+
 // SVGs para Avaliação
 const BULB_SVG = (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
@@ -262,7 +339,7 @@ export const IA_MODELS = [
   }
 ];
 
-type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' |
+type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' | 'title' |
              'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
              'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect';
 
@@ -316,6 +393,13 @@ const STAGES_CONFIG: TabConfig[] = [
     icon: '🧩',
     title: '🧩 Geração de Passos (Scaffolding)',
     desc: 'Modelo responsável por gerar os passos pedagógicos do Scaffolding (Verdadeiro ou Falso) além do primeiro, guiando o aluno progressivamente.'
+  },
+  {
+    id: 'title',
+    label: 'Título da Aba',
+    icon: '🏷️',
+    title: '🏷️ Gerador de Título',
+    desc: 'Modelo responsável por analisar as primeiras mensagens e gerar um título curto e descritivo para a aba do chat.'
   }
 ];
 
@@ -378,6 +462,7 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   search: 'models/gemini-3.5-flash',
   corrector: 'models/gemini-3.5-flash',
   scaffolding: 'models/gemini-3-flash-preview',
+  title: 'models/gemma-4-31b-it',
   scanner_detect: 'models/gemini-3.5-flash',
   scanner_audit: 'models/gemini-3.5-flash',
   scanner_correct: 'models/gemini-3.5-flash',
@@ -386,6 +471,25 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   extractor_gabarito: 'models/gemini-3.5-flash',
   extractor_image_detect: 'models/gemini-3.5-flash'
 };
+
+export function modelSupportsVision(modelId: string): boolean {
+  const id = modelId.toLowerCase();
+  
+  if (id.startsWith('puter/')) {
+    const puterId = id.replace('puter/', '');
+    const visionPatterns = [
+      "vision", "gpt-4o", "gpt-4.1", "gpt-5", "gemini", "claude-3", "claude-3.5",
+      "pixtral", "llava", "molmo", "qwen-vl", "internvl", "o1", "o3", "o4"
+    ];
+    return visionPatterns.some(pattern => puterId.includes(pattern));
+  }
+  
+  if (id.includes('groq/gpt-oss-120b')) {
+    return false;
+  }
+  
+  return true;
+}
 
 interface ModelSelectorProps {
   onClose: () => void;
@@ -408,11 +512,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
   // Model states
   const [selections, setSelections] = useState<Record<TabId, string>>({
-    chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '',
+    chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '', title: '',
     scanner_detect: '', scanner_audit: '', scanner_correct: '',
     extractor_ocr: '', extractor_search: '', extractor_gabarito: '',
     extractor_image_detect: ''
   });
+
+  const [puterModels, setPuterModels] = useState<any[]>([]);
+  const [isLoadingPuter, setIsLoadingPuter] = useState(false);
+  const [puterError, setPuterError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isPuterSignedIn, setIsPuterSignedIn] = useState(false);
 
   // Initial load
   useEffect(() => {
@@ -431,6 +541,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       search: getVal('selectedModelSearch', DEFAULT_MODELS.search),
       corrector: getVal('selectedModelCorrector', DEFAULT_MODELS.corrector),
       scaffolding: getVal('selectedModelScaffolding', DEFAULT_MODELS.scaffolding),
+      title: getVal('selectedModelTitle', DEFAULT_MODELS.title),
       scanner_detect: getVal('selectedModelScannerDetect', DEFAULT_MODELS.scanner_detect),
       scanner_audit: getVal('selectedModelScannerAudit', DEFAULT_MODELS.scanner_audit),
       scanner_correct: getVal('selectedModelScannerCorrect', DEFAULT_MODELS.scanner_correct),
@@ -439,13 +550,71 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       extractor_gabarito: getVal('selectedModelExtractorGabarito', DEFAULT_MODELS.extractor_gabarito),
       extractor_image_detect: getVal('selectedModelExtractorImageDetect', DEFAULT_MODELS.extractor_image_detect)
     });
+
+    const initPuter = async () => {
+      try {
+        setIsLoadingPuter(true);
+        if (typeof (window as any).puter === 'undefined') {
+          const script = document.createElement('script');
+          script.src = 'https://js.puter.com/v2/';
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        const puter = (window as any).puter;
+        setIsPuterSignedIn(puter.auth.isSignedIn());
+
+        const modelsList = await puter.ai.listModels();
+        const formatted = modelsList.map((m: any) => ({
+          id: `puter/${m.id || m.name}`,
+          title: m.name || m.id,
+          desc: `Modelo multimodal do provedor ${m.provider || 'desconhecido'} integrado via Puter.js.`,
+          category: `Puter: ${m.provider}`,
+          logo: getProviderLogo(m.provider),
+          provider: m.provider,
+          contextLimit: m.context,
+          cost: m.cost,
+          isPuterModel: true,
+          reasoning: 0,
+          speed: 0,
+          reasoningText: "",
+          speedText: ""
+        }));
+        setPuterModels(formatted);
+      } catch (err: any) {
+        console.error("Erro ao carregar modelos do Puter:", err);
+        setPuterError(err.message || "Erro desconhecido");
+      } finally {
+        setIsLoadingPuter(false);
+      }
+    };
+
+    initPuter();
   }, []);
 
   const getSelectedIdForTab = (tab: TabId) => {
     return selections[tab];
   };
 
+  const handlePuterSignIn = async () => {
+    try {
+      const puter = (window as any).puter;
+      if (!puter) return;
+      await puter.auth.signIn();
+      setIsPuterSignedIn(puter.auth.isSignedIn());
+    } catch (err) {
+      console.error("Erro ao autenticar com Puter:", err);
+    }
+  };
+
   const handleSelectModel = (modelId: string) => {
+    if (modelId.startsWith("puter/") && !isPuterSignedIn) {
+      alert("Você precisa estar autenticado no Puter para selecionar este modelo. Por favor, conecte-se no cabeçalho do modal.");
+      return;
+    }
     setSelections(prev => ({
       ...prev,
       [activeTab]: modelId
@@ -472,7 +641,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         memory: DEFAULT_MODELS.memory,
         search: DEFAULT_MODELS.search,
         corrector: DEFAULT_MODELS.corrector,
-        scaffolding: DEFAULT_MODELS.scaffolding
+        scaffolding: DEFAULT_MODELS.scaffolding,
+        title: DEFAULT_MODELS.title
       }));
     }
   };
@@ -494,6 +664,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         (window as any).selectedModelSearch = selections.search;
         (window as any).selectedModelCorrector = selections.corrector;
         (window as any).selectedModelScaffolding = selections.scaffolding;
+        (window as any).selectedModelTitle = selections.title;
         (window as any).selectedSpecificModel = selections.chat; // keep legacy selectedSpecificModel updated
       }
     }
@@ -514,19 +685,43 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       localStorage.setItem('selectedModelSearch', selections.search);
       localStorage.setItem('selectedModelCorrector', selections.corrector);
       localStorage.setItem('selectedModelScaffolding', selections.scaffolding);
+      localStorage.setItem('selectedModelTitle', selections.title);
       onSelect(mode === 'corrector' ? selections.corrector : selections.chat);
     }
     onClose();
   };
 
-  // Group models by category, filtering for search if active
-  const categories: { [key: string]: typeof IA_MODELS } = {};
-  IA_MODELS.forEach((model) => {
-    // Se a aba ativa for 'search' ou 'extractor_search' (Pesquisa), permite apenas modelos Gemini e Gemma 4 (31B / 26B)
-    const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
-    if (isSearchActiveTab && !model.id.startsWith('models/gemini-') && model.id !== 'models/gemma-4-31b-it' && model.id !== 'models/gemma-4-26b-a4b-it') {
-      return;
+  const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
+  const allModels = [...IA_MODELS, ...puterModels];
+
+  const filteredModels = allModels.filter(model => {
+    // 1. Filtrar por suporte a visão (multimodal)
+    if (!modelSupportsVision(model.id)) {
+      return false;
     }
+
+    // 2. Se for aba de pesquisa, limitar apenas a modelos OpenAI
+    if (isSearchActiveTab) {
+      const isOpenAI = model.id.includes('openai') || model.id.includes('gpt') || model.id.includes('github/o');
+      if (!isOpenAI) return false;
+    }
+
+    // 3. Filtrar por busca textual
+    if (searchTerm.trim() !== '') {
+      const term = searchTerm.toLowerCase();
+      return (
+        model.title.toLowerCase().includes(term) ||
+        model.desc.toLowerCase().includes(term) ||
+        model.category.toLowerCase().includes(term)
+      );
+    }
+
+    return true;
+  });
+
+  // Group models by category
+  const categories: { [key: string]: typeof IA_MODELS } = {};
+  filteredModels.forEach((model) => {
     if (!categories[model.category]) {
       categories[model.category] = [];
     }
@@ -660,6 +855,54 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Puter connection status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px' }}>
+              <span style={{ fontSize: '0.8rem', color: isPuterSignedIn ? '#10b981' : '#f59e0b', fontWeight: 500 }}>
+                {isPuterSignedIn ? "● Puter Conectado" : "● Puter Desconectado"}
+              </span>
+              {!isPuterSignedIn ? (
+                <button
+                  type="button"
+                  onClick={handlePuterSignIn}
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    color: '#f59e0b',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Conectar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const puter = (window as any).puter;
+                    if (puter) {
+                      await puter.auth.signOut();
+                      setIsPuterSignedIn(false);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#f87171',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  Sair
+                </button>
+              )}
+            </div>
+
             {(mode === 'extractor' || (isMaiaActive && mode !== 'corrector')) && (
               <button 
                 onClick={handleResetAll}
@@ -699,7 +942,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                 const isActive = activeTab === stage.id;
                 // Pegar o label curto do modelo selecionado para mostrar abaixo do nome da tab
                 const selectedModelId = getSelectedIdForTab(stage.id);
-                const selectedModel = IA_MODELS.find(m => m.id === selectedModelId);
+                const selectedModel = allModels.find(m => m.id === selectedModelId);
                 const selectedModelName = selectedModel ? selectedModel.title : 'Não definido';
 
                 return (
@@ -724,14 +967,66 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
           {/* Main Stage Panel */}
           <div className="main-stage-content">
             {currentActiveStage && (
-              <div style={{ marginBottom: '16px' }}>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600 }}>{currentActiveStage.title}</h3>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{currentActiveStage.desc}</p>
+              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600 }}>{currentActiveStage.title}</h3>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{currentActiveStage.desc}</p>
+                </div>
+                
+                {/* Search Bar */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Pesquisar modelo por nome ou provedor (ex: gpt-4o, gemini, anthropic...)"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--color-border)',
+                      background: 'var(--color-bg-2)',
+                      color: 'var(--color-text)',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      transition: 'border-color 0.2s ease'
+                    }}
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--color-border)',
+                        background: 'none',
+                        color: 'var(--color-text-secondary)',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
             {/* Grid Scroll Area */}
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+              {isLoadingPuter && puterModels.length === 0 && (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                  Carregando modelos do Puter...
+                </div>
+              )}
+              {puterError && (
+                <div style={{ padding: '10px 20px', margin: '10px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', fontSize: '0.85rem' }}>
+                  Aviso: Não foi possível obter os modelos do Puter. {puterError}
+                </div>
+              )}
               {Object.entries(categories).map(([categoryName, models]) => {
                 if (models.length === 0) return null;
                 return (
@@ -797,6 +1092,30 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                               </div>
                             </div>
                           )}
+
+                          {/* Puter Meta Info (Contexto + Custo) */}
+                          {model.isPuterModel && (
+                            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                              <div>
+                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Contexto</div>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#60a5fa" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                    <path d="M4 14h16M4 10h16M4 6h16M4 18h16" />
+                                  </svg>
+                                  <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600 }}>{formatPuterContext(model.contextLimit)}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Custo (1M tokens)</div>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                  </svg>
+                                  <span style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600 }}>{formatPuterCost(model.cost)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -804,6 +1123,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                   </div>
                 );
               })}
+
+
             </div>
 
           </div>

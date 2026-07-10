@@ -394,7 +394,10 @@ if (!window.__globalListenerRegistered) {
         mountModelSelectorModal(currentModel, (selectedId) => {
           console.log("[Banco] Modelo de correção atualizado:", selectedId);
           // Atualiza label no botão do banco com o título amigável
-          const modelObj = IA_MODELS.find(m => m.id === selectedId);
+          let modelObj = IA_MODELS.find(m => m.id === selectedId);
+          if (!modelObj && selectedId && selectedId.startsWith("puter/")) {
+            modelObj = { title: selectedId.replace("puter/", "Puter: ") };
+          }
           const lbl = document.querySelector(".js-banco-model-label");
           if (lbl && modelObj) lbl.textContent = "🤖 " + modelObj.title;
         }, 'corrector');
