@@ -25,7 +25,6 @@ import {
 import { ChatStorageService } from "../services/chat-storage.js"; // Import Persistence Service
 import { validateStudyContext } from "./services/guardrail-service.js"; // Import Guardrail Semântico
 
-
 /**
  * NORMALIZAÇÃO (STAGE 3 / TRANSFORMER)
  * Transforma a estrutura altamente estável do Gemini (nested objects)
@@ -102,16 +101,18 @@ function normalizarResposta(raw) {
 
 function cleanHistoryForControlGroup(history) {
   if (!history || !Array.isArray(history)) return history;
-  return history.map(msg => {
+  return history.map((msg) => {
     if (msg.role === "model" || msg.role === "assistant") {
       let content = msg.content;
       if (typeof content === "object" && content !== null) {
         if (content.sections && Array.isArray(content.sections)) {
           content = content.sections
-            .map(sec => {
+            .map((sec) => {
               if (sec.conteudo && Array.isArray(sec.conteudo)) {
                 return sec.conteudo
-                  .map(c => typeof c === "object" ? (c.conteudo || "") : String(c))
+                  .map((c) =>
+                    typeof c === "object" ? c.conteudo || "" : String(c),
+                  )
                   .join("\n\n");
               }
               return "";
@@ -119,7 +120,7 @@ function cleanHistoryForControlGroup(history) {
             .join("\n\n");
         } else if (content.conteudo && Array.isArray(content.conteudo)) {
           content = content.conteudo
-            .map(c => typeof c === "object" ? (c.conteudo || "") : String(c))
+            .map((c) => (typeof c === "object" ? c.conteudo || "" : String(c)))
             .join("\n\n");
         } else {
           content = JSON.stringify(content);
@@ -150,7 +151,8 @@ function getEssentialQuestionData(fullData) {
     };
   } else {
     essential.identificacao = fullData.identificacao || fullData.id;
-    essential.enunciado = fullData.enunciado || fullData.questao || fullData.text;
+    essential.enunciado =
+      fullData.enunciado || fullData.questao || fullData.text;
     essential.alternativas = fullData.alternativas || fullData.options;
   }
 
@@ -181,9 +183,10 @@ export async function runChatPipeline(
   context = {},
 ) {
   let startTime = performance.now();
-  const use_maia_architecture = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+  const use_maia_architecture =
+    typeof window !== "undefined" && window.useMaiaArchitecture !== false;
   const isMaiaActive = use_maia_architecture;
-  
+
   let executionMode = selectedMode;
   let finalMode = selectedMode === "automatico" ? "rapido" : selectedMode;
   let wasRouted = false;
@@ -205,9 +208,12 @@ export async function runChatPipeline(
           if (parsed.dados_questao || parsed.dados_gabarito) {
             attachedQuestionData = {
               id: parsed.dados_questao?.identificacao || file.name,
-              fullData: parsed
+              fullData: parsed,
             };
-            console.log("[Pipeline] Encontrada questão anexada diretamente:", attachedQuestionData.id);
+            console.log(
+              "[Pipeline] Encontrada questão anexada diretamente:",
+              attachedQuestionData.id,
+            );
             break;
           }
         } catch (e) {
@@ -218,7 +224,7 @@ export async function runChatPipeline(
   }
   let searchSources = [];
   let searchReport = "";
-  
+
   const debugLog = {
     session_id: context.chatId || "nova_sessao",
     timestamp: new Date().toISOString(),
@@ -229,6 +235,7 @@ export async function runChatPipeline(
       memory: null,
       search: null,
       generation: null,
+      image_descriptor: null, // 🌟 ADICIONE ESSA LINHA AQUI
     },
     prompt_original: message,
     prompt_compiled: null,
@@ -253,7 +260,10 @@ export async function runChatPipeline(
     // 0. === GUARDRAIL SEMÂNTICO DE ESCOPO ===
     if (isMaiaActive) {
       if (context.onProcessingStatus) {
-        context.onProcessingStatus("loading", "Validando alinhamento semântico");
+        context.onProcessingStatus(
+          "loading",
+          "Validando alinhamento semântico",
+        );
       }
 
       const guardrailValidation = await validateStudyContext(message);
@@ -262,18 +272,25 @@ export async function runChatPipeline(
         const reasonMap = {
           low_vector_score: "Score vetorial insuficiente",
           chrome_ai_rejected: "Juiz Local (Chrome AI) detectou off-topic",
-          transformers_rejected: "Juiz Local (Transformers.js) detectou off-topic",
+          transformers_rejected:
+            "Juiz Local (Transformers.js) detectou off-topic",
         };
 
-        const reasonText = reasonMap[guardrailValidation.reason] || "Assunto fora do escopo educacional";
-        console.warn(`[Pipeline] ⛔ Guardrail ativado: ${reasonText} (Score: ${guardrailValidation.score?.toFixed(3) || "N/A"})`);
-        
+        const reasonText =
+          reasonMap[guardrailValidation.reason] ||
+          "Assunto fora do escopo educacional";
+        console.warn(
+          `[Pipeline] ⛔ Guardrail ativado: ${reasonText} (Score: ${guardrailValidation.score?.toFixed(3) || "N/A"})`,
+        );
+
         const rejectedResponse = {
           layout: [{ tipo: "destaque", size: "full" }],
-          conteudo: [{
-            tipo: "destaque",
-            conteudo: `⛔ **Acesso Bloqueado pelo Guardrail**\n\nIdentifiquei que sua mensagem não possui alinhamento com o domínio de estudos desta IA.\n\n- **Motivo técnico:** ${reasonText}\n- **Score de Confiança:** \`${guardrailValidation.score?.toFixed(3) || "0.000"}\`\n\nPor favor, utilize o chat exclusivamente para tópicos acadêmicos (Matemática, Física, História, etc).`
-          }]
+          conteudo: [
+            {
+              tipo: "destaque",
+              conteudo: `⛔ **Acesso Bloqueado pelo Guardrail**\n\nIdentifiquei que sua mensagem não possui alinhamento com o domínio de estudos desta IA.\n\n- **Motivo técnico:** ${reasonText}\n- **Score de Confiança:** \`${guardrailValidation.score?.toFixed(3) || "0.000"}\`\n\nPor favor, utilize o chat exclusivamente para tópicos acadêmicos (Matemática, Física, História, etc).`,
+            },
+          ],
         };
 
         if (context.onStream) {
@@ -282,14 +299,19 @@ export async function runChatPipeline(
         if (context.onComplete) {
           context.onComplete({ mode: "blocked", response: rejectedResponse });
         }
-        return { success: false, mode: "blocked", reason: guardrailValidation.reason, score: guardrailValidation.score };
+        return {
+          success: false,
+          mode: "blocked",
+          reason: guardrailValidation.reason,
+          score: guardrailValidation.score,
+        };
       }
     }
 
     // 1. === PERSISTENCE & INIT ===
     const oldActive = document.getElementById("stepsAccordion");
     if (oldActive) {
-        oldActive.removeAttribute("id");
+      oldActive.removeAttribute("id");
     }
 
     // Gerencia criação de chat se não existir ID
@@ -317,7 +339,12 @@ export async function runChatPipeline(
     } else {
       // Persiste mensagem do usuário em chat existente
       try {
-        await ChatStorageService.addMessage(chatId, "user", message, attachments);
+        await ChatStorageService.addMessage(
+          chatId,
+          "user",
+          message,
+          attachments,
+        );
       } catch (err) {
         console.warn("[Pipeline] Falha ao salvar mensagem do user:", err);
       }
@@ -336,7 +363,10 @@ export async function runChatPipeline(
 
         const memoryFacts = await MemoryService.queryContext(message);
 
-        console.log("[Pipeline] 🧠 Memória Contextual encontrada:", memoryFacts);
+        console.log(
+          "[Pipeline] 🧠 Memória Contextual encontrada:",
+          memoryFacts,
+        );
 
         if (memoryFacts.length > 0) {
           // Síntese de contexto via LLM para gerar diretivas comportamentais
@@ -348,7 +378,10 @@ export async function runChatPipeline(
             {
               signal: context.signal,
               onThought: context.onThought,
-              selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
+              selectedSpecificModel:
+                (typeof window !== "undefined"
+                  ? window.selectedModelMemory
+                  : null) || "models/gemma-4-31b-it",
               githubApiKey: context.githubApiKey,
               groqApiKey: context.groqApiKey,
               vertexProjectId: context.vertexProjectId,
@@ -360,9 +393,11 @@ export async function runChatPipeline(
                 if (elapsed > 0) {
                   startTime += elapsed;
                   startMemory = now;
-                  console.log(`[Memory Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`);
+                  console.log(
+                    `[Memory Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`,
+                  );
                 }
-              }
+              },
             }, // Repassa callbacks pro service
           );
 
@@ -382,7 +417,10 @@ export async function runChatPipeline(
               if (context.signal?.aborted)
                 throw new DOMException("Aborted", "AbortError");
 
-              context.onProcessingStatus("loading", "Escolhendo modo de execução");
+              context.onProcessingStatus(
+                "loading",
+                "Escolhendo modo de execução",
+              );
               // Passamos o objeto completo de detalhes para a UI renderizar o bloco expansível
               const memoryContent = {
                 title: "Memórias recuperadas",
@@ -407,14 +445,19 @@ export async function runChatPipeline(
         console.error("[Pipeline] ⚠️ Erro no sistema de memória:", err);
         throw err;
       } finally {
-        debugLog.latencies.memory_ms = Math.round(performance.now() - startMemory);
-        debugLog.models.memory = (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it";
+        debugLog.latencies.memory_ms = Math.round(
+          performance.now() - startMemory,
+        );
+        debugLog.models.memory =
+          (typeof window !== "undefined" ? window.selectedModelMemory : null) ||
+          "models/gemma-4-31b-it";
       }
     }
 
     // 2. Determina o modo final (Agora com CONTEXTO de memória)
     if (isMaiaActive) {
-      if (context.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      if (context.signal?.aborted)
+        throw new DOMException("Aborted", "AbortError");
 
       // Inicializa conjunto de queries se não existir
       if (!context.previousQueries) {
@@ -438,20 +481,29 @@ export async function runChatPipeline(
           vertexLocation: context.vertexLocation,
           vertexCredentials: context.vertexCredentials,
           onThought: context.onThought, // Hook de pensamentos pro router usar
-          selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it", // Pass router model
+          selectedSpecificModel:
+            (typeof window !== "undefined"
+              ? window.selectedModelRouter
+              : null) || "models/gemma-4-31b-it", // Pass router model
           onAttemptStart: () => {
             const now = performance.now();
             const elapsed = now - startRouter;
             if (elapsed > 0) {
               startTime += elapsed;
               startRouter = now;
-              console.log(`[Router Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`);
+              console.log(
+                `[Router Pipeline] Resetting start times. Discarded error/wait time: ${Math.round(elapsed)} ms`,
+              );
             }
-          }
+          },
         },
       );
-      debugLog.latencies.router_ms = Math.round(performance.now() - startRouter);
-      debugLog.models.router = (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it";
+      debugLog.latencies.router_ms = Math.round(
+        performance.now() - startRouter,
+      );
+      debugLog.models.router =
+        (typeof window !== "undefined" ? window.selectedModelRouter : null) ||
+        "models/gemma-4-31b-it";
       finalMode = routedResult.finalMode;
       wasRouted = routedResult.wasRouted;
       routerResult = routedResult.routerResult;
@@ -470,7 +522,9 @@ export async function runChatPipeline(
       } else if (wasRouted && routerResult?.metodologia) {
         // Modo automático — usar recomendação do router
         finalMetodologiaId = routerResult.metodologia;
-        console.log(`[Pipeline] 📖 Metodologia automática (Router): ${finalMetodologiaId}`);
+        console.log(
+          `[Pipeline] 📖 Metodologia automática (Router): ${finalMetodologiaId}`,
+        );
       } else {
         // Fallback
         finalMetodologiaId = "feynman";
@@ -510,12 +564,15 @@ export async function runChatPipeline(
     if (isMaiaActive && wasRouted) {
       if (attachedQuestionData) {
         questionData = attachedQuestionData;
-        console.log("[Pipeline] ✅ Utilizando questão anexada diretamente (sem RAG):", questionData.id);
+        console.log(
+          "[Pipeline] ✅ Utilizando questão anexada diretamente (sem RAG):",
+          questionData.id,
+        );
 
         debugLog.rag_details = {
           id: questionData.id,
           score: 1.0,
-          fullData: questionData.fullData
+          fullData: questionData.fullData,
         };
 
         const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
@@ -546,13 +603,15 @@ export async function runChatPipeline(
             debugLog.rag_details = {
               id: questionData.id,
               score: questionData.score,
-              fullData: questionData.fullData
+              fullData: questionData.fullData,
             };
 
             // REGISTRA QUERY USADA PARA NÃO REPETIR
             context.previousQueries.push(routerResult.busca_questao.conteudo);
 
-            const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
+            const cleanedFullData = cleanQuestionDataForAI(
+              questionData.fullData,
+            );
             if (finalMode === "scaffolding") {
               additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
             } else {
@@ -570,8 +629,13 @@ export async function runChatPipeline(
               .then((relevance) => {
                 console.log("[Pipeline] 🔍 Relevance check:", relevance);
                 if (!relevance.relevant || relevance.needs_more) {
-                  console.log("[Pipeline] 🔍 Gap detected — triggering extraction");
-                  triggerQuestionExtraction(routerResult.busca_questao, context);
+                  console.log(
+                    "[Pipeline] 🔍 Gap detected — triggering extraction",
+                  );
+                  triggerQuestionExtraction(
+                    routerResult.busca_questao,
+                    context,
+                  );
                 }
               })
               .catch((err) => {
@@ -581,7 +645,9 @@ export async function runChatPipeline(
               });
           } else {
             // No results at all — trigger extraction
-            console.log("[Pipeline] ❌ No question found — triggering extraction");
+            console.log(
+              "[Pipeline] ❌ No question found — triggering extraction",
+            );
             triggerQuestionExtraction(routerResult.busca_questao, context);
           }
         } catch (err) {
@@ -594,13 +660,19 @@ export async function runChatPipeline(
     }
 
     // 2c. === RESEARCH STAGE (DEEP SEARCH) ===
-    const needsResearch = isMaiaActive && (window.researchEnabled || (wasRouted && routerResult?.necessidade_pesquisa));
+    const needsResearch =
+      isMaiaActive &&
+      (window.researchEnabled ||
+        (wasRouted && routerResult?.necessidade_pesquisa));
 
     if (needsResearch) {
       console.log("[Pipeline] 🔍 Ativando Pesquisa Profunda...");
       if (context.onProcessingStatus) {
         window._currentChatPhase = "research";
-        context.onProcessingStatus("loading", "Realizando pesquisa aprofundada");
+        context.onProcessingStatus(
+          "loading",
+          "Realizando pesquisa aprofundada",
+        );
       }
 
       const MAX_RESEARCH_RETRIES = 3;
@@ -612,7 +684,7 @@ export async function runChatPipeline(
         researchAttempt++;
         try {
           const searchQuery = routerResult?.instrucao_pesquisa || message;
-          
+
           // Instrução específica para o Agente de Pesquisa (Grounding)
           const researcherPrompt = `Você é um Pesquisador Especializado da Maia.edu. 
 Sua tarefa é realizar uma pesquisa profunda e gerar um relatório técnico fundamentado sobre o tema abaixo.
@@ -627,7 +699,10 @@ REGRAS DE OURO:
 TEMA DA PESQUISA: ${searchQuery}`;
 
           if (researchAttempt > 1 && context.onProcessingStatus) {
-            context.onProcessingStatus("loading", `Realizando pesquisa aprofundada (tentativa ${researchAttempt}/${MAX_RESEARCH_RETRIES})...`);
+            context.onProcessingStatus(
+              "loading",
+              `Realizando pesquisa aprofundada (tentativa ${researchAttempt}/${MAX_RESEARCH_RETRIES})...`,
+            );
           }
 
           const startSearch = performance.now();
@@ -638,23 +713,31 @@ TEMA DA PESQUISA: ${searchQuery}`;
               onStatus: context.onProcessingStatus,
               onThought: context.onThought,
               signal: context.signal,
-            }
+            },
           );
-          debugLog.latencies.search_ms = Math.round(performance.now() - startSearch);
-          debugLog.models.search = (typeof window !== "undefined" ? window.selectedModelSearch : null) || "models/gemini-3.5-flash";
+          debugLog.latencies.search_ms = Math.round(
+            performance.now() - startSearch,
+          );
+          debugLog.models.search =
+            (typeof window !== "undefined"
+              ? window.selectedModelSearch
+              : null) || "models/gemini-3.5-flash";
 
           searchReport = searchResult.report;
           searchSources = searchResult.sources || [];
-          
+
           debugLog.search_details = {
             query: searchQuery,
             report: searchReport,
-            sources: searchSources
+            sources: searchSources,
           };
           researchSuccess = true;
         } catch (err) {
           if (err.name === "AbortError") throw err;
-          console.warn(`[Pipeline] ⚠️ Tentativa de pesquisa ${researchAttempt}/${MAX_RESEARCH_RETRIES} falhou:`, err);
+          console.warn(
+            `[Pipeline] ⚠️ Tentativa de pesquisa ${researchAttempt}/${MAX_RESEARCH_RETRIES} falhou:`,
+            err,
+          );
           researchError = err;
           if (researchAttempt < MAX_RESEARCH_RETRIES) {
             await new Promise((r) => setTimeout(r, 1000 * researchAttempt));
@@ -663,8 +746,12 @@ TEMA DA PESQUISA: ${searchQuery}`;
       }
 
       if (!researchSuccess) {
-        console.error("[Pipeline] ❌ Todas as tentativas de pesquisa profunda falharam.");
-        throw researchError || new Error("Falha na etapa de pesquisa profunda.");
+        console.error(
+          "[Pipeline] ❌ Todas as tentativas de pesquisa profunda falharam.",
+        );
+        throw (
+          researchError || new Error("Falha na etapa de pesquisa profunda.")
+        );
       }
 
       if (searchReport) {
@@ -673,13 +760,13 @@ TEMA DA PESQUISA: ${searchQuery}`;
 JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou "o relatório aponta". 
 Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex: "O MEC estabelece que...", "Dados da NASA confirmam...", "A Wikipedia registra que...") para passar credibilidade. 
 Sua resposta deve ser fluida, natural e baseada em evidências.`;
-        
+
         if (context.onProcessingStatus) {
           context.onProcessingStatus("research_done", {
             report: searchReport,
-            sources: searchSources
+            sources: searchSources,
           });
-          
+
           if (chatId) {
             consolidatedTurnMessages.push({
               role: "system",
@@ -747,8 +834,14 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     // Acumulador de pensamentos para persistência
     let accumulatedThoughts = [];
 
-    const specificModel = context.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedModelChat : null) || "models/gemini-3.5-flash";
-    const finalModelToUse = specificModel !== "automatico" ? specificModel : "models/gemini-3.5-flash";
+    const specificModel =
+      context.selectedSpecificModel ||
+      (typeof window !== "undefined" ? window.selectedModelChat : null) ||
+      "models/gemini-3.5-flash";
+    const finalModelToUse =
+      specificModel !== "automatico"
+        ? specificModel
+        : "models/gemini-3.5-flash";
 
     // Registrar informações finais de prompt compilado e modelo no log de debug
     const currentDateTime = new Date().toLocaleString("pt-BR", {
@@ -757,16 +850,24 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     });
     const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
 
-    let cleanLevel = 'full'; // 'full' | 'soft' | 'essential'
+    let cleanLevel = "full"; // 'full' | 'soft' | 'essential'
     let includeMemory = true;
     let attemptLevel = 0;
     let fullResponse;
 
-    const isGptOss120b = finalModelToUse && (
-      finalModelToUse.toLowerCase().includes("gpt-oss-120b") || 
-      finalModelToUse.toLowerCase().includes("gpt_oss_120b") || 
-      finalModelToUse.toLowerCase().includes("120b")
-    );
+    const isGptOss120b =
+      finalModelToUse &&
+      (finalModelToUse.toLowerCase().includes("gpt-oss-120b") ||
+        finalModelToUse.toLowerCase().includes("gpt_oss_120b") ||
+        finalModelToUse.toLowerCase().includes("120b"));
+
+    // 🌟 ADICIONE ESTE BLOCO LOGO ABAIXO DA VERIFICAÇÃO ACIMA:
+    if (attachments && attachments.length > 0) {
+      debugLog.models.image_descriptor = 
+        (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || 
+        (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || 
+        "models/gemma-4-31b-it";
+    }
 
     const getFinalMessage = (level, includeMem) => {
       let extra = "";
@@ -778,14 +879,14 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       }
       if (questionData && questionData.fullData) {
         let qData;
-        if (level === 'essential') {
+        if (level === "essential") {
           qData = getEssentialQuestionData(questionData.fullData);
-        } else if (level === 'soft') {
+        } else if (level === "soft") {
           qData = sanitizeJsonForPrompt(questionData.fullData);
         } else {
           qData = cleanQuestionDataForAI(questionData.fullData);
         }
-        
+
         if (finalMode === "scaffolding") {
           extra += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(qData)}`;
         } else {
@@ -809,13 +910,15 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       const fullPromptCompiled = isMaiaActive
         ? `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`
         : finalMessage;
-      
+
       debugLog.model = finalModelToUse;
       debugLog.models.generation = finalModelToUse;
       debugLog.prompt_compiled = fullPromptCompiled;
 
       if (attemptLevel > 0) {
-        console.log(`[Pipeline] Retrying generation at Level ${attemptLevel} - cleanLevel: ${cleanLevel}, includeMemory: ${includeMemory}`);
+        console.log(
+          `[Pipeline] Retrying generation at Level ${attemptLevel} - cleanLevel: ${cleanLevel}, includeMemory: ${includeMemory}`,
+        );
         accumulatedThoughts = [];
         if (context.onStream) {
           context.onStream({ layout: { id: "linear" }, conteudo: [] });
@@ -825,7 +928,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       try {
         fullResponse = await generateChatStreamed({
           model: finalModelToUse,
-          generationConfig: isMaiaActive ? getGenerationParams(configMode) : { responseMimeType: "text/plain", temperature: 1 },
+          generationConfig: isMaiaActive
+            ? getGenerationParams(configMode)
+            : { responseMimeType: "text/plain", temperature: 1 },
           systemPrompt,
           userMessage: finalMessage, // Usa a mensagem com contexto injetado
           attachments,
@@ -838,7 +943,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
             if (typeof val === "string") {
               context.onStream({
                 layout: { id: "linear" },
-                conteudo: [{ tipo: "texto", conteudo: val }]
+                conteudo: [{ tipo: "texto", conteudo: val }],
               });
             } else {
               context.onStream(val);
@@ -860,7 +965,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
             if (elapsedSinceGenStart > 0) {
               startTime += elapsedSinceGenStart;
               startGen = now;
-              console.log(`[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`);
+              console.log(
+                `[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`,
+              );
             }
           },
           apiKey: context.apiKey,
@@ -870,7 +977,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
           vertexLocation: context.vertexLocation,
           vertexCredentials: context.vertexCredentials,
           chatMode: context.chatMode,
-          history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
+          history: isMaiaActive
+            ? context.history
+            : cleanHistoryForControlGroup(context.history),
           signal: context.signal,
           useMaiaArchitecture: isMaiaActive,
         });
@@ -882,24 +991,31 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
           throw err;
         }
 
-        console.warn(`[Pipeline] Falha na geração no nível ${attemptLevel}:`, err);
+        console.warn(
+          `[Pipeline] Falha na geração no nível ${attemptLevel}:`,
+          err,
+        );
 
-        const isTokenLimitError = err.message && /token|limit|max_token|length|context|exceed|overflow|8192|8000/i.test(err.message);
+        const isTokenLimitError =
+          err.message &&
+          /token|limit|max_token|length|context|exceed|overflow|8192|8000/i.test(
+            err.message,
+          );
 
         if (isGptOss120b || isTokenLimitError) {
           if (attemptLevel === 0) {
             attemptLevel = 1;
-            cleanLevel = 'soft';
+            cleanLevel = "soft";
             includeMemory = true;
             continue;
           } else if (attemptLevel === 1) {
             attemptLevel = 2;
-            cleanLevel = 'essential';
+            cleanLevel = "essential";
             includeMemory = true;
             continue;
           } else if (attemptLevel === 2) {
             attemptLevel = 3;
-            cleanLevel = 'essential';
+            cleanLevel = "essential";
             includeMemory = false;
             continue;
           }
@@ -910,14 +1026,18 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     }
 
     debugLog.latencies.gemma_image_ms = debugLog.latencies.gemma_image_ms || 0;
-    debugLog.latencies.generation_ms = Math.max(0, Math.round(performance.now() - startGen) - debugLog.latencies.gemma_image_ms);
+    debugLog.latencies.generation_ms = Math.max(
+      0,
+      Math.round(performance.now() - startGen) -
+        debugLog.latencies.gemma_image_ms,
+    );
 
     // A resposta final agora é o objeto estruturado completo ({ layout, conteudo })
     let finalContent;
     if (typeof fullResponse === "string") {
       finalContent = {
         layout: { id: "linear" },
-        conteudo: [{ tipo: "texto", conteudo: fullResponse }]
+        conteudo: [{ tipo: "texto", conteudo: fullResponse }],
       };
     } else {
       finalContent = fullResponse || {};
@@ -937,13 +1057,17 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     // Encerrar cronômetro de latência e salvar no debugLog
     debugLog.latency_ms = Math.round(performance.now() - startTime);
     debugLog.latencies.total_ms = debugLog.latency_ms;
-    // Store a serializable snapshot to avoid circular refs (debugLog -> finalContent -> _debugLog -> debugLog)
+
+    // Armazena EXATAMENTE o que a IA respondeu na sua essência, sem maquiagem de layout da UI do site
     try {
-      debugLog.response_text = JSON.stringify(finalContent);
+      debugLog.response_text =
+        typeof fullResponse === "string"
+          ? fullResponse
+          : JSON.stringify(fullResponse);
     } catch (_e) {
       debugLog.response_text = "[não serializável]";
     }
-    
+
     // Anexa uma cópia do debugLog ao conteúdo de retorno (sem referência circular)
     finalContent._debugLog = { ...debugLog };
 
@@ -999,7 +1123,10 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
           {
             onThought: context.onThought,
             signal: context.signal,
-            selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
+            selectedSpecificModel:
+              (typeof window !== "undefined"
+                ? window.selectedModelMemory
+                : null) || "models/gemma-4-31b-it",
             githubApiKey: context.githubApiKey,
             groqApiKey: context.groqApiKey,
             vertexProjectId: context.vertexProjectId,
@@ -1069,8 +1196,9 @@ export async function generateSilentScaffoldingStep(
   console.log("[Pipeline] 🤫 Gerando passo de scaffolding silencioso...");
 
   // Check for user-selected scaffolding model from granular config
-  const userSelectedScaffolding = typeof window !== 'undefined' ? window.selectedModelScaffolding : null;
-  
+  const userSelectedScaffolding =
+    typeof window !== "undefined" ? window.selectedModelScaffolding : null;
+
   const defaultModelsChain = [
     { name: "models/gemini-3-flash-preview", type: "google" },
     { name: "models/gemini-3.5-flash", type: "google" },
@@ -1080,25 +1208,41 @@ export async function generateSilentScaffoldingStep(
     { name: "github/gpt-4o-mini", type: "github" },
     { name: "github/gpt-4o", type: "github" },
     { name: "github/gpt-4.1-mini", type: "github" },
-    { name: "github/o3-mini", type: "github" }
+    { name: "github/o3-mini", type: "github" },
   ];
 
   // If user has a specific model selected, put it first in the chain
   let modelsChain = defaultModelsChain;
   if (userSelectedScaffolding && userSelectedScaffolding !== "automatico") {
-    const modelType = userSelectedScaffolding.startsWith("github/") ? "github" : (userSelectedScaffolding.startsWith("groq/") ? "groq" : "google");
+    const modelType = userSelectedScaffolding.startsWith("github/")
+      ? "github"
+      : userSelectedScaffolding.startsWith("groq/")
+        ? "groq"
+        : "google";
     // Remove duplicate if it already exists in the chain, then prepend
     modelsChain = [
       { name: userSelectedScaffolding, type: modelType },
-      ...defaultModelsChain.filter(m => m.name !== userSelectedScaffolding)
+      ...defaultModelsChain.filter((m) => m.name !== userSelectedScaffolding),
     ];
   }
 
-  const actualGithubKey = githubApiKey || sessionStorage.getItem("githubApiKey") || sessionStorage.getItem("GITHUB_PAT_KEY");
+  const actualGithubKey =
+    githubApiKey ||
+    sessionStorage.getItem("githubApiKey") ||
+    sessionStorage.getItem("GITHUB_PAT_KEY");
   const actualGroqKey = groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
-  const actualVertexProjectId = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : null;
-  const actualVertexLocation = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : null;
-  const actualVertexCredentials = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : null;
+  const actualVertexProjectId =
+    typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+      : null;
+  const actualVertexLocation =
+    typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("VERTEX_LOCATION")
+      : null;
+  const actualVertexCredentials =
+    typeof sessionStorage !== "undefined"
+      ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+      : null;
   let lastError = null;
   const startTime = Date.now();
 
@@ -1111,7 +1255,9 @@ export async function generateSilentScaffoldingStep(
     }
 
     try {
-      console.log(`[Pipeline] Tentando gerar scaffolding com modelo: ${modelInfo.name}`);
+      console.log(
+        `[Pipeline] Tentando gerar scaffolding com modelo: ${modelInfo.name}`,
+      );
       const response = await generateChatStreamed({
         model: modelInfo.name,
         generationConfig: {
@@ -1136,11 +1282,11 @@ export async function generateSilentScaffoldingStep(
 
       const latency = Date.now() - startTime;
       console.log(`[Pipeline] Sucesso com ${modelInfo.name} em ${latency}ms`);
-      
+
       if (response && typeof response === "object") {
         response._meta = {
           model_used: modelInfo.name,
-          generation_time_ms: latency
+          generation_time_ms: latency,
         };
       }
       return response;
@@ -1150,7 +1296,10 @@ export async function generateSilentScaffoldingStep(
     }
   }
 
-  throw lastError || new Error("Todos os modelos da cadeia falharam ao gerar passo.");
+  throw (
+    lastError ||
+    new Error("Todos os modelos da cadeia falharam ao gerar passo.")
+  );
 }
 
 /**
@@ -1218,9 +1367,9 @@ export async function generatePersonaSimulation(
               resposta: { type: "string" },
               certeza: { type: "integer" },
               tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" }
+              pensamento: { type: "string" },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
+            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
           },
           aluno_inseguro: {
             type: "object",
@@ -1228,9 +1377,9 @@ export async function generatePersonaSimulation(
               resposta: { type: "string" },
               certeza: { type: "integer" },
               tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" }
+              pensamento: { type: "string" },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
+            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
           },
           aluno_chutador: {
             type: "object",
@@ -1238,29 +1387,30 @@ export async function generatePersonaSimulation(
               resposta: { type: "string" },
               certeza: { type: "integer" },
               tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" }
+              pensamento: { type: "string" },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"]
-          }
+            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
+          },
         },
-        required: ["aluno_avancado", "aluno_inseguro", "aluno_chutador"]
-      }
+        required: ["aluno_avancado", "aluno_inseguro", "aluno_chutador"],
+      },
     },
-    systemPrompt: "Você é um simulador de alunos especializado. Retorne APENAS o JSON válido de acordo com o esquema solicitado.",
+    systemPrompt:
+      "Você é um simulador de alunos especializado. Retorne APENAS o JSON válido de acordo com o esquema solicitado.",
     userMessage: prompt,
     attachments: [],
     onStream: null,
     onThought: null,
     apiKey,
     chatMode: false,
-    history: []
+    history: [],
   });
 
   const latency = Date.now() - startTime;
   if (response && typeof response === "object") {
     response._meta = {
       model_used: "models/gemma-4-31b-it",
-      generation_time_ms: latency
+      generation_time_ms: latency,
     };
   }
 
@@ -1319,7 +1469,10 @@ async function generateChatStreamed(params) {
         const text = await file.text();
         const parsed = JSON.parse(text);
         if (parsed.dados_questao || parsed.dados_gabarito) {
-          console.log("[Pipeline] Pulando anexo JSON de questão para evitar duplicação:", file.name);
+          console.log(
+            "[Pipeline] Pulando anexo JSON de questão para evitar duplicação:",
+            file.name,
+          );
           continue;
         }
       } catch (e) {
@@ -1339,8 +1492,9 @@ async function generateChatStreamed(params) {
     }
   }
 
-  const use_maia_architecture = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
-  
+  const use_maia_architecture =
+    typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+
   // Condiciona os parâmetros da chamada da API do modelo de geração usando use_maia_architecture
   let finalGenerationConfig = { ...(generationConfig || {}) };
   if (!use_maia_architecture) {
@@ -1351,8 +1505,10 @@ async function generateChatStreamed(params) {
     }
   }
 
-  const isJsonMode = use_maia_architecture && finalGenerationConfig?.responseMimeType !== "text/plain";
-  
+  const isJsonMode =
+    use_maia_architecture &&
+    finalGenerationConfig?.responseMimeType !== "text/plain";
+
   // Estado local para controle do streaming JSON
   let jsonBuffer = "";
   let lastParsedJson = null;
@@ -1406,7 +1562,10 @@ async function generateChatStreamed(params) {
         try {
           params.onAttemptStart();
         } catch (e) {
-          console.error("[generateChatStreamed] Error in onAttemptStart handler:", e);
+          console.error(
+            "[generateChatStreamed] Error in onAttemptStart handler:",
+            e,
+          );
         }
       }
     },
@@ -1414,8 +1573,16 @@ async function generateChatStreamed(params) {
   };
 
   const vertexModelId = getModeConfig(model)?.vertexModelId || undefined;
-  const imageDescriptorModel = (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
-  const imageDescriptorVertexModelId = getModeConfig(imageDescriptorModel)?.vertexModelId || undefined;
+  const imageDescriptorModel =
+    (typeof window !== "undefined"
+      ? window.selectedModelImageDescriptor
+      : null) ||
+    (typeof localStorage !== "undefined"
+      ? localStorage.getItem("selectedModelImageDescriptor")
+      : null) ||
+    "models/gemma-4-31b-it";
+  const imageDescriptorVertexModelId =
+    getModeConfig(imageDescriptorModel)?.vertexModelId || undefined;
 
   const options = {
     model,
@@ -1425,22 +1592,47 @@ async function generateChatStreamed(params) {
     generationConfig: finalGenerationConfig,
     chatMode,
     history,
-    systemInstruction: (chatMode && useMaiaArchitecture) ? systemPrompt : undefined, // In Chat Mode, separate system instruction
+    systemInstruction:
+      chatMode && useMaiaArchitecture ? systemPrompt : undefined, // In Chat Mode, separate system instruction
     apiKey,
     githubApiKey,
-    groqApiKey: groqApiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GROQ_API_KEY") : undefined) || undefined,
-    vertexProjectId: vertexProjectId || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
-    vertexLocation: vertexLocation || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
-    vertexCredentials: vertexCredentials || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
+    groqApiKey:
+      groqApiKey ||
+      (typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("GROQ_API_KEY")
+        : undefined) ||
+      undefined,
+    vertexProjectId:
+      vertexProjectId ||
+      (typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+        : undefined) ||
+      undefined,
+    vertexLocation:
+      vertexLocation ||
+      (typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("VERTEX_LOCATION")
+        : undefined) ||
+      undefined,
+    vertexCredentials:
+      vertexCredentials ||
+      (typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+        : undefined) ||
+      undefined,
   };
 
-  console.log(`[Generate] 🚀 Iniciando geração ${isJsonMode ? "JSON Estruturado" : "Texto Plano"} Streamed...`);
+  console.log(
+    `[Generate] 🚀 Iniciando geração ${isJsonMode ? "JSON Estruturado" : "Texto Plano"} Streamed...`,
+  );
 
   // Chama a função do worker
   // Ela retorna o JSON final parseado ou string de texto quando terminar (ou lança erro)
   const finalResult = await gerarConteudoEmJSONComImagemStream(
     fullPrompt,
-    isJsonMode ? (generationConfig?.responseSchema || CHAT_RESPONSE_SCHEMA) : null,
+    isJsonMode
+      ? generationConfig?.responseSchema || CHAT_RESPONSE_SCHEMA
+      : null,
     arquivosProcessados, // Agora passamos lista de objetos {data, mimeType}
     mimeType,
     handlers,
@@ -1511,7 +1703,9 @@ RESPOSTA (apenas o título, texto puro):`;
         },
       },
       {
-        model: (typeof window !== "undefined" ? window.selectedModelTitle : null) || "models/gemma-4-31b-it",
+        model:
+          (typeof window !== "undefined" ? window.selectedModelTitle : null) ||
+          "models/gemma-4-31b-it",
         generationConfig: { responseMimeType: "text/plain" }, // Força texto plano
       },
     );
