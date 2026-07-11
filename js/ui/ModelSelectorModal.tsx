@@ -1,5 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { mountApiKeyModal } from './ApiKeyModal';
+
+interface IAModel {
+  id: string;
+  title: string;
+  desc: string;
+  category: string;
+  logo: React.ReactElement;
+  reasoning: number;
+  speed: number;
+  reasoningText: string;
+  speedText: string;
+  // Propriedades opcionais vindas do Puter
+  isPuterModel?: boolean;
+  provider?: string;
+  contextLimit?: any;
+  cost?: any;
+}
 
 // SVGs das Logos
 const GEMINI_LOGO = (
@@ -11,13 +29,13 @@ const GEMINI_LOGO = (
         <stop offset="100%" stopColor="#e0638b" />
       </linearGradient>
     </defs>
-    <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/>
+    <path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
   </svg>
 );
 
 const OPENAI_LOGO = (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ color: '#10a37f', marginRight: '8px', flexShrink: 0 }}>
-    <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
+    <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" />
   </svg>
 );
 
@@ -29,7 +47,7 @@ const GROQ_LOGO = (
         <stop offset="100%" stopColor="#dc2626" />
       </linearGradient>
     </defs>
-    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10c5.523 0 10-4.477 10-10H12v3h6.582c-.895 2.387-3.178 4-5.915 4-3.59 0-6.5-2.91-6.5-6.5s2.91-6.5 6.5-6.5c1.795 0 3.418.727 4.595 1.905l2.122-2.122C17.585 3.978 14.935 2 12 2z"/>
+    <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10c5.523 0 10-4.477 10-10H12v3h6.582c-.895 2.387-3.178 4-5.915 4-3.59 0-6.5-2.91-6.5-6.5s2.91-6.5 6.5-6.5c1.795 0 3.418.727 4.595 1.905l2.122-2.122C17.585 3.978 14.935 2 12 2z" />
   </svg>
 );
 
@@ -79,7 +97,7 @@ const getProviderLogo = (provider: string) => {
   if (p.includes('grok') || p.includes('xai')) {
     return (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ color: '#ffffff', marginRight: '8px', flexShrink: 0 }}>
-        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
     );
   }
@@ -91,13 +109,13 @@ const formatPuterCost = (cost: any) => {
   const input = cost.input ?? 0;
   const output = cost.output ?? 0;
   if (input === 0 && output === 0) return "Cortesia (Puter)";
-  
+
   const formatVal = (val: number) => {
     if (val === 0) return "0.00";
     if (val < 0.01) return val.toFixed(4);
     return val.toFixed(2);
   };
-  
+
   return `In: ${formatVal(input)}¢ / Out: ${formatVal(output)}¢`;
 };
 
@@ -113,18 +131,18 @@ const formatPuterContext = (contextLimit: any) => {
 // SVGs para Avaliação
 const BULB_SVG = (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
-    <path d="M12 2C7.58 2 4 5.58 4 10c0 2.58 1.22 4.88 3.1 6.36.42.32.9.72.9 1.64V20c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2c0-.92.48-1.32.9-1.64C18.78 14.88 20 12.58 20 10c0-4.42-3.58-8-8-8z"/>
+    <path d="M12 2C7.58 2 4 5.58 4 10c0 2.58 1.22 4.88 3.1 6.36.42.32.9.72.9 1.64V20c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2c0-.92.48-1.32.9-1.64C18.78 14.88 20 12.58 20 10c0-4.42-3.58-8-8-8z" />
   </svg>
 );
 
 const BOLT_SVG = (
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
-    <path d="M11 21h-1l1.5-6.5h-5.5l7-11.5h1l-1.5 6.5h5.5z"/>
+    <path d="M11 21h-1l1.5-6.5h-5.5l7-11.5h1l-1.5 6.5h5.5z" />
   </svg>
 );
 
 // Lista de modelos e classificações
-export const IA_MODELS = [
+export const IA_MODELS: IAModel[] = [
   // Google Gemini
   {
     id: "models/gemini-3.5-flash",
@@ -340,8 +358,8 @@ export const IA_MODELS = [
 ];
 
 type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' | 'title' |
-             'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
-             'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect';
+  'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
+  'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect';
 
 interface TabConfig {
   id: TabId;
@@ -474,7 +492,7 @@ const DEFAULT_MODELS: Record<TabId, string> = {
 
 export function modelSupportsVision(modelId: string): boolean {
   const id = modelId.toLowerCase();
-  
+
   if (id.startsWith('puter/')) {
     const puterId = id.replace('puter/', '');
     const visionPatterns = [
@@ -483,11 +501,11 @@ export function modelSupportsVision(modelId: string): boolean {
     ];
     return visionPatterns.some(pattern => puterId.includes(pattern));
   }
-  
+
   if (id.includes('groq/gpt-oss-120b')) {
-    return false;
+    return true;
   }
-  
+
   return true;
 }
 
@@ -518,11 +536,15 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     extractor_image_detect: ''
   });
 
-  const [puterModels, setPuterModels] = useState<any[]>([]);
+  const [puterModels, setPuterModels] = useState<IAModel[]>([]);
   const [isLoadingPuter, setIsLoadingPuter] = useState(false);
   const [puterError, setPuterError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPuterSignedIn, setIsPuterSignedIn] = useState(false);
+
+  const selectedModelId = selections[activeTab];
+  const isPuterSelected = selectedModelId?.startsWith("puter/");
+  const hasPuterKey = typeof sessionStorage !== "undefined" && !!sessionStorage.getItem("PUTER_API_KEY");
 
   // Initial load
   useEffect(() => {
@@ -668,7 +690,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         (window as any).selectedSpecificModel = selections.chat; // keep legacy selectedSpecificModel updated
       }
     }
-    
+
     if (mode === 'extractor') {
       localStorage.setItem('selectedModelScannerDetect', selections.scanner_detect);
       localStorage.setItem('selectedModelScannerAudit', selections.scanner_audit);
@@ -700,10 +722,33 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       return false;
     }
 
-    // 2. Se for aba de pesquisa, limitar apenas a modelos OpenAI
+    // 2. Se for aba de pesquisa, aplicar regras estritas de filtragem
     if (isSearchActiveTab) {
-      const isOpenAI = model.id.includes('openai') || model.id.includes('gpt') || model.id.includes('github/o');
-      if (!isOpenAI) return false;
+      const idLower = model.id.toLowerCase();
+      const categoryLower = model.category.toLowerCase();
+
+      // Regra 1: Permitir apenas os modelos Google do site (models/gemini... ou models/gemma...)
+      const isGoogle = idLower.startsWith('models/gemini') ||
+        idLower.startsWith('models/gemma') ||
+        categoryLower.includes('google');
+
+      // Regra 2: Permitir modelos GPT/Azure/OpenAI do Puter, inspecionando IDs e payloads esperados
+      // Bloqueia explicitamente o OpenRouter para evitar que passe pelas tags de texto
+      const isPuterAllowedGPT = idLower.startsWith('puter/') &&
+        !idLower.includes('openrouter') &&
+        !categoryLower.includes('openrouter') &&
+        (
+          idLower.includes('gpt') ||
+          idLower.includes('azure') ||
+          idLower.includes('openai') ||
+          idLower.includes('completion') ||
+          idLower.includes('responses')
+        );
+
+      // Se não se enquadrar no Google nativo nem nos modelos OpenAI/Azure autorizados do Puter, bloqueia tudo o resto
+      if (!isGoogle && !isPuterAllowedGPT) {
+        return false;
+      }
     }
 
     // 3. Filtrar por busca textual
@@ -748,11 +793,11 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   };
 
   const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive);
-  const filteredStages = mode === 'extractor' 
-    ? EXTRACTOR_STAGES_CONFIG 
-    : (mode === 'corrector' 
-        ? STAGES_CONFIG.filter(s => s.id === 'corrector') 
-        : (isMaiaActive ? STAGES_CONFIG : STAGES_CONFIG.filter(s => s.id === 'chat')));
+  const filteredStages = mode === 'extractor'
+    ? EXTRACTOR_STAGES_CONFIG
+    : (mode === 'corrector'
+      ? STAGES_CONFIG.filter(s => s.id === 'corrector')
+      : (isMaiaActive ? STAGES_CONFIG : STAGES_CONFIG.filter(s => s.id === 'chat')));
   const currentActiveStage = filteredStages.find(s => s.id === activeTab);
   const currentSelectedId = getSelectedIdForTab(activeTab);
 
@@ -837,7 +882,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       `}</style>
 
       <div className="modal-content" style={{ width: '92%', maxWidth: '1000px', padding: '24px', borderRadius: '20px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-        
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
           <div>
@@ -845,13 +890,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
               {mode === 'extractor' ? "🤖 Configuração de Modelos do Extrator de Questões" : (mode === 'corrector' ? "🤖 Modelo de Correção Dissertativa" : (isMaiaActive ? "🤖 Configuração Granular de Modelos de IA" : "🤖 Seleção de Modelo de IA"))}
             </h2>
             <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-              {mode === 'extractor' 
+              {mode === 'extractor'
                 ? "Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração."
                 : (mode === 'corrector'
-                    ? "Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas."
-                    : (isMaiaActive 
-                        ? "Configure individualmente os modelos para cada etapa vital da inteligência." 
-                        : "Selecione o modelo de IA padrão para responder suas perguntas."))}
+                  ? "Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas."
+                  : (isMaiaActive
+                    ? "Configure individualmente os modelos para cada etapa vital da inteligência."
+                    : "Selecione o modelo de IA padrão para responder suas perguntas."))}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -904,7 +949,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             </div>
 
             {(mode === 'extractor' || (isMaiaActive && mode !== 'corrector')) && (
-              <button 
+              <button
                 onClick={handleResetAll}
                 style={{
                   background: 'rgba(239, 68, 68, 0.08)',
@@ -922,8 +967,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                 Definir Todos como Padrão
               </button>
             )}
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', fontSize: '1.5rem', cursor: 'pointer', padding: '4px', lineHeight: 1 }}
               title="Fechar"
             >
@@ -934,7 +979,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
         {/* Tabbed Layout Container */}
         <div className="premium-model-modal">
-          
+
           {/* Sidebar Tabs */}
           {isShowSidebar && (
             <div className="modal-sidebar">
@@ -972,7 +1017,48 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                   <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600 }}>{currentActiveStage.title}</h3>
                   <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{currentActiveStage.desc}</p>
                 </div>
-                
+
+                {isPuterSelected && !hasPuterKey && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    color: '#f59e0b',
+                    fontSize: '0.82rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    lineHeight: 1.4
+                  }}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24' }}>
+                      ⚠️ Chave PUTER_API_KEY não configurada
+                    </strong>
+                    <span>
+                      Você selecionou um modelo do Puter. Para utilizar este modelo com suporte a JSON estruturado sem erro 403, você precisa configurar sua <code>PUTER_API_KEY</code>.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => mountApiKeyModal()}
+                      style={{
+                        alignSelf: 'flex-start',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        color: '#fbbf24',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '0.75rem',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        marginTop: '4px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      Configurar Chaves de Acesso
+                    </button>
+                  </div>
+                )}
+
                 {/* Search Bar */}
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input
@@ -1034,91 +1120,91 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                     <h4 style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingLeft: '4px', fontWeight: 600 }}>
                       {categoryName}
                     </h4>
-                    
+
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-                    {models.map((model) => {
-                      const isSelected = currentSelectedId === model.id;
-                      return (
-                        <div
-                          key={model.id}
-                          onClick={() => handleSelectModel(model.id)}
-                          style={{
-                            padding: '14px',
-                            borderRadius: '12px',
-                            background: isSelected ? 'rgba(139, 92, 246, 0.06)' : 'var(--color-bg-2)',
-                            border: isSelected ? '2px solid #8b5cf6' : '1px solid var(--color-border)',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                            gap: '10px',
-                            position: 'relative'
-                          }}
-                          className="model-modal-card"
-                        >
-                          {/* Checkmark Top Right */}
-                          {isSelected && (
-                            <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#8b5cf6' }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            </div>
-                          )}
+                      {models.map((model) => {
+                        const isSelected = currentSelectedId === model.id;
+                        return (
+                          <div
+                            key={model.id}
+                            onClick={() => handleSelectModel(model.id)}
+                            style={{
+                              padding: '14px',
+                              borderRadius: '12px',
+                              background: isSelected ? 'rgba(139, 92, 246, 0.06)' : 'var(--color-bg-2)',
+                              border: isSelected ? '2px solid #8b5cf6' : '1px solid var(--color-border)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              gap: '10px',
+                              position: 'relative'
+                            }}
+                            className="model-modal-card"
+                          >
+                            {/* Checkmark Top Right */}
+                            {isSelected && (
+                              <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#8b5cf6' }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              </div>
+                            )}
 
-                          {/* Info (Logo + Title + Description) */}
-                          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                            {model.logo}
-                            <div style={{ paddingRight: isSelected ? '18px' : '0px' }}>
-                              <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>{model.title}</h5>
-                              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>{model.desc}</p>
+                            {/* Info (Logo + Title + Description) */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                              {model.logo}
+                              <div style={{ paddingRight: isSelected ? '18px' : '0px' }}>
+                                <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>{model.title}</h5>
+                                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>{model.desc}</p>
+                              </div>
                             </div>
+
+                            {/* Ratings */}
+                            {model.reasoning > 0 && (
+                              <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Raciocínio</div>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    {renderStars(model.reasoning, BULB_SVG, '#fbbf24')}
+                                    <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#fbbf24', fontWeight: 500 }}>{model.reasoningText}</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Velocidade</div>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    {renderStars(model.speed, BOLT_SVG, '#60a5fa')}
+                                    <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#60a5fa', fontWeight: 500 }}>{model.speedText}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Puter Meta Info (Contexto + Custo) */}
+                            {model.isPuterModel && (
+                              <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                                <div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Contexto</div>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#60a5fa" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                      <path d="M4 14h16M4 10h16M4 6h16M4 18h16" />
+                                    </svg>
+                                    <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600 }}>{formatPuterContext(model.contextLimit)}</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Custo (1M tokens)</div>
+                                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                    </svg>
+                                    <span style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600 }}>{formatPuterCost(model.cost)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Ratings */}
-                          {model.reasoning > 0 && (
-                            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
-                              <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Raciocínio</div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  {renderStars(model.reasoning, BULB_SVG, '#fbbf24')}
-                                  <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#fbbf24', fontWeight: 500 }}>{model.reasoningText}</span>
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Velocidade</div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  {renderStars(model.speed, BOLT_SVG, '#60a5fa')}
-                                  <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#60a5fa', fontWeight: 500 }}>{model.speedText}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Puter Meta Info (Contexto + Custo) */}
-                          {model.isPuterModel && (
-                            <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
-                              <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Contexto</div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#60a5fa" strokeWidth="2.5" style={{ marginRight: '4px' }}>
-                                    <path d="M4 14h16M4 10h16M4 6h16M4 18h16" />
-                                  </svg>
-                                  <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600 }}>{formatPuterContext(model.contextLimit)}</span>
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Custo (1M tokens)</div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.5" style={{ marginRight: '4px' }}>
-                                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                                  </svg>
-                                  <span style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600 }}>{formatPuterCost(model.cost)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -1132,18 +1218,18 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
         {/* Modal Footer actions */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '16px', gap: '12px' }}>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="btn btn--ghost" 
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn--ghost"
             style={{ padding: '10px 20px', fontSize: '0.85rem' }}
           >
             Cancelar
           </button>
-          <button 
-            type="button" 
-            onClick={handleSaveAndClose} 
-            className="btn btn--primary" 
+          <button
+            type="button"
+            onClick={handleSaveAndClose}
+            className="btn btn--primary"
             style={{ padding: '10px 24px', fontSize: '0.85rem', fontWeight: 600 }}
           >
             Confirmar e Salvar

@@ -1,6 +1,7 @@
 import {
   gerarConteudoEmJSONComImagemStream,
   realizarPesquisaGeral,
+  sanitizeJsonForPrompt,
 } from "../api/worker.js";
 import * as MemoryService from "../services/memory-service.js"; // Import MemoryService
 import { findBestQuestion } from "../services/question-service.js"; // Import question service
@@ -131,6 +132,46 @@ function cleanHistoryForControlGroup(history) {
 }
 
 /**
+ * Retorna apenas o essencial do JSON da questão para reduzir o uso de tokens.
+ */
+function getEssentialQuestionData(fullData) {
+  if (!fullData || typeof fullData !== "object") return fullData;
+  const essential = {};
+
+  if (fullData.dados_questao) {
+    essential.dados_questao = {
+      identificacao: fullData.dados_questao.identificacao,
+      enunciado: fullData.dados_questao.enunciado,
+      alternativas: fullData.dados_questao.alternativas,
+      vestibular: fullData.dados_questao.vestibular,
+      ano: fullData.dados_questao.ano,
+      materia: fullData.dados_questao.materia,
+      disciplina: fullData.dados_questao.disciplina,
+    };
+  } else {
+    essential.identificacao = fullData.identificacao || fullData.id;
+    essential.enunciado = fullData.enunciado || fullData.questao || fullData.text;
+    essential.alternativas = fullData.alternativas || fullData.options;
+  }
+
+  if (fullData.dados_gabarito) {
+    essential.dados_gabarito = {
+      alternativa_correta: fullData.dados_gabarito.alternativa_correta,
+      resposta_modelo: fullData.dados_gabarito.resposta_modelo,
+      gabarito: fullData.dados_gabarito.gabarito,
+      resposta: fullData.dados_gabarito.resposta,
+    };
+  } else {
+    essential.alternativa_correta = fullData.alternativa_correta;
+    essential.resposta_modelo = fullData.resposta_modelo;
+    essential.gabarito = fullData.gabarito;
+    essential.resposta = fullData.resposta;
+  }
+
+  return essential;
+}
+
+/**
  * Pipeline principal - escolhe e executa o pipeline correto
  */
 export async function runChatPipeline(
@@ -140,7 +181,8 @@ export async function runChatPipeline(
   context = {},
 ) {
   let startTime = performance.now();
-  const isMaiaActive = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+  const use_maia_architecture = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+  const isMaiaActive = use_maia_architecture;
   
   let executionMode = selectedMode;
   let finalMode = selectedMode === "automatico" ? "rapido" : selectedMode;
@@ -149,6 +191,8 @@ export async function runChatPipeline(
   let finalMetodologiaId = "automatico";
   let metodologiaInjection = "";
   let additionalContextMessage = "";
+  let memorySynthesizedContext = "";
+  let scaffoldingPromptRefinado = "";
   let memoryContextForRouter = "";
   let questionData = null;
   let attachedQuestionData = null;
@@ -320,6 +364,7 @@ export async function runChatPipeline(
           );
 
           if (contextString) {
+            memorySynthesizedContext = contextString;
             additionalContextMessage += `\n\n${contextString}\n`;
             // Contexto limpo para o router (sem quebras excessivas)
             memoryContextForRouter = contextString;
@@ -447,6 +492,7 @@ export async function runChatPipeline(
         [], // Começa sem histórico linear no chat principal (o loop slide cuida do resto)
       );
 
+      scaffoldingPromptRefinado = promptRefinado;
       additionalContextMessage += "\n\n" + promptRefinado;
 
       console.log(
@@ -642,7 +688,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       }
     }
 
-    const finalMessage = message + additionalContextMessage;
+    let finalMessage = message + additionalContextMessage;
 
     // Notifica sobre mudança de modo (se foi roteado)
     if (isMaiaActive && wasRouted && context.onModeDecided) {
@@ -672,8 +718,8 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     let systemPrompt;
     let configMode;
 
-    if (!isMaiaActive) {
-      systemPrompt = "Você é um assistente útil especializado em vestibulares. Resolva a questão apresentada de forma direta, explicando seu raciocínio passo a passo de forma didática em português usando formatação Markdown convencional. IMPORTANTE: NUNCA gere a resposta formatada como objeto JSON, nem tente construir 'sections' ou layouts de dados. Apenas responda em texto normal explicativo contendo a resolução.";
+    if (!use_maia_architecture) {
+      systemPrompt = "Você é um assistente útil especializado em vestibulares. Resolva a questão apresentada de forma direta, explicando seu raciocínio passo a passo de forma didática em português. Você deve responder apenas em formato de texto linear contínuo e Markdown convencional. Não use nenhuma estrutura em formato JSON, nem blocos modulares, listas estruturadas do sistema ou componentes de layout especiais. Escreva a sua resposta de forma puramente linear e textual.";
       configMode = "rapido";
     } else if (finalMode === "scaffolding") {
       systemPrompt = getSystemPromptScaffolding();
@@ -704,56 +750,153 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       timeStyle: "short",
     });
     const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
-    const fullPromptCompiled = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`;
-    
-    debugLog.model = finalModelToUse;
-    debugLog.models.generation = finalModelToUse;
-    debugLog.prompt_compiled = fullPromptCompiled;
+
+    let cleanLevel = 'full'; // 'full' | 'soft' | 'essential'
+    let includeMemory = true;
+    let attemptLevel = 0;
+    let fullResponse;
+
+    const isGptOss120b = finalModelToUse && (
+      finalModelToUse.toLowerCase().includes("gpt-oss-120b") || 
+      finalModelToUse.toLowerCase().includes("gpt_oss_120b") || 
+      finalModelToUse.toLowerCase().includes("120b")
+    );
+
+    const getFinalMessage = (level, includeMem) => {
+      let extra = "";
+      if (includeMem && memorySynthesizedContext) {
+        extra += `\n\n${memorySynthesizedContext}\n`;
+      }
+      if (scaffoldingPromptRefinado) {
+        extra += "\n\n" + scaffoldingPromptRefinado;
+      }
+      if (questionData && questionData.fullData) {
+        let qData;
+        if (level === 'essential') {
+          qData = getEssentialQuestionData(questionData.fullData);
+        } else if (level === 'soft') {
+          qData = sanitizeJsonForPrompt(questionData.fullData);
+        } else {
+          qData = cleanQuestionDataForAI(questionData.fullData);
+        }
+        
+        if (finalMode === "scaffolding") {
+          extra += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(qData)}`;
+        } else {
+          extra += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(qData)}`;
+        }
+      }
+      if (searchReport) {
+        extra += `\n\n--- INÍCIO DO CONHECIMENTO PESQUISADO (Uso Obrigatório) ---\n${searchReport}\n--- FIM DO CONHECIMENTO ---\n`;
+        extra += `\n[SISTEMA]: Você acaba de realizar uma pesquisa profunda. Fale sobre o assunto com TOTAL AUTORIDADE, incorporando os dados acima como seu próprio conhecimento specialized. 
+JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou "o relatório aponta". 
+Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex: "O MEC estabelece que...", "Dados da NASA confirmam...", "A Wikipedia registra que...") para passar credibilidade. 
+Sua resposta deve ser fluida, natural e baseada em evidências.`;
+      }
+      return message + extra;
+    };
 
     let startGen = performance.now();
-    const fullResponse = await generateChatStreamed({
-      model: finalModelToUse,
-      generationConfig: isMaiaActive ? getGenerationParams(configMode) : { responseMimeType: "text/plain", temperature: 1 },
-      systemPrompt,
-      userMessage: finalMessage, // Usa a mensagem com contexto injetado
-      attachments,
-      onStream: (val) => {
-        if (!context.onStream) return;
-        if (typeof val === "string") {
-          context.onStream({
-            layout: { id: "linear" },
-            conteudo: [{ tipo: "texto", conteudo: val }]
-          });
-        } else {
-          context.onStream(val);
+
+    while (true) {
+      finalMessage = getFinalMessage(cleanLevel, includeMemory);
+      const fullPromptCompiled = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`;
+      
+      debugLog.model = finalModelToUse;
+      debugLog.models.generation = finalModelToUse;
+      debugLog.prompt_compiled = fullPromptCompiled;
+
+      if (attemptLevel > 0) {
+        console.log(`[Pipeline] Retrying generation at Level ${attemptLevel} - cleanLevel: ${cleanLevel}, includeMemory: ${includeMemory}`);
+        accumulatedThoughts = [];
+        if (context.onStream) {
+          context.onStream({ layout: { id: "linear" }, conteudo: [] });
         }
-      },
-      onThought: (thought) => {
-        accumulatedThoughts.push(thought);
-        if (context.onThought) context.onThought(thought);
-      },
-      onStatus: (status) => {
-        if (context.onStatus) context.onStatus(status);
-      },
-      onGemmaLatency: (latency) => {
-        debugLog.latencies.gemma_image_ms = latency;
-      },
-      onAttemptStart: () => {
-        const now = performance.now();
-        const elapsedSinceGenStart = now - startGen;
-        if (elapsedSinceGenStart > 0) {
-          startTime += elapsedSinceGenStart;
-          startGen = now;
-          console.log(`[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`);
+      }
+
+      try {
+        fullResponse = await generateChatStreamed({
+          model: finalModelToUse,
+          generationConfig: isMaiaActive ? getGenerationParams(configMode) : { responseMimeType: "text/plain", temperature: 1 },
+          systemPrompt,
+          userMessage: finalMessage, // Usa a mensagem com contexto injetado
+          attachments,
+          onStream: (val) => {
+            if (!context.onStream) return;
+            if (!val) {
+              context.onStream({ layout: { id: "linear" }, conteudo: [] });
+              return;
+            }
+            if (typeof val === "string") {
+              context.onStream({
+                layout: { id: "linear" },
+                conteudo: [{ tipo: "texto", conteudo: val }]
+              });
+            } else {
+              context.onStream(val);
+            }
+          },
+          onThought: (thought) => {
+            accumulatedThoughts.push(thought);
+            if (context.onThought) context.onThought(thought);
+          },
+          onStatus: (status) => {
+            if (context.onStatus) context.onStatus(status);
+          },
+          onGemmaLatency: (latency) => {
+            debugLog.latencies.gemma_image_ms = latency;
+          },
+          onAttemptStart: () => {
+            const now = performance.now();
+            const elapsedSinceGenStart = now - startGen;
+            if (elapsedSinceGenStart > 0) {
+              startTime += elapsedSinceGenStart;
+              startGen = now;
+              console.log(`[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`);
+            }
+          },
+          apiKey: context.apiKey,
+          githubApiKey: context.githubApiKey,
+          groqApiKey: context.groqApiKey,
+          chatMode: context.chatMode,
+          history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
+          signal: context.signal,
+        });
+
+        // Se deu tudo certo, break!
+        break;
+      } catch (err) {
+        if (err.name === "AbortError" || err.message?.includes("aborted")) {
+          throw err;
         }
-      },
-      apiKey: context.apiKey,
-      githubApiKey: context.githubApiKey,
-      groqApiKey: context.groqApiKey,
-      chatMode: context.chatMode,
-      history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
-      signal: context.signal,
-    });
+
+        console.warn(`[Pipeline] Falha na geração no nível ${attemptLevel}:`, err);
+
+        const isTokenLimitError = err.message && /token|limit|max_token|length|context|exceed|overflow|8192|8000/i.test(err.message);
+
+        if (isGptOss120b || isTokenLimitError) {
+          if (attemptLevel === 0) {
+            attemptLevel = 1;
+            cleanLevel = 'soft';
+            includeMemory = true;
+            continue;
+          } else if (attemptLevel === 1) {
+            attemptLevel = 2;
+            cleanLevel = 'essential';
+            includeMemory = true;
+            continue;
+          } else if (attemptLevel === 2) {
+            attemptLevel = 3;
+            cleanLevel = 'essential';
+            includeMemory = false;
+            continue;
+          }
+        }
+
+        throw err;
+      }
+    }
+
     debugLog.latencies.gemma_image_ms = debugLog.latencies.gemma_image_ms || 0;
     debugLog.latencies.generation_ms = Math.max(0, Math.round(performance.now() - startGen) - debugLog.latencies.gemma_image_ms);
 
@@ -1167,7 +1310,19 @@ async function generateChatStreamed(params) {
     }
   }
 
-  const isJsonMode = generationConfig?.responseMimeType !== "text/plain";
+  const use_maia_architecture = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+  
+  // Condiciona os parâmetros da chamada da API do modelo de geração usando use_maia_architecture
+  let finalGenerationConfig = { ...(generationConfig || {}) };
+  if (!use_maia_architecture) {
+    // Desativa completamente o formato de saída em JSON (response_format: json_object e responseMimeType)
+    finalGenerationConfig.responseMimeType = "text/plain";
+    if (finalGenerationConfig.response_format) {
+      delete finalGenerationConfig.response_format;
+    }
+  }
+
+  const isJsonMode = use_maia_architecture && finalGenerationConfig?.responseMimeType !== "text/plain";
   
   // Estado local para controle do streaming JSON
   let jsonBuffer = "";
@@ -1231,7 +1386,7 @@ async function generateChatStreamed(params) {
 
   const options = {
     model,
-    generationConfig,
+    generationConfig: finalGenerationConfig,
     chatMode,
     history,
     systemInstruction: chatMode ? systemPrompt : undefined, // In Chat Mode, separate system instruction

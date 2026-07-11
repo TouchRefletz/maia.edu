@@ -7,28 +7,31 @@ import { parseStreamedJSON } from "../utils/json-stream-parser.js";
 function cleanJsonString(str) {
   if (typeof str !== "string") return str;
   let cleaned = str.trim();
-  
+
   // Remove markdown codeblock no início (ex: ```json ou ```)
   cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "");
   // Remove markdown codeblock no final (ex: ```)
   cleaned = cleaned.replace(/\s*```$/, "");
   cleaned = cleaned.trim();
-  
+
   // Se ainda não começar com '{' ou '[', tenta encontrar o primeiro '{' ou '[' e o último correspondente
   if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
     const firstBrace = cleaned.indexOf("{");
     const firstBracket = cleaned.indexOf("[");
     let startIdx = -1;
     let endChar = "";
-    
-    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+
+    if (
+      firstBrace !== -1 &&
+      (firstBracket === -1 || firstBrace < firstBracket)
+    ) {
       startIdx = firstBrace;
       endChar = "}";
     } else if (firstBracket !== -1) {
       startIdx = firstBracket;
       endChar = "]";
     }
-    
+
     if (startIdx !== -1) {
       const lastIdx = cleaned.lastIndexOf(endChar);
       if (lastIdx > startIdx) {
@@ -36,26 +39,110 @@ function cleanJsonString(str) {
       }
     }
   }
-  
+
   return cleaned.trim();
 }
 
-function dataURLtoFile(dataurl, filename) {
-  var arr = dataurl.split(','),
-      mime = arr[0].match(/:(.*?);/)[1],
-      bstr = atob(arr[arr.length - 1]), 
-      n = bstr.length, 
-      u8arr = new Uint8Array(n);
-  while(n--){
-      u8arr[n] = bstr.charCodeAt(n);
+function isTextMimeType(mimeType) {
+  if (!mimeType) return false;
+  const m = mimeType.toLowerCase();
+  return (
+    m.startsWith("text/") ||
+    m.includes("json") ||
+    m.includes("javascript") ||
+    m.includes("typescript") ||
+    m.includes("xml") ||
+    m === "application/x-python" ||
+    m === "text/x-python"
+  );
+}
+
+function decodeBase64ToUtf8(base64Data) {
+  try {
+    const binString = atob(base64Data);
+    const len = binString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binString.charCodeAt(i);
+    }
+    const decodedText = new TextDecoder("utf-8").decode(bytes);
+
+    try {
+      const parsed = JSON.parse(decodedText);
+      const sanitized = sanitizeJsonForPrompt(parsed);
+      return JSON.stringify(sanitized, null, 2);
+    } catch (e) {
+      return decodedText;
+    }
+  } catch (e) {
+    console.error("[decodeBase64ToUtf8 Error]", e);
+    return "";
   }
-  return new File([u8arr], filename, {type:mime});
+}
+
+export function sanitizeJsonForPrompt(obj) {
+  if (typeof obj === "string") {
+    if (
+      obj.length > 200 &&
+      (obj.startsWith("data:") ||
+        !obj.includes(" ") ||
+        /^[A-Za-z0-9+/=]+$/.test(obj.substring(0, 100)))
+    ) {
+      return `[BASE64/DATA_URL TRUNCATED: ${obj.length} chars]`;
+    }
+    if (obj.length > 1500) {
+      return (
+        obj.substring(0, 1500) +
+        `... [TRUNCATED: ${obj.length - 1500} chars]`
+      );
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeJsonForPrompt);
+  }
+  if (typeof obj === "object" && obj !== null) {
+    const cleaned = {};
+    const keysToStrip = [
+      "fotos_originais",
+      "fontes_externas",
+      "pdfjs_crop_h",
+      "pdfjs_crop_w",
+      "pdfjs_source_h",
+      "pdfjs_source_w",
+      "pdfjs_x",
+      "pdfjs_y",
+      "cropped_base64",
+    ];
+    for (const [key, value] of Object.entries(obj)) {
+      if (keysToStrip.includes(key)) {
+        cleaned[key] = `[CLEANED KEY: ${key}]`;
+      } else {
+        cleaned[key] = sanitizeJsonForPrompt(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+function dataURLtoFile(dataurl, filename) {
+  var arr = dataurl.split(","),
+    mime = arr[0].match(/:(.*?);/)[1],
+    bstr = atob(arr[arr.length - 1]),
+    n = bstr.length,
+    u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
 }
 
 async function ensurePuterLoaded() {
   if (typeof window !== "undefined" && window.puter) return window.puter;
-  if (typeof window !== "undefined" && window.__loadingPuter) return window.__loadingPuter;
-  
+  if (typeof window !== "undefined" && window.__loadingPuter)
+    return window.__loadingPuter;
+
   if (typeof window !== "undefined") {
     window.__loadingPuter = new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -78,140 +165,209 @@ async function chamarPuterAI(
   attachments = [],
   mimeType = "image/jpeg",
   handlers = {},
-  options = {}
+  options = {},
 ) {
   const puter = await ensurePuterLoaded();
-  
+
   // Garantir autenticação (não anonimizado)
   if (!puter.auth.isSignedIn()) {
-    const msg = "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+    const msg =
+      "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
     alert(msg);
     throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
   }
-  
+
   handlers?.onStatus?.("Conectando ao Puter AI...");
-  
+
   const modelName = options.model.replace("puter/", "");
   const isSearchStage = options.isSearchStage || false;
-  
+
   // Configuração se for modelo OpenAI e em etapa de pesquisa
   const isOpenAI = modelName.startsWith("openai/") || modelName.includes("gpt");
-  
+
   const puterOptions = {
-    model: modelName
+    model: modelName,
   };
-  
+
   if (isOpenAI && isSearchStage) {
     puterOptions.tools = [{ type: "web_search" }];
   }
-  
-  // Converter imagens/anexos se existirem
+
+  // Processar anexos (identificar textos, imagens e arquivos binários)
+  let textWithFiles = "";
   let filesToUpload = [];
+  let userContent = texto;
+
   if (attachments && attachments.length > 0) {
+    const parts = [];
+    let hasImages = false;
+
     for (let i = 0; i < attachments.length; i++) {
       const att = attachments[i];
-      let fileObj;
+      let fileMime = mimeType;
+      let fileData = "";
+      let name = `arquivo_${i}`;
+
       if (typeof att === "string") {
-        const dataUrl = `data:${mimeType};base64,${att}`;
-        fileObj = dataURLtoFile(dataUrl, `image_${i}.jpg`);
+        fileMime = mimeType;
+        fileData = att;
       } else if (att && typeof att === "object" && att.data) {
-        const dataUrl = `data:${att.mimeType || mimeType};base64,${att.data}`;
-        fileObj = dataURLtoFile(dataUrl, `file_${i}.${(att.mimeType || 'image/jpeg').split('/')[1]}`);
+        fileMime = att.mimeType || mimeType;
+        fileData = att.data;
+        name = att.name || `arquivo_${i}`;
       }
-      if (fileObj) {
-        filesToUpload.push(fileObj);
+
+      if (isTextMimeType(fileMime)) {
+        const decodedText = decodeBase64ToUtf8(fileData);
+        textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+      } else if (fileMime.startsWith("image/") && fileData) {
+        parts.push({
+          type: "image_url",
+          image_url: { url: `data:${fileMime};base64,${fileData}` },
+        });
+        hasImages = true;
+        filesToUpload.push(dataURLtoFile(`data:${fileMime};base64,${fileData}`, name));
+      } else if (fileData) {
+        filesToUpload.push(dataURLtoFile(`data:${fileMime};base64,${fileData}`, name));
       }
     }
+
+    if (textWithFiles) {
+      texto = texto + textWithFiles;
+    }
+
+    if (hasImages) {
+      parts.unshift({ type: "text", text: texto });
+      userContent = parts;
+    } else {
+      userContent = texto;
+    }
   }
-  
+
   if (filesToUpload.length > 0) {
     puterOptions.media = filesToUpload[0]; // Puter suporta um File em media
   }
-  
-  // Se houver schema, usamos a chamada de função (Function Calling / Tools) do Puter com stream: false
+
+  // Se houver schema, fazemos uma chamada direta à API compatível com OpenAI do Puter
+  // para usar o suporte nativo a response_format com json_schema.
   if (schema) {
-    puterOptions.stream = false;
-    puterOptions.tools = [{
-      type: "function",
-      function: {
-        name: "retornar_dados_estruturados",
-        description: "Retorna a resposta estruturada contendo os dados solicitados de acordo com o schema.",
-        parameters: schema
-      }
-    }];
-    
-    // Tenta forçar a chamada de função configurando tool_choice se suportado
-    puterOptions.tool_choice = {
-      type: "function",
-      function: { name: "retornar_dados_estruturados" }
-    };
-    
-    const systemPrompt = 
-      "Você é um assistente especializado em retornar dados estruturados. " +
-      "Você deve responder obrigatoriamente em formato JSON válido que siga estritamente o schema JSON fornecido abaixo.\n\n" +
-      "SCHEMA:\n" + JSON.stringify(schema, null, 2) + "\n\n" +
-      "REGRAS DE RESPOSTA:\n" +
-      "1. Se você puder usar ferramentas/funções, chame obrigatoriamente a função 'retornar_dados_estruturados' passando a resposta correspondente nos argumentos.\n" +
-      "2. Se você NÃO puder usar ferramentas ou a chamada de função falhar/não for suportada, você deve responder APENAS com o objeto JSON válido diretamente no corpo do texto, sem blocos de código markdown (como ```json ou ```) e sem qualquer texto explicativo.";
+    const token = sessionStorage.getItem("PUTER_API_KEY") || puter.authToken || localStorage.getItem("puter.auth.token");
+    if (!token) {
+      throw new Error("Não foi possível recuperar o token de autenticação do Puter.");
+    }
+
+    const systemPrompt =
+      "Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.";
 
     const messages = [
       {
         role: "system",
-        content: systemPrompt
+        content: systemPrompt,
       },
       {
         role: "user",
-        content: texto + "\n\nLembre-se: Responda estritamente com JSON válido seguindo o schema."
-      }
+        content: userContent,
+      },
     ];
-    
-    console.log(`[Puter Tool Call] Executando modelo ${modelName} com schema:`, schema);
-    let response;
+
+    console.log(
+      `[Puter API response_format] Executando modelo ${modelName} com schema:`,
+      schema,
+    );
+
+    let content = "";
     try {
-      response = await puter.ai.chat(messages, puterOptions);
-    } catch (err) {
-      console.warn("[Puter Tool Call] Erro com tool_choice, tentando sem forçar tool_choice...", err);
-      delete puterOptions.tool_choice;
-      try {
-        response = await puter.ai.chat(messages, puterOptions);
-      } catch (err2) {
-        console.warn("[Puter Tool Call] Erro com tools completo, tentando chamada simples de texto como fallback...", err2);
-        delete puterOptions.tools;
-        puterOptions.stream = false;
-        response = await puter.ai.chat(messages, puterOptions);
+      const response = await fetch(
+        "https://api.puter.com/puterai/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages,
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "chat_response",
+                schema: schema,
+              },
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro na API do Puter (OpenAI format): ${response.status} - ${errorText}`);
       }
+
+      const data = await response.json();
+      console.log("[Puter API response_format] Resposta recebida:", data);
+      content = data.choices?.[0]?.message?.content || "";
+    } catch (err) {
+      console.warn(
+        "[Puter API response_format] Falhou, tentando chamada simples de texto como fallback...",
+        err,
+      );
+
+      // Fallback: Chamada simples de texto usando a SDK padrão do Puter sem response_format
+      // Mas instruindo o modelo no prompt a retornar apenas JSON válido.
+      const fallbackSystemPrompt =
+        "Você é um assistente especializado em retornar dados estruturados.\n" +
+        "Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n" +
+        "SCHEMA:\n" +
+        JSON.stringify(schema, null, 2);
+
+      const fallbackMessages = [
+        {
+          role: "system",
+          content: fallbackSystemPrompt,
+        },
+        {
+          role: "user",
+          content: userContent,
+        },
+      ];
+
+      const puterOptionsFallback = {
+        ...puterOptions,
+        stream: false,
+      };
+      delete puterOptionsFallback.tools;
+      delete puterOptionsFallback.tool_choice;
+
+      const response = await puter.ai.chat(fallbackMessages, puterOptionsFallback);
+      console.log("[Puter API Fallback] Resposta recebida:", response);
+      const message = response?.message;
+      content = message?.content || response?.toString() || "";
     }
-    
-    console.log("[Puter Tool Call] Resposta recebida:", response);
-    const message = response?.message;
-    if (message && message.tool_calls && message.tool_calls.length > 0) {
-      const toolCall = message.tool_calls[0];
-      const argsString = toolCall.function.arguments;
-      console.log("[Puter Tool Call] Argumentos extraídos:", argsString);
-      return argsString;
-    } else {
-      // Se por algum motivo o modelo respondeu com texto normal mesmo com tools configurados
-      console.warn("[Puter Tool Call] Modelo não invocou a ferramenta, usando resposta em texto.");
-      return message?.content || response?.toString() || "";
-    }
+
+    return content;
   }
-  
+
   // Caso contrário, chamada padrão com streaming de texto
   puterOptions.stream = true;
-  console.log(`[Puter Stream] Executando modelo ${modelName} com prompt:`, texto);
+  console.log(
+    `[Puter Stream] Executando modelo ${modelName} com prompt:`,
+    texto,
+  );
   const responseStream = await puter.ai.chat(texto, puterOptions);
-  
+
   let answerText = "";
   for await (const part of responseStream) {
-    const textChunk = (typeof part === 'string') ? part : (part?.text || part?.content || '');
+    const textChunk =
+      typeof part === "string" ? part : part?.text || part?.content || "";
     answerText += textChunk;
     handlers?.onAnswerDelta?.(textChunk);
   }
-  
+
   if (!answerText || !answerText.trim()) {
     throw new Error("Resposta do Puter vazia.");
   }
-  
+
   return answerText;
 }
 
@@ -270,7 +426,10 @@ export async function callWorker(endpoint, body) {
       signal: body.signal, // Adicionado suporte a signal
       body: JSON.stringify({
         apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
-        githubApiKey: sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey") || undefined,
+        githubApiKey:
+          sessionStorage.getItem("GITHUB_PAT_KEY") ||
+          sessionStorage.getItem("githubApiKey") ||
+          undefined,
         groqApiKey: sessionStorage.getItem("GROQ_API_KEY") || undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
@@ -335,14 +494,23 @@ export async function gerarConteudoEmJSONComImagemStream(
   const isPuter = options?.model && options.model.startsWith("puter/");
   if (isPuter) {
     try {
-      const answerText = await chamarPuterAI(texto, schema, attachments, mimeType, handlers, options);
+      const answerText = await chamarPuterAI(
+        texto,
+        schema,
+        attachments,
+        mimeType,
+        handlers,
+        options,
+      );
       const cleanedAnswer = cleanJsonString(answerText);
 
       try {
         return JSON.parse(cleanedAnswer);
       } catch (pe) {
         if (schema) {
-          console.warn("[Puter] Resposta não é JSON perfeito. Tentando recuperar...");
+          console.warn(
+            "[Puter] Resposta não é JSON perfeito. Tentando recuperar...",
+          );
           const parsedRecovered = parseStreamedJSON(cleanedAnswer);
           if (parsedRecovered && typeof parsedRecovered === "object") {
             console.log("[Puter] JSON recuperado com sucesso via best-effort!");
@@ -350,7 +518,10 @@ export async function gerarConteudoEmJSONComImagemStream(
           }
           throw new Error("INVALID_JSON_STRUCTURE");
         }
-        console.log("[Puter] Resposta não é JSON válido. Retornando texto bruto.", pe.message);
+        console.log(
+          "[Puter] Resposta não é JSON válido. Retornando texto bruto.",
+          pe.message,
+        );
         return answerText;
       }
     } catch (error) {
@@ -401,9 +572,14 @@ export async function gerarConteudoEmJSONComImagemStream(
 
     try {
       // [DEBUG] Log API key status
-      const customApiKey = options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
-      const customGithubKey = options.githubApiKey || sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
-      const customGroqKey = options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
+      const customApiKey =
+        options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+      const customGithubKey =
+        options.githubApiKey ||
+        sessionStorage.getItem("GITHUB_PAT_KEY") ||
+        sessionStorage.getItem("githubApiKey");
+      const customGroqKey =
+        options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
       console.log(
         `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}`,
       );
@@ -484,6 +660,13 @@ export async function gerarConteudoEmJSONComImagemStream(
             } else if (msg.type === "debug") {
               console.log("🛠️ WORKER DEBUG:", msg.text);
             } else if (msg.type === "error") {
+              
+              console.group("🚨 CRITICAL ERROR: PROMPT QUE CAUSOU A FALHA");
+              console.log("Modelo Solicitado:", options.model);
+              console.log("Tamanho do Prompt (chars):", texto?.length);
+              console.log("Conteúdo Completo Enviado:\n", texto);
+              console.groupEnd();
+
               if (msg.code === "RECITATION") {
                 console.warn(
                   "⚠️ Não foi possível responder por conta de recitação.",
@@ -513,7 +696,9 @@ export async function gerarConteudoEmJSONComImagemStream(
                   msg.message,
                   msg.attempts,
                 );
-                throw new Error(`WORKER_RUN_FAILED: ${msg.message || "Unknown error"}`);
+                throw new Error(
+                  `WORKER_RUN_FAILED: ${msg.message || "Unknown error"}`,
+                );
               }
 
               console.error("Erro do worker stream:", msg.text);
@@ -566,15 +751,22 @@ export async function gerarConteudoEmJSONComImagemStream(
         return JSON.parse(cleanedAnswer);
       } catch (pe) {
         if (schema) {
-          console.warn("[Worker] Resposta não é JSON perfeito. Tentando recuperar...");
+          console.warn(
+            "[Worker] Resposta não é JSON perfeito. Tentando recuperar...",
+          );
           const parsedRecovered = parseStreamedJSON(cleanedAnswer);
           if (parsedRecovered && typeof parsedRecovered === "object") {
-            console.log("[Worker] JSON recuperado com sucesso via best-effort!");
+            console.log(
+              "[Worker] JSON recuperado com sucesso via best-effort!",
+            );
             return parsedRecovered;
           }
           throw new Error("INVALID_JSON_STRUCTURE");
         }
-        console.log("[Worker] Resposta não é JSON válido. Retornando texto bruto.", pe.message);
+        console.log(
+          "[Worker] Resposta não é JSON válido. Retornando texto bruto.",
+          pe.message,
+        );
         return answerText;
       }
     } catch (error) {
@@ -587,7 +779,8 @@ export async function gerarConteudoEmJSONComImagemStream(
         error.message === "EMPTY_RESPONSE_ERROR" ||
         error.message === "INVALID_JSON_STRUCTURE" ||
         error.message.startsWith("WORKER_RUN_FAILED") ||
-        (error.name === "TypeError" && error.message.includes("Failed to fetch")) ||
+        (error.name === "TypeError" &&
+          error.message.includes("Failed to fetch")) ||
         error.message === "NETWORK_ERROR";
 
       if (isRetryable) {
@@ -800,26 +993,33 @@ export async function realizarPesquisa(
   const isPuter = model && model.startsWith("puter/");
   if (isPuter) {
     try {
-      const reportText = await chamarPuterAI(texto, schema, listaImagensBase64, "image/jpeg", handlers, {
-        model: model,
-        isSearchStage: true
-      });
+      const reportText = await chamarPuterAI(
+        texto,
+        schema,
+        listaImagensBase64,
+        "image/jpeg",
+        handlers,
+        {
+          model: model,
+          isSearchStage: true,
+        },
+      );
       const urlRegex = /https?:\/\/[^\s)\]]+/g;
       const foundUrls = reportText.match(urlRegex) || [];
-      const sources = Array.from(new Set(foundUrls)).map(url => {
+      const sources = Array.from(new Set(foundUrls)).map((url) => {
         try {
           return {
             uri: url,
-            title: new URL(url).hostname || url
+            title: new URL(url).hostname || url,
           };
-        } catch(e) {
+        } catch (e) {
           return { uri: url, title: url };
         }
       });
       return {
         report: reportText,
         sources: sources,
-        rawMetadata: null
+        rawMetadata: null,
       };
     } catch (error) {
       console.error("[Puter Search] Erro:", error);
@@ -841,7 +1041,8 @@ export async function realizarPesquisa(
             : undefined,
         githubApiKey:
           typeof sessionStorage !== "undefined"
-            ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+            ? sessionStorage.getItem("GITHUB_PAT_KEY") ||
+              sessionStorage.getItem("githubApiKey")
             : undefined,
         groqApiKey:
           typeof sessionStorage !== "undefined"
@@ -964,30 +1165,38 @@ export async function realizarPesquisaGeral(
   handlers = {},
   schema = null,
 ) {
-  const model = typeof window !== "undefined" ? window.selectedModelSearch : null;
+  const model =
+    typeof window !== "undefined" ? window.selectedModelSearch : null;
   const isPuter = model && model.startsWith("puter/");
   if (isPuter) {
     try {
-      const reportText = await chamarPuterAI(texto, schema, listaImagensBase64, "image/jpeg", handlers, {
-        model: model,
-        isSearchStage: true
-      });
+      const reportText = await chamarPuterAI(
+        texto,
+        schema,
+        listaImagensBase64,
+        "image/jpeg",
+        handlers,
+        {
+          model: model,
+          isSearchStage: true,
+        },
+      );
       const urlRegex = /https?:\/\/[^\s)\]]+/g;
       const foundUrls = reportText.match(urlRegex) || [];
-      const sources = Array.from(new Set(foundUrls)).map(url => {
+      const sources = Array.from(new Set(foundUrls)).map((url) => {
         try {
           return {
             uri: url,
-            title: new URL(url).hostname || url
+            title: new URL(url).hostname || url,
           };
-        } catch(e) {
+        } catch (e) {
           return { uri: url, title: url };
         }
       });
       return {
         report: reportText,
         sources: sources,
-        rawMetadata: null
+        rawMetadata: null,
       };
     } catch (error) {
       console.error("[Puter Search] Erro:", error);
@@ -1009,7 +1218,8 @@ export async function realizarPesquisaGeral(
             : undefined,
         githubApiKey:
           typeof sessionStorage !== "undefined"
-            ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+            ? sessionStorage.getItem("GITHUB_PAT_KEY") ||
+              sessionStorage.getItem("githubApiKey")
             : undefined,
         groqApiKey:
           typeof sessionStorage !== "undefined"
@@ -1215,7 +1425,7 @@ export async function gerarGabaritoComPesquisa(
     handlers,
     {
       model: options?.gabaritoModel,
-    }
+    },
   );
 
   // 3. Injeção HARDCODED das fontes e relatório no JSON final
@@ -1245,7 +1455,7 @@ export function formatFriendlyError(errorMessage) {
   const prefixes = [
     "Falha no Worker:",
     "WORKER_RUN_FAILED:",
-    "Todos falharam:"
+    "Todos falharam:",
   ];
 
   let changed = true;
@@ -1264,7 +1474,7 @@ export function formatFriendlyError(errorMessage) {
     if (!obj || typeof obj !== "object") return null;
     const inner = obj.error || obj;
     if (!inner || typeof inner !== "object") return null;
-    
+
     let msg = inner.message || inner.error || null;
     let status = inner.status || null;
     let code = inner.code || null;
@@ -1277,7 +1487,7 @@ export function formatFriendlyError(errorMessage) {
           return {
             message: extracted.message,
             status: extracted.status || status,
-            code: extracted.code || code
+            code: extracted.code || code,
           };
         }
       } catch (e) {}
@@ -1312,125 +1522,243 @@ async function chamarPuterAIViaFetchMock(url, options) {
   const puterModel = bodyObj.model;
   const texto = bodyObj.texto;
   const schema = bodyObj.schema;
-  
+
   // Extract attachments (could be files or base64 images)
   const attachments = bodyObj.files || bodyObj.listaImagensBase64 || [];
   const mimeType = bodyObj.mimeType || "image/jpeg";
   const isSearchStage = url.includes("/search");
-  
+
   const encoder = new TextEncoder();
-  
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
         const puter = await ensurePuterLoaded();
-        
+
         // 1. Runtime authentication check (failure when not signed in)
         if (!puter.auth.isSignedIn()) {
-          const msg = "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+          const msg =
+            "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
           alert(msg);
           const errPayload = { type: "error", message: msg };
           controller.enqueue(encoder.encode(JSON.stringify(errPayload) + "\n"));
           controller.close();
           throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
         }
-        
+
         // Notify attempt start
-        const attemptPayload = { type: "meta", event: "attempt_start", model: puterModel };
-        controller.enqueue(encoder.encode(JSON.stringify(attemptPayload) + "\n"));
-        
+        const attemptPayload = {
+          type: "meta",
+          event: "attempt_start",
+          model: puterModel,
+        };
+        controller.enqueue(
+          encoder.encode(JSON.stringify(attemptPayload) + "\n"),
+        );
+
         const modelName = puterModel.replace("puter/", "");
-        const isOpenAI = modelName.startsWith("openai/") || modelName.includes("gpt");
-        
+        const isOpenAI =
+          modelName.startsWith("openai/") || modelName.includes("gpt");
+
         const puterOptions = { model: modelName };
         if (isOpenAI && isSearchStage) {
           puterOptions.tools = [{ type: "web_search" }];
         }
-        
-        // Process attachments
+
+        // Processar anexos (identificar textos, imagens e arquivos binários)
+        let textWithFiles = "";
         let filesToUpload = [];
+        let userContent = texto;
+
         if (attachments && attachments.length > 0) {
+          const parts = [];
+          let hasImages = false;
+
           for (let i = 0; i < attachments.length; i++) {
             const att = attachments[i];
-            let fileObj;
+            let fileMime = mimeType;
+            let fileData = "";
+            let name = `arquivo_${i}`;
+
             if (typeof att === "string") {
-              const dataUrl = `data:${mimeType};base64,${att}`;
-              fileObj = dataURLtoFile(dataUrl, `image_${i}.jpg`);
+              fileMime = mimeType;
+              fileData = att;
             } else if (att && typeof att === "object" && att.data) {
-              const dataUrl = `data:${att.mimeType || mimeType};base64,${att.data}`;
-              fileObj = dataURLtoFile(dataUrl, `file_${i}.${(att.mimeType || 'image/jpeg').split('/')[1]}`);
+              fileMime = att.mimeType || mimeType;
+              fileData = att.data;
+              name = att.name || `arquivo_${i}`;
             }
-            if (fileObj) {
-              filesToUpload.push(fileObj);
+
+            if (isTextMimeType(fileMime)) {
+              const decodedText = decodeBase64ToUtf8(fileData);
+              textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+            } else if (fileMime.startsWith("image/") && fileData) {
+              parts.push({
+                type: "image_url",
+                image_url: { url: `data:${fileMime};base64,${fileData}` },
+              });
+              hasImages = true;
+              filesToUpload.push(dataURLtoFile(`data:${fileMime};base64,${fileData}`, name));
+            } else if (fileData) {
+              filesToUpload.push(dataURLtoFile(`data:${fileMime};base64,${fileData}`, name));
             }
           }
+
+          if (textWithFiles) {
+            texto = texto + textWithFiles;
+          }
+
+          if (hasImages) {
+            parts.unshift({ type: "text", text: texto });
+            userContent = parts;
+          } else {
+            userContent = texto;
+          }
         }
-        
+
         if (filesToUpload.length > 0) {
           puterOptions.media = filesToUpload[0];
         }
-        
+
         if (schema) {
-          puterOptions.stream = false;
-          puterOptions.tools = [{
-            type: "function",
-            function: {
-              name: "retornar_dados_estruturados",
-              description: "Retorna a resposta estruturada contendo os dados solicitados.",
-              parameters: schema
-            }
-          }];
-          
+          const token = sessionStorage.getItem("PUTER_API_KEY") || puter.authToken || localStorage.getItem("puter.auth.token");
+          if (!token) {
+            throw new Error("Não foi possível recuperar o token de autenticação do Puter.");
+          }
+
+          const systemPrompt =
+            "Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.";
+
           const messages = [
             {
               role: "system",
-              content: "Você é um assistente especializado em retornar dados estruturados. Você deve obrigatoriamente responder invocando a função 'retornar_dados_estruturados' com os parâmetros estruturados especificados."
+              content: systemPrompt,
             },
             {
               role: "user",
-              content: texto
-            }
+              content: userContent,
+            },
           ];
-          
-          console.log(`[Puter Fetch Mock Tool Call] Executando ${modelName} com schema:`, schema);
-          const response = await puter.ai.chat(messages, puterOptions);
-          console.log("[Puter Fetch Mock Tool Call] Resposta:", response);
-          
-          const message = response?.message;
-          if (message && message.tool_calls && message.tool_calls.length > 0) {
-            const toolCall = message.tool_calls[0];
-            const argsString = toolCall.function.arguments;
-            const answerPayload = { type: "answer", text: argsString };
-            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
-          } else {
-            const answerPayload = { type: "answer", text: response?.toString() || "" };
-            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
+
+          console.log(
+            `[Puter Fetch Mock API response_format] Executando ${modelName} com schema:`,
+            schema,
+          );
+
+          let content = "";
+          try {
+            const response = await fetch(
+              "https://api.puter.com/puterai/openai/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  model: modelName,
+                  messages,
+                  response_format: {
+                    type: "json_schema",
+                    json_schema: {
+                      name: "chat_response",
+                      schema: schema,
+                    },
+                  },
+                }),
+              },
+            );
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              throw new Error(`Erro na API do Puter (OpenAI format Mock): ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log("[Puter Fetch Mock API response_format] Resposta recebida:", data);
+            content = data.choices?.[0]?.message?.content || "";
+          } catch (err) {
+            console.warn(
+              "[Puter Fetch Mock API response_format] Falhou, tentando chamada simples de texto como fallback...",
+              err,
+            );
+
+            const fallbackSystemPrompt =
+              "Você é um assistente especializado em retornar dados estruturados.\n" +
+              "Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n" +
+              "SCHEMA:\n" +
+              JSON.stringify(schema, null, 2);
+
+            const fallbackMessages = [
+              {
+                role: "system",
+                content: fallbackSystemPrompt,
+              },
+              {
+                role: "user",
+                content: userContent,
+              },
+            ];
+
+            const puterOptionsFallback = {
+              ...puterOptions,
+              stream: false,
+            };
+            delete puterOptionsFallback.tools;
+            delete puterOptionsFallback.tool_choice;
+
+            const response = await puter.ai.chat(fallbackMessages, puterOptionsFallback);
+            console.log("[Puter Fetch Mock API Fallback] Resposta recebida:", response);
+            const message = response?.message;
+            content = message?.content || response?.toString() || "";
           }
+          
+          const answerPayload = { type: "answer", text: content };
+          controller.enqueue(
+            encoder.encode(JSON.stringify(answerPayload) + "\n"),
+          );
         } else {
           puterOptions.stream = true;
-          console.log(`[Puter Fetch Mock Stream] Executando ${modelName} com prompt:`, texto);
+          console.log(
+            `[Puter Fetch Mock Stream] Executando ${modelName} com prompt:`,
+            texto,
+          );
           const responseStream = await puter.ai.chat(texto, puterOptions);
-          
+
           let reportText = "";
           for await (const part of responseStream) {
-            const textChunk = (typeof part === 'string') ? part : (part?.text || part?.content || '');
+            const textChunk =
+              typeof part === "string"
+                ? part
+                : part?.text || part?.content || "";
             reportText += textChunk;
             const answerPayload = { type: "answer", text: textChunk };
-            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + "\n"));
+            controller.enqueue(
+              encoder.encode(JSON.stringify(answerPayload) + "\n"),
+            );
           }
-          
+
           if (isSearchStage) {
             const urlRegex = /https?:\/\/[^\s)\]]+/g;
             const foundUrls = reportText.match(urlRegex) || [];
-            const groundingChunks = Array.from(new Set(foundUrls)).map(url => {
-              try {
-                return { web: { uri: url, title: new URL(url).hostname || url } };
-              } catch(e) {
-                return { web: { uri: url, title: url } };
-              }
-            });
-            const groundingPayload = { type: "grounding", metadata: { groundingChunks } };
-            controller.enqueue(encoder.encode(JSON.stringify(groundingPayload) + "\n"));
+            const groundingChunks = Array.from(new Set(foundUrls)).map(
+              (url) => {
+                try {
+                  return {
+                    web: { uri: url, title: new URL(url).hostname || url },
+                  };
+                } catch (e) {
+                  return { web: { uri: url, title: url } };
+                }
+              },
+            );
+            const groundingPayload = {
+              type: "grounding",
+              metadata: { groundingChunks },
+            };
+            controller.enqueue(
+              encoder.encode(JSON.stringify(groundingPayload) + "\n"),
+            );
           }
         }
       } catch (err) {
@@ -1440,18 +1768,18 @@ async function chamarPuterAIViaFetchMock(url, options) {
       } finally {
         controller.close();
       }
-    }
+    },
   });
-  
+
   return new Response(stream, {
     status: 200,
-    headers: { "Content-Type": "application/x-ndjson" }
+    headers: { "Content-Type": "application/x-ndjson" },
   });
 }
 
 // Configura o patch global de window.fetch para interceptar requisições do Puter
 const originalFetch = window.fetch;
-window.fetch = async function(url, options) {
+window.fetch = async function (url, options) {
   const urlStr = String(url);
   if (
     options &&
