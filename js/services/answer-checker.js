@@ -201,6 +201,9 @@ Responda com o JSON estruturado.`;
       body: JSON.stringify({
         apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
         githubApiKey: (typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey")) : undefined) || undefined,
+        vertexProjectId: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
+        vertexLocation: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
+        vertexCredentials: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
         texto: prompt,
         schema,
         model: modelToUse,
@@ -273,7 +276,10 @@ async function generateEmbedding(text, apiKey) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       texto: text,
-      apiKey: apiKey || undefined,
+      apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
+      vertexProjectId: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
+      vertexLocation: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
+      vertexCredentials: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
     }),
   });
 

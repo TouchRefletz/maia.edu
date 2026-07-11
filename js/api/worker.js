@@ -1,4 +1,5 @@
 import { parseStreamedJSON } from "../utils/json-stream-parser.js";
+import { CHAT_CONFIG } from "../chat/config.js";
 
 /**
  * Limpa blocos de código markdown (como ```json e ```) no início/fim de uma string JSON.
@@ -431,6 +432,9 @@ export async function callWorker(endpoint, body) {
           sessionStorage.getItem("githubApiKey") ||
           undefined,
         groqApiKey: sessionStorage.getItem("GROQ_API_KEY") || undefined,
+        vertexProjectId: sessionStorage.getItem("VERTEX_PROJECT_ID") || undefined,
+        vertexLocation: sessionStorage.getItem("VERTEX_LOCATION") || undefined,
+        vertexCredentials: sessionStorage.getItem("VERTEX_CREDENTIALS") || undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
       }),
@@ -580,9 +584,19 @@ export async function gerarConteudoEmJSONComImagemStream(
         sessionStorage.getItem("githubApiKey");
       const customGroqKey =
         options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
+      const customVertexProjectId =
+        options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID");
+      const customVertexLocation =
+        options.vertexLocation || sessionStorage.getItem("VERTEX_LOCATION");
+      const customVertexCredentials =
+        options.vertexCredentials || sessionStorage.getItem("VERTEX_CREDENTIALS");
       console.log(
-        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}`,
+        `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}, Vertex AI present: ${!!customVertexProjectId}`,
       );
+
+      const resolvedVertexModelId = options.vertexModelId || CHAT_CONFIG?.modes?.[options.model]?.vertexModelId || undefined;
+      const resolvedImageDescriptorModel = options.imageDescriptorModel || (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
+      const resolvedImageDescriptorVertexModelId = options.imageDescriptorVertexModelId || CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId || undefined;
 
       const response = await fetch(`${WORKER_URL}/generate`, {
         method: "POST",
@@ -592,6 +606,9 @@ export async function gerarConteudoEmJSONComImagemStream(
           apiKey: customApiKey || undefined,
           githubApiKey: customGithubKey || undefined,
           groqApiKey: customGroqKey || undefined,
+          vertexProjectId: customVertexProjectId || undefined,
+          vertexLocation: customVertexLocation || undefined,
+          vertexCredentials: customVertexCredentials || undefined,
           texto,
           schema: schema || undefined,
           jsonMode: !!schema,
@@ -600,6 +617,9 @@ export async function gerarConteudoEmJSONComImagemStream(
           files: payloadFiles.length > 0 ? payloadFiles : undefined,
           mimeType,
           model: options.model,
+          vertexModelId: resolvedVertexModelId,
+          imageDescriptorModel: resolvedImageDescriptorModel,
+          imageDescriptorVertexModelId: resolvedImageDescriptorVertexModelId,
           generationConfig: options.generationConfig,
           chatMode: options.chatMode,
           history: options.history,
@@ -637,7 +657,14 @@ export async function gerarConteudoEmJSONComImagemStream(
           try {
             const msg = JSON.parse(line);
             console.log(msg);
-            if (msg.type === "thought") {
+            if (msg.type === "meta" && msg.event === "attempt_start") {
+              try {
+                const vertexSuffix = msg.vertex ? " (Vertex AI)" : "";
+                handlers?.onStatus?.(`🤖 Modelo: ${msg.model}${vertexSuffix}`);
+              } catch (err) {
+                console.error("Error in onStatus handler:", err);
+              }
+            } else if (msg.type === "thought") {
               try {
                 handlers?.onThought?.(msg.text);
               } catch (err) {
@@ -1048,6 +1075,18 @@ export async function realizarPesquisa(
           typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("GROQ_API_KEY")
             : undefined,
+        vertexProjectId:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+            : undefined,
+        vertexLocation:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_LOCATION")
+            : undefined,
+        vertexCredentials:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+            : undefined,
         texto,
         listaImagensBase64,
         schema,
@@ -1084,7 +1123,8 @@ export async function realizarPesquisa(
           console.log(msg);
 
           if (msg.type === "meta" && msg.event === "attempt_start") {
-            handlers?.onStatus?.(`🤖 Modelo: ${msg.model}`);
+            const vertexSuffix = msg.vertex ? " (Vertex AI)" : "";
+            handlers?.onStatus?.(`🤖 Modelo: ${msg.model}${vertexSuffix}`);
           }
 
           if (msg.type === "thought") {
@@ -1224,6 +1264,18 @@ export async function realizarPesquisaGeral(
         groqApiKey:
           typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("GROQ_API_KEY")
+            : undefined,
+        vertexProjectId:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+            : undefined,
+        vertexLocation:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_LOCATION")
+            : undefined,
+        vertexCredentials:
+          typeof sessionStorage !== "undefined"
+            ? sessionStorage.getItem("VERTEX_CREDENTIALS")
             : undefined,
         texto,
         listaImagensBase64,

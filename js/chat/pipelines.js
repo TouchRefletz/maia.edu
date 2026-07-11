@@ -351,6 +351,9 @@ export async function runChatPipeline(
               selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
               githubApiKey: context.githubApiKey,
               groqApiKey: context.groqApiKey,
+              vertexProjectId: context.vertexProjectId,
+              vertexLocation: context.vertexLocation,
+              vertexCredentials: context.vertexCredentials,
               onAttemptStart: () => {
                 const now = performance.now();
                 const elapsed = now - startMemory;
@@ -431,6 +434,9 @@ export async function runChatPipeline(
           apiKey: context.apiKey,
           githubApiKey: context.githubApiKey,
           groqApiKey: context.groqApiKey,
+          vertexProjectId: context.vertexProjectId,
+          vertexLocation: context.vertexLocation,
+          vertexCredentials: context.vertexCredentials,
           onThought: context.onThought, // Hook de pensamentos pro router usar
           selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelRouter : null) || "models/gemma-4-31b-it", // Pass router model
           onAttemptStart: () => {
@@ -719,7 +725,7 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     let configMode;
 
     if (!use_maia_architecture) {
-      systemPrompt = "Você é um assistente útil especializado em vestibulares. Resolva a questão apresentada de forma direta, explicando seu raciocínio passo a passo de forma didática em português. Você deve responder apenas em formato de texto linear contínuo e Markdown convencional. Não use nenhuma estrutura em formato JSON, nem blocos modulares, listas estruturadas do sistema ou componentes de layout especiais. Escreva a sua resposta de forma puramente linear e textual.";
+      systemPrompt = "";
       configMode = "rapido";
     } else if (finalMode === "scaffolding") {
       systemPrompt = getSystemPromptScaffolding();
@@ -800,7 +806,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
 
     while (true) {
       finalMessage = getFinalMessage(cleanLevel, includeMemory);
-      const fullPromptCompiled = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`;
+      const fullPromptCompiled = isMaiaActive
+        ? `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`
+        : finalMessage;
       
       debugLog.model = finalModelToUse;
       debugLog.models.generation = finalModelToUse;
@@ -858,9 +866,13 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
           apiKey: context.apiKey,
           githubApiKey: context.githubApiKey,
           groqApiKey: context.groqApiKey,
+          vertexProjectId: context.vertexProjectId,
+          vertexLocation: context.vertexLocation,
+          vertexCredentials: context.vertexCredentials,
           chatMode: context.chatMode,
           history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
           signal: context.signal,
+          useMaiaArchitecture: isMaiaActive,
         });
 
         // Se deu tudo certo, break!
@@ -990,6 +1002,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
             selectedSpecificModel: (typeof window !== "undefined" ? window.selectedModelMemory : null) || "models/gemma-4-31b-it",
             githubApiKey: context.githubApiKey,
             groqApiKey: context.groqApiKey,
+            vertexProjectId: context.vertexProjectId,
+            vertexLocation: context.vertexLocation,
+            vertexCredentials: context.vertexCredentials,
           },
         )
           .then(() => {
@@ -1081,6 +1096,9 @@ export async function generateSilentScaffoldingStep(
 
   const actualGithubKey = githubApiKey || sessionStorage.getItem("githubApiKey") || sessionStorage.getItem("GITHUB_PAT_KEY");
   const actualGroqKey = groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
+  const actualVertexProjectId = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : null;
+  const actualVertexLocation = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : null;
+  const actualVertexCredentials = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : null;
   let lastError = null;
   const startTime = Date.now();
 
@@ -1109,6 +1127,9 @@ export async function generateSilentScaffoldingStep(
         apiKey,
         githubApiKey: actualGithubKey,
         groqApiKey: actualGroqKey,
+        vertexProjectId: actualVertexProjectId,
+        vertexLocation: actualVertexLocation,
+        vertexCredentials: actualVertexCredentials,
         chatMode: false,
         history: [],
       });
@@ -1263,19 +1284,27 @@ async function generateChatStreamed(params) {
     apiKey,
     githubApiKey,
     groqApiKey,
+    vertexProjectId,
+    vertexLocation,
+    vertexCredentials,
     chatMode,
     history,
     signal, // Receive signal
+    useMaiaArchitecture = true,
   } = params;
 
   // Monta o prompt combinando system + user com ênfase no user
-  const currentDateTime = new Date().toLocaleString("pt-BR", {
-    dateStyle: "full",
-    timeStyle: "short",
-  });
-  const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
-
-  const fullPrompt = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${userMessage}\n=== FIM DO PROMPT ===`;
+  let fullPrompt;
+  if (!useMaiaArchitecture) {
+    fullPrompt = userMessage;
+  } else {
+    const currentDateTime = new Date().toLocaleString("pt-BR", {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+    const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
+    fullPrompt = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${userMessage}\n=== FIM DO PROMPT ===`;
+  }
 
   // Converte anexos (imagens ou arquivos) para base64
   const arquivosProcessados = [];
@@ -1384,15 +1413,25 @@ async function generateChatStreamed(params) {
     signal, // Pass signal to worker handlers
   };
 
+  const vertexModelId = getModeConfig(model)?.vertexModelId || undefined;
+  const imageDescriptorModel = (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
+  const imageDescriptorVertexModelId = getModeConfig(imageDescriptorModel)?.vertexModelId || undefined;
+
   const options = {
     model,
+    vertexModelId,
+    imageDescriptorModel,
+    imageDescriptorVertexModelId,
     generationConfig: finalGenerationConfig,
     chatMode,
     history,
-    systemInstruction: chatMode ? systemPrompt : undefined, // In Chat Mode, separate system instruction
+    systemInstruction: (chatMode && useMaiaArchitecture) ? systemPrompt : undefined, // In Chat Mode, separate system instruction
     apiKey,
     githubApiKey,
     groqApiKey: groqApiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GROQ_API_KEY") : undefined) || undefined,
+    vertexProjectId: vertexProjectId || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
+    vertexLocation: vertexLocation || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
+    vertexCredentials: vertexCredentials || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
   };
 
   console.log(`[Generate] 🚀 Iniciando geração ${isJsonMode ? "JSON Estruturado" : "Texto Plano"} Streamed...`);

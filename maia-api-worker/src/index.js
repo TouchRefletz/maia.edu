@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai/node';
 
 const DEFAULT_MODELS = [
 	'models/gemini-3.5-flash',
@@ -813,11 +813,26 @@ async function handlePineconeClearAll(request, env) {
 /**
  * HELPER: Shared Embedding Logic
  */
-async function generateEmbedding(text, apiKey, model = 'models/gemini-embedding-001') {
-	if (!apiKey) throw new Error('API Key missing for embedding');
-	const client = new GoogleGenAI({ apiKey });
+async function generateEmbedding(text, authOptions, model = 'models/gemini-embedding-001') {
+	let client;
+	let finalModel = model;
+	if (authOptions && typeof authOptions === 'object' && authOptions.vertexProjectId && authOptions.vertexCredentials) {
+		client = new GoogleGenAI({
+			vertexai: true,
+			project: authOptions.vertexProjectId,
+			location: authOptions.vertexLocation || 'us-central1',
+			googleAuthOptions: {
+				credentials: typeof authOptions.vertexCredentials === 'string' ? JSON.parse(authOptions.vertexCredentials) : authOptions.vertexCredentials,
+			},
+		});
+		finalModel = model.replace(/^models\//, '');
+	} else {
+		const apiKey = typeof authOptions === 'string' ? authOptions : (authOptions?.apiKey || authOptions?.GOOGLE_GENAI_API_KEY);
+		if (!apiKey) throw new Error('API Key missing for embedding');
+		client = new GoogleGenAI({ apiKey });
+	}
 	const result = await client.models.embedContent({
-		model: model,
+		model: finalModel,
 		contents: text,
 	});
 
@@ -974,8 +989,12 @@ async function handleGeminiGenerate(request, env) {
 		listaImagensBase64 = [],
 		mimeType = 'image/jpeg',
 		model,
+		vertexModelId,
 		apiKey: userApiKey,
 		githubApiKey: userGithubApiKey,
+		vertexProjectId,
+		vertexLocation,
+		vertexCredentials,
 		jsonMode = true,
 		thinking = true,
 		chatMode = false,
@@ -989,13 +1008,36 @@ async function handleGeminiGenerate(request, env) {
 		finalHistory = mapOpenAIHistoryToGemini(finalHistory);
 	}
 
-	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
-	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+	const useVertex = model ? model.startsWith('vertex/') : !!(vertexProjectId && vertexCredentials);
 
-	const client = new GoogleGenAI({
-		apiKey: finalApiKey,
-		httpOptions: { timeout: 300000 },
-	});
+	let client;
+	try {
+		if (useVertex) {
+			if (!vertexProjectId || !vertexCredentials) {
+				throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models.');
+			}
+			client = new GoogleGenAI({
+				vertexai: true,
+				project: vertexProjectId,
+				location: vertexLocation || 'us-central1',
+				googleAuthOptions: {
+					credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
+				},
+				httpOptions: { timeout: 300000 },
+			});
+		} else {
+			const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+			if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+
+			client = new GoogleGenAI({
+				apiKey: finalApiKey,
+				httpOptions: { timeout: 300000 },
+			});
+		}
+	} catch (initError) {
+		console.error('[GoogleGenAI Client Init Error]:', initError);
+		throw initError;
+	}
 
 	// Modelos iniciais: Se o usuário/cliente solicitou um modelo específico, respeita e tenta APENAS ele.
 	let initialModels;
@@ -1093,7 +1135,7 @@ async function handleGeminiGenerate(request, env) {
 			attempt += 1;
 
 			attemptHistory.push({ attempt, model: modelo, status: 'started' });
-			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo });
+			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo, vertex: !!(vertexProjectId && vertexCredentials) });
 
 			let wroteSomethingThisAttempt = false;
 			const wrappedWriteNdjson = async (obj) => {
@@ -1133,10 +1175,14 @@ async function handleGeminiGenerate(request, env) {
 					...generationConfig,
 				};
 
+				const modelToUse = useVertex 
+					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
+					: modelo;
+
 				if (chatMode) {
 					// NOTE: create() config usually takes systemInstruction, tools, etc.
 					const chat = client.chats.create({
-						model: modelo,
+						model: modelToUse,
 						history: finalHistory,
 						config: {
 							systemInstruction: systemInstruction,
@@ -1148,7 +1194,7 @@ async function handleGeminiGenerate(request, env) {
 					});
 				} else {
 					stream = await client.models.generateContentStream({
-						model: modelo,
+						model: modelToUse,
 						contents: [{ role: 'user', parts }],
 						config: {
 							...config,
@@ -1300,12 +1346,22 @@ async function handleGeminiGenerate(request, env) {
  */
 async function handleGeminiEmbed(request, env) {
 	const body = await request.json();
-	const apiKey = body.apiKey || env.GOOGLE_GENAI_API_KEY;
-	if (!apiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+	const { texto, model, apiKey, vertexProjectId, vertexLocation, vertexCredentials } = body;
 
-	const { texto, model } = body;
+	let authOptions;
+	if (vertexProjectId && vertexCredentials) {
+		authOptions = {
+			vertexProjectId,
+			vertexLocation,
+			vertexCredentials,
+		};
+	} else {
+		const finalApiKey = apiKey || env.GOOGLE_GENAI_API_KEY;
+		if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+		authOptions = finalApiKey;
+	}
 
-	const embeddingValues = await generateEmbedding(texto, apiKey, model);
+	const embeddingValues = await generateEmbedding(texto, authOptions, model);
 
 	return new Response(JSON.stringify(embeddingValues), {
 		headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1496,15 +1552,43 @@ async function handleProxyPdf(request, env) {
  */
 async function handleGeminiSearch(request, env) {
 	const body = await request.json();
-	const { texto, schema, listaImagensBase64 = [], model, apiKey: userApiKey } = body;
+	const {
+		texto,
+		schema,
+		listaImagensBase64 = [],
+		model,
+		vertexModelId,
+		apiKey: userApiKey,
+		vertexProjectId,
+		vertexLocation,
+		vertexCredentials,
+	} = body;
 
-	const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
-	if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+	const useVertex = model ? model.startsWith('vertex/') : !!(vertexProjectId && vertexCredentials);
 
-	const client = new GoogleGenAI({
-		apiKey: finalApiKey,
-		httpOptions: { timeout: 300000 },
-	});
+	let client;
+	if (useVertex) {
+		if (!vertexProjectId || !vertexCredentials) {
+			throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models.');
+		}
+		client = new GoogleGenAI({
+			vertexai: true,
+			project: vertexProjectId,
+			location: vertexLocation || 'us-central1',
+			googleAuthOptions: {
+				credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
+			},
+			httpOptions: { timeout: 300000 },
+		});
+	} else {
+		const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+		if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+
+		client = new GoogleGenAI({
+			apiKey: finalApiKey,
+			httpOptions: { timeout: 300000 },
+		});
+	}
 
 	// Modelos iniciais
 	const initialModels = model ? [model] : DEFAULT_MODELS;
@@ -1577,7 +1661,7 @@ async function handleGeminiSearch(request, env) {
 			const modelo = queue.shift();
 
 			try {
-				await writeNdjson({ type: 'meta', event: 'attempt_start', model: modelo });
+				await writeNdjson({ type: 'meta', event: 'attempt_start', model: modelo, vertex: !!(vertexProjectId && vertexCredentials) });
 
 				const generationConfig = {
 					tools: [{ googleSearch: {} }],
@@ -1595,8 +1679,11 @@ async function handleGeminiSearch(request, env) {
 					generationConfig.responseJsonSchema = schema;
 				}
 
+				const modelToUse = useVertex 
+					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
+					: modelo;
 				const stream = await client.models.generateContentStream({
-					model: modelo,
+					model: modelToUse,
 					contents: [{ role: 'user', parts }],
 					config: generationConfig,
 				});
@@ -3271,6 +3358,118 @@ async function handleGithubGenerateStream(modelo, body, env, attempt, writeNdjso
 }
 
 /**
+ * Helper to describe an image using the selected image descriptor model.
+ * Supports Google (AI Studio/Vertex) and GitHub (OpenAI compatible) Models.
+ */
+async function describeImageWithModel(img, promptDescrever, descriptorModel, body, env) {
+	const {
+		apiKey: userApiKey,
+		githubApiKey: userGithubApiKey,
+		vertexProjectId,
+		vertexLocation,
+		vertexCredentials,
+	} = body;
+
+	const isVertex = descriptorModel.startsWith('vertex/');
+	const isGithub = descriptorModel.startsWith('github/');
+
+	if (isGithub) {
+		const finalApiKey = userGithubApiKey || userApiKey || env.GITHUB_PAT;
+		if (!finalApiKey) throw new Error('GITHUB_PAT not configured for image description');
+		const githubModelId = descriptorModel.replace('github/', '');
+		
+		const response = await fetch('https://models.inference.ai.azure.com/chat/completions', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${finalApiKey}`,
+			},
+			body: JSON.stringify({
+				model: githubModelId,
+				messages: [
+					{
+						role: 'user',
+						content: [
+							{ type: 'text', text: promptDescrever },
+							{ type: 'image_url', image_url: { url: `data:${img.mimeType};base64,${img.data}` } }
+						]
+					}
+				],
+				max_tokens: 1000
+			})
+		});
+		if (!response.ok) {
+			const errText = await response.text();
+			throw new Error(`GitHub Models API error: ${response.status} - ${errText}`);
+		}
+		const resData = await response.json();
+		return resData.choices?.[0]?.message?.content || '';
+	}
+
+	// Default to Google Gemini (either Vertex or AI Studio)
+	let client;
+	if (isVertex) {
+		if (!vertexProjectId || !vertexCredentials) {
+			throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models for description.');
+		}
+		client = new GoogleGenAI({
+			vertexai: true,
+			project: vertexProjectId,
+			location: vertexLocation || 'us-central1',
+			googleAuthOptions: {
+				credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
+			},
+			httpOptions: { timeout: 300000 },
+		});
+	} else {
+		const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+		if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured for image description');
+		client = new GoogleGenAI({
+			apiKey: finalApiKey,
+			httpOptions: { timeout: 300000 },
+		});
+	}
+
+	let modelToUse = descriptorModel;
+	if (isVertex) {
+		if (descriptorModel === 'vertex/gemini-3.5-flash') {
+			modelToUse = 'gemini-3.5-flash@google/gemini-3.5-flash';
+		} else if (descriptorModel === 'vertex/gemini-3-flash-preview') {
+			modelToUse = 'gemini-3-flash-preview@google/gemini-3-flash-preview';
+		} else if (descriptorModel === 'vertex/gemini-3.1-flash-lite') {
+			modelToUse = 'gemini-3.1-flash-lite@google/gemini-3.1-flash-lite';
+		} else if (descriptorModel === 'vertex/gemini-2.5-flash') {
+			modelToUse = 'gemini-2.5-flash@google/gemini-2.5-flash';
+		} else if (descriptorModel === 'vertex/gemini-2.5-flash-lite') {
+			modelToUse = 'gemini-2.5-flash-lite@google/gemini-2.5-flash-lite';
+		} else if (descriptorModel === 'vertex/gemma-4-31b-it') {
+			modelToUse = 'gemma4@gemma-4-31b-it';
+		} else if (descriptorModel === 'vertex/gemma-4-26b-a4b-it') {
+			modelToUse = 'gemma4@gemma-4-26b-a4b-it';
+		} else {
+			modelToUse = descriptorModel.replace(/^vertex\//, '');
+		}
+	} else {
+		modelToUse = descriptorModel;
+	}
+
+	const response = await client.models.generateContent({
+		model: modelToUse,
+		contents: [
+			{
+				role: 'user',
+				parts: [
+					{ text: promptDescrever },
+					{ inlineData: { mimeType: img.mimeType, data: img.data } }
+				]
+			}
+		]
+	});
+
+	return response.text || '';
+}
+
+/**
  * Helper to generate chat stream using Groq Models (OpenAI compatible)
  */
 async function handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson) {
@@ -3278,10 +3477,14 @@ async function handleGroqGenerateStream(modelo, body, env, attempt, writeNdjson)
 		schema,
 		apiKey: userApiKey,
 		groqApiKey: userGroqApiKey,
+		vertexProjectId,
+		vertexLocation,
+		vertexCredentials,
 		jsonMode = true,
 		chatMode = false,
 		history = [],
 		systemInstruction,
+		imageDescriptorModel,
 	} = body;
 
 	// Use user-provided Groq API key, fallback to env.GROQ_API_KEY
@@ -3341,14 +3544,7 @@ Use formato estruturado com tópicos
 FORMATO DE SAÍDA:
 [TIPO_DE_ELEMENTO]: descrição detalhada`;
 
-		const finalGeminiApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
-		if (!finalGeminiApiKey) {
-			throw new Error('GOOGLE_GENAI_API_KEY is required to describe images using Gemma.');
-		}
-		const client = new GoogleGenAI({
-			apiKey: finalGeminiApiKey,
-			httpOptions: { timeout: 300000 },
-		});
+		const descriptorModel = imageDescriptorModel || 'models/gemma-4-31b-it';
 
 		for (let i = 0; i < images.length; i++) {
 			const img = images[i];
@@ -3360,56 +3556,39 @@ FORMATO DE SAÍDA:
 			}
 
 			let successImage = false;
-			let lastGemmaError = null;
+			let lastDescError = null;
 
 			for (let attemptNum = 1; attemptNum <= 3; attemptNum++) {
 				if (attemptNum > 1) {
-					await writeNdjson({ type: 'status', text: `Gemma falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...` });
-					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Gemma falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...]\n` });
+					await writeNdjson({ type: 'status', text: `Descritor falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descritor falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...]\n` });
 					await new Promise((resolve) => setTimeout(resolve, 1000));
 				} else {
-					await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com Gemma...` });
-					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com Gemma...]\n` });
+					await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com ${descriptorModel}...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com ${descriptorModel}...]\n` });
 				}
 
 				try {
-					const stream = await client.models.generateContentStream({
-						model: 'models/gemma-4-31b-it',
-						contents: [
-							{
-								role: 'user',
-								parts: [
-									{ text: promptDescrever },
-									{ inlineData: { mimeType: img.mimeType, data: img.data } }
-								]
-							}
-						]
-					});
-					for await (const chunk of stream) {
-						const text = chunk.text;
-						if (text) {
-							desc += text;
-							await writeNdjson({ type: 'thought', attempt, model: modelo, text: text });
-						}
-					}
+					desc = await describeImageWithModel(img, promptDescrever, descriptorModel, body, env);
 					successImage = true;
 					break;
-				} catch (gemmaError) {
-					console.warn(`[Image Description] Attempt ${attemptNum}/3 failed with Gemma:`, gemmaError);
-					lastGemmaError = gemmaError;
-					desc = ''; // Limpa qualquer conteúdo parcial da tentativa que falhou
+				} catch (descError) {
+					console.warn(`[Image Description] Attempt ${attemptNum}/3 failed:`, descError);
+					lastDescError = descError;
+					desc = '';
 				}
 			}
 
 			if (!successImage) {
-				const errorMsg = `Falha ao descrever imagem ${i + 1} após 3 tentativas com Gemma. Erro original: ${lastGemmaError?.message || 'Erro desconhecido'}`;
+				const errorMsg = `Falha ao descrever imagem ${i + 1} após 3 tentativas com ${descriptorModel}. Erro original: ${lastDescError?.message || 'Erro desconhecido'}`;
 				await writeNdjson({ type: 'status', text: `Erro: Falha na descrição da imagem ${i + 1}.` });
 				await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[${errorMsg}]\n` });
 				throw new Error(errorMsg);
 			}
 
-			descriptions.push(desc);
+			await writeNdjson({ type: 'thought', attempt, model: modelo, text: desc });
 			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Fim da descrição da imagem ${i + 1}]\n` });
+			descriptions.push(desc);
 		}
 
 		const gemmaLatencyMs = Math.round(performance.now() - startGemmaTime);

@@ -2618,6 +2618,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
     const geminiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || sessionStorage.getItem("geminiApiKey");
     const githubKey = sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
     const groqKey = sessionStorage.getItem("GROQ_API_KEY");
+    const vertexProjectId = sessionStorage.getItem("VERTEX_PROJECT_ID");
+    const vertexLocation = sessionStorage.getItem("VERTEX_LOCATION");
+    const vertexCredentials = sessionStorage.getItem("VERTEX_CREDENTIALS");
 
     // [REMOVIDO] createExpandableStatus local - agora usamos a global
 
@@ -2625,6 +2628,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       apiKey: geminiKey || undefined,
       githubApiKey: githubKey || undefined,
       groqApiKey: groqKey || undefined,
+      vertexProjectId: vertexProjectId || undefined,
+      vertexLocation: vertexLocation || undefined,
+      vertexCredentials: vertexCredentials || undefined,
       chatMode: true, // Ativa modo chat (preserva history)
       chatId: window.currentChatId, // Passa ID atual (null se novo)
       history: extractChatHistory(), // Passa histórico recuperado do DOM (contexto imediato)

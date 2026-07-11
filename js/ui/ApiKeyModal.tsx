@@ -44,17 +44,23 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
   const [hasGithub, setHasGithub] = useState(false);
   const [hasGroq, setHasGroq] = useState(false);
   const [hasPuter, setHasPuter] = useState(false);
+  const [hasVertex, setHasVertex] = useState(false);
 
   const [geminiInput, setGeminiInput] = useState('');
   const [githubInput, setGithubInput] = useState('');
   const [groqInput, setGroqInput] = useState('');
   const [puterInput, setPuterInput] = useState('');
+  
+  const [vertexProjectIdInput, setVertexProjectIdInput] = useState('');
+  const [vertexLocationInput, setVertexLocationInput] = useState('us-central1');
+  const [vertexCredentialsInput, setVertexCredentialsInput] = useState('');
 
   const [isLoadingGemini, setIsLoadingGemini] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [groqError, setGroqError] = useState<string | null>(null);
   const [puterError, setPuterError] = useState<string | null>(null);
+  const [vertexError, setVertexError] = useState<string | null>(null);
 
   const [termsChecked, setTermsChecked] = useState(false);
 
@@ -63,6 +69,7 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
     setHasGithub(!!sessionStorage.getItem('GITHUB_PAT_KEY'));
     setHasGroq(!!sessionStorage.getItem('GROQ_API_KEY'));
     setHasPuter(!!sessionStorage.getItem('PUTER_API_KEY'));
+    setHasVertex(!!sessionStorage.getItem('VERTEX_PROJECT_ID') && !!sessionStorage.getItem('VERTEX_CREDENTIALS'));
   }, []);
 
   const handleSaveGemini = async (e: React.FormEvent) => {
@@ -168,6 +175,52 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
     setHasPuter(false);
     setPuterInput('');
     customAlert('Chave Puter removida! O sistema voltará a usar o fluxo padrão do Puter.');
+  };
+
+  const handleSaveVertex = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!termsChecked) return;
+
+    const projectId = vertexProjectIdInput.trim();
+    const location = vertexLocationInput.trim() || 'us-central1';
+    const credentials = vertexCredentialsInput.trim();
+
+    if (!projectId) {
+      setVertexError('O ID do Projeto GCP é obrigatório.');
+      return;
+    }
+    if (!credentials) {
+      setVertexError('As credenciais do JSON da Conta de Serviço são obrigatórias.');
+      return;
+    }
+
+    try {
+      JSON.parse(credentials);
+    } catch (err) {
+      setVertexError('O JSON da Conta de Serviço parece inválido. Certifique-se de copiar todo o conteúdo do arquivo .json.');
+      return;
+    }
+
+    sessionStorage.setItem('VERTEX_PROJECT_ID', projectId);
+    sessionStorage.setItem('VERTEX_LOCATION', location);
+    sessionStorage.setItem('VERTEX_CREDENTIALS', credentials);
+    setHasVertex(true);
+    setVertexProjectIdInput('');
+    setVertexLocationInput('us-central1');
+    setVertexCredentialsInput('');
+    setVertexError(null);
+    mostrarToastSucesso('Configurações do Vertex AI salvas com sucesso!');
+  };
+
+  const handleRemoveVertex = () => {
+    sessionStorage.removeItem('VERTEX_PROJECT_ID');
+    sessionStorage.removeItem('VERTEX_LOCATION');
+    sessionStorage.removeItem('VERTEX_CREDENTIALS');
+    setHasVertex(false);
+    setVertexProjectIdInput('');
+    setVertexLocationInput('us-central1');
+    setVertexCredentialsInput('');
+    customAlert('Configurações do Vertex AI removidas! O sistema voltará a usar o fluxo padrão do Gemini.');
   };
 
   return (
@@ -374,6 +427,96 @@ const ApiKeyModalComponent: React.FC<ModalProps> = ({ onClose }) => {
                   </div>
                   <button type="submit" className="btn btn--primary" disabled={!termsChecked} style={{ padding: '8px', opacity: !termsChecked ? 0.5 : 1 }}>
                     Salvar Chave Puter
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Seção 5: Google Cloud Vertex AI */}
+            <div style={{ padding: '16px', background: 'var(--color-bg-2)', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                ☁️ Google Cloud Vertex AI
+              </h3>
+              <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
+                Use sua conta do Google Cloud e credenciais da Vertex AI por meio de uma Conta de Serviço.
+              </p>
+              
+              {/* Alerta de perigo de segurança sugerido */}
+              <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
+                <strong style={{ color: '#ef4444', display: 'block', marginBottom: '4px' }}>🔒 Segurança da Conta de Serviço:</strong>
+                <ul style={{ margin: 0, paddingLeft: '14px', textAlign: 'left', lineHeight: 1.4 }}>
+                  <li><strong>NUNCA</strong> cole o JSON de uma conta com acesso de Proprietário (Owner) ou Administrador Geral.</li>
+                  <li>Crie uma Conta de Serviço limitada e atribua a ela exclusivamente a permissão de <strong>Usuário do Vertex AI (Vertex AI User / `roles/aiplatform.user`)</strong>.</li>
+                </ul>
+              </div>
+
+              {hasVertex ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '10px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 600 }}>
+                    ✅ Vertex AI Ativo e Configurado
+                    <div style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', marginTop: '4px', fontWeight: 'normal', lineHeight: 1.4 }}>
+                      <strong>Project ID:</strong> {sessionStorage.getItem('VERTEX_PROJECT_ID')}<br/>
+                      <strong>Região:</strong> {sessionStorage.getItem('VERTEX_LOCATION') || 'us-central1'}
+                    </div>
+                  </div>
+                  <button type="button" onClick={handleRemoveVertex} className="btn btn--outline-danger btn--full-width" style={{ padding: '8px' }}>
+                    Remover Configurações do Vertex AI
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveVertex} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', display: 'block' }}>GCP Project ID</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ex: meu-projeto-gcp-123"
+                      value={vertexProjectIdInput}
+                      onChange={(e) => {
+                        setVertexProjectIdInput(e.target.value);
+                        setVertexError(null);
+                      }}
+                      style={vertexError ? { borderColor: 'var(--color-error)' } : {}}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', display: 'block' }}>GCP Region/Location</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ex: us-central1"
+                      value={vertexLocationInput}
+                      onChange={(e) => {
+                        setVertexLocationInput(e.target.value);
+                        setVertexError(null);
+                      }}
+                      style={vertexError ? { borderColor: 'var(--color-error)' } : {}}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px', display: 'block' }}>JSON da Conta de Serviço</label>
+                    <textarea
+                      className="form-control"
+                      rows={4}
+                      placeholder='Cole o conteúdo do arquivo .json completo aqui...'
+                      value={vertexCredentialsInput}
+                      onChange={(e) => {
+                        setVertexCredentialsInput(e.target.value);
+                        setVertexError(null);
+                      }}
+                      style={{ 
+                        fontFamily: 'monospace', 
+                        fontSize: '0.75rem',
+                        ...(vertexError ? { borderColor: 'var(--color-error)' } : {})
+                      }}
+                    />
+                    {vertexError && <span className="error-message" style={{ fontSize: '0.7rem', display: 'block', marginTop: '4px' }}>{vertexError}</span>}
+                  </div>
+
+                  <button type="submit" className="btn btn--primary" disabled={!termsChecked} style={{ padding: '8px', opacity: !termsChecked ? 0.5 : 1 }}>
+                    Salvar Configurações do Vertex AI
                   </button>
                 </form>
               )}

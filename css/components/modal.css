@@ -51,7 +51,6 @@
 .modal-body p {
   color: var(--color-text-secondary);
   font-size: var(--font-size-base);
-  text-align: center;
   line-height: 1.6;
   margin-bottom: var(--space-20);
 }

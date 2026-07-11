@@ -12,6 +12,7 @@ interface IAModel {
   speed: number;
   reasoningText: string;
   speedText: string;
+  vertexModelId?: string;
   // Propriedades opcionais vindas do Puter
   isPuterModel?: boolean;
   provider?: string;
@@ -221,6 +222,91 @@ export const IA_MODELS: IAModel[] = [
     reasoningText: "Médio",
     speedText: "Rápido"
   },
+  // Google Vertex AI
+  {
+    id: "vertex/gemini-3.5-flash",
+    title: "Gemini 3.5 Flash (Vertex)",
+    desc: "Equilíbrio perfeito de velocidade e inteligência via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 4,
+    speed: 5,
+    reasoningText: "Muito Alto",
+    speedText: "Muito Rápido",
+    vertexModelId: "gemini-3.5-flash@google/gemini-3.5-flash"
+  },
+  {
+    id: "vertex/gemini-3-flash-preview",
+    title: "Gemini 3 Flash (Preview) (Vertex)",
+    desc: "Modelo ágil para prototipagem rápida via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 3,
+    speed: 4,
+    reasoningText: "Médio",
+    speedText: "Rápido",
+    vertexModelId: "gemini-3-flash-preview@google/gemini-3-flash-preview"
+  },
+  {
+    id: "vertex/gemini-3.1-flash-lite",
+    title: "Gemini 3.1 Flash Lite (Vertex)",
+    desc: "Excelente eficiência e velocidade extrema via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 2,
+    speed: 5,
+    reasoningText: "Básico",
+    speedText: "Muito Rápido",
+    vertexModelId: "gemini-3.1-flash-lite@google/gemini-3.1-flash-lite"
+  },
+  {
+    id: "vertex/gemini-2.5-flash",
+    title: "Gemini 2.5 Flash (Vertex)",
+    desc: "Modelo estável de uso geral via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 3,
+    speed: 4,
+    reasoningText: "Médio",
+    speedText: "Rápido",
+    vertexModelId: "gemini-2.5-flash@google/gemini-2.5-flash"
+  },
+  {
+    id: "vertex/gemini-2.5-flash-lite",
+    title: "Gemini 2.5 Flash Lite (Vertex)",
+    desc: "Leve, dinâmico e otimizado via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 2,
+    speed: 5,
+    reasoningText: "Básico",
+    speedText: "Muito Rápido",
+    vertexModelId: "gemini-2.5-flash-lite@google/gemini-2.5-flash-lite"
+  },
+  {
+    id: "vertex/gemma-4-31b-it",
+    title: "Gemma 4 31B IT (Vertex)",
+    desc: "Modelo aberto de grande porte para raciocínio lógico e preciso via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 4,
+    speed: 3,
+    reasoningText: "Alto",
+    speedText: "Médio",
+    vertexModelId: "gemma4@gemma-4-31b-it"
+  },
+  {
+    id: "vertex/gemma-4-26b-a4b-it",
+    title: "Gemma 4 26B a4b IT (Vertex)",
+    desc: "Arquitetura otimizada para processamento rápido via Vertex AI",
+    category: "Google Vertex AI",
+    logo: GEMINI_LOGO,
+    reasoning: 3,
+    speed: 4,
+    reasoningText: "Médio",
+    speedText: "Rápido",
+    vertexModelId: "gemma4@gemma-4-26b-a4b-it"
+  },
   // OpenAI (GitHub Models)
   {
     id: "github/gpt-5",
@@ -359,7 +445,7 @@ export const IA_MODELS: IAModel[] = [
 
 type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' | 'title' |
   'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
-  'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect';
+  'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect' | 'image_descriptor';
 
 interface TabConfig {
   id: TabId;
@@ -487,7 +573,8 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   extractor_ocr: 'models/gemini-3.5-flash',
   extractor_search: 'models/gemini-3.5-flash',
   extractor_gabarito: 'models/gemini-3.5-flash',
-  extractor_image_detect: 'models/gemini-3.5-flash'
+  extractor_image_detect: 'models/gemini-3.5-flash',
+  image_descriptor: 'models/gemma-4-31b-it'
 };
 
 export function modelSupportsVision(modelId: string): boolean {
@@ -533,7 +620,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '', title: '',
     scanner_detect: '', scanner_audit: '', scanner_correct: '',
     extractor_ocr: '', extractor_search: '', extractor_gabarito: '',
-    extractor_image_detect: ''
+    extractor_image_detect: '', image_descriptor: ''
   });
 
   const [puterModels, setPuterModels] = useState<IAModel[]>([]);
@@ -541,6 +628,16 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   const [puterError, setPuterError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPuterSignedIn, setIsPuterSignedIn] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+
+  const categoryFilters = [
+    { id: 'all', label: 'Todos' },
+    { id: 'google-gemini', label: 'Google Gemini' },
+    { id: 'google-vertex-ai', label: 'Google Vertex AI' },
+    { id: 'openai', label: 'OpenAI' },
+    { id: 'groq', label: 'Groq' },
+    { id: 'puter', label: 'Puter' }
+  ];
 
   const selectedModelId = selections[activeTab];
   const isPuterSelected = selectedModelId?.startsWith("puter/");
@@ -570,7 +667,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       extractor_ocr: getVal('selectedModelExtractorOcr', DEFAULT_MODELS.extractor_ocr),
       extractor_search: getVal('selectedModelExtractorSearch', DEFAULT_MODELS.extractor_search),
       extractor_gabarito: getVal('selectedModelExtractorGabarito', DEFAULT_MODELS.extractor_gabarito),
-      extractor_image_detect: getVal('selectedModelExtractorImageDetect', DEFAULT_MODELS.extractor_image_detect)
+      extractor_image_detect: getVal('selectedModelExtractorImageDetect', DEFAULT_MODELS.extractor_image_detect),
+      image_descriptor: getVal('selectedModelImageDescriptor', DEFAULT_MODELS.image_descriptor)
     });
 
     const initPuter = async () => {
@@ -664,7 +762,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         search: DEFAULT_MODELS.search,
         corrector: DEFAULT_MODELS.corrector,
         scaffolding: DEFAULT_MODELS.scaffolding,
-        title: DEFAULT_MODELS.title
+        title: DEFAULT_MODELS.title,
+        image_descriptor: DEFAULT_MODELS.image_descriptor
       }));
     }
   };
@@ -687,6 +786,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         (window as any).selectedModelCorrector = selections.corrector;
         (window as any).selectedModelScaffolding = selections.scaffolding;
         (window as any).selectedModelTitle = selections.title;
+        (window as any).selectedModelImageDescriptor = selections.image_descriptor;
         (window as any).selectedSpecificModel = selections.chat; // keep legacy selectedSpecificModel updated
       }
     }
@@ -708,6 +808,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       localStorage.setItem('selectedModelCorrector', selections.corrector);
       localStorage.setItem('selectedModelScaffolding', selections.scaffolding);
       localStorage.setItem('selectedModelTitle', selections.title);
+      localStorage.setItem('selectedModelImageDescriptor', selections.image_descriptor);
       onSelect(mode === 'corrector' ? selections.corrector : selections.chat);
     }
     onClose();
@@ -717,23 +818,48 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   const allModels = [...IA_MODELS, ...puterModels];
 
   const filteredModels = allModels.filter(model => {
-    // 1. Filtrar por suporte a visão (multimodal)
-    if (!modelSupportsVision(model.id)) {
+    // Excluir o próprio gpt-oss-120b do descritor de imagens
+    if (activeTab === 'image_descriptor' && model.id === 'groq/gpt-oss-120b') {
       return false;
     }
 
-    // 2. Se for aba de pesquisa, aplicar regras estritas de filtragem
+    // 1. Filtrar por suporte a visão (multimodal) - exceto para o descritor de imagens
+    if (activeTab !== 'image_descriptor' && !modelSupportsVision(model.id)) {
+      return false;
+    }
+
+    // 2. Filtrar por categoria (Tab ativa no modal)
+    if (activeCategory !== 'all') {
+      if (activeCategory === 'google-gemini' && model.category !== 'Google Gemini') {
+        return false;
+      }
+      if (activeCategory === 'google-vertex-ai' && model.category !== 'Google Vertex AI') {
+        return false;
+      }
+      if (activeCategory === 'openai' && model.category !== 'OpenAI (GitHub Models)') {
+        return false;
+      }
+      if (activeCategory === 'groq' && model.category !== 'Groq') {
+        return false;
+      }
+      if (activeCategory === 'puter' && !model.category.startsWith('Puter') && !model.isPuterModel) {
+        return false;
+      }
+    }
+
+    // 3. Se for aba de pesquisa, aplicar regras estritas de filtragem
     if (isSearchActiveTab) {
       const idLower = model.id.toLowerCase();
       const categoryLower = model.category.toLowerCase();
 
-      // Regra 1: Permitir apenas os modelos Google do site (models/gemini... ou models/gemma...)
+      // Regra 1: Permitir apenas os modelos Google do site (models/gemini... ou models/gemma... ou vertex/...)
       const isGoogle = idLower.startsWith('models/gemini') ||
         idLower.startsWith('models/gemma') ||
-        categoryLower.includes('google');
+        idLower.startsWith('vertex/') ||
+        categoryLower.includes('google') ||
+        categoryLower.includes('vertex');
 
-      // Regra 2: Permitir modelos GPT/Azure/OpenAI do Puter, inspecionando IDs e payloads esperados
-      // Bloqueia explicitamente o OpenRouter para evitar que passe pelas tags de texto
+      // Regra 2: Permitir modelos GPT/Azure/OpenAI do Puter...
       const isPuterAllowedGPT = idLower.startsWith('puter/') &&
         !idLower.includes('openrouter') &&
         !categoryLower.includes('openrouter') &&
@@ -745,13 +871,12 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
           idLower.includes('responses')
         );
 
-      // Se não se enquadrar no Google nativo nem nos modelos OpenAI/Azure autorizados do Puter, bloqueia tudo o resto
       if (!isGoogle && !isPuterAllowedGPT) {
         return false;
       }
     }
 
-    // 3. Filtrar por busca textual
+    // 4. Filtrar por busca textual
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
       return (
@@ -792,12 +917,25 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     });
   };
 
-  const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive);
-  const filteredStages = mode === 'extractor'
+  const isGptOssSelected = selections.chat === 'groq/gpt-oss-120b';
+  const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
+  const baseStages = mode === 'extractor'
     ? EXTRACTOR_STAGES_CONFIG
     : (mode === 'corrector'
       ? STAGES_CONFIG.filter(s => s.id === 'corrector')
       : (isMaiaActive ? STAGES_CONFIG : STAGES_CONFIG.filter(s => s.id === 'chat')));
+
+  const filteredStages = [...baseStages];
+  if (isGptOssSelected && mode === 'chat' && !filteredStages.some(s => s.id === 'image_descriptor')) {
+    filteredStages.push({
+      id: 'image_descriptor' as any,
+      label: 'Descritor de Imagem',
+      icon: '🖼️',
+      title: '🖼️ Descritor de Imagem (para GPT-OSS 120B)',
+      desc: 'Selecione o modelo que analisará e descreverá as imagens para o GPT-OSS 120B.'
+    });
+  }
+
   const currentActiveStage = filteredStages.find(s => s.id === activeTab);
   const currentSelectedId = getSelectedIdForTab(activeTab);
 
@@ -1058,6 +1196,34 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                     </button>
                   </div>
                 )}
+
+                {/* Category Filter Tabs */}
+                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '4px' }} className="category-tabs">
+                  {categoryFilters.map(filter => {
+                    const isActive = activeCategory === filter.id;
+                    return (
+                      <button
+                        key={filter.id}
+                        type="button"
+                        onClick={() => setActiveCategory(filter.id)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid ' + (isActive ? 'rgba(139, 92, 246, 0.4)' : 'var(--color-border)'),
+                          background: isActive ? 'rgba(139, 92, 246, 0.12)' : 'var(--color-bg-2)',
+                          color: isActive ? '#a78bfa' : 'var(--color-text-secondary)',
+                          fontSize: '0.78rem',
+                          fontWeight: isActive ? 600 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {filter.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
                 {/* Search Bar */}
                 <div style={{ display: 'flex', gap: '8px' }}>
