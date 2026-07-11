@@ -96,7 +96,7 @@ export const CHAT_CONFIG = {
       description: "Equilíbrio perfeito de velocidade e inteligência via Vertex AI",
       usesRouter: false,
       model: "vertex/gemini-3.5-flash",
-      vertexModelId: "gemini-3.5-flash@google/gemini-3.5-flash",
+      vertexModelId: "publishers/google/models/gemini-3.5-flash",
     },
     "vertex/gemini-3-flash-preview": {
       id: "vertex/gemini-3-flash-preview",
@@ -104,7 +104,7 @@ export const CHAT_CONFIG = {
       description: "Modelo flash rápido de testes via Vertex AI",
       usesRouter: false,
       model: "vertex/gemini-3-flash-preview",
-      vertexModelId: "gemini-3-flash-preview@google/gemini-3-flash-preview",
+      vertexModelId: "publishers/google/models/gemini-3-flash-preview",
     },
     "vertex/gemini-3.1-flash-lite": {
       id: "vertex/gemini-3.1-flash-lite",
@@ -112,7 +112,7 @@ export const CHAT_CONFIG = {
       description: "Super leve e ultra veloz via Vertex AI",
       usesRouter: false,
       model: "vertex/gemini-3.1-flash-lite",
-      vertexModelId: "gemini-3.1-flash-lite@google/gemini-3.1-flash-lite",
+      vertexModelId: "publishers/google/models/gemini-3.1-flash-lite",
     },
     "vertex/gemini-2.5-flash": {
       id: "vertex/gemini-2.5-flash",
@@ -120,7 +120,7 @@ export const CHAT_CONFIG = {
       description: "Modelo flash legado estável via Vertex AI",
       usesRouter: false,
       model: "vertex/gemini-2.5-flash",
-      vertexModelId: "gemini-2.5-flash@google/gemini-2.5-flash",
+      vertexModelId: "publishers/google/models/gemini-2.5-flash",
     },
     "vertex/gemini-2.5-flash-lite": {
       id: "vertex/gemini-2.5-flash-lite",
@@ -128,23 +128,7 @@ export const CHAT_CONFIG = {
       description: "Modelo de entrada extremamente ágil via Vertex AI",
       usesRouter: false,
       model: "vertex/gemini-2.5-flash-lite",
-      vertexModelId: "gemini-2.5-flash-lite@google/gemini-2.5-flash-lite",
-    },
-    "vertex/gemma-4-31b-it": {
-      id: "vertex/gemma-4-31b-it",
-      label: "Gemma 4 31B IT (Vertex)",
-      description: "Modelo aberto Gemma avançado via Vertex AI",
-      usesRouter: false,
-      model: "vertex/gemma-4-31b-it",
-      vertexModelId: "gemma4@gemma-4-31b-it",
-    },
-    "vertex/gemma-4-26b-a4b-it": {
-      id: "vertex/gemma-4-26b-a4b-it",
-      label: "Gemma 4 26B a4b IT (Vertex)",
-      description: "Gemma com arquitetura otimizada via Vertex AI",
-      usesRouter: false,
-      model: "vertex/gemma-4-26b-a4b-it",
-      vertexModelId: "gemma4@gemma-4-26b-a4b-it",
+      vertexModelId: "publishers/google/models/gemini-2.5-flash-lite",
     },
     // Modelos OpenAI (GitHub Models)
     "github/gpt-5": {

@@ -233,7 +233,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 5,
     reasoningText: "Muito Alto",
     speedText: "Muito Rápido",
-    vertexModelId: "gemini-3.5-flash@google/gemini-3.5-flash"
+    vertexModelId: "publishers/google/models/gemini-3.5-flash"
   },
   {
     id: "vertex/gemini-3-flash-preview",
@@ -245,7 +245,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 4,
     reasoningText: "Médio",
     speedText: "Rápido",
-    vertexModelId: "gemini-3-flash-preview@google/gemini-3-flash-preview"
+    vertexModelId: "publishers/google/models/gemini-3-flash-preview"
   },
   {
     id: "vertex/gemini-3.1-flash-lite",
@@ -257,7 +257,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 5,
     reasoningText: "Básico",
     speedText: "Muito Rápido",
-    vertexModelId: "gemini-3.1-flash-lite@google/gemini-3.1-flash-lite"
+    vertexModelId: "publishers/google/models/gemini-3.1-flash-lite"
   },
   {
     id: "vertex/gemini-2.5-flash",
@@ -269,7 +269,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 4,
     reasoningText: "Médio",
     speedText: "Rápido",
-    vertexModelId: "gemini-2.5-flash@google/gemini-2.5-flash"
+    vertexModelId: "publishers/google/models/gemini-2.5-flash"
   },
   {
     id: "vertex/gemini-2.5-flash-lite",
@@ -281,31 +281,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 5,
     reasoningText: "Básico",
     speedText: "Muito Rápido",
-    vertexModelId: "gemini-2.5-flash-lite@google/gemini-2.5-flash-lite"
-  },
-  {
-    id: "vertex/gemma-4-31b-it",
-    title: "Gemma 4 31B IT (Vertex)",
-    desc: "Modelo aberto de grande porte para raciocínio lógico e preciso via Vertex AI",
-    category: "Google Vertex AI",
-    logo: GEMINI_LOGO,
-    reasoning: 4,
-    speed: 3,
-    reasoningText: "Alto",
-    speedText: "Médio",
-    vertexModelId: "gemma4@gemma-4-31b-it"
-  },
-  {
-    id: "vertex/gemma-4-26b-a4b-it",
-    title: "Gemma 4 26B a4b IT (Vertex)",
-    desc: "Arquitetura otimizada para processamento rápido via Vertex AI",
-    category: "Google Vertex AI",
-    logo: GEMINI_LOGO,
-    reasoning: 3,
-    speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido",
-    vertexModelId: "gemma4@gemma-4-26b-a4b-it"
+    vertexModelId: "publishers/google/models/gemini-2.5-flash-lite"
   },
   // OpenAI (GitHub Models)
   {
@@ -609,12 +585,6 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   );
   const isMaiaActive = typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
 
-  useEffect(() => {
-    if (mode === 'chat' && !isMaiaActive && activeTab !== 'chat') {
-      setActiveTab('chat');
-    }
-  }, [isMaiaActive, activeTab, mode]);
-
   // Model states
   const [selections, setSelections] = useState<Record<TabId, string>>({
     chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '', title: '',
@@ -622,6 +592,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     extractor_ocr: '', extractor_search: '', extractor_gabarito: '',
     extractor_image_detect: '', image_descriptor: ''
   });
+
+  useEffect(() => {
+    const isGptOss = selections.chat === 'groq/gpt-oss-120b';
+    if (mode === 'chat' && !isMaiaActive && activeTab !== 'chat' && !(isGptOss && activeTab === 'image_descriptor')) {
+      setActiveTab('chat');
+    }
+  }, [isMaiaActive, activeTab, mode, selections.chat]);
 
   const [puterModels, setPuterModels] = useState<IAModel[]>([]);
   const [isLoadingPuter, setIsLoadingPuter] = useState(false);

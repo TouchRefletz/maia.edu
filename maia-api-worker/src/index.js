@@ -1162,7 +1162,7 @@ async function handleGeminiGenerate(request, env) {
 
 				let stream;
 				const config = {
-					...((thinking && (modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it')) ? {
+					...((thinking && (modelo.includes('gemma-4') || modelo.includes('thinking'))) ? {
 						thinkingConfig: {
 							includeThoughts: true,
 							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
@@ -1666,7 +1666,7 @@ async function handleGeminiSearch(request, env) {
 				const generationConfig = {
 					tools: [{ googleSearch: {} }],
 					safetySettings,
-					...((modelo.includes('gemini-') || modelo === 'models/gemma-4-31b-it' || modelo === 'models/gemma-4-26b-a4b-it') ? {
+					...((modelo.includes('gemma-4') || modelo.includes('thinking')) ? {
 						thinkingConfig: {
 							includeThoughts: true,
 							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
@@ -3433,19 +3433,15 @@ async function describeImageWithModel(img, promptDescrever, descriptorModel, bod
 	let modelToUse = descriptorModel;
 	if (isVertex) {
 		if (descriptorModel === 'vertex/gemini-3.5-flash') {
-			modelToUse = 'gemini-3.5-flash@google/gemini-3.5-flash';
+			modelToUse = 'publishers/google/models/gemini-3.5-flash';
 		} else if (descriptorModel === 'vertex/gemini-3-flash-preview') {
-			modelToUse = 'gemini-3-flash-preview@google/gemini-3-flash-preview';
+			modelToUse = 'publishers/google/models/gemini-3-flash-preview';
 		} else if (descriptorModel === 'vertex/gemini-3.1-flash-lite') {
-			modelToUse = 'gemini-3.1-flash-lite@google/gemini-3.1-flash-lite';
+			modelToUse = 'publishers/google/models/gemini-3.1-flash-lite';
 		} else if (descriptorModel === 'vertex/gemini-2.5-flash') {
-			modelToUse = 'gemini-2.5-flash@google/gemini-2.5-flash';
+			modelToUse = 'publishers/google/models/gemini-2.5-flash';
 		} else if (descriptorModel === 'vertex/gemini-2.5-flash-lite') {
-			modelToUse = 'gemini-2.5-flash-lite@google/gemini-2.5-flash-lite';
-		} else if (descriptorModel === 'vertex/gemma-4-31b-it') {
-			modelToUse = 'gemma4@gemma-4-31b-it';
-		} else if (descriptorModel === 'vertex/gemma-4-26b-a4b-it') {
-			modelToUse = 'gemma4@gemma-4-26b-a4b-it';
+			modelToUse = 'publishers/google/models/gemini-2.5-flash-lite';
 		} else {
 			modelToUse = descriptorModel.replace(/^vertex\//, '');
 		}
