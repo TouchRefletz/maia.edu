@@ -419,6 +419,7 @@ export function getProxyPdfUrl(rawUrl) {
  */
 export async function callWorker(endpoint, body) {
   try {
+    const isVertexModel = !body.model || body.model.startsWith("vertex/");
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
       method: "POST",
       headers: {
@@ -432,9 +433,15 @@ export async function callWorker(endpoint, body) {
           sessionStorage.getItem("githubApiKey") ||
           undefined,
         groqApiKey: sessionStorage.getItem("GROQ_API_KEY") || undefined,
-        vertexProjectId: sessionStorage.getItem("VERTEX_PROJECT_ID") || undefined,
-        vertexLocation: sessionStorage.getItem("VERTEX_LOCATION") || undefined,
-        vertexCredentials: sessionStorage.getItem("VERTEX_CREDENTIALS") || undefined,
+        vertexProjectId: isVertexModel
+          ? sessionStorage.getItem("VERTEX_PROJECT_ID") || undefined
+          : undefined,
+        vertexLocation: isVertexModel
+          ? sessionStorage.getItem("VERTEX_LOCATION") || undefined
+          : undefined,
+        vertexCredentials: isVertexModel
+          ? sessionStorage.getItem("VERTEX_CREDENTIALS") || undefined
+          : undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
       }),
@@ -584,12 +591,16 @@ export async function gerarConteudoEmJSONComImagemStream(
         sessionStorage.getItem("githubApiKey");
       const customGroqKey =
         options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
-      const customVertexProjectId =
-        options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID");
-      const customVertexLocation =
-        options.vertexLocation || sessionStorage.getItem("VERTEX_LOCATION");
-      const customVertexCredentials =
-        options.vertexCredentials || sessionStorage.getItem("VERTEX_CREDENTIALS");
+      const isVertexModel = !options.model || options.model.startsWith("vertex/");
+      const customVertexProjectId = isVertexModel
+        ? options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID")
+        : undefined;
+      const customVertexLocation = isVertexModel
+        ? options.vertexLocation || sessionStorage.getItem("VERTEX_LOCATION")
+        : undefined;
+      const customVertexCredentials = isVertexModel
+        ? options.vertexCredentials || sessionStorage.getItem("VERTEX_CREDENTIALS")
+        : undefined;
       console.log(
         `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}, Vertex AI present: ${!!customVertexProjectId}`,
       );
@@ -1063,6 +1074,8 @@ export async function realizarPesquisa(
 
   handlers?.onStatus?.("Conectando ao Researcher...");
 
+  const isVertexModel = !model || model.startsWith("vertex/");
+
   try {
     const response = await fetch(`${WORKER_URL}/search`, {
       method: "POST",
@@ -1083,15 +1096,15 @@ export async function realizarPesquisa(
             ? sessionStorage.getItem("GROQ_API_KEY")
             : undefined,
         vertexProjectId:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_PROJECT_ID")
             : undefined,
         vertexLocation:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_LOCATION")
             : undefined,
         vertexCredentials:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_CREDENTIALS")
             : undefined,
         texto,
@@ -1253,6 +1266,8 @@ export async function realizarPesquisaGeral(
 
   handlers?.onStatus?.("Conectando ao sistema de pesquisa profunda...");
 
+  const isVertexModel = !model || model.startsWith("vertex/");
+
   try {
     const response = await fetch(`${WORKER_URL}/search`, {
       method: "POST",
@@ -1273,15 +1288,15 @@ export async function realizarPesquisaGeral(
             ? sessionStorage.getItem("GROQ_API_KEY")
             : undefined,
         vertexProjectId:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_PROJECT_ID")
             : undefined,
         vertexLocation:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_LOCATION")
             : undefined,
         vertexCredentials:
-          typeof sessionStorage !== "undefined"
+          isVertexModel && typeof sessionStorage !== "undefined"
             ? sessionStorage.getItem("VERTEX_CREDENTIALS")
             : undefined,
         texto,

@@ -1010,34 +1010,38 @@ async function handleGeminiGenerate(request, env) {
 
 	const useVertex = model ? model.startsWith('vertex/') : !!(vertexProjectId && vertexCredentials);
 
-	let client;
-	try {
-		if (useVertex) {
-			if (!vertexProjectId || !vertexCredentials) {
-				throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models.');
-			}
-			client = new GoogleGenAI({
-				vertexai: true,
-				project: vertexProjectId,
-				location: vertexLocation || 'us-central1',
-				googleAuthOptions: {
-					credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
-				},
-				httpOptions: { timeout: 300000 },
-			});
-		} else {
-			const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
-			if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+	let clientAIStudio = null;
+	let clientVertex = null;
 
-			client = new GoogleGenAI({
-				apiKey: finalApiKey,
-				httpOptions: { timeout: 300000 },
-			});
+	const getClient = (useVertexForAttempt) => {
+		if (useVertexForAttempt) {
+			if (!clientVertex) {
+				if (!vertexProjectId || !vertexCredentials) {
+					throw new Error('Vertex AI project ID and credentials must be configured to use Vertex AI.');
+				}
+				clientVertex = new GoogleGenAI({
+					vertexai: true,
+					project: vertexProjectId,
+					location: vertexLocation || 'us-central1',
+					googleAuthOptions: {
+						credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
+					},
+					httpOptions: { timeout: 300000 },
+				});
+			}
+			return clientVertex;
+		} else {
+			if (!clientAIStudio) {
+				const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+				if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+				clientAIStudio = new GoogleGenAI({
+					apiKey: finalApiKey,
+					httpOptions: { timeout: 300000 },
+				});
+			}
+			return clientAIStudio;
 		}
-	} catch (initError) {
-		console.error('[GoogleGenAI Client Init Error]:', initError);
-		throw initError;
-	}
+	};
 
 	// Modelos iniciais: Se o usuário/cliente solicitou um modelo específico, respeita e tenta APENAS ele.
 	let initialModels;
@@ -1134,8 +1138,11 @@ async function handleGeminiGenerate(request, env) {
 			const modelo = queue.shift();
 			attempt += 1;
 
+			const useVertexForAttempt = modelo.startsWith('vertex/') || 
+				(modelo.startsWith('models/') && !modelo.toLowerCase().includes('gemma') && useVertex);
+
 			attemptHistory.push({ attempt, model: modelo, status: 'started' });
-			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo, vertex: !!(vertexProjectId && vertexCredentials) });
+			await writeNdjson({ type: 'meta', event: 'attempt_start', attempt, model: modelo, vertex: useVertexForAttempt });
 
 			let wroteSomethingThisAttempt = false;
 			const wrappedWriteNdjson = async (obj) => {
@@ -1165,7 +1172,6 @@ async function handleGeminiGenerate(request, env) {
 					...((thinking && (modelo.includes('gemma-4') || modelo.includes('thinking'))) ? {
 						thinkingConfig: {
 							includeThoughts: true,
-							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
 						}
 					} : {}),
 					responseMimeType: jsonMode ? 'application/json' : undefined,
@@ -1181,7 +1187,7 @@ async function handleGeminiGenerate(request, env) {
 					delete config.responseJsonSchema;
 				}
 
-				const modelToUse = useVertex 
+				const modelToUse = useVertexForAttempt 
 					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
 					: modelo;
 
@@ -1193,9 +1199,10 @@ async function handleGeminiGenerate(request, env) {
 
 				// LOGGING FOR DEBUGGING
 				console.log("=================== WORKER INTERNAL EXECUTION ===================");
-				console.log(`[Modelo]: ${modelo} | [ModelToUse]: ${modelToUse} | [UseVertex]: ${useVertex}`);
+				console.log(`[Modelo]: ${modelo} | [ModelToUse]: ${modelToUse} | [UseVertexForAttempt]: ${useVertexForAttempt}`);
 				console.log(`[SystemInstruction (Raw)]:`, systemInstruction);
 				console.log(`[SystemInstruction (Config)]:`, JSON.stringify(systemInstructionConfig, null, 2));
+				console.log(`[Config]:`, JSON.stringify(config, null, 2));
 				console.log("=================================================================");
 
 				await writeNdjson({
@@ -1204,6 +1211,8 @@ async function handleGeminiGenerate(request, env) {
 					model: modelo,
 					text: `[Worker Gen] SystemInstruction Configured: ${JSON.stringify(systemInstructionConfig)}`
 				});
+
+				const client = getClient(useVertexForAttempt);
 
 				if (chatMode) {
 					// NOTE: create() config usually takes systemInstruction, tools, etc.
@@ -1592,29 +1601,38 @@ async function handleGeminiSearch(request, env) {
 
 	const useVertex = model ? model.startsWith('vertex/') : !!(vertexProjectId && vertexCredentials);
 
-	let client;
-	if (useVertex) {
-		if (!vertexProjectId || !vertexCredentials) {
-			throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models.');
-		}
-		client = new GoogleGenAI({
-			vertexai: true,
-			project: vertexProjectId,
-			location: vertexLocation || 'us-central1',
-			googleAuthOptions: {
-				credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
-			},
-			httpOptions: { timeout: 300000 },
-		});
-	} else {
-		const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
-		if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+	let clientAIStudio = null;
+	let clientVertex = null;
 
-		client = new GoogleGenAI({
-			apiKey: finalApiKey,
-			httpOptions: { timeout: 300000 },
-		});
-	}
+	const getClient = (useVertexForAttempt) => {
+		if (useVertexForAttempt) {
+			if (!clientVertex) {
+				if (!vertexProjectId || !vertexCredentials) {
+					throw new Error('Vertex AI project ID and credentials must be configured to use Vertex AI.');
+				}
+				clientVertex = new GoogleGenAI({
+					vertexai: true,
+					project: vertexProjectId,
+					location: vertexLocation || 'us-central1',
+					googleAuthOptions: {
+						credentials: typeof vertexCredentials === 'string' ? JSON.parse(vertexCredentials) : vertexCredentials,
+					},
+					httpOptions: { timeout: 300000 },
+				});
+			}
+			return clientVertex;
+		} else {
+			if (!clientAIStudio) {
+				const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
+				if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
+				clientAIStudio = new GoogleGenAI({
+					apiKey: finalApiKey,
+					httpOptions: { timeout: 300000 },
+				});
+			}
+			return clientAIStudio;
+		}
+	};
 
 	// Modelos iniciais
 	const initialModels = model ? [model] : DEFAULT_MODELS;
@@ -1686,8 +1704,11 @@ async function handleGeminiSearch(request, env) {
 		while (queue.length > 0) {
 			const modelo = queue.shift();
 
+			const useVertexForAttempt = modelo.startsWith('vertex/') || 
+				(modelo.startsWith('models/') && !modelo.toLowerCase().includes('gemma') && useVertex);
+
 			try {
-				await writeNdjson({ type: 'meta', event: 'attempt_start', model: modelo, vertex: !!(vertexProjectId && vertexCredentials) });
+				await writeNdjson({ type: 'meta', event: 'attempt_start', model: modelo, vertex: useVertexForAttempt });
 
 				const generationConfig = {
 					tools: [{ googleSearch: {} }],
@@ -1695,7 +1716,6 @@ async function handleGeminiSearch(request, env) {
 					...((modelo.includes('gemma-4') || modelo.includes('thinking')) ? {
 						thinkingConfig: {
 							includeThoughts: true,
-							...(modelo.includes('gemma-4') ? { thinkingLevel: 'HIGH' } : {}),
 						}
 					} : {}),
 				};
@@ -1705,9 +1725,17 @@ async function handleGeminiSearch(request, env) {
 					generationConfig.responseSchema = schema;
 				}
 
-				const modelToUse = useVertex 
+				const modelToUse = useVertexForAttempt 
 					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
 					: modelo;
+				
+				// LOGGING FOR DEBUGGING
+				console.log("=================== WORKER INTERNAL SEARCH ===================");
+				console.log(`[Modelo]: ${modelo} | [ModelToUse]: ${modelToUse} | [UseVertexForAttempt]: ${useVertexForAttempt}`);
+				console.log(`[GenerationConfig]:`, JSON.stringify(generationConfig, null, 2));
+				console.log("==============================================================");
+
+				const client = getClient(useVertexForAttempt);
 				const stream = await client.models.generateContentStream({
 					model: modelToUse,
 					contents: [{ role: 'user', parts }],

@@ -195,6 +195,20 @@ export async function iniciarModoApendiceA() {
                 <span style="font-size: 0.75rem; color: var(--color-success); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">📊 Resposta da Avaliação (JSON)</span>
                 <pre id="evaluationJSONResponse" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 6px; padding: 10px; margin: 0; height: 180px; overflow-y: auto; font-size: 0.8rem; color: #a9ffaf; line-height: 1.4; white-space: pre-wrap;"></pre>
               </div>
+
+              <!-- Painel de Resultados Consolidados -->
+              <div id="evaluationResultsPanel" style="display: none; background: rgba(50, 184, 198, 0.1); border: 1px solid rgba(50, 184, 198, 0.3); border-radius: 6px; padding: 12px; flex-direction: column; gap: 8px;">
+                <span style="font-size: 0.8rem; font-weight: bold; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">🎯 Pontuação Consolidada (Weight Blinding)</span>
+                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--color-text);">
+                  <div style="display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 4px;">
+                    <span>Pontuação Total:</span>
+                    <span id="resTotalScore" style="color: var(--color-primary); font-size: 0.9rem;">0 / 100</span>
+                  </div>
+                  <div id="resGroupsList" style="display: flex; flex-direction: column; gap: 2px;">
+                    <!-- Notas por grupo injetadas aqui -->
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -617,9 +631,10 @@ export async function iniciarModoApendiceA() {
       const checkInter = document.getElementById("checkInterdisciplinaryApendiceA");
       const isInterdisciplinary = checkInter ? checkInter.checked : false;
 
-      const { executarAvaliacaoApendiceA } = await import("../chat/apendice-a-pipeline.js");
-
       statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Avaliando com ${judgeLabel}...`;
+      
+      const panel = document.getElementById("evaluationResultsPanel");
+      if (panel) panel.style.display = "none";
       
       thoughtsBox.textContent = `=== CADEIA DE RACIOCÍNIO DO JUIZ (${judgeLabel}) ===\n\n`;
       responseBox.textContent = `=== RESPOSTA ESTRUTURADA DA AVALIAÇÃO (${judgeLabel}) ===\n\n`;
@@ -633,6 +648,7 @@ export async function iniciarModoApendiceA() {
           thoughtsBox.scrollTop = thoughtsBox.scrollHeight;
         },
         onReset: () => {
+          if (panel) panel.style.display = "none";
           thoughtsBox.textContent = `=== CADEIA DE RACIOCÍNIO DO JUIZ (${judgeLabel}) ===\n\n`;
           responseBox.textContent = `=== RESPOSTA ESTRUTURADA DA AVALIAÇÃO (${judgeLabel}) ===\n\n`;
         },
@@ -642,44 +658,157 @@ export async function iniciarModoApendiceA() {
         }
       };
 
-      const result = await executarAvaliacaoApendiceA(
-        judgeId,
-        enunciado,
-        fullGabaritoRef,
-        respostaIA,
-        isInterdisciplinary,
-        handlers
-      );
+      let result;
+      if (judgeId.toLowerCase().includes("gemma")) {
+        const { executarAvaliacaoGemmaEmPartes } = await import("../chat/apendice-a-pipeline.js");
+        
+        let controlContainer = document.getElementById("gemmaControlContainer");
+        if (!controlContainer) {
+          controlContainer = document.createElement("div");
+          controlContainer.id = "gemmaControlContainer";
+          controlContainer.style.display = "none";
+          controlContainer.style.gap = "10px";
+          controlContainer.style.marginTop = "10px";
+          consoleArea.appendChild(controlContainer);
+        }
+
+        const onPartAction = (partNumber, status, errorMsg, partResult, latencyMs, systemInstruction, promptOriginal) => {
+          return new Promise((resolve) => {
+            const isLast = partNumber === 4;
+            controlContainer.style.display = "flex";
+            
+            if (status === "success") {
+              statusMsg.innerHTML = `<span style="color: var(--color-success); font-weight: bold;">✅ Parte ${partNumber}/4 concluída com sucesso!</span>`;
+              controlContainer.innerHTML = `
+                <button id="btnRetryPart" class="btn btn--outline" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid var(--color-border); background: none; color: var(--color-text); border-radius: 4px; cursor: pointer;">🔄 Gerar Novamente Parte ${partNumber}</button>
+                <button id="btnNextPart" class="btn btn--primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                  ${isLast ? "🏁 Concluir Avaliação" : `Avançar para Parte ${partNumber + 1} →`}
+                </button>
+              `;
+              
+              document.getElementById("btnRetryPart").onclick = () => {
+                controlContainer.style.display = "none";
+                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
+                resolve("retry");
+              };
+              document.getElementById("btnNextPart").onclick = () => {
+                controlContainer.style.display = "none";
+                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Salvando e carregando próxima etapa...`;
+                resolve("next");
+              };
+            } else {
+              statusMsg.innerHTML = `<span style="color: var(--color-error); font-weight: bold;">❌ Erro na Parte ${partNumber}/4: ${errorMsg}</span>`;
+              controlContainer.innerHTML = `
+                <button id="btnRetryPart" class="btn btn--primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">🔄 Tentar Novamente Parte ${partNumber}</button>
+                <button id="btnSkipPart" class="btn btn--outline" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid var(--color-border); background: none; color: var(--color-text); border-radius: 4px; cursor: pointer;">
+                  ${isLast ? "🏁 Concluir com Erro" : `Pular para Parte ${partNumber + 1} →`}
+                </button>
+              `;
+              
+              document.getElementById("btnRetryPart").onclick = () => {
+                controlContainer.style.display = "none";
+                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
+                resolve("retry");
+              };
+              document.getElementById("btnSkipPart").onclick = () => {
+                controlContainer.style.display = "none";
+                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Pulando Parte ${partNumber}...`;
+                resolve("next");
+              };
+            }
+          });
+        };
+
+        result = await executarAvaliacaoGemmaEmPartes(
+          judgeId,
+          enunciado,
+          fullGabaritoRef,
+          respostaIA,
+          isInterdisciplinary,
+          handlers,
+          onPartAction
+        );
+      } else {
+        const { executarAvaliacaoApendiceA } = await import("../chat/apendice-a-pipeline.js");
+        result = await executarAvaliacaoApendiceA(
+          judgeId,
+          enunciado,
+          fullGabaritoRef,
+          respostaIA,
+          isInterdisciplinary,
+          handlers
+        );
+      }
 
       const useMaia = document.getElementById("checkMaiaApendiceA").checked;
       const modelKey = judgeId.includes("gemini") ? "gemini_3_5_flash" :
                        judgeId.includes("gemma") ? "gemma_4_31b_it" : "o1";
 
-      const debugLog = {
-        session_id: state.uploadedJSON.session_id || "nova_sessao",
-        timestamp: new Date().toISOString(),
-        use_maia_architecture: useMaia,
-        model: judgeId,
-        prompt_original: result.prompt_original,
-        prompt_compiled: result.prompt_compiled,
-        images_attached: 0,
-        latency_ms: result.latency_ms,
-        routing_details: null,
-        rag_details: null,
-        search_details: null,
-        response_text: result.response_text,
-        avaliacao_juiz: {
-          [modelKey]: {
-            pontuacao_total: result.avaliacao_juiz.pontuacao_total,
-            notas_grupo: result.avaliacao_juiz.notas_grupo
-          }
+      let debugLog;
+      if (judgeId.toLowerCase().includes("gemma")) {
+        debugLog = [];
+        // Add 4 individual generation items
+        for (let i = 0; i < 4; i++) {
+          const detail = result.gemma_part_details[i];
+          debugLog.push({
+            session_id: state.uploadedJSON.session_id || "nova_sessao",
+            timestamp: new Date().toISOString(),
+            use_maia_architecture: useMaia,
+            model: judgeId,
+            prompt_original: detail.prompt_original,
+            prompt_compiled: detail.prompt_compiled,
+            images_attached: 0,
+            latency_ms: detail.latency_ms,
+            routing_details: null,
+            rag_details: null,
+            search_details: null,
+            response_text: detail.response_text
+          });
         }
-      };
+        // Add 5th summary item
+        debugLog.push({
+          total_latency_ms: result.latency_ms,
+          avaliacao_juiz: {
+            [modelKey]: {
+              pontuacao_total: result.avaliacao_juiz.pontuacao_total,
+              notas_grupo: result.avaliacao_juiz.notas_grupo
+            }
+          }
+        });
+      } else {
+        debugLog = {
+          session_id: state.uploadedJSON.session_id || "nova_sessao",
+          timestamp: new Date().toISOString(),
+          use_maia_architecture: useMaia,
+          model: judgeId,
+          prompt_original: result.prompt_original,
+          prompt_compiled: result.prompt_compiled,
+          images_attached: 0,
+          latency_ms: result.latency_ms,
+          routing_details: null,
+          rag_details: null,
+          search_details: null,
+          response_text: result.response_text,
+          avaliacao_juiz: {
+            [modelKey]: {
+              pontuacao_total: result.avaliacao_juiz.pontuacao_total,
+              notas_grupo: result.avaliacao_juiz.notas_grupo
+            }
+          }
+        };
+      }
 
       window.chatDebugLogs = window.chatDebugLogs || [];
       const msgIndex = window.chatDebugLogs.length + 1;
-      debugLog.msgIndex = msgIndex;
-      window.chatDebugLogs.push(debugLog);
+      if (Array.isArray(debugLog)) {
+        for (const item of debugLog) {
+          item.msgIndex = msgIndex;
+        }
+        window.chatDebugLogs.push(...debugLog);
+      } else {
+        debugLog.msgIndex = msgIndex;
+        window.chatDebugLogs.push(debugLog);
+      }
 
       const seen = new WeakSet();
       const safeJson = JSON.stringify(debugLog, (key, value) => {
@@ -694,18 +823,53 @@ export async function iniciarModoApendiceA() {
       const downloadAnchor = document.createElement("a");
       downloadAnchor.setAttribute("href", dataStr);
       
-      const formattedTime = debugLog.timestamp.replace(/[:.]/g, "-");
-      // Define o sufixo do arquivo .json que será baixado ao final do processo
+      const formattedTime = new Date().toISOString().replace(/[:.]/g, "-");
       const judgeSlug = judgeId === "vertex/gemini-3.5-flash" ? "gemini_3_5_flash_vertex" :
                         judgeId === "models/gemini-3.5-flash" ? "gemini_3_5_flash_aistudio" :
                         judgeId.includes("gemma") ? "gemma_4_31b_it" : "gpt_oss_120b";
-      const filename = `maia_debug_${debugLog.use_maia_architecture ? 'com' : 'sem'}_arq_${state.selectedQuestion.id}_${judgeSlug}_${formattedTime}.json`;
+      const filename = `maia_debug_${useMaia ? 'com' : 'sem'}_arq_${state.selectedQuestion.id}_${judgeSlug}_${formattedTime}.json`;
       downloadAnchor.setAttribute("download", filename);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
 
       statusMsg.innerHTML = `✅ Avaliação com ${judgeLabel} concluída e baixada com sucesso!`;
+
+      // Renderiza as notas consolidadas na interface do usuário
+      if (result.avaliacao_juiz) {
+        const totalScoreEl = document.getElementById("resTotalScore");
+        const groupsListEl = document.getElementById("resGroupsList");
+        
+        const maxScore = isInterdisciplinary ? 150 : 100;
+        totalScoreEl.textContent = `${result.avaliacao_juiz.pontuacao_total} / ${maxScore}`;
+        
+        const notas = result.avaliacao_juiz.notas_grupo || {};
+        let html = "";
+        
+        const labels = {
+          grupo_a: "Grupo A - Estética Básica (Máx: 7)",
+          grupo_b: "Grupo B - Factual e Interpretação (Máx: 14)",
+          grupo_c: "Grupo C - Didática e Pedagogia (Máx: 21)",
+          grupo_d: "Grupo D - Lógica e Eliminação (Máx: 28)",
+          grupo_e: "Grupo E - Engenharia Resolução (Máx: 30)"
+        };
+        
+        if (isInterdisciplinary) {
+          labels.grupo_f = "Grupo F - Interdisciplinar FUVEST (Máx: 50)";
+        }
+        
+        for (const key of Object.keys(labels)) {
+          const score = notas[key] !== undefined ? notas[key] : 0;
+          html += `
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; opacity: 0.9; margin-top: 2px;">
+              <span style="color: var(--color-text-secondary);">${labels[key]}:</span>
+              <span style="font-weight: bold; color: var(--color-text);">${score}</span>
+            </div>
+          `;
+        }
+        groupsListEl.innerHTML = html;
+        if (panel) panel.style.display = "flex";
+      }
 
     } catch (error) {
       console.error("Erro na avaliação cruzada:", error);
