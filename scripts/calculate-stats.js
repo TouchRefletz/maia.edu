@@ -40,6 +40,17 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
 
   // Se for o formato antigo (direto com critérios)
   if (avaliacaoJuiz.criterios) {
+    // Normaliza notas_grupo se for legado
+    if (!avaliacaoJuiz.notas_grupo) {
+      avaliacaoJuiz.notas_grupo = {
+        grupo_a: avaliacaoJuiz.criterios.grupo_a?.nota || avaliacaoJuiz.criterios.precisao?.nota || 0,
+        grupo_b: avaliacaoJuiz.criterios.grupo_b?.nota || avaliacaoJuiz.criterios.rigor_teorico?.nota || 0,
+        grupo_c: avaliacaoJuiz.criterios.grupo_c?.nota || avaliacaoJuiz.criterios.coesao_logica?.nota || 0,
+        grupo_d: avaliacaoJuiz.criterios.grupo_d?.nota || avaliacaoJuiz.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: avaliacaoJuiz.criterios.grupo_e?.nota || avaliacaoJuiz.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: avaliacaoJuiz.criterios.grupo_f?.nota || avaliacaoJuiz.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
     return avaliacaoJuiz;
   }
 
@@ -51,7 +62,18 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
 
   // Se o usuário especificou um modelo e ele está presente
   if (modelSelector !== "average" && avaliacaoJuiz[modelSelector]) {
-    return avaliacaoJuiz[modelSelector];
+    const data = avaliacaoJuiz[modelSelector];
+    if (data && !data.notas_grupo && data.criterios) {
+      data.notas_grupo = {
+        grupo_a: data.criterios.grupo_a?.nota || data.criterios.precisao?.nota || 0,
+        grupo_b: data.criterios.grupo_b?.nota || data.criterios.rigor_teorico?.nota || 0,
+        grupo_c: data.criterios.grupo_c?.nota || data.criterios.coesao_logica?.nota || 0,
+        grupo_d: data.criterios.grupo_d?.nota || data.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: data.criterios.grupo_e?.nota || data.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: data.criterios.grupo_f?.nota || data.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
+    return data;
   }
 
   // Caso contrário, fazemos a média de todos os modelos avaliados para esta questão (Avaliação Cruzada!)
@@ -64,33 +86,42 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
   };
 
   const keys = [
-    "precisao",
-    "raciocinio",
-    "alucinacao",
-    "aderencia_enunciado",
-    "pedagogia",
-    "integracao_interdisciplinar",
+    "grupo_a",
+    "grupo_b",
+    "grupo_c",
+    "grupo_d",
+    "grupo_e",
+    "grupo_f",
   ];
   let validModelsCount = 0;
 
   for (const modelKey of selectedModels) {
     const evalData = avaliacaoJuiz[modelKey];
-    if (!evalData || !evalData.criterios) continue;
+    if (!evalData) continue;
+    
+    // Se for legado, simula notas_grupo
+    if (!evalData.notas_grupo && evalData.criterios) {
+      evalData.notas_grupo = {
+        grupo_a: evalData.criterios.grupo_a?.nota || evalData.criterios.precisao?.nota || 0,
+        grupo_b: evalData.criterios.grupo_b?.nota || evalData.criterios.rigor_teorico?.nota || 0,
+        grupo_c: evalData.criterios.grupo_c?.nota || evalData.criterios.coesao_logica?.nota || 0,
+        grupo_d: evalData.criterios.grupo_d?.nota || evalData.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: evalData.criterios.grupo_e?.nota || evalData.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: evalData.criterios.grupo_f?.nota || evalData.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
+    
+    if (!evalData.notas_grupo) continue;
     validModelsCount++;
 
     for (const key of keys) {
-      const criteriaVal = evalData.criterios[key];
-      if (criteriaVal && typeof criteriaVal.nota === "number") {
+      const val = evalData.notas_grupo[key];
+      if (typeof val === "number") {
         if (!merged.criterios[key]) {
           merged.criterios[key] = { notaSum: 0, count: 0, justificativas: [] };
         }
-        merged.criterios[key].notaSum += criteriaVal.nota;
+        merged.criterios[key].notaSum += val;
         merged.criterios[key].count++;
-        if (criteriaVal.justificativa) {
-          merged.criterios[key].justificativas.push(
-            `[${modelKey}]: ${criteriaVal.justificativa}`,
-          );
-        }
       }
     }
     merged.pontuacao_total += evalData.pontuacao_total || 0;
@@ -103,7 +134,7 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
     const c = merged.criterios[key];
     merged.criterios[key] = {
       nota: c.notaSum / c.count,
-      justificativa: c.justificativas.join(" | "),
+      justificativa: "Média dos juízes",
     };
   }
 
@@ -207,31 +238,22 @@ async function run() {
     process.exit(1);
   }
 
-  // Inicializar vetores de dados
+  // Inicializar metadados dos novos critérios por grupo
+  const criteriaMetadata = [
+    { key: "grupo_a", label: "Grupo A - Estrutura e Estética Básica (Máx: 7)", arrayControl: [], arrayExperimental: [] },
+    { key: "grupo_b", label: "Grupo B - Ancoragem Factual e Interpretação (Máx: 14)", arrayControl: [], arrayExperimental: [] },
+    { key: "grupo_c", label: "Grupo C - Pedagogia e Transposição Cognitiva (Máx: 21)", arrayControl: [], arrayExperimental: [] },
+    { key: "grupo_d", label: "Grupo D - Lógica Dedutiva e Eliminação (Máx: 28)", arrayControl: [], arrayExperimental: [] },
+    { key: "grupo_e", label: "Grupo E - Engenharia da Resolução e Interfaces (Máx: 30)", arrayControl: [], arrayExperimental: [] },
+  ];
+
+  // Outros vetores de suporte
   const latencyI = []; // controle
   const latencyII = []; // experimental
-
-  const precisaoI = [];
-  const precisaoII = [];
-
-  const raciocinioI = [];
-  const raciocinioII = [];
-
-  const alucinacaoI = [];
-  const alucinacaoII = [];
-
-  const aderenciaI = [];
-  const aderenciaII = [];
-
-  const pedagogiaI = [];
-  const pedagogiaII = [];
-
   const totalI = [];
   const totalII = [];
-
   const iepI = [];
   const iepII = [];
-
   const interdisciplinarI = [];
   const interdisciplinarII = [];
 
@@ -255,20 +277,11 @@ async function run() {
       const cJuiz = ctrlEval.criterios;
       const eJuiz = expEval.criterios;
 
-      precisaoI.push(cJuiz.precisao?.nota || 0);
-      precisaoII.push(eJuiz.precisao?.nota || 0);
-
-      raciocinioI.push(cJuiz.raciocinio?.nota || 0);
-      raciocinioII.push(eJuiz.raciocinio?.nota || 0);
-
-      alucinacaoI.push(cJuiz.alucinacao?.nota || 0);
-      alucinacaoII.push(eJuiz.alucinacao?.nota || 0);
-
-      aderenciaI.push(cJuiz.aderencia_enunciado?.nota || 0);
-      aderenciaII.push(eJuiz.aderencia_enunciado?.nota || 0);
-
-      pedagogiaI.push(cJuiz.pedagogia?.nota || 0);
-      pedagogiaII.push(eJuiz.pedagogia?.nota || 0);
+      // Popula dinamicamente os novos critérios
+      for (const item of criteriaMetadata) {
+        item.arrayControl.push(cJuiz[item.key]?.nota || 0);
+        item.arrayExperimental.push(eJuiz[item.key]?.nota || 0);
+      }
 
       const totI = ctrlEval.pontuacao_total || 0;
       const totII = expEval.pontuacao_total || 0;
@@ -283,11 +296,11 @@ async function run() {
 
       // Critério Interdisciplinar
       if (
-        cJuiz.integracao_interdisciplinar &&
-        eJuiz.integracao_interdisciplinar
+        cJuiz.grupo_f &&
+        eJuiz.grupo_f
       ) {
-        interdisciplinarI.push(cJuiz.integracao_interdisciplinar.nota);
-        interdisciplinarII.push(eJuiz.integracao_interdisciplinar.nota);
+        interdisciplinarI.push(cJuiz.grupo_f.nota);
+        interdisciplinarII.push(eJuiz.grupo_f.nota);
       }
     }
   }
@@ -326,11 +339,7 @@ async function run() {
 
   const resultados = [
     testarMetrica("Latência (s)", latencyI, latencyII),
-    testarMetrica("Precisão da Resposta", precisaoI, precisaoII),
-    testarMetrica("Qualidade do Raciocínio", raciocinioI, raciocinioII),
-    testarMetrica("Ausência de Alucinações", alucinacaoI, alucinacaoII),
-    testarMetrica("Aderência ao Enunciado", aderenciaI, aderenciaII),
-    testarMetrica("Qualidade Pedagógica / Clareza", pedagogiaI, pedagogiaII),
+    ...criteriaMetadata.map(c => testarMetrica(c.label, c.arrayControl, c.arrayExperimental)),
     testarMetrica("Pontuação Total do Juiz", totalI, totalII),
     testarMetrica("Índice de Eficiência de Processamento (IEP)", iepI, iepII),
     testarMetrica(
@@ -380,7 +389,7 @@ async function run() {
   const totRes = resultados.find((r) => r.nome === "Pontuação Total do Juiz");
   if (totRes) {
     if (totRes.meanII > totRes.meanI) {
-      report += `- **Desempenho e Acurácia**: O Grupo II (com arquitetura) obteve nota média significativamente maior no juiz LLM (**${totRes.meanII.toFixed(1)}/25.00** contra **${totRes.meanI.toFixed(1)}/25.00** do controle). `;
+      report += `- **Desempenho e Acurácia**: O Grupo II (com arquitetura) obteve nota média significativamente maior no juiz LLM (**${totRes.meanII.toFixed(1)}** contra **${totRes.meanI.toFixed(1)}** do controle). `;
       if (totRes.significant) {
         report += `O teste de Wilcoxon confirmou que a melhoria é estatisticamente representativa ($p = ${formatResult(totRes.pValue)}$).\n`;
       } else {

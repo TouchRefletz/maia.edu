@@ -57,52 +57,97 @@ function getStdDev(arr, mean) {
 
 // Agrega notas Likert de todos os juízes ativos (Gemini, Gemma, o1) para evitar viés de auto-avaliação
 function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
-  if (!avaliacaoJuiz || typeof avaliacaoJuiz !== "object" || avaliacaoJuiz.error) {
+  if (
+    !avaliacaoJuiz ||
+    typeof avaliacaoJuiz !== "object" ||
+    avaliacaoJuiz.error
+  ) {
     return null;
   }
 
+  // Se for o formato antigo (direto com critérios)
   if (avaliacaoJuiz.criterios) {
-    return avaliacaoJuiz; // legando
+    // Normaliza notas_grupo se for legado
+    if (!avaliacaoJuiz.notas_grupo) {
+      avaliacaoJuiz.notas_grupo = {
+        grupo_a: avaliacaoJuiz.criterios.grupo_a?.nota || avaliacaoJuiz.criterios.precisao?.nota || 0,
+        grupo_b: avaliacaoJuiz.criterios.grupo_b?.nota || avaliacaoJuiz.criterios.rigor_teorico?.nota || 0,
+        grupo_c: avaliacaoJuiz.criterios.grupo_c?.nota || avaliacaoJuiz.criterios.coesao_logica?.nota || 0,
+        grupo_d: avaliacaoJuiz.criterios.grupo_d?.nota || avaliacaoJuiz.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: avaliacaoJuiz.criterios.grupo_e?.nota || avaliacaoJuiz.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: avaliacaoJuiz.criterios.grupo_f?.nota || avaliacaoJuiz.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
+    return avaliacaoJuiz;
   }
 
+  // Se for o formato novo (dicionário de modelos)
   const models = Object.keys(avaliacaoJuiz).filter(
-    (k) => k !== "error" && typeof avaliacaoJuiz[k] === "object"
+    (k) => k !== "error" && typeof avaliacaoJuiz[k] === "object",
   );
   if (models.length === 0) return null;
 
+  // Se o usuário especificou um modelo e ele está presente
   if (modelSelector !== "average" && avaliacaoJuiz[modelSelector]) {
-    return avaliacaoJuiz[modelSelector];
+    const data = avaliacaoJuiz[modelSelector];
+    if (data && !data.notas_grupo && data.criterios) {
+      data.notas_grupo = {
+        grupo_a: data.criterios.grupo_a?.nota || data.criterios.precisao?.nota || 0,
+        grupo_b: data.criterios.grupo_b?.nota || data.criterios.rigor_teorico?.nota || 0,
+        grupo_c: data.criterios.grupo_c?.nota || data.criterios.coesao_logica?.nota || 0,
+        grupo_d: data.criterios.grupo_d?.nota || data.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: data.criterios.grupo_e?.nota || data.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: data.criterios.grupo_f?.nota || data.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
+    return data;
   }
 
-  const selectedModels = modelSelector === "average" ? models : [models[0]];
+  // Caso contrário, fazemos a média de todos os modelos avaliados para esta questão (Avaliação Cruzada!)
+  const selectedModels = modelSelector === "average" ? models : [models[0]]; // fallback pro primeiro se o especificado não existir
 
   const merged = {
     criterios: {},
     pontuacao_total: 0,
+    comentario_geral: `Média consolidada dos juízes: ${selectedModels.join(", ")}`,
   };
 
   const keys = [
-    "precisao",
-    "raciocinio",
-    "alucinacao",
-    "aderencia_enunciado",
-    "pedagogia",
-    "integracao_interdisciplinar",
+    "grupo_a",
+    "grupo_b",
+    "grupo_c",
+    "grupo_d",
+    "grupo_e",
+    "grupo_f",
   ];
   let validModelsCount = 0;
 
   for (const modelKey of selectedModels) {
     const evalData = avaliacaoJuiz[modelKey];
-    if (!evalData || !evalData.criterios) continue;
+    if (!evalData) continue;
+    
+    // Se for legado, simula notas_grupo
+    if (!evalData.notas_grupo && evalData.criterios) {
+      evalData.notas_grupo = {
+        grupo_a: evalData.criterios.grupo_a?.nota || evalData.criterios.precisao?.nota || 0,
+        grupo_b: evalData.criterios.grupo_b?.nota || evalData.criterios.rigor_teorico?.nota || 0,
+        grupo_c: evalData.criterios.grupo_c?.nota || evalData.criterios.coesao_logica?.nota || 0,
+        grupo_d: evalData.criterios.grupo_d?.nota || evalData.criterios.refutacao_distratores?.nota || 0,
+        grupo_e: evalData.criterios.grupo_e?.nota || evalData.criterios.ancoragem_factual?.nota || 0,
+        grupo_f: evalData.criterios.grupo_f?.nota || evalData.criterios.integracao_interdisciplinar?.nota || 0,
+      };
+    }
+    
+    if (!evalData.notas_grupo) continue;
     validModelsCount++;
 
     for (const key of keys) {
-      const criteriaVal = evalData.criterios[key];
-      if (criteriaVal && typeof criteriaVal.nota === "number") {
+      const val = evalData.notas_grupo[key];
+      if (typeof val === "number") {
         if (!merged.criterios[key]) {
           merged.criterios[key] = { notaSum: 0, count: 0 };
         }
-        merged.criterios[key].notaSum += criteriaVal.nota;
+        merged.criterios[key].notaSum += val;
         merged.criterios[key].count++;
       }
     }
@@ -265,21 +310,21 @@ async function run() {
         latency_exp_sec: latExp,
         latency_delta_sec: latExp - latControl,
         scores_control: ctrlEval ? {
-          precisao: ctrlEval.criterios.precisao?.nota || 0,
-          raciocinio: ctrlEval.criterios.raciocinio?.nota || 0,
-          alucinacao: ctrlEval.criterios.alucinacao?.nota || 0,
-          aderencia: ctrlEval.criterios.aderencia_enunciado?.nota || 0,
-          pedagogia: ctrlEval.criterios.pedagogia?.nota || 0,
+          grupo_a: ctrlEval.criterios.grupo_a?.nota || 0,
+          grupo_b: ctrlEval.criterios.grupo_b?.nota || 0,
+          grupo_c: ctrlEval.criterios.grupo_c?.nota || 0,
+          grupo_d: ctrlEval.criterios.grupo_d?.nota || 0,
+          grupo_e: ctrlEval.criterios.grupo_e?.nota || 0,
           total: ctrlEval.pontuacao_total || 0,
         } : null,
         scores_exp: expEval ? {
-          precisao: expEval.criterios.precisao?.nota || 0,
-          raciocinio: expEval.criterios.raciocinio?.nota || 0,
-          alucinacao: expEval.criterios.alucinacao?.nota || 0,
-          aderencia: expEval.criterios.aderencia_enunciado?.nota || 0,
-          pedagogia: expEval.criterios.pedagogia?.nota || 0,
+          grupo_a: expEval.criterios.grupo_a?.nota || 0,
+          grupo_b: expEval.criterios.grupo_b?.nota || 0,
+          grupo_c: expEval.criterios.grupo_c?.nota || 0,
+          grupo_d: expEval.criterios.grupo_d?.nota || 0,
+          grupo_e: expEval.criterios.grupo_e?.nota || 0,
           total: expEval.pontuacao_total || 0,
-          interdisciplinar: expEval.criterios.integracao_interdisciplinar?.nota || 0,
+          interdisciplinar: expEval.criterios.grupo_f?.nota || 0,
         } : null,
         judges_scores: {
           gemini_ctrl: getJudgeTotal("gemini_3_5_flash", control),
@@ -798,8 +843,20 @@ function generateDashboardHtml(data, pValue, rho) {
     // -------------------------------------------------------------
     // GRÁFICO 1: Radar Critérios Likert
     // -------------------------------------------------------------
-    const criteriaKeys = ['precisao', 'raciocinio', 'alucinacao', 'aderencia', 'pedagogia'];
-    const criteriaLabels = ['Precisão', 'Raciocínio', 'Ausência Alucinações', 'Aderência Enunciado', 'Pedagogia'];
+    const criteriaKeys = [
+      'grupo_a',
+      'grupo_b',
+      'grupo_c',
+      'grupo_d',
+      'grupo_e'
+    ];
+    const criteriaLabels = [
+      'Grupo A (Estética/Estrutura)',
+      'Grupo B (Factual/Ancoragem)',
+      'Grupo C (Didática/Pedagogia)',
+      'Grupo D (Lógica/Eliminação)',
+      'Grupo E (Engenharia/Analogia)'
+    ];
 
     const getCriteriaMeans = (groupKey) => {
       return criteriaKeys.map(k => {
@@ -841,7 +898,7 @@ function generateDashboardHtml(data, pValue, rho) {
             pointLabels: { color: '#f5f5f5', font: { size: 10 } },
             ticks: { display: false },
             min: 0,
-            max: 5
+            max: 30
           }
         },
         plugins: {
@@ -1134,7 +1191,7 @@ function generateDashboardHtml(data, pValue, rho) {
           pointLabels: { color: '#f5f5f5', font: { size: 9 } },
           ticks: { display: false },
           min: 0,
-          max: 5
+          max: 10
         }
       },
       plugins: {
@@ -1425,8 +1482,8 @@ function generateDashboardHtml(data, pValue, rho) {
       const slice = rawData.filter(d => d.active_factors && d.active_factors.includes(key));
       if (slice.length === 0) return 0;
       const deltas = slice.map(d => {
-        const ctrlAluc = d.scores_control ? d.scores_control.alucinacao : 0;
-        const expAluc = d.scores_exp ? d.scores_exp.alucinacao : 0;
+        const ctrlAluc = d.scores_control ? d.scores_control.ancoragem_factual : 0;
+        const expAluc = d.scores_exp ? d.scores_exp.ancoragem_factual : 0;
         return expAluc - ctrlAluc;
       });
       return deltas.reduce((a,b)=>a+b, 0) / deltas.length;

@@ -3,6 +3,7 @@ import {
   getJudgeSystemPrompt,
   getJudgeResponseSchema,
   buildJudgePrompt,
+  processarAvaliacaoJuiz,
 } from "./prompts/judge-prompt.js";
 
 /**
@@ -94,11 +95,23 @@ export async function executarAvaliacaoApendiceA(
     const endTime = performance.now();
     const latencyMs = Math.round(endTime - startTime);
 
+    let processedResponseText = "";
+    let processedResult = null;
+    try {
+      const parsedResult = typeof finalResult === "string" ? JSON.parse(finalResult) : finalResult;
+      processedResult = processarAvaliacaoJuiz(parsedResult, isInterdisciplinary);
+      processedResponseText = typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2);
+    } catch (e) {
+      console.warn("[Apêndice A] Falha ao pós-processar e calcular nota blinded:", e);
+      processedResponseText = typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2);
+    }
+
     return {
       model: modelJudgeId,
       prompt_original: promptOriginal,
       prompt_compiled: `${systemInstruction}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${promptOriginal}\n=== FIM DO PROMPT ===`,
-      response_text: typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2),
+      response_text: processedResponseText,
+      avaliacao_juiz: processedResult,
       thoughts: thoughtsAccumulated,
       latency_ms: latencyMs,
     };

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
-import { getJudgeSystemPrompt, getJudgeResponseSchema, buildJudgePrompt, JUDGE_RESPONSE_SCHEMA } from "../js/chat/prompts/judge-prompt.js";
+import { getJudgeSystemPrompt, getJudgeResponseSchema, buildJudgePrompt, JUDGE_RESPONSE_SCHEMA, processarAvaliacaoJuiz } from "../js/chat/prompts/judge-prompt.js";
 
 // Helper para ler entrada do console se a chave API não estiver no env
 function askQuestion(query) {
@@ -218,6 +218,7 @@ async function run() {
           try {
             const jsonText = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
             avaliacao = JSON.parse(jsonText);
+            avaliacao = processarAvaliacaoJuiz(avaliacao, isFuvest);
           } catch (pe) {
             console.warn(`  ⚠️ Falha ao converter resposta do juiz [${modelKey}] em JSON. Salvando texto bruto.`, pe.message);
             avaliacao = { raw_response: responseText, error: "Falha de parser JSON" };

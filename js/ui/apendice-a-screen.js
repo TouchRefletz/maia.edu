@@ -652,6 +652,9 @@ export async function iniciarModoApendiceA() {
       );
 
       const useMaia = document.getElementById("checkMaiaApendiceA").checked;
+      const modelKey = judgeId.includes("gemini") ? "gemini_3_5_flash" :
+                       judgeId.includes("gemma") ? "gemma_4_31b_it" : "o1";
+
       const debugLog = {
         session_id: state.uploadedJSON.session_id || "nova_sessao",
         timestamp: new Date().toISOString(),
@@ -665,6 +668,12 @@ export async function iniciarModoApendiceA() {
         rag_details: null,
         search_details: null,
         response_text: result.response_text,
+        avaliacao_juiz: {
+          [modelKey]: {
+            pontuacao_total: result.avaliacao_juiz.pontuacao_total,
+            notas_grupo: result.avaliacao_juiz.notas_grupo
+          }
+        }
       };
 
       window.chatDebugLogs = window.chatDebugLogs || [];
