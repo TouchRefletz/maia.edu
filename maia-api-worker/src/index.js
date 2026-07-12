@@ -1185,13 +1185,19 @@ async function handleGeminiGenerate(request, env) {
 					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
 					: modelo;
 
+				const systemInstructionConfig = systemInstruction
+					? (typeof systemInstruction === 'string'
+						? { parts: [{ text: systemInstruction }] }
+						: systemInstruction)
+					: undefined;
+
 				if (chatMode) {
 					// NOTE: create() config usually takes systemInstruction, tools, etc.
 					const chat = client.chats.create({
 						model: modelToUse,
 						history: finalHistory,
 						config: {
-							systemInstruction: systemInstruction,
+							systemInstruction: systemInstructionConfig,
 						},
 					});
 					stream = await chat.sendMessageStream({
@@ -1204,7 +1210,7 @@ async function handleGeminiGenerate(request, env) {
 						contents: [{ role: 'user', parts }],
 						config: {
 							...config,
-							systemInstruction: systemInstruction,
+							systemInstruction: systemInstructionConfig,
 						},
 					});
 				}
