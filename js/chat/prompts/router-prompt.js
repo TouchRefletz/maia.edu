@@ -39,7 +39,7 @@ export const ROUTER_RESPONSE_SCHEMA = {
       properties: {
         tipo: {
           type: "string",
-          const: "questao",
+          enum: ["questao"],
         },
         conteudo: {
           type: "string",

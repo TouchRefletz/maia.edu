@@ -1,4 +1,5 @@
-import { GoogleGenAI } from '@google/genai/node';
+import { GoogleGenAI as GoogleGenAIWeb } from '@google/genai';
+import { GoogleGenAI as GoogleGenAINode } from '@google/genai/node';
 
 const DEFAULT_MODELS = [
 	'models/gemini-3.5-flash',
@@ -817,7 +818,7 @@ async function generateEmbedding(text, authOptions, model = 'models/gemini-embed
 	let client;
 	let finalModel = model;
 	if (authOptions && typeof authOptions === 'object' && authOptions.vertexProjectId && authOptions.vertexCredentials) {
-		client = new GoogleGenAI({
+		client = new GoogleGenAINode({
 			vertexai: true,
 			project: authOptions.vertexProjectId,
 			location: authOptions.vertexLocation || 'us-central1',
@@ -829,7 +830,7 @@ async function generateEmbedding(text, authOptions, model = 'models/gemini-embed
 	} else {
 		const apiKey = typeof authOptions === 'string' ? authOptions : (authOptions?.apiKey || authOptions?.GOOGLE_GENAI_API_KEY);
 		if (!apiKey) throw new Error('API Key missing for embedding');
-		client = new GoogleGenAI({ apiKey });
+		client = new GoogleGenAIWeb({ apiKey });
 	}
 	const result = await client.models.embedContent({
 		model: finalModel,
@@ -1019,7 +1020,7 @@ async function handleGeminiGenerate(request, env) {
 				if (!vertexProjectId || !vertexCredentials) {
 					throw new Error('Vertex AI project ID and credentials must be configured to use Vertex AI.');
 				}
-				clientVertex = new GoogleGenAI({
+				clientVertex = new GoogleGenAINode({
 					vertexai: true,
 					project: vertexProjectId,
 					location: vertexLocation || 'us-central1',
@@ -1034,7 +1035,7 @@ async function handleGeminiGenerate(request, env) {
 			if (!clientAIStudio) {
 				const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 				if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
-				clientAIStudio = new GoogleGenAI({
+				clientAIStudio = new GoogleGenAIWeb({
 					apiKey: finalApiKey,
 					httpOptions: { timeout: 300000 },
 				});
@@ -1175,16 +1176,16 @@ async function handleGeminiGenerate(request, env) {
 						}
 					} : {}),
 					responseMimeType: jsonMode ? 'application/json' : undefined,
-					responseSchema: jsonMode ? schema || undefined : undefined,
+					responseJsonSchema: jsonMode ? schema || undefined : undefined,
 					safetySettings,
 					maxOutputTokens: jsonMode ? 8192 : undefined,
 					...generationConfig,
 				};
 
-				// O SDK @google/genai prefere responseSchema. Se ambos estiverem presentes (ex: se o client enviou responseSchema
-				// e o worker definiu responseJsonSchema, ou vice-versa), o Vertex AI rejeita a chamada.
-				if (config.responseSchema) {
-					delete config.responseJsonSchema;
+				// O SDK @google/genai prefere responseJsonSchema se disponível para suportar $ref e definitions.
+				// Se ambos estiverem presentes, o Vertex AI rejeita a chamada.
+				if (config.responseJsonSchema) {
+					delete config.responseSchema;
 				}
 
 				const modelToUse = useVertexForAttempt 
@@ -1610,7 +1611,7 @@ async function handleGeminiSearch(request, env) {
 				if (!vertexProjectId || !vertexCredentials) {
 					throw new Error('Vertex AI project ID and credentials must be configured to use Vertex AI.');
 				}
-				clientVertex = new GoogleGenAI({
+				clientVertex = new GoogleGenAINode({
 					vertexai: true,
 					project: vertexProjectId,
 					location: vertexLocation || 'us-central1',
@@ -1625,7 +1626,7 @@ async function handleGeminiSearch(request, env) {
 			if (!clientAIStudio) {
 				const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 				if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
-				clientAIStudio = new GoogleGenAI({
+				clientAIStudio = new GoogleGenAIWeb({
 					apiKey: finalApiKey,
 					httpOptions: { timeout: 300000 },
 				});
@@ -1722,7 +1723,7 @@ async function handleGeminiSearch(request, env) {
 
 				if (schema) {
 					generationConfig.responseMimeType = 'application/json';
-					generationConfig.responseSchema = schema;
+					generationConfig.responseJsonSchema = schema;
 				}
 
 				const modelToUse = useVertexForAttempt 
@@ -3466,7 +3467,7 @@ async function describeImageWithModel(img, promptDescrever, descriptorModel, bod
 		if (!vertexProjectId || !vertexCredentials) {
 			throw new Error('Vertex AI project ID and credentials must be configured to use Vertex models for description.');
 		}
-		client = new GoogleGenAI({
+		client = new GoogleGenAINode({
 			vertexai: true,
 			project: vertexProjectId,
 			location: vertexLocation || 'us-central1',
@@ -3478,7 +3479,7 @@ async function describeImageWithModel(img, promptDescrever, descriptorModel, bod
 	} else {
 		const finalApiKey = userApiKey || env.GOOGLE_GENAI_API_KEY;
 		if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured for image description');
-		client = new GoogleGenAI({
+		client = new GoogleGenAIWeb({
 			apiKey: finalApiKey,
 			httpOptions: { timeout: 300000 },
 		});

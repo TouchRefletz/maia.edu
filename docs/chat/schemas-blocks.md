@@ -71,7 +71,7 @@ block_question: {
   properties: {
     tipo: {
       type: "string",
-      const: "questao", // A palavra tem que ser EXATAMENTE essa 
+      enum: ["questao"], // A palavra tem que ser EXATAMENTE essa 
     },
     conteudo: {
       type: "string",
