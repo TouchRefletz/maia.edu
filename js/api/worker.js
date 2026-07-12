@@ -598,6 +598,13 @@ export async function gerarConteudoEmJSONComImagemStream(
       const resolvedImageDescriptorModel = options.imageDescriptorModel || (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
       const resolvedImageDescriptorVertexModelId = options.imageDescriptorVertexModelId || CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId || undefined;
 
+      console.log("==================== WORKER REQUEST DETAILS ====================");
+      console.log(`[Model]: ${options.model}`);
+      console.log(`[Vertex Model ID]: ${resolvedVertexModelId}`);
+      console.log(`[System Instruction]:\n`, options.systemInstruction);
+      console.log(`[User Prompt / Text]:\n`, texto);
+      console.log("================================================================");
+
       const response = await fetch(`${WORKER_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

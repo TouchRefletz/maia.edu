@@ -1191,6 +1191,20 @@ async function handleGeminiGenerate(request, env) {
 						: systemInstruction)
 					: undefined;
 
+				// LOGGING FOR DEBUGGING
+				console.log("=================== WORKER INTERNAL EXECUTION ===================");
+				console.log(`[Modelo]: ${modelo} | [ModelToUse]: ${modelToUse} | [UseVertex]: ${useVertex}`);
+				console.log(`[SystemInstruction (Raw)]:`, systemInstruction);
+				console.log(`[SystemInstruction (Config)]:`, JSON.stringify(systemInstructionConfig, null, 2));
+				console.log("=================================================================");
+
+				await writeNdjson({
+					type: 'debug',
+					attempt,
+					model: modelo,
+					text: `[Worker Gen] SystemInstruction Configured: ${JSON.stringify(systemInstructionConfig)}`
+				});
+
 				if (chatMode) {
 					// NOTE: create() config usually takes systemInstruction, tools, etc.
 					const chat = client.chats.create({
