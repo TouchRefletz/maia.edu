@@ -494,19 +494,21 @@ export async function iniciarModoApendiceA() {
   }
 
   function populateJudgeDropdown(excludeModel) {
-    const select = document.getElementById("selectJudgeApendiceA");
-    if (!select) return;
+  const select = document.getElementById("selectJudgeApendiceA");
+  if (!select) return;
 
-    const judges = [
-      { id: "models/gemini-3.5-flash", label: "Gemini 3.5 Flash" },
-      { id: "models/gemma-4-31b-it", label: "Gemma 4 31B IT" },
-      { id: "groq/gpt-oss-120b", label: "GPT-OSS-120B" }
-    ].filter(m => m.id !== excludeModel);
+  // Duas opções dedicadas para o Gemini 3.5 Flash com IDs de roteamento diferentes
+  const judges = [
+    { id: "models/gemini-3.5-flash", label: "Gemini 3.5 Flash (Google AI Studio)" },
+    { id: "vertex/gemini-3.5-flash", label: "Gemini 3.5 Flash (Vertex AI)" },
+    { id: "models/gemma-4-31b-it", label: "Gemma 4 31B IT" },
+    { id: "groq/gpt-oss-120b", label: "GPT-OSS-120B" }
+  ].filter(m => m.id !== excludeModel);
 
-    select.innerHTML = judges.map(j => `
-      <option value="${j.id}">${j.label}</option>
-    `).join("");
-  }
+  select.innerHTML = judges.map(j => `
+    <option value="${j.id}">${j.label}</option>
+  `).join("");
+}
 
   function checkInputsAndShowConfig() {
     const configArea = document.getElementById("evaluationConfigArea");
@@ -579,8 +581,10 @@ export async function iniciarModoApendiceA() {
     }
 
     const judgeId = judgeSelect.value;
-    const judgeLabel = judgeId.includes("gemini") ? "Gemini 3.5 Flash" :
-                       judgeId.includes("gemma") ? "Gemma 4 31B IT" : "GPT-OSS-120B";
+    // Define o nome amigável que vai aparecer na tela durante a avaliação
+    const judgeLabel = judgeId === "vertex/gemini-3.5-flash" ? "Gemini 3.5 Flash (Vertex)" :
+                      judgeId === "models/gemini-3.5-flash" ? "Gemini 3.5 Flash (AI Studio)" :
+                      judgeId.includes("gemma") ? "Gemma 4 31B IT" : "GPT-OSS-120B";
 
     consoleArea.style.display = "flex";
     thoughtsBox.textContent = "";
@@ -682,7 +686,9 @@ export async function iniciarModoApendiceA() {
       downloadAnchor.setAttribute("href", dataStr);
       
       const formattedTime = debugLog.timestamp.replace(/[:.]/g, "-");
-      const judgeSlug = judgeId.includes("gemini") ? "gemini_3_5_flash" :
+      // Define o sufixo do arquivo .json que será baixado ao final do processo
+      const judgeSlug = judgeId === "vertex/gemini-3.5-flash" ? "gemini_3_5_flash_vertex" :
+                        judgeId === "models/gemini-3.5-flash" ? "gemini_3_5_flash_aistudio" :
                         judgeId.includes("gemma") ? "gemma_4_31b_it" : "gpt_oss_120b";
       const filename = `maia_debug_${debugLog.use_maia_architecture ? 'com' : 'sem'}_arq_${state.selectedQuestion.id}_${judgeSlug}_${formattedTime}.json`;
       downloadAnchor.setAttribute("download", filename);
