@@ -1169,11 +1169,17 @@ async function handleGeminiGenerate(request, env) {
 						}
 					} : {}),
 					responseMimeType: jsonMode ? 'application/json' : undefined,
-					responseJsonSchema: jsonMode ? schema || undefined : undefined,
+					responseSchema: jsonMode ? schema || undefined : undefined,
 					safetySettings,
 					maxOutputTokens: jsonMode ? 8192 : undefined,
 					...generationConfig,
 				};
+
+				// O SDK @google/genai prefere responseSchema. Se ambos estiverem presentes (ex: se o client enviou responseSchema
+				// e o worker definiu responseJsonSchema, ou vice-versa), o Vertex AI rejeita a chamada.
+				if (config.responseSchema) {
+					delete config.responseJsonSchema;
+				}
 
 				const modelToUse = useVertex 
 					? ((modelo === model && vertexModelId) ? vertexModelId : modelo.replace(/^vertex\//, '').replace(/^models\//, '')) 
@@ -1676,7 +1682,7 @@ async function handleGeminiSearch(request, env) {
 
 				if (schema) {
 					generationConfig.responseMimeType = 'application/json';
-					generationConfig.responseJsonSchema = schema;
+					generationConfig.responseSchema = schema;
 				}
 
 				const modelToUse = useVertex 
