@@ -17,4 +17,5 @@ experiments/*
 !experiments/questoes_selecionadas_125_triagem_ptbr.csv
 !experiments/relatorio_final_apendice_b.md
 !experiments/stats_summary.json
+!experiments/stats_summary_apendice_a.json
 scratch/
