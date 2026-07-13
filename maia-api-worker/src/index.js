@@ -993,9 +993,9 @@ async function handleGeminiGenerate(request, env) {
 		vertexModelId,
 		apiKey: userApiKey,
 		githubApiKey: userGithubApiKey,
-		vertexProjectId,
-		vertexLocation,
-		vertexCredentials,
+		vertexProjectId: bodyVertexProjectId,
+		vertexLocation: bodyVertexLocation,
+		vertexCredentials: bodyVertexCredentials,
 		jsonMode = true,
 		thinking = true,
 		chatMode = false,
@@ -1003,6 +1003,10 @@ async function handleGeminiGenerate(request, env) {
 		systemInstruction,
 		generationConfig,
 	} = body;
+
+	const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+	const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
+	const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
 
 	let finalHistory = history || [];
 	if (finalHistory.length > 0 && ('content' in finalHistory[0] || finalHistory[0].role === 'assistant' || finalHistory[0].role === 'system')) {
@@ -1382,7 +1386,18 @@ async function handleGeminiGenerate(request, env) {
  */
 async function handleGeminiEmbed(request, env) {
 	const body = await request.json();
-	const { texto, model, apiKey, vertexProjectId, vertexLocation, vertexCredentials } = body;
+	const {
+		texto,
+		model,
+		apiKey,
+		vertexProjectId: bodyVertexProjectId,
+		vertexLocation: bodyVertexLocation,
+		vertexCredentials: bodyVertexCredentials,
+	} = body;
+
+	const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+	const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
+	const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
 
 	let authOptions;
 	if (vertexProjectId && vertexCredentials) {
@@ -1595,10 +1610,14 @@ async function handleGeminiSearch(request, env) {
 		model,
 		vertexModelId,
 		apiKey: userApiKey,
-		vertexProjectId,
-		vertexLocation,
-		vertexCredentials,
+		vertexProjectId: bodyVertexProjectId,
+		vertexLocation: bodyVertexLocation,
+		vertexCredentials: bodyVertexCredentials,
 	} = body;
+
+	const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+	const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
+	const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
 
 	const useVertex = model ? model.startsWith('vertex/') : !!(vertexProjectId && vertexCredentials);
 
@@ -3420,10 +3439,14 @@ async function describeImageWithModel(img, promptDescrever, descriptorModel, bod
 	const {
 		apiKey: userApiKey,
 		githubApiKey: userGithubApiKey,
-		vertexProjectId,
-		vertexLocation,
-		vertexCredentials,
+		vertexProjectId: bodyVertexProjectId,
+		vertexLocation: bodyVertexLocation,
+		vertexCredentials: bodyVertexCredentials,
 	} = body;
+
+	const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+	const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
+	const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
 
 	const isVertex = descriptorModel.startsWith('vertex/');
 	const isGithub = descriptorModel.startsWith('github/');

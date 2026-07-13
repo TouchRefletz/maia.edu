@@ -591,7 +591,16 @@ export async function gerarConteudoEmJSONComImagemStream(
         sessionStorage.getItem("githubApiKey");
       const customGroqKey =
         options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
-      const isVertexModel = !options.model || options.model.startsWith("vertex/");
+
+      const resolvedVertexModelId = options.vertexModelId || CHAT_CONFIG?.modes?.[options.model]?.vertexModelId || undefined;
+      const resolvedImageDescriptorModel = options.imageDescriptorModel || (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
+      const resolvedImageDescriptorVertexModelId = options.imageDescriptorVertexModelId || CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId || undefined;
+
+      const isVertexModel =
+        !options.model ||
+        options.model.startsWith("vertex/") ||
+        (resolvedImageDescriptorModel && resolvedImageDescriptorModel.startsWith("vertex/"));
+
       const customVertexProjectId = isVertexModel
         ? options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID")
         : undefined;
@@ -604,10 +613,6 @@ export async function gerarConteudoEmJSONComImagemStream(
       console.log(
         `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}, Vertex AI present: ${!!customVertexProjectId}`,
       );
-
-      const resolvedVertexModelId = options.vertexModelId || CHAT_CONFIG?.modes?.[options.model]?.vertexModelId || undefined;
-      const resolvedImageDescriptorModel = options.imageDescriptorModel || (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
-      const resolvedImageDescriptorVertexModelId = options.imageDescriptorVertexModelId || CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId || undefined;
 
       console.log("==================== WORKER REQUEST DETAILS ====================");
       console.log(`[Model]: ${options.model}`);
