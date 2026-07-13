@@ -81,6 +81,51 @@ function decodeBase64ToUtf8(base64Data) {
   }
 }
 
+function detectRepetitionDegeneration(text) {
+  if (text.length < 15) return false;
+
+  for (let len = 3; len <= 120; len++) {
+    // Determine repeats threshold based on pattern length
+    const requiredRepeats = len < 6 ? 8 : (len < 15 ? 6 : 5);
+    if (text.length < len * requiredRepeats) continue;
+
+    const pattern = text.slice(-len);
+
+    // Filter out patterns that are purely whitespace or repeating a single character
+    const trimmed = pattern.trim();
+    if (trimmed.length < 2) continue;
+
+    const isSingleCharRepeat = [...pattern].every((c) => c === pattern[0]);
+    if (isSingleCharRepeat) continue;
+
+    // Filter out JSON structures, whitespace, numbers, etc.
+    const isJsonStructureOnly = /^[ \t\r\n{},[\]":\-\d.]+$/.test(pattern);
+    if (isJsonStructureOnly) continue;
+
+    let repeats = 1;
+    let index = text.length - len;
+
+    while (index - len >= 0) {
+      const prevChunk = text.slice(index - len, index);
+      if (prevChunk === pattern) {
+        repeats++;
+        index -= len;
+      } else {
+        break;
+      }
+    }
+
+    if (repeats >= requiredRepeats) {
+      console.warn(
+        `[Repetition Detector] Detected degeneration pattern "${pattern}" repeating ${repeats} times.`
+      );
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function sanitizeJsonForPrompt(obj) {
   if (typeof obj === "string") {
     if (
@@ -543,6 +588,8 @@ export async function gerarConteudoEmJSONComImagemStream(
 
   const MAX_RETRIES = 3;
   let attempt = 0;
+  let repetitionAttempts = 0;
+  const MAX_REPETITION_RETRIES = 2;
 
   // Prepare payload based on attachment type
   let payloadImages = [];
@@ -560,7 +607,7 @@ export async function gerarConteudoEmJSONComImagemStream(
 
   while (attempt < MAX_RETRIES) {
     attempt++;
-    const isRetry = attempt > 1;
+    const isRetry = attempt > 1 || repetitionAttempts > 0;
 
     if (handlers?.onAttemptStart) {
       try {
@@ -707,6 +754,15 @@ export async function gerarConteudoEmJSONComImagemStream(
               } catch (err) {
                 console.error("Error in onAnswerDelta handler:", err);
               }
+              if (detectRepetitionDegeneration(answerText)) {
+                console.warn("[Worker] Repetition degeneration detected in stream. Cancelling stream and forcing retry...");
+                try {
+                  await reader.cancel();
+                } catch (cancelErr) {
+                  console.error("Error cancelling stream reader:", cancelErr);
+                }
+                throw new Error("REPETITION_DEGENERATION_ERROR");
+              }
             } else if (msg.type === "debug") {
               console.log("🛠️ WORKER DEBUG:", msg.text);
             } else if (msg.type === "error") {
@@ -774,6 +830,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           } catch (e) {
             if (e.message === "RECITATION_ERROR") throw e;
             if (e.message === "RATE_LIMIT_ERROR") throw e;
+            if (e.message === "REPETITION_DEGENERATION_ERROR") throw e;
             if (e.message?.startsWith("WORKER_RUN_FAILED")) throw e;
             console.warn("Erro ao parsear chunk do worker:", line, e);
           }
@@ -823,6 +880,34 @@ export async function gerarConteudoEmJSONComImagemStream(
       if (error.name === "AbortError") throw error;
       if (error.message === "RECITATION_ERROR") throw error;
       if (error.message === "RATE_LIMIT_ERROR") throw error;
+
+      if (error.message === "REPETITION_DEGENERATION_ERROR") {
+        if (repetitionAttempts < MAX_REPETITION_RETRIES) {
+          repetitionAttempts++;
+          attempt--; // Keep attempt count the same so we retry
+          console.warn(
+            `[Worker] Loop de repetição detectado! Tentando novamente (Tentativa de repetição ${repetitionAttempts}/${MAX_REPETITION_RETRIES})...`
+          );
+          if (handlers?.onReset) {
+            try {
+              handlers.onReset();
+            } catch (err) {
+              console.error("Error in onReset handler:", err);
+            }
+          }
+          handlers?.onStatus?.(
+            "Loop de repetição detectado. Reiniciando geração..."
+          );
+          // Wait briefly before retrying
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        } else {
+          console.error(
+            `[Worker] Loop de repetição detectado, mas limite de tentativas extras (${MAX_REPETITION_RETRIES}) foi atingido.`
+          );
+          throw new Error("REPETITION_DEGENERATION_LIMIT_EXCEEDED");
+        }
+      }
 
       // Classifica se o erro é temporário/elegível para nova tentativa (incluindo falha de modelo e rede)
       const isRetryable =
