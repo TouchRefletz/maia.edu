@@ -278,5 +278,6 @@ export async function executarAvaliacaoGemmaEmPartes(
     thoughts: accumulatedThoughts,
     latency_ms: totalLatency,
     gemma_part_details: partDetails,
+    part_details: partDetails,
   };
 }

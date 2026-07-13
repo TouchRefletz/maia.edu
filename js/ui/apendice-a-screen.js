@@ -658,8 +658,12 @@ export async function iniciarModoApendiceA() {
         }
       };
 
+      const isMultiPartJudge = judgeId.toLowerCase().includes("gemma") || 
+                               judgeId.toLowerCase().includes("gpt-oss-120b") ||
+                               judgeId.toLowerCase().includes("gpt oss 120b");
+
       let result;
-      if (judgeId.toLowerCase().includes("gemma")) {
+      if (isMultiPartJudge) {
         const { executarAvaliacaoGemmaEmPartes } = await import("../chat/apendice-a-pipeline.js");
         
         let controlContainer = document.getElementById("gemmaControlContainer");
@@ -745,11 +749,11 @@ export async function iniciarModoApendiceA() {
                        judgeId.includes("gemma") ? "gemma_4_31b_it" : "o1";
 
       let debugLog;
-      if (judgeId.toLowerCase().includes("gemma")) {
+      if (isMultiPartJudge) {
         debugLog = [];
         // Add 4 individual generation items
         for (let i = 0; i < 4; i++) {
-          const detail = result.gemma_part_details[i];
+          const detail = (result.part_details || result.gemma_part_details)[i];
           debugLog.push({
             session_id: state.uploadedJSON.session_id || "nova_sessao",
             timestamp: new Date().toISOString(),
