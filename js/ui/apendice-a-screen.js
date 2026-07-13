@@ -31,6 +31,10 @@ const state = {
   uploadedModel: null
 };
 
+let evaluationAbortController = null;
+let userExited = false;
+let activePartActionResolve = null;
+
 /**
  * Inicializa a tela dedicada do Apêndice A.
  */
@@ -173,9 +177,12 @@ export async function iniciarModoApendiceA() {
               </div>
 
               <!-- Botão de execução -->
-              <div style="margin-top: 8px;">
-                <button id="btnRunEvaluationApendiceA" class="btn btn--primary" style="width: 100%; padding: 12px; font-weight: bold; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem;">
+              <div style="display: flex; gap: 10px; margin-top: 8px;">
+                <button id="btnRunEvaluationApendiceA" class="btn btn--primary" style="flex: 1; padding: 12px; font-weight: bold; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem;">
                   🚀 Executar Avaliação Cruzada
+                </button>
+                <button id="btnAbortEvaluationApendiceA" class="btn" style="display: none; padding: 12px; font-weight: bold; background: #dc3545; color: white; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem;">
+                  🛑 Interromper Geração
                 </button>
               </div>
             </div>
@@ -225,6 +232,12 @@ export async function iniciarModoApendiceA() {
   const cAvaliacao = document.getElementById("containerApendiceAAvaliacao");
 
   tabSorteio.addEventListener("click", () => {
+    userExited = true;
+    evaluationAbortController?.abort();
+    if (activePartActionResolve) {
+      activePartActionResolve("cancel");
+      activePartActionResolve = null;
+    }
     tabSorteio.style.background = "var(--color-primary)";
     tabSorteio.style.color = "var(--color-btn-primary-text)";
     tabSorteio.classList.add("active");
@@ -402,9 +415,15 @@ export async function iniciarModoApendiceA() {
   const dropZone = document.getElementById("dropZoneApendiceA");
   const fileInput = document.getElementById("fileInputApendiceA");
   const btnRunEval = document.getElementById("btnRunEvaluationApendiceA");
+  const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
 
   btnSelectQuestion.addEventListener("click", () => {
     openAddQuestionsModal();
+  });
+
+  btnAbort?.addEventListener("click", () => {
+    evaluationAbortController?.abort();
+    btnAbort.style.display = "none";
   });
 
   dropZone.addEventListener("click", () => {
@@ -607,11 +626,20 @@ export async function iniciarModoApendiceA() {
     const btnRun = document.getElementById("btnRunEvaluationApendiceA");
     const btnSelect = document.getElementById("btnSelectQuestionApendiceA");
     const dropZone = document.getElementById("dropZoneApendiceA");
+    const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
+    
+    userExited = false;
+    activePartActionResolve = null;
+    evaluationAbortController = new AbortController();
+    const abortSignal = evaluationAbortController.signal;
     
     btnRun.disabled = true;
     btnSelect.disabled = true;
     dropZone.style.pointerEvents = "none";
     dropZone.style.opacity = "0.5";
+    if (btnAbort) {
+      btnAbort.style.display = "flex";
+    }
 
     try {
       const qObj = state.selectedQuestion.fullData.dados_questao || {};
@@ -658,6 +686,12 @@ export async function iniciarModoApendiceA() {
         }
       };
 
+      const evaluationHandlers = {
+        ...handlers,
+        signal: abortSignal,
+        isExited: () => userExited
+      };
+
       const isMultiPartJudge = judgeId.toLowerCase().includes("gemma") || 
                                judgeId.toLowerCase().includes("gpt-oss-120b") ||
                                judgeId.toLowerCase().includes("gpt oss 120b");
@@ -674,10 +708,13 @@ export async function iniciarModoApendiceA() {
           controlContainer.style.gap = "10px";
           controlContainer.style.marginTop = "10px";
           consoleArea.appendChild(controlContainer);
+        } else {
+          controlContainer.style.display = "none";
         }
 
         const onPartAction = (partNumber, status, errorMsg, partResult, latencyMs, systemInstruction, promptOriginal) => {
           return new Promise((resolve) => {
+            activePartActionResolve = resolve;
             const isLast = partNumber === 4;
             controlContainer.style.display = "flex";
             
@@ -691,6 +728,10 @@ export async function iniciarModoApendiceA() {
               `;
               
               document.getElementById("btnRetryPart").onclick = () => {
+                evaluationAbortController = new AbortController();
+                evaluationHandlers.signal = evaluationAbortController.signal;
+                const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
+                if (btnAbort) btnAbort.style.display = "flex";
                 controlContainer.style.display = "none";
                 statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
                 resolve("retry");
@@ -710,6 +751,10 @@ export async function iniciarModoApendiceA() {
               `;
               
               document.getElementById("btnRetryPart").onclick = () => {
+                evaluationAbortController = new AbortController();
+                evaluationHandlers.signal = evaluationAbortController.signal;
+                const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
+                if (btnAbort) btnAbort.style.display = "flex";
                 controlContainer.style.display = "none";
                 statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
                 resolve("retry");
@@ -729,7 +774,7 @@ export async function iniciarModoApendiceA() {
           fullGabaritoRef,
           respostaIA,
           isInterdisciplinary,
-          handlers,
+          evaluationHandlers,
           onPartAction
         );
       } else {
@@ -740,7 +785,8 @@ export async function iniciarModoApendiceA() {
           fullGabaritoRef,
           respostaIA,
           isInterdisciplinary,
-          handlers
+          evaluationHandlers,
+          abortSignal
         );
       }
 
@@ -876,19 +922,35 @@ export async function iniciarModoApendiceA() {
       }
 
     } catch (error) {
+      if (error.message === "USER_CANCELLED") {
+        return;
+      }
       console.error("Erro na avaliação cruzada:", error);
-      statusMsg.innerHTML = `❌ Erro: ${error.message}`;
+      if (error.name === "AbortError" || abortSignal?.aborted || evaluationAbortController?.signal?.aborted) {
+        statusMsg.innerHTML = `🛑 Geração interrompida pelo usuário.`;
+      } else {
+        statusMsg.innerHTML = `❌ Erro: ${error.message}`;
+      }
     } finally {
       btnRun.disabled = false;
       btnSelect.disabled = false;
       dropZone.style.pointerEvents = "auto";
       dropZone.style.opacity = "1";
+      if (btnAbort) {
+        btnAbort.style.display = "none";
+      }
     }
   }
 
   // Voltar ao início
   const voltarBtn = document.querySelector(".js-voltar-inicio");
   voltarBtn?.addEventListener("click", () => {
+    userExited = true;
+    evaluationAbortController?.abort();
+    if (activePartActionResolve) {
+      activePartActionResolve("cancel");
+      activePartActionResolve = null;
+    }
     // Limpa listener
     window.removeEventListener("questions-selected", window._currentApendiceAListener);
     gerarTelaInicial();

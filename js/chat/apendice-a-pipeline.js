@@ -204,6 +204,10 @@ export async function executarAvaliacaoGemmaEmPartes(
         if (handlers.onStatus) handlers.onStatus(`Parte ${part} concluída. Aguardando confirmação...`);
         const action = await onPartAction(part, "success", null, parsed, latency, systemInstruction, promptOriginal);
         
+        if (action === "cancel") {
+          throw new Error("USER_CANCELLED");
+        }
+        
         if (action === "next") {
           if (parsed && parsed.criterios) {
             Object.assign(accumulatedCriterios, parsed.criterios);
@@ -226,9 +230,17 @@ export async function executarAvaliacaoGemmaEmPartes(
           partDone = true;
         }
       } catch (err) {
+        if (handlers.isExited?.() || (err.name === "AbortError" && !handlers.signal)) {
+          throw err;
+        }
         console.error(`Erro na parte ${part}:`, err);
-        if (handlers.onStatus) handlers.onStatus(`Erro na parte ${part}. Aguardando decisão do usuário...`);
-        const action = await onPartAction(part, "error", err.message || "Erro desconhecido", null, 0, systemInstruction, promptOriginal);
+        const displayErrorMsg = err.name === "AbortError" || handlers.signal?.aborted ? "Interrompido pelo usuário" : (err.message || "Erro desconhecido");
+        if (handlers.onStatus) handlers.onStatus(`Erro na parte ${part}: ${displayErrorMsg}`);
+        const action = await onPartAction(part, "error", displayErrorMsg, null, 0, systemInstruction, promptOriginal);
+        
+        if (action === "cancel") {
+          throw new Error("USER_CANCELLED");
+        }
         
         if (action === "next") {
           const schema = getJudgeResponseSchemaForPart(part, isInterdisciplinary);
