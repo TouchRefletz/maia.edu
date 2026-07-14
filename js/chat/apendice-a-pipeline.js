@@ -134,7 +134,8 @@ export async function executarAvaliacaoGemmaEmPartes(
   respostaIA,
   isInterdisciplinary,
   handlers = {},
-  onPartAction
+  onPartAction,
+  stepConfigs = null
 ) {
   const respostaAnonimizada = anonimizarModelos(respostaIA);
   const enunciadoAnonimizado = anonimizarModelos(enunciado);
@@ -151,7 +152,14 @@ export async function executarAvaliacaoGemmaEmPartes(
   for (let part = 1; part <= 4; part++) {
     let partDone = false;
     while (!partDone) {
-      if (handlers.onStatus) handlers.onStatus(`Executando Parte ${part} de 4...`);
+      const stepConfig = stepConfigs ? stepConfigs[part - 1] : null;
+      const stepModel = stepConfig ? stepConfig.model : modelJudgeId;
+      const stepThinking = stepConfig ? stepConfig.thinking : true;
+      const stepModelLabel = stepModel === "vertex-maas/gpt-oss-120b" ? "GPT-OSS-120B (Vertex)" :
+                             stepModel === "groq/gpt-oss-120b" ? "GPT-OSS-120B (Groq)" : stepModel;
+      const thinkingLabel = (stepModel === "vertex-maas/gpt-oss-120b") ? (stepThinking ? " [com pensamento]" : " [sem pensamento]") : "";
+
+      if (handlers.onStatus) handlers.onStatus(`Executando Parte ${part} de 4 com ${stepModelLabel}${thinkingLabel}...`);
       if (handlers.onThought) handlers.onThought(`\n\n=== [PARTE ${part} DE 4] ===\n`);
       if (handlers.onAnswerDelta) handlers.onAnswerDelta(`\n\n=== [PARTE ${part} DE 4] ===\n`);
 
@@ -159,12 +167,13 @@ export async function executarAvaliacaoGemmaEmPartes(
       const responseSchema = getJudgeResponseSchemaForPart(part, isInterdisciplinary);
 
       const options = {
-        model: modelJudgeId,
+        model: stepModel,
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: responseSchema,
         },
         systemInstruction: systemInstruction,
+        thinking: stepThinking,
       };
 
       const startTime = performance.now();
@@ -218,6 +227,7 @@ export async function executarAvaliacaoGemmaEmPartes(
 
           partDetails.push({
             part,
+            model: stepModel,
             latency_ms: latency,
             response_text: finalResult,
             thoughts: partThoughts,
@@ -260,6 +270,7 @@ export async function executarAvaliacaoGemmaEmPartes(
 
           partDetails.push({
             part,
+            model: stepModel,
             latency_ms: 0,
             response_text: JSON.stringify({ error: err.message }),
             thoughts: partThoughts,

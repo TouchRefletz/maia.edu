@@ -180,6 +180,8 @@ export async function iniciarModoApendiceA() {
                 </select>
               </div>
 
+
+
               <!-- Botão de execução -->
               <div style="display: flex; gap: 10px; margin-top: 8px;">
                 <button id="btnRunEvaluationApendiceA" class="btn btn--primary" style="flex: 1; padding: 12px; font-weight: bold; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.95rem;">
@@ -502,6 +504,8 @@ export async function iniciarModoApendiceA() {
   btnSelectQuestion.addEventListener("click", () => {
     openAddQuestionsModal();
   });
+
+
 
   btnAbort?.addEventListener("click", () => {
     evaluationAbortController?.abort();
@@ -1103,59 +1107,147 @@ export async function iniciarModoApendiceA() {
           controlContainer.style.display = "none";
         }
 
+        let stepConfigs = null;
+        if (judgeId.includes("gpt-oss-120b")) {
+          stepConfigs = [];
+          for (let i = 1; i <= 4; i++) {
+            stepConfigs.push({
+              model: i <= 3 ? "vertex-maas/gpt-oss-120b" : "groq/gpt-oss-120b",
+              thinking: true
+            });
+          }
+        }
+
         const onPartAction = (partNumber, status, errorMsg, partResult, latencyMs, systemInstruction, promptOriginal) => {
           return new Promise((resolve) => {
             activePartActionResolve = resolve;
             const isLast = partNumber === 4;
             controlContainer.style.display = "flex";
             
+            const currentModel = stepConfigs ? stepConfigs[partNumber - 1].model : judgeId;
+            const currentThinking = stepConfigs ? stepConfigs[partNumber - 1].thinking : true;
+
+            let defaultNextModel = judgeId;
+            if (judgeId.includes("gpt-oss-120b")) {
+              defaultNextModel = (partNumber + 1) <= 3 ? "vertex-maas/gpt-oss-120b" : "groq/gpt-oss-120b";
+            }
+
             if (status === "success") {
               statusMsg.innerHTML = `<span style="color: var(--color-success); font-weight: bold;">✅ Parte ${partNumber}/4 concluída com sucesso!</span>`;
-              controlContainer.innerHTML = `
-                <button id="btnRetryPart" class="btn btn--outline" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid var(--color-border); background: none; color: var(--color-text); border-radius: 4px; cursor: pointer;">🔄 Gerar Novamente Parte ${partNumber}</button>
-                <button id="btnNextPart" class="btn btn--primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">
-                  ${isLast ? "🏁 Concluir Avaliação" : `Avançar para Parte ${partNumber + 1} →`}
-                </button>
-              `;
-              
-              document.getElementById("btnRetryPart").onclick = () => {
-                evaluationAbortController = new AbortController();
-                evaluationHandlers.signal = evaluationAbortController.signal;
-                const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
-                if (btnAbort) btnAbort.style.display = "flex";
-                controlContainer.style.display = "none";
-                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
-                resolve("retry");
-              };
-              document.getElementById("btnNextPart").onclick = () => {
-                controlContainer.style.display = "none";
-                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Salvando e carregando próxima etapa...`;
-                resolve("next");
-              };
             } else {
               statusMsg.innerHTML = `<span style="color: var(--color-error); font-weight: bold;">❌ Erro na Parte ${partNumber}/4: ${errorMsg}</span>`;
-              controlContainer.innerHTML = `
-                <button id="btnRetryPart" class="btn btn--primary" style="padding: 6px 12px; font-size: 0.8rem; background: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer;">🔄 Tentar Novamente Parte ${partNumber}</button>
-                <button id="btnSkipPart" class="btn btn--outline" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid var(--color-border); background: none; color: var(--color-text); border-radius: 4px; cursor: pointer;">
-                  ${isLast ? "🏁 Concluir com Erro" : `Pular para Parte ${partNumber + 1} →`}
-                </button>
-              `;
-              
-              document.getElementById("btnRetryPart").onclick = () => {
-                evaluationAbortController = new AbortController();
-                evaluationHandlers.signal = evaluationAbortController.signal;
-                const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
-                if (btnAbort) btnAbort.style.display = "flex";
-                controlContainer.style.display = "none";
-                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
-                resolve("retry");
-              };
-              document.getElementById("btnSkipPart").onclick = () => {
-                controlContainer.style.display = "none";
-                statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Pulando Parte ${partNumber}...`;
-                resolve("next");
-              };
             }
+
+            controlContainer.innerHTML = `
+              <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-radius: 8px; padding: 14px; box-sizing: border-box;">
+                
+                <!-- Opção A: Repetir Parte Atual -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <button id="btnRetryPart" class="btn ${status === 'success' ? 'btn--outline' : 'btn--primary'}" style="padding: 8px 16px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    🔄 ${status === 'success' ? 'Gerar Novamente' : 'Tentar Novamente'} Parte ${partNumber}
+                  </button>
+                  
+                  ${judgeId.includes("gpt-oss-120b") ? `
+                    <span style="font-size: 0.8rem; color: var(--color-text-secondary);">usando:</span>
+                    <select id="selectRetryModel" class="apendice-select" style="background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; padding: 6px; font-size: 0.8rem;">
+                      <option value="vertex-maas/gpt-oss-120b" ${currentModel === "vertex-maas/gpt-oss-120b" ? "selected" : ""}>GPT-OSS-120B (Vertex MaaS)</option>
+                      <option value="groq/gpt-oss-120b" ${currentModel === "groq/gpt-oss-120b" ? "selected" : ""}>GPT-OSS-120B (Groq)</option>
+                    </select>
+                    
+                    <label id="labelRetryThinking" style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; cursor: pointer; color: var(--color-text);">
+                      <input type="checkbox" id="checkRetryThinking" style="width: 14px; height: 14px; cursor: pointer;" ${currentThinking ? "checked" : ""} />
+                      Ativar Pensamento
+                    </label>
+                  ` : ''}
+                </div>
+
+                <!-- Opção B: Avançar / Pular -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px dashed var(--color-border); padding-top: 12px;">
+                  <button id="btnNextPart" class="btn ${status === 'success' ? 'btn--primary' : 'btn--outline'}" style="padding: 8px 16px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    ${isLast ? "🏁 Concluir Avaliação" : `${status === 'success' ? 'Avançar para' : 'Pular para'} Parte ${partNumber + 1} →`}
+                  </button>
+                  
+                  ${(!isLast && judgeId.includes("gpt-oss-120b")) ? `
+                    <span style="font-size: 0.8rem; color: var(--color-text-secondary);">usando:</span>
+                    <select id="selectNextModel" class="apendice-select" style="background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; padding: 6px; font-size: 0.8rem;">
+                      <option value="vertex-maas/gpt-oss-120b" ${defaultNextModel === "vertex-maas/gpt-oss-120b" ? "selected" : ""}>GPT-OSS-120B (Vertex MaaS)</option>
+                      <option value="groq/gpt-oss-120b" ${defaultNextModel === "groq/gpt-oss-120b" ? "selected" : ""}>GPT-OSS-120B (Groq)</option>
+                    </select>
+                    
+                    <label id="labelNextThinking" style="display: flex; align-items: center; gap: 4px; font-size: 0.8rem; cursor: pointer; color: var(--color-text);">
+                      <input type="checkbox" id="checkNextThinking" style="width: 14px; height: 14px; cursor: pointer;" checked />
+                      Ativar Pensamento
+                    </label>
+                  ` : ''}
+                </div>
+
+              </div>
+            `;
+
+            if (judgeId.includes("gpt-oss-120b")) {
+              const selectRetry = document.getElementById("selectRetryModel");
+              const labelRetry = document.getElementById("labelRetryThinking");
+              if (selectRetry && labelRetry) {
+                const updateRetryVis = () => {
+                  labelRetry.style.display = selectRetry.value === "vertex-maas/gpt-oss-120b" ? "flex" : "none";
+                };
+                selectRetry.addEventListener("change", updateRetryVis);
+                updateRetryVis();
+              }
+
+              if (!isLast) {
+                const selectNext = document.getElementById("selectNextModel");
+                const labelNext = document.getElementById("labelNextThinking");
+                if (selectNext && labelNext) {
+                  const updateNextVis = () => {
+                    labelNext.style.display = selectNext.value === "vertex-maas/gpt-oss-120b" ? "flex" : "none";
+                  };
+                  selectNext.addEventListener("change", updateNextVis);
+                  updateNextVis();
+                }
+              }
+            }
+
+            document.getElementById("btnRetryPart").onclick = () => {
+              if (stepConfigs && judgeId.includes("gpt-oss-120b")) {
+                const selectRetry = document.getElementById("selectRetryModel");
+                const checkRetry = document.getElementById("checkRetryThinking");
+                stepConfigs[partNumber - 1] = {
+                  model: selectRetry ? selectRetry.value : judgeId,
+                  thinking: checkRetry ? checkRetry.checked : true
+                };
+              }
+              
+              evaluationAbortController = new AbortController();
+              evaluationHandlers.signal = evaluationAbortController.signal;
+              const btnAbort = document.getElementById("btnAbortEvaluationApendiceA");
+              if (btnAbort) btnAbort.style.display = "flex";
+              controlContainer.style.display = "none";
+              statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Repetindo Parte ${partNumber}...`;
+              resolve("retry");
+            };
+
+            const handleNextOrSkip = () => {
+              if (!isLast && stepConfigs && judgeId.includes("gpt-oss-120b")) {
+                const selectNext = document.getElementById("selectNextModel");
+                const checkNext = document.getElementById("checkNextThinking");
+                stepConfigs[partNumber] = {
+                  model: selectNext ? selectNext.value : judgeId,
+                  thinking: checkNext ? checkNext.checked : true
+                };
+              }
+              
+              controlContainer.style.display = "none";
+              statusMsg.innerHTML = `<span class="spinner-sm" style="display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span> Salvando e carregando próxima etapa...`;
+              resolve("next");
+            };
+
+            if (status === "success") {
+              document.getElementById("btnNextPart").onclick = handleNextOrSkip;
+            } else {
+              document.getElementById("btnNextPart").onclick = handleNextOrSkip;
+            }
+
           });
         };
 
@@ -1166,7 +1258,8 @@ export async function iniciarModoApendiceA() {
           respostaIA,
           isInterdisciplinary,
           evaluationHandlers,
-          onPartAction
+          onPartAction,
+          stepConfigs
         );
       } else {
         const { executarAvaliacaoApendiceA } = await import("../chat/apendice-a-pipeline.js");
@@ -1195,7 +1288,7 @@ export async function iniciarModoApendiceA() {
             session_id: state.uploadedJSON.session_id || "nova_sessao",
             timestamp: new Date().toISOString(),
             use_maia_architecture: useMaia,
-            model: judgeId,
+            model: detail.model || judgeId,
             prompt_original: detail.prompt_original,
             prompt_compiled: detail.prompt_compiled,
             images_attached: 0,

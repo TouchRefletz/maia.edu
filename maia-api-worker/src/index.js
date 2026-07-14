@@ -3924,6 +3924,7 @@ async function handleVertexMaaSGenerateStream(modelo, body, env, attempt, writeN
 		history = [],
 		systemInstruction,
 		imageDescriptorModel,
+		thinking = true,
 	} = body;
 
 	// Resolve Vertex config from body or env
@@ -4110,6 +4111,10 @@ FORMATO DE SAÍDA:
 		messages: openAIMessages,
 		stream: true,
 	};
+
+	if (thinking === false) {
+		payload.reasoning_effort = "low";
+	}
 
 	if (jsonMode && schema) {
 		payload.response_format = {
