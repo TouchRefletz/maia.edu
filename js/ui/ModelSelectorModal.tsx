@@ -52,6 +52,18 @@ const GROQ_LOGO = (
   </svg>
 );
 
+const VERTEX_MAAS_LOGO = (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="url(#vertexMaasGradient)" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px', flexShrink: 0 }}>
+    <defs>
+      <linearGradient id="vertexMaasGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#4285F4" />
+        <stop offset="100%" stopColor="#34A853" />
+      </linearGradient>
+    </defs>
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#vertexMaasGradient)" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const PUTER_LOGO = (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#3b82f6', marginRight: '8px', flexShrink: 0 }}>
     <path d="m5 16 1.86-1.86a6.08 6.08 0 0 1 8.28 0L17 16" />
@@ -89,6 +101,7 @@ const getProviderLogo = (provider: string) => {
   const p = (provider || '').toLowerCase();
   if (p.includes('openai')) return OPENAI_LOGO;
   if (p.includes('gemini') || p.includes('google')) return GEMINI_LOGO;
+  if (p.includes('vertex-maas')) return VERTEX_MAAS_LOGO;
   if (p.includes('groq')) return GROQ_LOGO;
   if (p.includes('claude') || p.includes('anthropic')) return CLAUDE_LOGO;
   if (p.includes('mistral') || p.includes('pixtral')) return MISTRAL_LOGO;
@@ -416,6 +429,18 @@ export const IA_MODELS: IAModel[] = [
     speed: 5,
     reasoningText: "Muito Alto",
     speedText: "Muito Rápido"
+  },
+  // Vertex AI MaaS Models
+  {
+    id: "vertex-maas/gpt-oss-120b",
+    title: "GPT-OSS 120B (Vertex)",
+    desc: "Modelo de raciocínio MoE via Vertex AI Model Garden",
+    category: "Vertex AI (MaaS)",
+    logo: VERTEX_MAAS_LOGO,
+    reasoning: 5,
+    speed: 5,
+    reasoningText: "Muito Alto",
+    speedText: "Muito Rápido"
   }
 ];
 
@@ -565,7 +590,7 @@ export function modelSupportsVision(modelId: string): boolean {
     return visionPatterns.some(pattern => puterId.includes(pattern));
   }
 
-  if (id.includes('groq/gpt-oss-120b')) {
+  if (id.includes('gpt-oss-120b')) {
     return true;
   }
 
@@ -594,7 +619,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   });
 
   useEffect(() => {
-    const isGptOss = selections.chat === 'groq/gpt-oss-120b';
+    const isGptOss = selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
     if (mode === 'chat' && !isMaiaActive && activeTab !== 'chat' && !(isGptOss && activeTab === 'image_descriptor')) {
       setActiveTab('chat');
     }
@@ -613,6 +638,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     { id: 'google-vertex-ai', label: 'Google Vertex AI' },
     { id: 'openai', label: 'OpenAI' },
     { id: 'groq', label: 'Groq' },
+    { id: 'vertex-maas', label: 'Vertex AI (MaaS)' },
     { id: 'puter', label: 'Puter' }
   ];
 
@@ -796,7 +822,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
   const filteredModels = allModels.filter(model => {
     // Excluir o próprio gpt-oss-120b do descritor de imagens
-    if (activeTab === 'image_descriptor' && model.id === 'groq/gpt-oss-120b') {
+    if (activeTab === 'image_descriptor' && (model.id === 'groq/gpt-oss-120b' || model.id === 'vertex-maas/gpt-oss-120b')) {
       return false;
     }
 
@@ -817,6 +843,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         return false;
       }
       if (activeCategory === 'groq' && model.category !== 'Groq') {
+        return false;
+      }
+      if (activeCategory === 'vertex-maas' && model.category !== 'Vertex AI (MaaS)') {
         return false;
       }
       if (activeCategory === 'puter' && !model.category.startsWith('Puter') && !model.isPuterModel) {
@@ -894,7 +923,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     });
   };
 
-  const isGptOssSelected = selections.chat === 'groq/gpt-oss-120b';
+  const isGptOssSelected = selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
   const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
   const baseStages = mode === 'extractor'
     ? EXTRACTOR_STAGES_CONFIG

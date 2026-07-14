@@ -30,6 +30,10 @@ const GROQ_MODELS = [
 	'groq/gpt-oss-120b'
 ];
 
+const VERTEX_MAAS_MODELS = [
+	'vertex-maas/gpt-oss-120b'
+];
+
 const safetySettings = [
 	{ category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
 	{ category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
@@ -1053,7 +1057,7 @@ async function handleGeminiGenerate(request, env) {
 	if (model) {
 		initialModels = [model];
 	} else {
-		initialModels = [...DEFAULT_MODELS, ...GITHUB_MODELS, ...GROQ_MODELS];
+		initialModels = [...DEFAULT_MODELS, ...GITHUB_MODELS, ...GROQ_MODELS, ...VERTEX_MAAS_MODELS];
 	}
 
 	// Fallbacks específicos pra RECITATION
@@ -1167,6 +1171,13 @@ async function handleGeminiGenerate(request, env) {
 
 				if (modelo.startsWith('groq/') || GROQ_MODELS.includes(modelo)) {
 					await handleGroqGenerateStream(modelo, body, env, attempt, wrappedWriteNdjson);
+					attemptHistory[attemptHistory.length - 1].status = 'success';
+					success = true;
+					break;
+				}
+
+				if (modelo.startsWith('vertex-maas/') || VERTEX_MAAS_MODELS.includes(modelo)) {
+					await handleVertexMaaSGenerateStream(modelo, body, env, attempt, wrappedWriteNdjson);
 					attemptHistory[attemptHistory.length - 1].status = 'success';
 					success = true;
 					break;
@@ -3761,6 +3772,370 @@ FORMATO DE SAÍDA:
 	if (!response.ok) {
 		const errText = await response.text();
 		throw new Error(`Groq API Error: ${response.status} - ${errText}`);
+	}
+
+	if (!response.body) throw new Error('Response body is null (stream)');
+
+	const reader = response.body.getReader();
+	const decoder = new TextDecoder('utf-8');
+	let buffer = '';
+
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+
+		buffer += decoder.decode(value, { stream: true });
+		const lines = buffer.split('\n');
+		buffer = lines.pop() || '';
+
+		for (const line of lines) {
+			const cleanLine = line.trim();
+			if (!cleanLine) continue;
+			if (cleanLine === 'data: [DONE]') continue;
+			if (cleanLine.startsWith('data: ')) {
+				try {
+					const jsonStr = cleanLine.slice(6);
+					const chunk = JSON.parse(jsonStr);
+					const choice = chunk.choices?.[0];
+					const delta = choice?.delta;
+
+					const thoughtText = delta?.reasoning_content || delta?.thinking || '';
+					if (thoughtText) {
+						await writeNdjson({ type: 'thought', attempt, model: modelo, text: thoughtText });
+					}
+
+					const answerText = delta?.content || '';
+					if (answerText) {
+						await writeNdjson({ type: 'answer', attempt, model: modelo, text: answerText });
+					}
+				} catch (err) {
+					// Ignore parser errors for incomplete chunks
+				}
+			}
+		}
+	}
+}
+
+// --- Vertex AI MaaS access token cache ---
+let _vertexTokenCache = { token: null, expiry: 0 };
+
+/**
+ * Gets an access token for Vertex AI using service account JWT + Web Crypto API.
+ * Tokens are cached in-memory and reused until 5 minutes before expiry.
+ */
+async function getVertexAccessToken(credentialsJson) {
+	const now = Math.floor(Date.now() / 1000);
+
+	// Return cached token if still valid (with 5-min buffer)
+	if (_vertexTokenCache.token && _vertexTokenCache.expiry > now + 300) {
+		return _vertexTokenCache.token;
+	}
+
+	const sa = typeof credentialsJson === 'string' ? JSON.parse(credentialsJson) : credentialsJson;
+	if (!sa.client_email || !sa.private_key) {
+		throw new Error('Invalid Vertex credentials: missing client_email or private_key');
+	}
+
+	// --- Build JWT ---
+	const header = { alg: 'RS256', typ: 'JWT' };
+	const payload = {
+		iss: sa.client_email,
+		scope: 'https://www.googleapis.com/auth/cloud-platform',
+		aud: 'https://oauth2.googleapis.com/token',
+		iat: now,
+		exp: now + 3600,
+	};
+
+	const toBase64Url = (obj) => {
+		const json = JSON.stringify(obj);
+		const bytes = new TextEncoder().encode(json);
+		let binary = '';
+		for (const b of bytes) binary += String.fromCharCode(b);
+		return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	};
+
+	const headerB64 = toBase64Url(header);
+	const payloadB64 = toBase64Url(payload);
+	const unsignedToken = `${headerB64}.${payloadB64}`;
+
+	// --- Import PEM private key via Web Crypto API ---
+	const pemBody = sa.private_key
+		.replace(/-----BEGIN PRIVATE KEY-----/, '')
+		.replace(/-----END PRIVATE KEY-----/, '')
+		.replace(/\s/g, '');
+	const binaryDer = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
+	const cryptoKey = await crypto.subtle.importKey(
+		'pkcs8',
+		binaryDer.buffer,
+		{ name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
+
+	// --- Sign ---
+	const signatureBuffer = await crypto.subtle.sign(
+		'RSASSA-PKCS1-v1_5',
+		cryptoKey,
+		new TextEncoder().encode(unsignedToken)
+	);
+	const sigBytes = new Uint8Array(signatureBuffer);
+	let sigBinary = '';
+	for (const b of sigBytes) sigBinary += String.fromCharCode(b);
+	const signatureB64 = btoa(sigBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+	const signedJwt = `${unsignedToken}.${signatureB64}`;
+
+	// --- Exchange JWT for access token ---
+	const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+		body: `grant_type=${encodeURIComponent('urn:ietf:params:oauth:grant-type:jwt-bearer')}&assertion=${encodeURIComponent(signedJwt)}`,
+	});
+
+	if (!tokenResponse.ok) {
+		const errText = await tokenResponse.text();
+		throw new Error(`Failed to get Vertex access token: ${tokenResponse.status} - ${errText}`);
+	}
+
+	const tokenData = await tokenResponse.json();
+
+	// Cache the token
+	_vertexTokenCache = {
+		token: tokenData.access_token,
+		expiry: now + (tokenData.expires_in || 3600),
+	};
+
+	return tokenData.access_token;
+}
+
+/**
+ * Helper to generate chat stream using Vertex AI MaaS (OpenAI compatible)
+ */
+async function handleVertexMaaSGenerateStream(modelo, body, env, attempt, writeNdjson) {
+	const {
+		schema,
+		apiKey: userApiKey,
+		vertexProjectId: bodyVertexProjectId,
+		vertexLocation: bodyVertexLocation,
+		vertexCredentials: bodyVertexCredentials,
+		jsonMode = true,
+		chatMode = false,
+		history = [],
+		systemInstruction,
+		imageDescriptorModel,
+	} = body;
+
+	// Resolve Vertex config from body or env
+	const credentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
+	if (!credentials) {
+		throw new Error('VERTEX_CREDENTIALS not configured for Vertex MaaS');
+	}
+
+	const projectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+	if (!projectId) {
+		throw new Error('VERTEX_PROJECT_ID not configured for Vertex MaaS');
+	}
+
+	const location = 'us-central1';
+
+	// Get access token via JWT + Web Crypto
+	const accessToken = await getVertexAccessToken(credentials);
+
+	const vertexMaaSModelId = 'openai/gpt-oss-120b-maas';
+
+	// Process image descriptions if needed
+	let textWithDescriptions = body.texto || '';
+	const images = [];
+
+	const extractImages = (items, defaultMime) => {
+		if (Array.isArray(items)) {
+			items.forEach((item) => {
+				let data = item;
+				let mime = defaultMime;
+
+				if (typeof item === 'object' && item.data) {
+					data = item.data;
+					if (item.mimeType) mime = item.mimeType;
+				} else if (typeof item === 'string' && item.includes('base64,')) {
+					const matches = item.match(/^data:(.+);base64,(.+)$/);
+					if (matches) {
+						mime = matches[1];
+						data = matches[2];
+					}
+				}
+				
+				if (mime && mime.startsWith('image/')) {
+					images.push({ mimeType: mime, data });
+				}
+			});
+		}
+	};
+
+	extractImages(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+	if (body.files) {
+		extractImages(body.files, 'application/pdf');
+	}
+
+	if (images.length > 0) {
+		const startGemmaTime = performance.now();
+		const descriptions = [];
+		const promptDescrever = `Você é um transcritor visual acadêmico especializado em provas de vestibulares brasileiros. Sua tarefa é descrever, com absurdamente alto detalhamento, TODOS os elementos visuais presentes na imagem anexa de uma questão de vestibular.
+REGRAS:
+Descreva CADA elemento visual separadamente
+Para gráficos: descreva eixos (nome, unidade, escala), pontos plotados, tendências, interceptos
+Para tabelas: transcreva TODOS os valores célula por célula
+Para figuras geométricas: descreva formas, medidas, ângulos, relações espaciais
+Para fórmulas/química: transcreva símbolos, subscritos, superescritos, setas
+Para imagens fotografadas: descreva cenário, objetos, pessoas, contexto
+NÃO interprete nem resolva a questão — apenas descreva o que vê
+Use formato estruturado com tópicos
+FORMATO DE SAÍDA:
+[TIPO_DE_ELEMENTO]: descrição detalhada`;
+
+		const descriptorModel = imageDescriptorModel || 'models/gemma-4-31b-it';
+
+		for (let i = 0; i < images.length; i++) {
+			const img = images[i];
+			let desc = '';
+			
+			if (i > 0) {
+				// Pequeno delay para evitar rate limits/concorrência na chave gratuita do Gemini
+				await new Promise((resolve) => setTimeout(resolve, 800));
+			}
+
+			let successImage = false;
+			let lastDescError = null;
+
+			for (let attemptNum = 1; attemptNum <= 3; attemptNum++) {
+				if (attemptNum > 1) {
+					await writeNdjson({ type: 'status', text: `Descritor falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descritor falhou. Tentando novamente (${attemptNum}/3) para imagem ${i + 1}...]\n` });
+					await new Promise((resolve) => setTimeout(resolve, 1000));
+				} else {
+					await writeNdjson({ type: 'status', text: `Descrevendo imagem ${i + 1}/${images.length} com ${descriptorModel}...` });
+					await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Descrevendo imagem ${i + 1}/${images.length} com ${descriptorModel}...]\n` });
+				}
+
+				try {
+					desc = await describeImageWithModel(img, promptDescrever, descriptorModel, body, env);
+					successImage = true;
+					break;
+				} catch (descError) {
+					console.warn(`[Image Description] Attempt ${attemptNum}/3 failed:`, descError);
+					lastDescError = descError;
+					desc = '';
+				}
+			}
+
+			if (!successImage) {
+				const errorMsg = `Falha ao descrever imagem ${i + 1} após 3 tentativas com ${descriptorModel}. Erro original: ${lastDescError?.message || 'Erro desconhecido'}`;
+				await writeNdjson({ type: 'status', text: `Erro: Falha na descrição da imagem ${i + 1}.` });
+				await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[${errorMsg}]\n` });
+				throw new Error(errorMsg);
+			}
+
+			await writeNdjson({ type: 'thought', attempt, model: modelo, text: desc });
+			await writeNdjson({ type: 'thought', attempt, model: modelo, text: `\n[Fim da descrição da imagem ${i + 1}]\n` });
+			descriptions.push(desc);
+		}
+
+		const gemmaLatencyMs = Math.round(performance.now() - startGemmaTime);
+		await writeNdjson({ type: 'gemma_latency', latency_ms: gemmaLatencyMs });
+
+		const formattedDescriptions = descriptions.map((desc, idx) => `[DESCRIÇÃO DA IMAGEM ${idx + 1}]:\n${desc}`).join('\n\n');
+		textWithDescriptions = `${textWithDescriptions}\n\n=== DESCRIÇÃO VISUAL DAS IMAGENS DA QUESTÃO ===\n${formattedDescriptions}\n===============================================`;
+	}
+
+	let textWithFiles = textWithDescriptions || '';
+	const nonTextParts = [];
+
+	const processNonImageAttachmentsToParts = (items, defaultMime) => {
+		if (Array.isArray(items)) {
+			items.forEach((item) => {
+				let data = item;
+				let mimeType = defaultMime;
+				let name = 'arquivo';
+				if (typeof item === 'object' && item.data) {
+					data = item.data;
+					if (item.mimeType) mimeType = item.mimeType;
+					if (item.name) name = item.name;
+				} else if (typeof item === 'string' && item.includes('base64,')) {
+					const matches = item.match(/^data:(.+);base64,(.+)$/);
+					if (matches) {
+						mimeType = matches[1];
+						data = matches[2];
+					}
+				}
+				if (mimeType && !mimeType.startsWith('image/')) {
+					if (isTextMimeType(mimeType)) {
+						const decodedText = decodeBase64ToUtf8(data);
+						textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
+					} else {
+						nonTextParts.push({ inlineData: { mimeType, data } });
+					}
+				}
+			});
+		}
+	};
+
+	processNonImageAttachmentsToParts(body.listaImagensBase64, body.mimeType || 'image/jpeg');
+	if (body.files) {
+		processNonImageAttachmentsToParts(body.files, 'application/pdf');
+	}
+
+	const currentParts = [];
+	if (textWithFiles) {
+		currentParts.push({ text: textWithFiles });
+	}
+	currentParts.push(...nonTextParts);
+
+	// Bidirectional mapping: Convert Gemini history to OpenAI format
+	let openAIMessages = mapGeminiHistoryToOpenAI(history, currentParts, systemInstruction);
+
+	// Flatten array content to text-only for gpt-oss model
+	openAIMessages = openAIMessages.map((msg) => {
+		if (Array.isArray(msg.content)) {
+			const textContent = msg.content
+				.filter(part => part.type === 'text')
+				.map(part => part.text)
+				.join('\n');
+			return { ...msg, content: textContent };
+		}
+		return msg;
+	});
+
+	const payload = {
+		model: vertexMaaSModelId,
+		messages: openAIMessages,
+		stream: true,
+	};
+
+	if (jsonMode && schema) {
+		payload.response_format = {
+			type: 'json_schema',
+			json_schema: {
+				name: 'response_schema',
+				schema: normalizeSchemaToStandard(schema),
+			},
+		};
+	}
+
+	const vertexEndpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/endpoints/openapi/chat/completions`;
+	console.log(`[Vertex MaaS] Endpoint: ${vertexEndpoint} | Model: ${vertexMaaSModelId}`);
+
+	const response = await fetch(vertexEndpoint, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': 'Bearer ' + accessToken,
+		},
+		body: JSON.stringify(payload),
+	});
+
+	if (!response.ok) {
+		const errText = await response.text();
+		throw new Error(`Vertex MaaS API Error: ${response.status} - ${errText}`);
 	}
 
 	if (!response.body) throw new Error('Response body is null (stream)');

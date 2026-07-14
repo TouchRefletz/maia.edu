@@ -772,7 +772,14 @@ export async function iniciarModoApendiceA() {
     } else if (mLower.includes("gemini-3.5-flash") || mLower.includes("gemini 3.5 flash")) {
       modelLabel = "Gemini 3.5 Flash";
     } else if (mLower.includes("gpt-oss-120b") || mLower.includes("gpt oss 120b")) {
-      modelLabel = "GPT-OSS-120B";
+      // Mostrar provedor no label da metadata para diferenciar
+      if (mLower.includes("vertex-maas") || mLower.includes("vertex")) {
+        modelLabel = "GPT-OSS-120B (Vertex)";
+      } else if (mLower.includes("groq")) {
+        modelLabel = "GPT-OSS-120B (Groq)";
+      } else {
+        modelLabel = "GPT-OSS-120B";
+      }
     } else {
       modelLabel = parsed.model;
     }
@@ -785,7 +792,7 @@ export async function iniciarModoApendiceA() {
     if (state.selectedQuestion) {
       const modeloDesejado = await obterModeloDesejadoSorteio(state.selectedQuestion);
       if (modeloDesejado) {
-        const cleanLabel = modelLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanLabel = modelLabel.replace(/\s*\((?:Groq|Vertex|Vertex MaaS)\)\s*/gi, "").toLowerCase().replace(/[^a-z0-9]/g, "");
         const cleanDesejado = modeloDesejado.toLowerCase().replace(/[^a-z0-9]/g, "");
         const matches = cleanLabel === cleanDesejado;
         if (matches) {
@@ -853,7 +860,12 @@ export async function iniciarModoApendiceA() {
         canonicalModel = "models/gemini-3.5-flash";
         modelLabel = "Gemini 3.5 Flash";
       } else if (mLower.includes("gpt-oss-120b") || mLower.includes("gpt oss 120b")) {
-        canonicalModel = "groq/gpt-oss-120b";
+        // Detectar provedor para preservar no canonicalModel
+        if (mLower.includes("vertex-maas") || mLower.includes("vertex")) {
+          canonicalModel = "vertex-maas/gpt-oss-120b";
+        } else {
+          canonicalModel = "groq/gpt-oss-120b";
+        }
         modelLabel = "GPT-OSS-120B";
       }
 
@@ -894,10 +906,15 @@ export async function iniciarModoApendiceA() {
     { id: "models/gemini-3.5-flash", label: "Gemini 3.5 Flash (Google AI Studio)" },
     { id: "vertex/gemini-3.5-flash", label: "Gemini 3.5 Flash (Vertex AI)" },
     { id: "models/gemma-4-31b-it", label: "Gemma 4 31B IT" },
-    { id: "groq/gpt-oss-120b", label: "GPT-OSS-120B" }
+    { id: "groq/gpt-oss-120b", label: "GPT-OSS-120B (Groq)" },
+    { id: "vertex-maas/gpt-oss-120b", label: "GPT-OSS-120B (Vertex MaaS)" }
   ].filter(m => {
     if (excludeModel && excludeModel.includes("gemini-3.5-flash")) {
       return !m.id.includes("gemini-3.5-flash");
+    }
+    // Se o modelo excluído é qualquer variante do GPT-OSS, excluir AMBAS (mesmo modelo base)
+    if (excludeModel && excludeModel.includes("gpt-oss-120b")) {
+      return !m.id.includes("gpt-oss-120b");
     }
     return m.id !== excludeModel;
   });
@@ -989,7 +1006,9 @@ export async function iniciarModoApendiceA() {
     // Define o nome amigável que vai aparecer na tela durante a avaliação
     const judgeLabel = judgeId === "vertex/gemini-3.5-flash" ? "Gemini 3.5 Flash (Vertex)" :
                       judgeId === "models/gemini-3.5-flash" ? "Gemini 3.5 Flash (AI Studio)" :
-                      judgeId.includes("gemma") ? "Gemma 4 31B IT" : "GPT-OSS-120B";
+                      judgeId.includes("gemma") ? "Gemma 4 31B IT" :
+                      judgeId === "vertex-maas/gpt-oss-120b" ? "GPT-OSS-120B (Vertex MaaS)" :
+                      judgeId === "groq/gpt-oss-120b" ? "GPT-OSS-120B (Groq)" : "GPT-OSS-120B";
 
     consoleArea.style.display = "flex";
     thoughtsBox.textContent = "";

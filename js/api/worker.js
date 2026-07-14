@@ -464,7 +464,7 @@ export function getProxyPdfUrl(rawUrl) {
  */
 export async function callWorker(endpoint, body) {
   try {
-    const isVertexModel = !body.model || body.model.startsWith("vertex/");
+    const isVertexModel = !body.model || body.model.startsWith("vertex/") || body.model.startsWith("vertex-maas/");
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
       method: "POST",
       headers: {
@@ -646,7 +646,8 @@ export async function gerarConteudoEmJSONComImagemStream(
       const isVertexModel =
         !options.model ||
         options.model.startsWith("vertex/") ||
-        (resolvedImageDescriptorModel && resolvedImageDescriptorModel.startsWith("vertex/"));
+        options.model.startsWith("vertex-maas/") ||
+        (resolvedImageDescriptorModel && (resolvedImageDescriptorModel.startsWith("vertex/") || resolvedImageDescriptorModel.startsWith("vertex-maas/")));
 
       const customVertexProjectId = isVertexModel
         ? options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID")
@@ -1164,7 +1165,7 @@ export async function realizarPesquisa(
 
   handlers?.onStatus?.("Conectando ao Researcher...");
 
-  const isVertexModel = !model || model.startsWith("vertex/");
+  const isVertexModel = !model || model.startsWith("vertex/") || model.startsWith("vertex-maas/");
 
   try {
     const response = await fetch(`${WORKER_URL}/search`, {
@@ -1356,7 +1357,7 @@ export async function realizarPesquisaGeral(
 
   handlers?.onStatus?.("Conectando ao sistema de pesquisa profunda...");
 
-  const isVertexModel = !model || model.startsWith("vertex/");
+  const isVertexModel = !model || model.startsWith("vertex/") || model.startsWith("vertex-maas/");
 
   try {
     const response = await fetch(`${WORKER_URL}/search`, {

@@ -216,6 +216,14 @@ export const CHAT_CONFIG = {
       usesRouter: false,
       model: "groq/gpt-oss-120b",
     },
+    // Vertex AI MaaS Models
+    "vertex-maas/gpt-oss-120b": {
+      id: "vertex-maas/gpt-oss-120b",
+      label: "GPT-OSS 120B (Vertex MaaS)",
+      description: "Modelo MoE ultra-veloz via Vertex AI Model Garden",
+      usesRouter: false,
+      model: "vertex-maas/gpt-oss-120b",
+    },
   },
 
   /**
