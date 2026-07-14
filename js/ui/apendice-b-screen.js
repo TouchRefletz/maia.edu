@@ -490,11 +490,59 @@ async function carregarDashboardApendiceB() {
     }
     const stats = await response.json();
 
-    // 3. Oculta loader e renderiza esqueleto do Dashboard
+    // 3. Oculta loader e renderiza esqueleto do Dashboard com seletores
     loader.style.display = "none";
     content.style.display = "flex";
+    content.style.flexDirection = "column";
     
-    renderDashboardUI(content, stats);
+    content.innerHTML = `
+      <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 15px; width: 100%; flex-wrap: wrap;">
+        <button id="btnApendiceBTabLinguagens" class="nav-tab-btn active" style="padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-btn-primary-text);">
+          📖 Linguagens e Códigos (LC)
+        </button>
+        <button id="btnApendiceBTabHumanas" class="nav-tab-btn" style="padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text);">
+          🌍 Ciências Humanas (CH)
+        </button>
+        <button id="btnApendiceBTabConsolidado" class="nav-tab-btn" style="padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text);">
+          📊 Consolidado (LC + CH)
+        </button>
+      </div>
+      <div id="apendiceBDashboardDataContainer" style="display: flex; flex-direction: column; gap: 20px; width: 100%;"></div>
+    `;
+
+    const dataContainer = document.getElementById("apendiceBDashboardDataContainer");
+    const btnLinguagens = document.getElementById("btnApendiceBTabLinguagens");
+    const btnHumanas = document.getElementById("btnApendiceBTabHumanas");
+    const btnConsolidado = document.getElementById("btnApendiceBTabConsolidado");
+
+    const tabs = [
+      { btn: btnLinguagens, key: 'linguagens' },
+      { btn: btnHumanas, key: 'humanas' },
+      { btn: btnConsolidado, key: 'consolidado' }
+    ];
+
+    function selectTab(activeKey) {
+      tabs.forEach(t => {
+        if (t.key === activeKey) {
+          t.btn.style.border = "1px solid var(--color-primary)";
+          t.btn.style.background = "var(--color-primary)";
+          t.btn.style.color = "var(--color-btn-primary-text)";
+          t.btn.classList.add("active");
+        } else {
+          t.btn.style.border = "1px solid var(--color-border)";
+          t.btn.style.background = "none";
+          t.btn.style.color = "var(--color-text)";
+          t.btn.classList.remove("active");
+        }
+      });
+      renderDashboardUI(dataContainer, stats[activeKey], activeKey);
+    }
+
+    btnLinguagens.addEventListener("click", () => selectTab('linguagens'));
+    btnHumanas.addEventListener("click", () => selectTab('humanas'));
+    btnConsolidado.addEventListener("click", () => selectTab('consolidado'));
+
+    selectTab('linguagens');
     dashboardCarregado = true;
     
   } catch (error) {
@@ -509,11 +557,18 @@ async function carregarDashboardApendiceB() {
   }
 }
 
-function renderDashboardUI(container, stats) {
-  // Obter correlações e comparações
+function renderDashboardUI(container, stats, activeKey) {
+  // Obter correlações e comparações do subset
   const c_glob = stats.comparisons.global;
   const c_pre = stats.comparisons.pre_cutoff;
   const c_post = stats.comparisons.post_cutoff;
+  
+  const hasCaseStudies = stats.case_studies && stats.case_studies.length > 0;
+  
+  let areaLabel = "Geral";
+  if (activeKey === "linguagens") areaLabel = "Linguagens e Códigos (LC)";
+  if (activeKey === "humanas") areaLabel = "Ciências Humanas (CH)";
+  if (activeKey === "consolidado") areaLabel = "Consolidado (LC + CH)";
 
   // Gerar HTML de cards de destaque
   container.innerHTML = `
@@ -555,7 +610,7 @@ function renderDashboardUI(container, stats) {
           <span>Viés (Bias): <strong style="color: ${c_glob.apendice_vs_heuristic.bias < 0 ? 'var(--color-error)' : 'var(--color-success)'}">${c_glob.apendice_vs_heuristic.bias.toFixed(1)}%</strong></span>
         </div>
         <div style="font-size: 0.7rem; color: var(--color-text-secondary); line-height: 1.3; margin-top: 3px;">
-          * **Consistência interna forte!** O modelo julga as rubricas de forma extremamente alinhada com as heurísticas de pesos (MAE de apenas 14.8%).
+          * **Consistência interna forte!** O modelo julga as rubricas de forma extremamente alinhada com as heurísticas de pesos (MAE de apenas ${c_glob.apendice_vs_heuristic.mae.toFixed(1)}%).
         </div>
       </div>
 
@@ -566,7 +621,7 @@ function renderDashboardUI(container, stats) {
       
       <!-- Gráfico 1: Correlações por Critério e Cutoff -->
       <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px;">
-        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Colapso de Correlação Generalizado (Pré vs. Pós Cutoff)</h4>
+        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Colapso de Correlação Generalizado (Pré vs. Pós Cutoff - ${areaLabel})</h4>
         <div style="height: 250px; position: relative;">
           <canvas id="chartCorrelacaoCanvas"></canvas>
         </div>
@@ -577,7 +632,7 @@ function renderDashboardUI(container, stats) {
 
       <!-- Gráfico 2: Médias por Faixa de Dificuldade -->
       <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px;">
-        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Complexidade Média Calculada por Faixa Real (TRI)</h4>
+        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Complexidade Média Calculada por Faixa Real (TRI - ${areaLabel})</h4>
         <div style="height: 250px; position: relative;">
           <canvas id="chartFaixasCanvas"></canvas>
         </div>
@@ -608,39 +663,47 @@ function renderDashboardUI(container, stats) {
         <div>
           <h5 style="margin:0 0 5px 0; color:var(--color-text-shine); font-size:0.85rem; font-weight:600;">A Justificativa da Consistência de Peso</h5>
           <p style="margin:0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4;">
-            A alta consistência interna entre o prompt do Apêndice B e o Firebase ($\rho = +0.58$) legitima os pesos das heurísticas. Como "Complexidade de Enunciado" foi a única rubrica com correlação positiva resiliente no grupo inédito ($\rho = +0.20$), ela deve receber o maior peso nos simulados.
+            A alta consistência interna entre o prompt do Apêndice B e o Firebase ($\rho = +${c_glob.apendice_vs_heuristic.spearman.toFixed(2)}) legitima os pesos das heurísticas. Como "Complexidade de Enunciado" foi a única rubrica com correlação positiva resiliente no grupo inédito, ela deve receber o maior peso nos simulados.
           </p>
         </div>
       </div>
     </div>
 
     <!-- Linha 4: Estudos de Caso Condicionais/Qualitativos (ENEM 2025) -->
-    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; display:flex; flex-direction:column; gap:12px;">
-      <h3 style="margin:0; font-size:1.1rem; color:var(--color-text-shine);">🔍 Análise Qualitativa dos Casos ENEM 2025 (Inédito)</h3>
+    <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; display: ${hasCaseStudies ? 'flex' : 'none'}; flex-direction:column; gap:12px;">
+      <h3 style="margin:0; font-size:1.1rem; color:var(--color-text-shine);">🔍 Análise Qualitativa dos Casos ENEM 2025 (Inédito - ${areaLabel})</h3>
       <div style="display:flex; flex-direction:column; gap:10px;" id="dashboardCaseStudiesList">
         <!-- Injetado via loops JS -->
       </div>
     </div>
   `;
 
+  // Destruir instâncias antigas de gráfico para evitar vazamento ou erro do canvas
+  if (window.apendiceBCorrChart) {
+    window.apendiceBCorrChart.destroy();
+  }
+  if (window.apendiceBFaixasChart) {
+    window.apendiceBFaixasChart.destroy();
+  }
+
   // Inicializar Gráfico 1: Correlação por cutoff
   const ctxCorr = document.getElementById("chartCorrelacaoCanvas").getContext("2d");
   const metricsKeys = ['ap_enunciado', 'ap_visual', 'ap_dominio', 'ap_raciocinio', 'ap_resposta', 'ap_total_normalized', 'ai_complexity_heuristic'];
   const metricsLabels = ['Enunciado', 'Visual', 'Domínio', 'Raciocínio', 'Resposta', 'Total Apêndice B', 'Heurística Firebase'];
 
-  new Chart(ctxCorr, {
+  window.apendiceBCorrChart = new Chart(ctxCorr, {
     type: 'bar',
     data: {
       labels: metricsLabels,
       datasets: [
         {
-          label: 'Pré-cutoff (2020-2024, N=21)',
+          label: `Pré-cutoff (2020-2024, N=${stats.n_pre_cutoff})`,
           data: metricsKeys.map(key => stats.correlations[key].pre_cutoff.spearman),
           backgroundColor: '#626871',
           borderRadius: 4
         },
         {
-          label: 'Pós-cutoff (ENEM 2025, N=4)',
+          label: `Pós-cutoff (ENEM 2025, N=${stats.n_post_cutoff})`,
           data: metricsKeys.map(key => stats.correlations[key].post_cutoff.spearman),
           backgroundColor: '#c0152f',
           borderRadius: 4
@@ -667,7 +730,7 @@ function renderDashboardUI(container, stats) {
   const ctxFaixas = document.getElementById("chartFaixasCanvas").getContext("2d");
   const faixasLabels = stats.faixas_stats.map(f => f.faixa);
 
-  new Chart(ctxFaixas, {
+  window.apendiceBFaixasChart = new Chart(ctxFaixas, {
     type: 'bar',
     data: {
       labels: faixasLabels,
@@ -702,84 +765,86 @@ function renderDashboardUI(container, stats) {
     }
   });
 
-  // Renderizar a lista de estudos de caso interativos
-  const casesContainer = document.getElementById("dashboardCaseStudiesList");
-  casesContainer.innerHTML = stats.case_studies.map((item, index) => {
-    return `
-      <div style="border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; display:flex; flex-direction:column; gap:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <div>
-            <strong style="color:var(--color-text-shine); font-size:0.9rem;">${item.id.replace('ENEM2025_', 'ENEM 2025 ')}: ${item.title}</strong>
-            <div style="font-size:0.75rem; color:var(--color-text-secondary); margin-top:2px;">
-              Dificuldade Real (Banca): <strong>${item.real_difficulty.toFixed(1)}% (${item.classif_real})</strong> | IA Apêndice B: <strong>${item.ap_total_normalized.toFixed(1)}% (${item.classif_ia})</strong>
+  // Renderizar a lista de estudos de caso se houver
+  if (hasCaseStudies) {
+    const casesContainer = document.getElementById("dashboardCaseStudiesList");
+    casesContainer.innerHTML = stats.case_studies.map((item, index) => {
+      return `
+        <div style="border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <strong style="color:var(--color-text-shine); font-size:0.9rem;">${item.id.replace('ENEM2025_', 'ENEM 2025 ')}: ${item.title}</strong>
+              <div style="font-size:0.75rem; color:var(--color-text-secondary); margin-top:2px;">
+                Dificuldade Real (Banca): <strong>${item.real_difficulty.toFixed(1)}% (${item.classif_real})</strong> | IA Apêndice B: <strong>${item.ap_total_normalized.toFixed(1)}% (${item.classif_ia})</strong>
+              </div>
+            </div>
+            <button class="btn btn--sm btn--outline toggle-case-just-btn" data-index="${index}" style="padding: 4px 10px; font-size:0.7rem; border-radius: 4px; border: 1px solid var(--color-border); background:none; color:var(--color-text); cursor:pointer;">
+              Ver Justificativa da IA ▾
+            </button>
+          </div>
+          
+          <!-- Progresso visual comparativo -->
+          <div style="display:flex; flex-direction:column; gap:3px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--color-text-secondary);">
+              <span>Realidade Humana (TRI % Erro):</span>
+              <span>${item.real_difficulty.toFixed(1)}%</span>
+            </div>
+            <div style="width:100%; height:6px; background:var(--color-background-progress-bar); border-radius:3px; overflow:hidden;">
+              <div style="width:${item.real_difficulty}%; height:100%; background:var(--color-primary); border-radius:3px;"></div>
+            </div>
+  
+            <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--color-text-secondary); margin-top:4px;">
+              <span>Previsão Gemma 4 (Apêndice B %):</span>
+              <span>${item.ap_total_normalized.toFixed(1)}%</span>
+            </div>
+            <div style="width:100%; height:6px; background:var(--color-background-progress-bar); border-radius:3px; overflow:hidden;">
+              <div style="width:${item.ap_total_normalized}%; height:100%; background:var(--color-error); border-radius:3px;"></div>
             </div>
           </div>
-          <button class="btn btn--sm btn--outline toggle-case-just-btn" data-index="${index}" style="padding: 4px 10px; font-size:0.7rem; border-radius: 4px; border: 1px solid var(--color-border); background:none; color:var(--color-text); cursor:pointer;">
-            Ver Justificativa da IA ▾
-          </button>
-        </div>
-        
-        <!-- Progresso visual comparativo -->
-        <div style="display:flex; flex-direction:column; gap:3px;">
-          <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--color-text-secondary);">
-            <span>Realidade Humana (TRI % Erro):</span>
-            <span>${item.real_difficulty.toFixed(1)}%</span>
+  
+          <p style="margin: 3px 0 0 0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4; border-left:2px solid var(--color-primary); padding-left:8px;">
+            <strong>Análise Pedagógica:</strong> ${item.description}
+          </p>
+  
+          <!-- Notas nos Critérios -->
+          <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:0.7rem; color:var(--color-text-secondary); background:rgba(0,0,0,0.05); padding:6px; border-radius:4px; margin-top:4px;">
+            <span>📝 Enunciado: <strong>${item.ap_enunciado}/5</strong></span>
+            <span>👁️ Visual: <strong>${item.ap_visual}/5</strong></span>
+            <span>🎓 Domínio: <strong>${item.ap_dominio}/5</strong></span>
+            <span>🧠 Raciocínio: <strong>${item.ap_raciocinio}/5</strong></span>
+            <span>🔑 Resposta: <strong>${item.ap_resposta}/5</strong></span>
           </div>
-          <div style="width:100%; height:6px; background:var(--color-background-progress-bar); border-radius:3px; overflow:hidden;">
-            <div style="width:${item.real_difficulty}%; height:100%; background:var(--color-primary); border-radius:3px;"></div>
-          </div>
-
-          <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--color-text-secondary); margin-top:4px;">
-            <span>Previsão Gemma 4 (Apêndice B %):</span>
-            <span>${item.ap_total_normalized.toFixed(1)}%</span>
-          </div>
-          <div style="width:100%; height:6px; background:var(--color-background-progress-bar); border-radius:3px; overflow:hidden;">
-            <div style="width:${item.ap_total_normalized}%; height:100%; background:var(--color-error); border-radius:3px;"></div>
+  
+          <!-- Justificativas da IA colapsáveis -->
+          <div id="caseJustArea_${index}" style="display:none; flex-direction:column; gap:6px; background:rgba(0,0,0,0.1); border:1px solid var(--color-border); border-radius:4px; padding:10px; font-size:0.7rem; margin-top:5px; max-height:250px; overflow-y:auto; line-height:1.4;">
+            <strong style="color:var(--color-primary); font-size:0.75rem; text-transform:uppercase;">Justificativas Textuais do Gemma 4:</strong>
+            <div><strong>Enunciado:</strong> ${item.justificativas.complexidade_enunciado || 'N/A'}</div>
+            <div style="margin-top:4px;"><strong>Elementos Visuais:</strong> ${item.justificativas.elementos_visuais || 'N/A'}</div>
+            <div style="margin-top:4px;"><strong>Especificidade Domínio:</strong> ${item.justificativas.especificidade_dominio || 'N/A'}</div>
+            <div style="margin-top:4px;"><strong>Raciocínio Complexo:</strong> ${item.justificativas.raciocinio_complexo || 'N/A'}</div>
+            <div style="margin-top:4px;"><strong>Resposta Complexa:</strong> ${item.justificativas.resposta_complexa || 'N/A'}</div>
           </div>
         </div>
-
-        <p style="margin: 3px 0 0 0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4; border-left:2px solid var(--color-primary); padding-left:8px;">
-          <strong>Análise Pedagógica:</strong> ${item.description}
-        </p>
-
-        <!-- Notas nos Critérios -->
-        <div style="display:flex; gap:10px; flex-wrap:wrap; font-size:0.7rem; color:var(--color-text-secondary); background:rgba(0,0,0,0.05); padding:6px; border-radius:4px; margin-top:4px;">
-          <span>📝 Enunciado: <strong>${item.ap_enunciado}/5</strong></span>
-          <span>👁️ Visual: <strong>${item.ap_visual}/5</strong></span>
-          <span>🎓 Domínio: <strong>${item.ap_dominio}/5</strong></span>
-          <span>🧠 Raciocínio: <strong>${item.ap_raciocinio}/5</strong></span>
-          <span>🔑 Resposta: <strong>${item.ap_resposta}/5</strong></span>
-        </div>
-
-        <!-- Justificativas da IA colapsáveis -->
-        <div id="caseJustArea_${index}" style="display:none; flex-direction:column; gap:6px; background:rgba(0,0,0,0.1); border:1px solid var(--color-border); border-radius:4px; padding:10px; font-size:0.7rem; margin-top:5px; max-height:250px; overflow-y:auto; line-height:1.4;">
-          <strong style="color:var(--color-primary); font-size:0.75rem; text-transform:uppercase;">Justificativas Textuais do Gemma 4:</strong>
-          <div><strong>Enunciado:</strong> ${item.justificativas.complexidade_enunciado || 'N/A'}</div>
-          <div style="margin-top:4px;"><strong>Elementos Visuais:</strong> ${item.justificativas.elementos_visuais || 'N/A'}</div>
-          <div style="margin-top:4px;"><strong>Especificidade Domínio:</strong> ${item.justificativas.especificidade_dominio || 'N/A'}</div>
-          <div style="margin-top:4px;"><strong>Raciocínio Complexo:</strong> ${item.justificativas.raciocinio_complexo || 'N/A'}</div>
-          <div style="margin-top:4px;"><strong>Resposta Complexa:</strong> ${item.justificativas.resposta_complexa || 'N/A'}</div>
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  // Handler para toggles de estudos de caso
-  casesContainer.querySelectorAll(".toggle-case-just-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const index = btn.dataset.index;
-      const area = document.getElementById(`caseJustArea_${index}`);
-      if (area.style.display === "none") {
-        area.style.display = "flex";
-        btn.textContent = "Fechar Justificativa ▲";
-        btn.style.background = "var(--color-primary)";
-        btn.style.color = "var(--color-btn-primary-text)";
-      } else {
-        area.style.display = "none";
-        btn.textContent = "Ver Justificativa da IA ▾";
-        btn.style.background = "none";
-        btn.style.color = "var(--color-text)";
-      }
+      `;
+    }).join("");
+  
+    // Handler para toggles de estudos de caso
+    casesContainer.querySelectorAll(".toggle-case-just-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const index = btn.dataset.index;
+        const area = document.getElementById(`caseJustArea_${index}`);
+        if (area.style.display === "none") {
+          area.style.display = "flex";
+          btn.textContent = "Fechar Justificativa ▲";
+          btn.style.background = "var(--color-primary)";
+          btn.style.color = "var(--color-btn-primary-text)";
+        } else {
+          area.style.display = "none";
+          btn.textContent = "Ver Justificativa da IA ▾";
+          btn.style.background = "none";
+          btn.style.color = "var(--color-text)";
+        }
+      });
     });
-  });
+  }
 }

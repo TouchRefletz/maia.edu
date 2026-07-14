@@ -3,7 +3,10 @@ import path from "path";
 import { calcularWilcoxonPareado, calcularSpearman } from "../js/utils/statistics-helper.js";
 
 const baseDir = "./experiments/apêndice a arrumado";
-const apendiceBDir = "./experiments/apêndice b/linguagens";
+const apendiceBDirs = [
+  "./experiments/apêndice b/linguagens",
+  "./experiments/apêndice b/humanas"
+];
 const outputFile = "./experiments/stats_summary_apendice_a.json";
 
 function getMean(arr) {
@@ -65,16 +68,32 @@ function findQuestionDirs(dir) {
 function getEstimatedComplexity(parentDirName, folderName) {
   try {
     const normalizedFolderName = folderName.replace("questão", "Questão");
-    const filePath = path.join(apendiceBDir, parentDirName, `maia_debug_apendice_b_${normalizedFolderName}.json`);
-    
-    if (fs.existsSync(filePath)) {
-      const fileData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-      if (fileData.response_text && typeof fileData.response_text.pontuacao_final_complexidade === "number") {
-        return fileData.response_text.pontuacao_final_complexidade;
+    const testNames = [
+      `maia_debug_apendice_b_${normalizedFolderName}.json`,
+      `maia_debug_apendice_b_${normalizedFolderName.toUpperCase()}.json`,
+      `maia_debug_apendice_b_${normalizedFolderName.toLowerCase()}.json`
+    ];
+    for (const bDir of apendiceBDirs) {
+      for (const fileName of testNames) {
+        const filePath = path.join(bDir, parentDirName, fileName);
+        if (fs.existsSync(filePath)) {
+          const fileData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+          let responseText = fileData.response_text;
+          if (typeof responseText === "string") {
+            try {
+              responseText = JSON.parse(responseText);
+            } catch (err) {
+              // fallback
+            }
+          }
+          if (responseText && typeof responseText.pontuacao_final_complexidade === "number") {
+            return responseText.pontuacao_final_complexidade;
+          }
+        }
       }
     }
   } catch (e) {
-    // Ignore silente fallback
+    // Ignore silent fallback
   }
   return null;
 }

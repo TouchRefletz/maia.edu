@@ -335,7 +335,13 @@ export async function iniciarModoApendiceA() {
 
       let areaFilter = selectArea.value;
       if (areaFilter === "Interdisciplinar FUVEST") {
-        areaFilter = "FUVEST";
+        areaFilter = "Interdisciplinar";
+      } else if (areaFilter === "Matemática") {
+        areaFilter = "Matematica";
+      } else if (areaFilter === "Ciências da Natureza") {
+        areaFilter = "Natureza";
+      } else if (areaFilter === "Ciências Humanas") {
+        areaFilter = "Humanas";
       }
 
       let questoesArea = questoesAll.filter(q => q.grupo === areaFilter || q.area === areaFilter);
@@ -353,8 +359,19 @@ export async function iniciarModoApendiceA() {
       }
 
       questoesArea.sort((a, b) => a.id.localeCompare(b.id));
-      const rand = new SeededRandom(2026);
+      
+      let seed = 2026;
+      if (selectArea.value === "Matemática") {
+        seed = 2027;
+      } else if (selectArea.value === "Ciências da Natureza") {
+        seed = 2028;
+      } else if (selectArea.value === "Ciências Humanas") {
+        seed = 2029;
+      } else if (selectArea.value === "Interdisciplinar FUVEST") {
+        seed = 2030;
+      }
 
+      const rand = new SeededRandom(seed);
       const shuffled = [...questoesArea];
       for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(rand.next() * (i + 1));
@@ -383,6 +400,18 @@ export async function iniciarModoApendiceA() {
       }
       alocacoes[24] = extraModel;
 
+      // Para evitar viés de avaliação cruzada (onde os mesmos modelos sempre avaliam as mesmas posições),
+      // embaralhamos a lista de alocação de modelos usando o mesmo gerador aleatório semeado,
+      // exceto para a área de Linguagens (para manter compatibilidade com o sorteio original histórico).
+      if (selectArea.value !== "Linguagens") {
+        for (let i = alocacoes.length - 1; i > 0; i--) {
+          const j = Math.floor(rand.next() * (i + 1));
+          const temp = alocacoes[i];
+          alocacoes[i] = alocacoes[j];
+          alocacoes[j] = temp;
+        }
+      }
+
       const resultData = shuffled.map((q, idx) => ({
         ...q,
         modelo_sorteado: alocacoes[idx]
@@ -403,7 +432,7 @@ export async function iniciarModoApendiceA() {
             <span style="margin-left: 10px; color: #f97316;">🤖 ${modelC}: <strong>${countC}</strong></span>
           </div>
           <div style="font-size: 0.8rem; background: rgba(var(--color-primary-rgb), 0.1); color: var(--color-primary); padding: 4px 10px; border-radius: 20px; font-weight: bold; border: 1px solid rgba(var(--color-primary-rgb), 0.2);">
-            Semente: 2026
+            Semente: ${seed}
           </div>
         </div>
 
