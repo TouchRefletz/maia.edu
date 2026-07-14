@@ -34,6 +34,7 @@ const state = {
 let evaluationAbortController = null;
 let userExited = false;
 let activePartActionResolve = null;
+let questoesExperimentoCache = null;
 
 /**
  * Inicializa a tela dedicada do Apêndice A.
@@ -162,7 +163,7 @@ export async function iniciarModoApendiceA() {
               <h3 style="margin: 0; font-size: 1rem; color: var(--color-text-shine);">⚙️ 3. Configurações da Avaliação</h3>
               
               <div style="display: flex; flex-direction: column; gap: 10px;">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--color-text);">
+                <label id="labelCheckMaiaApendiceA" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--color-text);">
                   <input type="checkbox" id="checkMaiaApendiceA" style="width: 16px; height: 16px; cursor: pointer;" />
                   Com Arquitetura Maia.edu (Muda sufixo do debug baixado)
                 </label>
@@ -539,6 +540,292 @@ export async function iniciarModoApendiceA() {
     }
   });
 
+  async function carregarQuestoesExperimento() {
+    if (questoesExperimentoCache) return questoesExperimentoCache;
+    try {
+      const res = await fetch("../../experiments/questoes_experimento.json");
+      if (!res.ok) throw new Error("Não foi possível carregar o arquivo JSON de questões.");
+      questoesExperimentoCache = await res.json();
+      return questoesExperimentoCache;
+    } catch (err) {
+      console.error("Erro ao carregar questões do experimento:", err);
+      return null;
+    }
+  }
+
+  function getAreaCode(selectedQ) {
+    const fullData = selectedQ.fullData || {};
+    const questao = fullData.dados_questao || {};
+    const materias = (questao.materias_possiveis || []).map(m => m.toLowerCase());
+    
+    // check materias
+    if (materias.some(m => ["filosofia", "sociologia", "história", "geografia", "historia"].includes(m))) return "ch";
+    if (materias.some(m => ["português", "literatura", "inglês", "espanhol", "artes", "educação física", "portugues", "ingles", "lingua portuguesa"].includes(m))) return "lc";
+    if (materias.some(m => ["física", "química", "biologia", "fisica", "quimica"].includes(m))) return "cn";
+    if (materias.some(m => ["matemática", "matematica"].includes(m))) return "mt";
+
+    // fallback to selectedQ.prova name
+    const provaLower = String(selectedQ.prova || "").toLowerCase();
+    if (provaLower.includes("ch") || provaLower.includes("humanas")) return "ch";
+    if (provaLower.includes("lc") || provaLower.includes("linguagens")) return "lc";
+    if (provaLower.includes("cn") || provaLower.includes("natureza")) return "cn";
+    if (provaLower.includes("mt") || provaLower.includes("matematica")) return "mt";
+
+    return "";
+  }
+
+  function matchQuestao(experimentoQ, selectedQ) {
+    if (!experimentoQ || !selectedQ) return false;
+
+    const fullData = selectedQ.fullData || {};
+    const gabarito = fullData.dados_gabarito || {};
+    const creditos = gabarito.creditos || {};
+    const textoRef = gabarito.texto_referencia || "";
+
+    // 1. Verificar se é ENEM ou FUVEST
+    const isEnemExp = experimentoQ.id.toLowerCase().includes("enem");
+    const isEnemSel = (creditos.material && creditos.material.toLowerCase().includes("enem")) || 
+                      selectedQ.prova.toLowerCase().includes("enem");
+
+    const isFuvestExp = experimentoQ.id.toLowerCase().includes("fuvest");
+    const isFuvestSel = (creditos.material && creditos.material.toLowerCase().includes("fuvest")) || 
+                        selectedQ.prova.toLowerCase().includes("fuvest");
+
+    if (isEnemExp !== isEnemSel || isFuvestExp !== isFuvestSel) {
+      return false;
+    }
+
+    // 2. Verificar o ano
+    const expYearMatch = experimentoQ.id.match(/\d{4}/);
+    const expYear = expYearMatch ? expYearMatch[0] : "";
+
+    const selYear = String(creditos.ano || "").trim() || (selectedQ.prova.match(/\d{4}/) ? selectedQ.prova.match(/\d{4}/)[0] : "");
+
+    if (expYear !== selYear) {
+      return false;
+    }
+
+    // 3. Verificar o número da questão
+    let selNum = null;
+    if (isEnemSel) {
+      // Para ENEM, o número de referência no experimento é o do Caderno Azul
+      const azulMatch = textoRef.match(/\*\*Caderno Azul:\*\* Questão (\d+)/i);
+      if (azulMatch) {
+        selNum = parseInt(azulMatch[1], 10);
+      }
+    }
+
+    // Fallback para extrair do ID da questão se não achou ou não é ENEM
+    if (selNum === null) {
+      const partsSel = selectedQ.id.split("_");
+      for (const part of partsSel) {
+        const m = part.match(/Q?(\d+)/i);
+        if (m) {
+          selNum = parseInt(m[1], 10);
+          break;
+        }
+      }
+    }
+
+    // Extrair número do experimento
+    const partsExp = experimentoQ.id.split("_");
+    let expNum = null;
+    for (let i = 1; i < partsExp.length; i++) {
+      const m = partsExp[i].match(/Q?(\d+)/i);
+      if (m) {
+        expNum = parseInt(m[1], 10);
+        break;
+      }
+    }
+
+    if (selNum === null || expNum === null || selNum !== expNum) {
+      return false;
+    }
+
+    // 4. Verificar área/disciplina para o ENEM
+    if (isEnemSel) {
+      const selArea = getAreaCode(selectedQ);
+      const expArea = experimentoQ.id.toLowerCase().includes("lc") ? "lc" :
+                      experimentoQ.id.toLowerCase().includes("ch") ? "ch" :
+                      experimentoQ.id.toLowerCase().includes("cn") ? "cn" :
+                      experimentoQ.id.toLowerCase().includes("nat") ? "cn" :
+                      experimentoQ.id.toLowerCase().includes("mt") ? "mt" :
+                      experimentoQ.id.toLowerCase().includes("mat") ? "mt" : "";
+
+      if (selArea !== expArea) {
+        return false;
+      }
+
+      // Verificar se é idioma estrangeiro (ING vs ESP)
+      const isIngSel = selectedQ.id.toLowerCase().includes("ing");
+      const isIngExp = experimentoQ.id.toLowerCase().includes("ing");
+      if (isIngSel !== isIngExp) return false;
+
+      const isEspSel = selectedQ.id.toLowerCase().includes("esp");
+      const isEspExp = experimentoQ.id.toLowerCase().includes("esp");
+      if (isEspSel !== isEspExp) return false;
+    }
+
+    return true;
+  }
+
+  async function obterModeloDesejadoSorteio(selectedQuestion) {
+    if (!selectedQuestion) return null;
+    const questoesAll = await carregarQuestoesExperimento();
+    if (!questoesAll) return null;
+
+    const questao = questoesAll.find(q => matchQuestao(q, selectedQuestion));
+    if (!questao) return null;
+
+    const targetArea = questao.grupo || questao.area;
+    if (!targetArea) return null;
+
+    let areaFilter = targetArea;
+    if (areaFilter === "Interdisciplinar FUVEST") {
+      areaFilter = "Interdisciplinar";
+    } else if (areaFilter === "Matemática") {
+      areaFilter = "Matematica";
+    } else if (areaFilter === "Ciências da Natureza") {
+      areaFilter = "Natureza";
+    } else if (areaFilter === "Ciências Humanas") {
+      areaFilter = "Humanas";
+    }
+
+    let questoesArea = questoesAll.filter(q => q.grupo === areaFilter || q.area === areaFilter);
+    if (questoesArea.length === 0) {
+      questoesArea = questoesAll.filter(q => {
+        const gStr = String(q.grupo || "").toLowerCase();
+        const aStr = String(q.area || "").toLowerCase();
+        const fStr = areaFilter.toLowerCase();
+        return gStr.includes(fStr) || aStr.includes(fStr);
+      });
+    }
+
+    if (questoesArea.length === 0) return null;
+
+    questoesArea.sort((a, b) => a.id.localeCompare(b.id));
+
+    let seed = 2026;
+    if (targetArea === "Matemática" || areaFilter === "Matematica") {
+      seed = 2027;
+    } else if (targetArea === "Ciências da Natureza" || areaFilter === "Natureza") {
+      seed = 2028;
+    } else if (targetArea === "Ciências Humanas" || areaFilter === "Humanas") {
+      seed = 2029;
+    } else if (targetArea === "Interdisciplinar FUVEST" || areaFilter === "Interdisciplinar") {
+      seed = 2030;
+    }
+
+    const rand = new SeededRandom(seed);
+    const shuffled = [...questoesArea];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(rand.next() * (i + 1));
+      const temp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = temp;
+    }
+
+    const modelA = "Gemini 3.5 Flash";
+    const modelB = "Gemma 4 31B IT";
+    const modelC = "GPT-OSS-120B";
+
+    const alocacoes = new Array(shuffled.length).fill(null);
+    for (let idx = 0; idx < 8; idx++) alocacoes[idx] = modelA;
+    for (let idx = 8; idx < 16; idx++) alocacoes[idx] = modelB;
+    for (let idx = 16; idx < 24; idx++) alocacoes[idx] = modelC;
+
+    const extraRand = rand.next();
+    let extraModel = modelA;
+    if (extraRand < 1/3) {
+      extraModel = modelA;
+    } else if (extraRand < 2/3) {
+      extraModel = modelB;
+    } else {
+      extraModel = modelC;
+    }
+    alocacoes[24] = extraModel;
+
+    if (areaFilter !== "Linguagens") {
+      for (let i = alocacoes.length - 1; i > 0; i--) {
+        const j = Math.floor(rand.next() * (i + 1));
+        const temp = alocacoes[i];
+        alocacoes[i] = alocacoes[j];
+        alocacoes[j] = temp;
+      }
+    }
+
+    const idxQuestao = shuffled.findIndex(q => q.id === questao.id);
+    if (idxQuestao === -1) return null;
+    return alocacoes[idxQuestao];
+  }
+
+  async function atualizarMetadataArea() {
+    const metaArea = document.getElementById("uploadMetadataArea");
+    if (!metaArea || !state.uploadedJSON) return;
+
+    const parsed = state.uploadedJSON;
+    const mLower = String(parsed.model).toLowerCase();
+    let modelLabel = "";
+
+    if (mLower.includes("gemma-4-31b") || mLower.includes("gemma 4 31b")) {
+      modelLabel = "Gemma 4 31B IT";
+    } else if (mLower.includes("gemini-3.5-flash") || mLower.includes("gemini 3.5 flash")) {
+      modelLabel = "Gemini 3.5 Flash";
+    } else if (mLower.includes("gpt-oss-120b") || mLower.includes("gpt oss 120b")) {
+      modelLabel = "GPT-OSS-120B";
+    } else {
+      modelLabel = parsed.model;
+    }
+
+    const excerpt = typeof parsed.response_text === "string" 
+      ? parsed.response_text.substring(0, 150) + "..." 
+      : JSON.stringify(parsed.response_text).substring(0, 150) + "...";
+
+    let verificationHtml = "";
+    if (state.selectedQuestion) {
+      const modeloDesejado = await obterModeloDesejadoSorteio(state.selectedQuestion);
+      if (modeloDesejado) {
+        const cleanLabel = modelLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const cleanDesejado = modeloDesejado.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const matches = cleanLabel === cleanDesejado;
+        if (matches) {
+          verificationHtml = `
+            <div style="margin-top: 6px; padding: 6px; border-radius: 4px; background: rgba(40, 167, 69, 0.15); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.3); font-weight: bold;">
+              <span>🟢 Compatível com o sorteio (Esperado: ${modeloDesejado})</span>
+            </div>
+          `;
+        } else {
+          verificationHtml = `
+            <div style="margin-top: 6px; padding: 6px; border-radius: 4px; background: rgba(220, 53, 69, 0.15); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.3); font-weight: bold;">
+              <span>🔴 Incompatível! Esperado: ${modeloDesejado} | Enviado: ${modelLabel}</span>
+            </div>
+          `;
+        }
+      } else {
+        verificationHtml = `
+          <div style="margin-top: 6px; padding: 6px; border-radius: 4px; background: rgba(108, 117, 125, 0.15); color: #6c757d; border: 1px solid rgba(108, 117, 125, 0.3); font-weight: bold;">
+            <span>⚪ Questão não mapeada no crossover</span>
+          </div>
+        `;
+      }
+    } else {
+      verificationHtml = `
+        <div style="margin-top: 6px; color: var(--color-text-secondary); font-style: italic;">
+          Selecione uma questão para verificar compatibilidade com o sorteio.
+        </div>
+      `;
+    }
+
+    metaArea.innerHTML = `
+      <div><strong>Modelo:</strong> ${modelLabel}</div>
+      <div><strong>Latência:</strong> ${parsed.latency_ms || parsed.latency_sec * 1000 || 0} ms</div>
+      <div><strong>Arquitetura original:</strong> ${parsed.use_maia_architecture ? "Com Maia" : "Sem Maia"}</div>
+      ${verificationHtml}
+      <div style="margin-top: 6px; color: var(--color-text-secondary); white-space: pre-wrap; font-size: 0.75rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px;"><strong>Resposta:</strong> ${excerpt}</div>
+    `;
+    metaArea.style.display = "flex";
+  }
+
   async function handleJsonFile(file) {
     const label = document.getElementById("dropZoneLabel");
     const metaArea = document.getElementById("uploadMetadataArea");
@@ -578,21 +865,12 @@ export async function iniciarModoApendiceA() {
       state.uploadedModel = canonicalModel;
 
       label.textContent = `✅ ${file.name} carregado`;
-      
-      const excerpt = typeof parsed.response_text === "string" 
-        ? parsed.response_text.substring(0, 150) + "..." 
-        : JSON.stringify(parsed.response_text).substring(0, 150) + "...";
-      
-      metaArea.innerHTML = `
-        <div><strong>Modelo:</strong> ${modelLabel}</div>
-        <div><strong>Latência:</strong> ${parsed.latency_ms || parsed.latency_sec * 1000 || 0} ms</div>
-        <div><strong>Arquitetura original:</strong> ${parsed.use_maia_architecture ? "Com Maia" : "Sem Maia"}</div>
-        <div style="margin-top: 4px; color: var(--color-text-secondary); white-space: pre-wrap; font-size: 0.75rem;"><strong>Resposta:</strong> ${excerpt}</div>
-      `;
-      metaArea.style.display = "flex";
+      await atualizarMetadataArea();
 
       const checkMaia = document.getElementById("checkMaiaApendiceA");
-      checkMaia.checked = parsed.use_maia_architecture === true;
+      if (checkMaia) {
+        checkMaia.checked = parsed.use_maia_architecture === true;
+      }
 
       populateJudgeDropdown(canonicalModel);
       checkInputsAndShowConfig();
@@ -617,7 +895,12 @@ export async function iniciarModoApendiceA() {
     { id: "vertex/gemini-3.5-flash", label: "Gemini 3.5 Flash (Vertex AI)" },
     { id: "models/gemma-4-31b-it", label: "Gemma 4 31B IT" },
     { id: "groq/gpt-oss-120b", label: "GPT-OSS-120B" }
-  ].filter(m => m.id !== excludeModel);
+  ].filter(m => {
+    if (excludeModel && excludeModel.includes("gemini-3.5-flash")) {
+      return !m.id.includes("gemini-3.5-flash");
+    }
+    return m.id !== excludeModel;
+  });
 
   select.innerHTML = judges.map(j => `
     <option value="${j.id}">${j.label}</option>
@@ -628,10 +911,17 @@ export async function iniciarModoApendiceA() {
     const configArea = document.getElementById("evaluationConfigArea");
     if (!configArea) return;
 
+    const labelMaia = document.getElementById("labelCheckMaiaApendiceA");
     if (state.selectedQuestion && state.uploadedJSON) {
       configArea.style.display = "flex";
+      if (labelMaia) {
+        labelMaia.style.display = "none";
+      }
     } else {
       configArea.style.display = "none";
+      if (labelMaia) {
+        labelMaia.style.display = "flex";
+      }
     }
   }
 
@@ -670,6 +960,7 @@ export async function iniciarModoApendiceA() {
         checkInter.checked = isFuvest;
       }
       
+      await atualizarMetadataArea();
       checkInputsAndShowConfig();
     }
   };
