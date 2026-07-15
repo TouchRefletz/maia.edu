@@ -315,7 +315,8 @@ export async function iniciarModoApendiceA() {
     cAvaliacao.style.display = "none";
     cResultados.style.display = "block";
 
-    carregarDashboardApendiceA();
+    carregarDashboardApendiceA("total");
+
   });
 
   // Setup Listeners do Sorteio
@@ -1444,13 +1445,37 @@ export async function iniciarModoApendiceA() {
 // -------------------------------------------------------------
 // NOVO CONTAINER: DASHBOARD DE RESULTADOS (Interativo com Chart.js & Plotly.js)
 // -------------------------------------------------------------
-let dashboardCarregado = false;
+let dashboardAreaAtual = null; // null = não carregado, ou "total"/"linguagens"/"humanas"
+let activeAreaStats = null;    // stats do JSON atualmente exibido
 
-async function carregarDashboardApendiceA() {
-  if (dashboardCarregado) return; // Carrega apenas uma vez por inicialização da tela
-  
+
+async function carregarDashboardApendiceA(area = "total") {
+  if (dashboardAreaAtual === area) return; // Já está carregado e não mudou
+  dashboardAreaAtual = area;
+
   const loader = document.getElementById("dashboardLoader");
   const content = document.getElementById("dashboardContent");
+
+  // Destroi gráficos antigos antes de re-renderizar
+  if (window.Chart) {
+    Object.values(Chart.instances || {}).forEach(c => c.destroy());
+  }
+
+  loader.style.display = "flex";
+  content.style.display = "none";
+  content.innerHTML = "";
+
+  const jsonPaths = {
+    total:      "../../experiments/stats_summary_apendice_a.json",
+    linguagens: "../../experiments/stats_summary_apendice_a_linguagens.json",
+    humanas:    "../../experiments/stats_summary_apendice_a_humanas.json"
+  };
+  const areaLabels = {
+    total:      "Total (Linguagens + Humanas)",
+    linguagens: "Linguagens",
+    humanas:    "Humanas"
+  };
+  const areaEmojis = { total: "📊", linguagens: "📝", humanas: "🏷️" };
   
   try {
     // 1. Carrega Chart.js e Plotly.js de forma assíncrona se não estiverem disponíveis
@@ -1473,19 +1498,20 @@ async function carregarDashboardApendiceA() {
       })
     ]);
 
-    // 2. Carrega estatísticas compiladas do arquivo JSON
-    const response = await fetch("../../experiments/stats_summary_apendice_a.json");
+    // 2. Carrega o JSON da área selecionada
+    const statsPath = jsonPaths[area] || jsonPaths.total;
+    const response = await fetch(statsPath);
     if (!response.ok) {
-      throw new Error(`Não foi possível ler as estatísticas de validação (../../experiments/stats_summary_apendice_a.json).`);
+      throw new Error(`Não foi possível ler as estatísticas (${statsPath}).`);
     }
     const stats = await response.json();
+    activeAreaStats = stats;
 
     // 3. Oculta loader e renderiza esqueleto do Dashboard
     loader.style.display = "none";
     content.style.display = "flex";
-    
-    renderDashboardUIApendiceA(content, stats);
-    dashboardCarregado = true;
+
+    renderDashboardUIApendiceA(content, stats, area, areaLabels[area], areaEmojis[area]);
     
   } catch (error) {
     console.error("Erro ao iniciar dashboard do Apêndice A:", error);
@@ -1499,7 +1525,10 @@ async function carregarDashboardApendiceA() {
   }
 }
 
-function renderDashboardUIApendiceA(container, stats) {
+function renderDashboardUIApendiceA(container, stats, areaKey = "total", areaLabel = "Total (Linguagens + Humanas)", areaEmoji = "📊") {
+  // Reset lazy-render state on each call (so new area renders all tabs fresh)
+  Object.keys(renderedTabs).forEach(k => renderedTabs[k] = false);
+
   // Gerar esqueleto com cabeçalho de abas e os containers de conteúdo
   container.innerHTML = `
     <!-- Estilos Premium Inline -->
@@ -1607,6 +1636,15 @@ function renderDashboardUIApendiceA(container, stats) {
         background: rgba(255,255,255,0.02);
       }
     </style>
+
+    <!-- Seletor de Área (3 Abas Macro) -->
+    <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+      <span style="font-size:0.8rem; font-weight:bold; color:var(--color-text-secondary); align-self:center; margin-right:4px;">Filtrar por área:</span>
+      <button id="macro-tab-total"      class="macro-tab-btn" data-area="total"      style="padding: 7px 16px; border-radius: 20px; border: 1px solid var(--color-border); background: var(--color-primary); color: white; font-weight:bold; font-size:0.85rem; cursor:pointer; transition: all 0.2s;">📊 Total</button>
+      <button id="macro-tab-linguagens" class="macro-tab-btn" data-area="linguagens" style="padding: 7px 16px; border-radius: 20px; border: 1px solid var(--color-border); background: none; color: var(--color-text-secondary); font-weight:bold; font-size:0.85rem; cursor:pointer; transition: all 0.2s;">📝 Linguagens</button>
+      <button id="macro-tab-humanas"    class="macro-tab-btn" data-area="humanas"    style="padding: 7px 16px; border-radius: 20px; border: 1px solid var(--color-border); background: none; color: var(--color-text-secondary); font-weight:bold; font-size:0.85rem; cursor:pointer; transition: all 0.2s;">🏷️ Humanas</button>
+      <span id="macro-tab-subtitle" style="font-size:0.78rem; color:var(--color-text-secondary); align-self:center; margin-left:8px; font-style:italic;">${areaEmoji} ${areaLabel} &mdash; N=${stats.n_total} questões pareadas</span>
+    </div>
 
     <!-- Cabeçalho de Ações e Sub-Abas -->
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; border-bottom: 2px solid var(--color-border); padding-bottom: 2px;">
@@ -1952,7 +1990,7 @@ function renderDashboardUIApendiceA(container, stats) {
     </div>
   `;
 
-  // Inicializar controle de cliques das abas
+  // Inicializar controle de cliques das sub-abas
   const tabButtons = container.querySelectorAll(".ap-tab-btn");
   tabButtons.forEach(btn => {
     btn.addEventListener("click", () => {
@@ -1961,17 +1999,48 @@ function renderDashboardUIApendiceA(container, stats) {
     });
   });
 
-  // Inicializar botão de exportação
+  // Inicializar botão de exportação — exporta a área ativa
   container.querySelector("#btn-export-html-static").addEventListener("click", () => {
-    exportStaticHTMLReport(stats);
+    exportStaticHTMLReport(activeAreaStats || stats, areaLabel);
   });
 
-  // Renderizar a primeira aba imediatamente (Lazy Render para o resto)
+  // Inicializar cliques das abas MACRO (Total / Linguagens / Humanas)
+  container.querySelectorAll(".macro-tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const area = btn.dataset.area;
+      // Destaca aba ativa
+      container.querySelectorAll(".macro-tab-btn").forEach(b => {
+        b.style.background = "none";
+        b.style.color = "var(--color-text-secondary)";
+      });
+      btn.style.background = "var(--color-primary)";
+      btn.style.color = "white";
+      // Reset e recarrega
+      dashboardAreaAtual = null; // força reload
+      carregarDashboardApendiceA(area);
+    });
+  });
+
+  // Marca a aba macro correta como ativa (chamada inicial)
+  const activeBtn = container.querySelector(`[data-area="${areaKey}"]`);
+  if (activeBtn) {
+    container.querySelectorAll(".macro-tab-btn").forEach(b => {
+      b.style.background = "none";
+      b.style.color = "var(--color-text-secondary)";
+    });
+    activeBtn.style.background = "var(--color-primary)";
+    activeBtn.style.color = "white";
+  }
+
+  // Renderizar a primeira sub-aba imediatamente (Lazy Render para o resto)
   showTab("gerais", container, stats);
 }
 
-// Handler de controle e Lazy Rendering por aba
+
+// Handler de controle e Lazy Rendering por sub-aba
+// NOTA: resetado no início de renderDashboardUIApendiceA() ao trocar de área macro.
 const renderedTabs = { gerais: false, criterios: false, modelos: false, latencias: false };
+
 
 function showTab(tabName, container, stats) {
   container.querySelectorAll(".ap-tab-content").forEach(el => el.style.display = "none");
@@ -2625,12 +2694,13 @@ function renderTabCharts(tabName, container, stats) {
   }
 }
 
-function exportStaticHTMLReport(stats) {
+function exportStaticHTMLReport(stats, areaLabel = "Total") {
+  const areaSlug = areaLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
   const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Relatório Científico Maia.edu - Apêndice A (Crossover)</title>
+  <title>Relatório Científico Maia.edu - Apêndice A (${areaLabel})</title>
   <!-- Bibliotecas de Visualização via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
   <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"><\/script>
@@ -2657,8 +2727,8 @@ function exportStaticHTMLReport(stats) {
 </head>
 <body>
   <div class="container">
-    <h1>🔬 Relatório Científico Maia.edu - Resultados Apêndice A (Crossover)</h1>
-    <p>Este relatório contém os dados e visualizações consolidados das 25 questões pareadas do Apêndice A (Grupo I Controle vs. Grupo II Experimental sob arquitetura de dados do ecossistema).</p>
+    <h1>🔬 Relatório Científico Maia.edu - Resultados Apêndice A (${areaLabel})</h1>
+    <p>Este relatório contém os dados e visualizações consolidados das ${stats.n_total} questões pareadas do Apêndice A &mdash; área: <strong>${areaLabel}</strong> (Grupo I Controle vs. Grupo II Experimental sob arquitetura de dados do ecossistema).</p>
 
     <!-- Bloco de dados JSON para processamento automático de IA -->
     <script id="raw-stats-data" type="application/json">
@@ -3334,7 +3404,8 @@ ${JSON.stringify(stats, null, 2)}
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "relatorio_cientifico_maia_apendice_a.html";
+  a.download = `relatorio_cientifico_maia_apendice_a_${areaSlug}.html`;
+
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

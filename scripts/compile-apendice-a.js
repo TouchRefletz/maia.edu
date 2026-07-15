@@ -7,7 +7,9 @@ const apendiceBDirs = [
   "./experiments/apêndice b/linguagens",
   "./experiments/apêndice b/humanas"
 ];
-const outputFile = "./experiments/stats_summary_apendice_a.json";
+const outputFile        = "./experiments/stats_summary_apendice_a.json";
+const outputFileLing    = "./experiments/stats_summary_apendice_a_linguagens.json";
+const outputFileHumanas = "./experiments/stats_summary_apendice_a_humanas.json";
 
 function getMean(arr) {
   if (arr.length === 0) return 0;
@@ -471,12 +473,17 @@ function run() {
         } catch(e) {}
       }
 
+      // Detecta área pelo caminho da pasta (linguagens/ ou humanas/)
+      const areaFromPath = qDir.toLowerCase().includes(`${path.sep}humanas${path.sep}`) ||
+                           qDir.toLowerCase().includes("/humanas/")
+                           ? "Humanas" : "Linguagens";
+
       allQuestionsData.push({
         id: questionId,
         year: parentName,
         isPostCutoff,
         complexity_estimated: complexityEst,
-        area: origComData.area || "Linguagens",
+        area: areaFromPath,
         generatorModel: genModelCom,
         hourOfDay,
         latencies_control: latenciesSem,
@@ -524,205 +531,231 @@ function run() {
     process.exit(1);
   }
 
-  // 1. Estatísticas Gerais e Wilcoxon
-  const statsSummary = {
-    n_total: allQuestionsData.length,
-    metrics: {}
-  };
+  // ─────────────────────────────────────────────────────────────────────────────
+  // computeStats(questions, agreementRatingsForSubset)
+  // Calcula todo o pacote de estatísticas para um subconjunto de questões.
+  // ─────────────────────────────────────────────────────────────────────────────
+  function computeStats(questions, agreeRatings) {
+    const summary = {
+      n_total: questions.length,
+      metrics: {}
+    };
 
-  const keys = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e", "total", "latency"];
-  const arrays = {};
-  keys.forEach(k => {
-    arrays[k] = { control: [], experimental: [] };
-  });
-  const iepArray = [];
-
-  for (const q of allQuestionsData) {
-    keys.forEach(k => {
-      if (k === "latency") {
-        arrays[k].control.push(q.latencies_control.total_ms / 1000);
-        arrays[k].experimental.push(q.latencies_experimental.total_ms / 1000);
-      } else {
-        arrays[k].control.push(q.scores_control[k]);
-        arrays[k].experimental.push(q.scores_experimental[k]);
-      }
-    });
-
-    const deltaTotal = q.scores_experimental.total - q.scores_control.total;
-    const iepValue = q.latencies_experimental.total_ms > 0 ? deltaTotal / (q.latencies_experimental.total_ms / 1000) : 0;
-    iepArray.push(iepValue);
-  }
-
-  const metricMetadata = [
-    { key: "latency", label: "Latência (s)", ctrlArr: arrays.latency.control, expArr: arrays.latency.experimental },
-    { key: "grupo_a", label: "Grupo A - Estrutura e Estética Básica (Máx: 7)", ctrlArr: arrays.grupo_a.control, expArr: arrays.grupo_a.experimental },
-    { key: "grupo_b", label: "Grupo B - Ancoragem Factual e Interpretação (Máx: 14)", ctrlArr: arrays.grupo_b.control, expArr: arrays.grupo_b.experimental },
-    { key: "grupo_c", label: "Grupo C - Pedagogia e Transposição Cognitiva (Máx: 21)", ctrlArr: arrays.grupo_c.control, expArr: arrays.grupo_c.experimental },
-    { key: "grupo_d", label: "Grupo D - Lógica Dedutiva e Eliminação (Máx: 28)", ctrlArr: arrays.grupo_d.control, expArr: arrays.grupo_d.experimental },
-    { key: "grupo_e", label: "Grupo E - Engenharia da Resolução e Interfaces (Máx: 30)", ctrlArr: arrays.grupo_e.control, expArr: arrays.grupo_e.experimental },
-    { key: "total", label: "Pontuação Total do Juiz (Máx: 100)", ctrlArr: arrays.total.control, expArr: arrays.total.experimental }
-  ];
-
-  for (const m of metricMetadata) {
-    const meanCtrl = getMean(m.ctrlArr);
-    const sdCtrl = getStdDev(m.ctrlArr, meanCtrl);
-    const meanExp = getMean(m.expArr);
-    const sdExp = getStdDev(m.expArr, meanExp);
-
-    let wilcoxonRes = { pValue: null, statistic: null, rejected: false };
-    try {
-      wilcoxonRes = calcularWilcoxonPareado(m.ctrlArr, m.expArr);
-    } catch (e) {
-      console.error(`Erro Wilcoxon para ${m.label}:`, e.message);
+    if (questions.length === 0) {
+      summary.errors = ["Nenhuma questão no subconjunto."];
+      summary.questions = [];
+      return summary;
     }
 
-    statsSummary.metrics[m.key] = {
-      label: m.label,
-      control: { mean: meanCtrl, stdDev: sdCtrl },
-      experimental: { mean: meanExp, stdDev: sdExp },
-      wilcoxon: {
-        pValue: wilcoxonRes.pValue,
-        statistic: wilcoxonRes.statistic,
-        significant: wilcoxonRes.pValue !== null && wilcoxonRes.pValue < 0.05
+    const keys = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e", "total", "latency"];
+    const arrays = {};
+    keys.forEach(k => { arrays[k] = { control: [], experimental: [] }; });
+    const iepArray = [];
+
+    for (const q of questions) {
+      keys.forEach(k => {
+        if (k === "latency") {
+          arrays[k].control.push(q.latencies_control.total_ms / 1000);
+          arrays[k].experimental.push(q.latencies_experimental.total_ms / 1000);
+        } else {
+          arrays[k].control.push(q.scores_control[k]);
+          arrays[k].experimental.push(q.scores_experimental[k]);
+        }
+      });
+      const deltaTotal = q.scores_experimental.total - q.scores_control.total;
+      const iepValue = q.latencies_experimental.total_ms > 0 ? deltaTotal / (q.latencies_experimental.total_ms / 1000) : 0;
+      iepArray.push(iepValue);
+    }
+
+    const metricMetadata = [
+      { key: "latency", label: "Latência (s)",                                   ctrlArr: arrays.latency.control,  expArr: arrays.latency.experimental },
+      { key: "grupo_a", label: "Grupo A - Estrutura e Estética Básica (Máx: 7)",  ctrlArr: arrays.grupo_a.control,  expArr: arrays.grupo_a.experimental },
+      { key: "grupo_b", label: "Grupo B - Ancoragem Factual e Interpretação (Máx: 14)", ctrlArr: arrays.grupo_b.control, expArr: arrays.grupo_b.experimental },
+      { key: "grupo_c", label: "Grupo C - Pedagogia e Transposição Cognitiva (Máx: 21)", ctrlArr: arrays.grupo_c.control, expArr: arrays.grupo_c.experimental },
+      { key: "grupo_d", label: "Grupo D - Lógica Dedutiva e Eliminação (Máx: 28)",  ctrlArr: arrays.grupo_d.control, expArr: arrays.grupo_d.experimental },
+      { key: "grupo_e", label: "Grupo E - Engenharia da Resolução e Interfaces (Máx: 30)", ctrlArr: arrays.grupo_e.control, expArr: arrays.grupo_e.experimental },
+      { key: "total",   label: "Pontuação Total do Juiz (Máx: 100)",              ctrlArr: arrays.total.control,    expArr: arrays.total.experimental }
+    ];
+
+    for (const m of metricMetadata) {
+      const meanCtrl = getMean(m.ctrlArr);
+      const sdCtrl   = getStdDev(m.ctrlArr, meanCtrl);
+      const meanExp  = getMean(m.expArr);
+      const sdExp    = getStdDev(m.expArr, meanExp);
+
+      let wilcoxonRes = { pValue: null, statistic: null, rejected: false };
+      try {
+        wilcoxonRes = calcularWilcoxonPareado(m.ctrlArr, m.expArr);
+      } catch (e) {
+        console.error(`Erro Wilcoxon para ${m.label}:`, e.message);
       }
+
+      summary.metrics[m.key] = {
+        label: m.label,
+        control:      { mean: meanCtrl, stdDev: sdCtrl },
+        experimental: { mean: meanExp,  stdDev: sdExp  },
+        wilcoxon: {
+          pValue:      wilcoxonRes.pValue,
+          statistic:   wilcoxonRes.statistic,
+          significant: wilcoxonRes.pValue !== null && wilcoxonRes.pValue < 0.05
+        }
+      };
+    }
+
+    summary.metrics["iep"] = {
+      label: "Índice de Eficiência de Processamento (IEP)",
+      experimental: { mean: getMean(iepArray), stdDev: getStdDev(iepArray, getMean(iepArray)) }
     };
-  }
 
-  statsSummary.metrics["iep"] = {
-    label: "Índice de Eficiência de Processamento (IEP)",
-    experimental: { mean: getMean(iepArray), stdDev: getStdDev(iepArray, getMean(iepArray)) }
-  };
-
-  // 2. Análise Cutoff
-  const preCutoffQuestions = allQuestionsData.filter(q => !q.isPostCutoff);
-  const postCutoffQuestions = allQuestionsData.filter(q => q.isPostCutoff);
-
-  const compileCutoffStats = (subQuestions) => {
-    const ctrlScores = subQuestions.map(q => q.scores_control.total);
-    const expScores = subQuestions.map(q => q.scores_experimental.total);
-    const ctrlMean = getMean(ctrlScores);
-    const expMean = getMean(expScores);
-    let wilc = { pValue: null, statistic: null, significant: false };
-    try {
-      if (subQuestions.length >= 3) {
-        const res = calcularWilcoxonPareado(ctrlScores, expScores);
-        wilc = { pValue: res.pValue, statistic: res.statistic, significant: res.pValue < 0.05 };
-      }
-    } catch(e) {}
-    
-    return {
-      n: subQuestions.length,
-      control: { mean: ctrlMean, stdDev: getStdDev(ctrlScores, ctrlMean) },
-      experimental: { mean: expMean, stdDev: getStdDev(expScores, expMean) },
-      wilcoxon: wilc
+    // Cutoff
+    const preCutoff  = questions.filter(q => !q.isPostCutoff);
+    const postCutoff = questions.filter(q =>  q.isPostCutoff);
+    const compileCutoff = (sub) => {
+      const ctrlS = sub.map(q => q.scores_control.total);
+      const expS  = sub.map(q => q.scores_experimental.total);
+      const cMean = getMean(ctrlS);
+      const eMean = getMean(expS);
+      let wilc = { pValue: null, statistic: null, significant: false };
+      try {
+        if (sub.length >= 3) {
+          const res = calcularWilcoxonPareado(ctrlS, expS);
+          wilc = { pValue: res.pValue, statistic: res.statistic, significant: res.pValue < 0.05 };
+        }
+      } catch(e) {}
+      return {
+        n: sub.length,
+        control:      { mean: cMean, stdDev: getStdDev(ctrlS, cMean) },
+        experimental: { mean: eMean, stdDev: getStdDev(expS,  eMean) },
+        wilcoxon: wilc
+      };
     };
-  };
-
-  statsSummary.cutoff_analysis = {
-    pre_cutoff: compileCutoffStats(preCutoffQuestions),
-    post_cutoff: compileCutoffStats(postCutoffQuestions)
-  };
-
-  // 3. Análise por Modelo de IA (Confronto)
-  const models = ["gemini-3.5-flash", "gemma-4-31b-it", "gpt-oss-120b"];
-  statsSummary.model_confrontation = {};
-
-  for (const model of models) {
-    const modelQuestions = allQuestionsData.filter(q => q.generatorModel === model);
-    const ctrlScores = modelQuestions.map(q => q.scores_control.total);
-    const expScores = modelQuestions.map(q => q.scores_experimental.total);
-    const ctrlLat = modelQuestions.map(q => q.latencies_control.total_ms / 1000);
-    const expLat = modelQuestions.map(q => q.latencies_experimental.total_ms / 1000);
-
-    const meanCtrl = getMean(ctrlScores);
-    const meanExp = getMean(expScores);
-
-    statsSummary.model_confrontation[model] = {
-      n: modelQuestions.length,
-      scores: {
-        control: meanCtrl,
-        experimental: meanExp,
-        delta: meanExp - meanCtrl
-      },
-      latency: {
-        control: getMean(ctrlLat),
-        experimental: getMean(expLat)
-      }
+    summary.cutoff_analysis = {
+      pre_cutoff:  compileCutoff(preCutoff),
+      post_cutoff: compileCutoff(postCutoff)
     };
-  }
 
-  // 4. Teste Kruskal-Wallis (Diferenças de notas entre os 3 modelos)
-  const kwGroups = models.map(m => 
-    allQuestionsData.filter(q => q.generatorModel === m).map(q => q.scores_experimental.total)
-  );
-  statsSummary.kruskal_wallis = calcularKruskalWallis(kwGroups);
+    // Confronto por modelo
+    const models = ["gemini-3.5-flash", "gemma-4-31b-it", "gpt-oss-120b"];
+    summary.model_confrontation = {};
+    for (const model of models) {
+      const mq = questions.filter(q => q.generatorModel === model);
+      const ctrlS = mq.map(q => q.scores_control.total);
+      const expS  = mq.map(q => q.scores_experimental.total);
+      summary.model_confrontation[model] = {
+        n: mq.length,
+        scores: {
+          control:      getMean(ctrlS),
+          experimental: getMean(expS),
+          delta:        getMean(expS) - getMean(ctrlS)
+        },
+        latency: {
+          control:      getMean(mq.map(q => q.latencies_control.total_ms  / 1000)),
+          experimental: getMean(mq.map(q => q.latencies_experimental.total_ms / 1000))
+        }
+      };
+    }
 
-  // 5. Fleiss' Kappa (Inter-rater reliability)
-  let sumAgree = 0;
-  agreementRatings.forEach(item => {
-    if (item.rater1 === item.rater2) sumAgree++;
-  });
-  const pObserved = sumAgree / agreementRatings.length;
-  const countTrue = agreementRatings.reduce((sum, item) => sum + item.rater1 + item.rater2, 0);
-  const totalRatings = agreementRatings.length * 2;
-  const p1 = countTrue / totalRatings;
-  const p0 = 1 - p1;
-  const pExpected = p1 * p1 + p0 * p0;
-  const fleissKappaVal = (pObserved - pExpected) / (1 - pExpected);
+    // Kruskal-Wallis
+    const kwGroups = models.map(m => questions.filter(q => q.generatorModel === m).map(q => q.scores_experimental.total));
+    summary.kruskal_wallis = calcularKruskalWallis(kwGroups);
 
-  statsSummary.inter_rater_agreement = {
-    percent_agreement: pObserved,
-    expected_agreement: pExpected,
-    fleiss_kappa: fleissKappaVal
-  };
+    // Fleiss' Kappa (usa os agreeRatings filtrados)
+    if (agreeRatings && agreeRatings.length > 0) {
+      let sAgree = 0;
+      agreeRatings.forEach(item => { if (item.rater1 === item.rater2) sAgree++; });
+      const pObs  = sAgree / agreeRatings.length;
+      const cTrue = agreeRatings.reduce((s, item) => s + item.rater1 + item.rater2, 0);
+      const tRat  = agreeRatings.length * 2;
+      const p1k   = cTrue / tRat;
+      const p0k   = 1 - p1k;
+      const pExp  = p1k * p1k + p0k * p0k;
+      summary.inter_rater_agreement = {
+        percent_agreement:  pObs,
+        expected_agreement: pExp,
+        fleiss_kappa:       (pObs - pExp) / (1 - pExp)
+      };
+    } else {
+      summary.inter_rater_agreement = { percent_agreement: 0, expected_agreement: 0, fleiss_kappa: 0 };
+    }
 
-  // 6. Regressão Linear Simples (Tempo vs. Ganho)
-  const regLatencies = allQuestionsData.map(q => q.latencies_experimental.total_ms / 1000);
-  const regGains = allQuestionsData.map(q => q.scores_experimental.total - q.scores_control.total);
-  statsSummary.linear_regression = calcularRegressaoLinear(regLatencies, regGains);
+    // Regressão linear
+    const regLat   = questions.map(q => q.latencies_experimental.total_ms / 1000);
+    const regGains = questions.map(q => q.scores_experimental.total - q.scores_control.total);
+    summary.linear_regression = calcularRegressaoLinear(regLat, regGains);
 
-  // 7. Correlação de Spearman entre Grupos de Notas (Grupo A vs. Grupo C, etc.)
-  const groupsList = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e"];
-  statsSummary.spearman_matrix = {};
-  for (const g1 of groupsList) {
-    statsSummary.spearman_matrix[g1] = {};
-    for (const g2 of groupsList) {
-      if (g1 === g2) {
-        statsSummary.spearman_matrix[g1][g2] = 1.0;
-      } else {
-        const v1 = allQuestionsData.map(q => q.scores_experimental[g1]);
-        const v2 = allQuestionsData.map(q => q.scores_experimental[g2]);
-        statsSummary.spearman_matrix[g1][g2] = calcularSpearman(v1, v2) || 0;
+    // Spearman matrix grupos
+    const groupsList = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e"];
+    summary.spearman_matrix = {};
+    for (const g1 of groupsList) {
+      summary.spearman_matrix[g1] = {};
+      for (const g2 of groupsList) {
+        if (g1 === g2) {
+          summary.spearman_matrix[g1][g2] = 1.0;
+        } else {
+          const v1 = questions.map(q => q.scores_experimental[g1]);
+          const v2 = questions.map(q => q.scores_experimental[g2]);
+          summary.spearman_matrix[g1][g2] = calcularSpearman(v1, v2) || 0;
+        }
       }
     }
+
+    // K-Means
+    const clusterPoints = questions.map(q => ({
+      x: q.latencies_experimental.total_ms / 1000,
+      y: q.scores_experimental.total,
+      id: q.id
+    }));
+    summary.kmeans_clusters = calcularKMeans(clusterPoints, Math.min(3, questions.length)).map(c => ({
+      id: c.id,
+      centroid: c.centroid,
+      points_count: c.points.length,
+      points: c.points.map(p => p.id)
+    }));
+
+    // Spearman IEP vs. Complexidade
+    const complexityList = questions.map(q => q.complexity_estimated);
+    summary.iep_complexity_correlation = {
+      spearman: calcularSpearman(iepArray, complexityList) || 0,
+      description: "Correlação de Spearman entre o IEP (Pontos Ganhos/s) e a Complexidade Estimada da Questão (Appendix B)."
+    };
+
+    summary.questions = questions;
+    return summary;
   }
 
-  // 8. K-Means Clustering (3 clusters de questões por Latência vs. Nota)
-  const clusterPoints = allQuestionsData.map(q => ({
-    x: q.latencies_experimental.total_ms / 1000,
-    y: q.scores_experimental.total,
-    id: q.id
-  }));
-  statsSummary.kmeans_clusters = calcularKMeans(clusterPoints, 3).map(c => ({
-    id: c.id,
-    centroid: c.centroid,
-    points_count: c.points.length,
-    points: c.points.map(p => p.id)
-  }));
+  // Separa questões por área
+  const questoesLinguagens = allQuestionsData.filter(q => q.area === "Linguagens");
+  const questoesHumanas    = allQuestionsData.filter(q => q.area === "Humanas");
 
-  // Spearman IEP vs. Complexidade
-  const complexityList = allQuestionsData.map(q => q.complexity_estimated);
-  statsSummary.iep_complexity_correlation = {
-    spearman: calcularSpearman(iepArray, complexityList) || 0,
-    description: "Correlação de Spearman entre o IEP (Pontos Ganhos/s) e a Complexidade Estimada da Questão (Appendix B)."
-  };
+  // Filtra agreementRatings por área
+  const questoesIdsLing    = new Set(questoesLinguagens.map(q => q.id));
+  const questoesIdsHum     = new Set(questoesHumanas.map(q => q.id));
+  const agreeRatingsLing   = agreementRatings.filter(r => questoesIdsLing.has(r.questionId));
+  const agreeRatingsHum    = agreementRatings.filter(r => questoesIdsHum.has(r.questionId));
 
-  // Salvar detalhes individuais
-  statsSummary.questions = allQuestionsData;
-  statsSummary.errors = errors;
+  console.log(`\n📊 Subconjuntos: Total=${allQuestionsData.length}, Linguagens=${questoesLinguagens.length}, Humanas=${questoesHumanas.length}`);
 
-  fs.writeFileSync(outputFile, JSON.stringify(statsSummary, null, 2), "utf-8");
-  console.log(`\n✅ Relatório estatístico avançado e unificado salvo em: ${outputFile}`);
+  // Computa estatísticas para os 3 conjuntos
+  const statsTotal     = computeStats(allQuestionsData,    agreementRatings);
+  const statsLinguagens = computeStats(questoesLinguagens, agreeRatingsLing);
+  const statsHumanas    = computeStats(questoesHumanas,    agreeRatingsHum);
+
+  // Adiciona metadado de área e erros globais nos 3
+  statsTotal.errors      = errors;
+  statsTotal.area_label  = "Total (Linguagens + Humanas)";
+  statsLinguagens.errors = errors.filter(e => e.toLowerCase().includes("linguagens") || !e.toLowerCase().includes("humanas"));
+  statsLinguagens.area_label = "Linguagens";
+  statsHumanas.errors    = errors.filter(e => e.toLowerCase().includes("humanas") || !e.toLowerCase().includes("linguagens"));
+  statsHumanas.area_label    = "Humanas";
+
+  // Salva os 3 arquivos
+  fs.writeFileSync(outputFile,        JSON.stringify(statsTotal,      null, 2), "utf-8");
+  fs.writeFileSync(outputFileLing,    JSON.stringify(statsLinguagens, null, 2), "utf-8");
+  fs.writeFileSync(outputFileHumanas, JSON.stringify(statsHumanas,    null, 2), "utf-8");
+
+  console.log(`\n✅ [Total]      → ${outputFile}`);
+  console.log(`✅ [Linguagens] → ${outputFileLing}`);
+  console.log(`✅ [Humanas]    → ${outputFileHumanas}`);
 }
 
 run();
