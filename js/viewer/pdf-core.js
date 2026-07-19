@@ -396,6 +396,12 @@ export async function carregarDocumentoPDF(url) {
       }
 
       if (targetUrl && targetUrl.startsWith("http") && typeof window !== "undefined" && window.puter && window.puter.net && window.puter.net.fetch) {
+        if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && !window.puter.auth.isSignedIn()) {
+          console.log("PDF-Core: Usuário não logado no Puter. Solicitando autenticação...");
+          if (typeof window.puter.auth.signIn === "function") {
+            await window.puter.auth.signIn();
+          }
+        }
         console.log("PDF-Core: Fetching via puter.net.fetch:", targetUrl);
         const res = await window.puter.net.fetch(targetUrl);
         if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);

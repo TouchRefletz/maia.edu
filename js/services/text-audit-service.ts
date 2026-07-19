@@ -255,9 +255,9 @@ ${JSON.stringify(payloadToScan, null, 2)}`;
     let resultJson: any = null;
 
     if (typeof gerarConteudoEmJSONComImagemStream === 'function') {
-      resultJson = await gerarConteudoEmJSONComImagemStream(
+      resultJson = await (gerarConteudoEmJSONComImagemStream as any)(
         prompt,
-        auditResponseSchema,
+        auditResponseSchema as any,
         [],
         'image/jpeg',
         {},

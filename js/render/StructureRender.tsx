@@ -17,6 +17,8 @@ declare global {
     iniciar_captura_para_slot_alternativa?: (letra: string, idx: number) => void;
     __targetSlotIndex?: number | null;
     __targetSlotContext?: string | null;
+    cancelarRecorte?: () => void;
+    salvarQuestao?: () => void;
   }
 }
 

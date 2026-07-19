@@ -52,26 +52,60 @@ async function uploadToTmpFiles(file, customName = null, signal = null) {
  * Helper: Download PDF from URL (Blob)
  */
 async function downloadPdfFromUrl(url, signal = null) {
+  if (!url) return null;
+
+  // 1. Primary Attempt: Use Worker CORS Proxy
+  try {
+    const proxyUrl = getProxyPdfUrl(url);
+    if (proxyUrl && proxyUrl !== url) {
+      console.log("[Manual] Downloading PDF via Worker Proxy:", proxyUrl);
+      const res = await fetch(proxyUrl, { signal });
+      if (res.ok) {
+        return await res.blob();
+      }
+      console.warn(`[Manual] Worker Proxy HTTP ${res.status}, trying direct fetch...`);
+    }
+  } catch (proxyErr) {
+    if (proxyErr.name === "AbortError") throw proxyErr;
+    console.warn("[Manual] Worker Proxy fetch error, trying direct fetch:", proxyErr);
+  }
+
+  // 2. Secondary Attempt: Direct fetch
   try {
     const res = await fetch(url, { signal });
     if (res.ok) {
       return await res.blob();
     }
-    throw new Error(`Status ${res.status}`);
+    throw new Error(`Direct fetch HTTP ${res.status}`);
   } catch (e) {
-    console.warn("[Manual] Failed to download PDF from URL directly, trying Puter fallback:", url, e);
-    try {
-      if (typeof window !== "undefined" && window.puter && window.puter.net && window.puter.net.fetch) {
+    if (e.name === "AbortError") throw e;
+    console.warn("[Manual] Direct fetch failed, attempting Puter fallback:", url, e);
+  }
+
+  // 3. Tertiary Attempt: Puter Fallback (with explicit auth check & sign in)
+  try {
+    if (typeof window !== "undefined" && window.puter) {
+      if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function") {
+        if (!window.puter.auth.isSignedIn()) {
+          console.log("[Manual] User not signed in to Puter. Prompting explicit Puter sign in...");
+          if (typeof window.puter.auth.signIn === "function") {
+            await window.puter.auth.signIn();
+          }
+        }
+      }
+      if (window.puter.net && typeof window.puter.net.fetch === "function") {
         const res = await window.puter.net.fetch(url);
         if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
         const blob = await res.blob();
         return blob;
       }
-    } catch (puterErr) {
-      console.error("[Manual] Puter fallback fetch also failed:", puterErr);
     }
-    return null;
+  } catch (puterErr) {
+    if (puterErr.name === "AbortError") throw puterErr;
+    console.error("[Manual] Puter fallback fetch failed:", puterErr);
   }
+
+  return null;
 }
 
 export function setupFormLogic(elements, initialData) {

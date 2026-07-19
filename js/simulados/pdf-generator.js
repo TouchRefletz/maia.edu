@@ -86,18 +86,34 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
           }
 
           let arrayBuffer;
-          if (typeof window.puter !== "undefined" && window.puter.net && window.puter.net.fetch) {
-            console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
-            const response = await window.puter.net.fetch(url);
-            if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);
-            const blob = await response.blob();
-            arrayBuffer = await blob.arrayBuffer();
-          } else {
+          // 1. Primary: Fetch via Worker Proxy
+          try {
             const fetchUrl = getProxyPdfUrl(url);
             console.log("[PDFGenerator] Carregando PDF via fetch/proxy:", fetchUrl);
             const response = await fetch(fetchUrl);
-            if (!response.ok) throw new Error(`Fetch HTTP ${response.status}`);
-            arrayBuffer = await response.arrayBuffer();
+            if (response.ok) {
+              arrayBuffer = await response.arrayBuffer();
+            } else {
+              throw new Error(`Fetch HTTP ${response.status}`);
+            }
+          } catch (proxyErr) {
+            console.warn("[PDFGenerator] Falha no Worker Proxy, tentando Puter fallback...", proxyErr);
+            // 2. Fallback: Puter com autenticação explícita
+            if (typeof window.puter !== "undefined" && window.puter.net && window.puter.net.fetch) {
+              if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && !window.puter.auth.isSignedIn()) {
+                console.log("[PDFGenerator] Usuário não logado no Puter. Solicitando autenticação...");
+                if (typeof window.puter.auth.signIn === "function") {
+                  await window.puter.auth.signIn();
+                }
+              }
+              console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
+              const response = await window.puter.net.fetch(url);
+              if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);
+              const blob = await response.blob();
+              arrayBuffer = await blob.arrayBuffer();
+            } else {
+              throw proxyErr;
+            }
           }
 
           const typedArray = new Uint8Array(arrayBuffer);

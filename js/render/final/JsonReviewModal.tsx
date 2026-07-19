@@ -20,7 +20,7 @@ declare global {
     __BACKUP_IMGS_Q?: any[];
     __ultimaQuestaoExtraida: any;
     __ultimoGabaritoExtraido: any;
-    __pdfOriginalUrl?: string;
+    __pdfOriginalUrl?: string | null;
   }
 }
 
