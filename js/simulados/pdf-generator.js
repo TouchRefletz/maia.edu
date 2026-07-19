@@ -86,9 +86,9 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
           }
 
           let arrayBuffer;
-          if (typeof window.puter !== "undefined" && window.puter.fetch) {
-            console.log("[PDFGenerator] Carregando PDF via Puter.fetch:", url);
-            const response = await window.puter.fetch(url);
+          if (typeof window.puter !== "undefined" && window.puter.net && window.puter.net.fetch) {
+            console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
+            const response = await window.puter.net.fetch(url);
             if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);
             const blob = await response.blob();
             arrayBuffer = await blob.arrayBuffer();

@@ -650,19 +650,40 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         setIsLoadingLocal(true);
         
         console.log("[PdfEmbed] Carregando direto:", effectiveUrl);
-        // @ts-ignore
-        const loadingTask = window.pdfjsLib.getDocument(effectiveUrl);
-
+        let pdfDoc;
         try {
-            const pdfDoc = await loadingTask.promise;
-            pdfDocRef.current = pdfDoc; // Cache para reuso
-            await renderPageOnCanvas(pdfDoc);
+            // @ts-ignore
+            const loadingTask = window.pdfjsLib.getDocument(effectiveUrl);
+            pdfDoc = await loadingTask.promise;
         } catch (err: any) {
-            console.warn("[PdfEmbed] Falha no carregamento direto:", err);
-            // Se falhar e for URL remota, pede upload manual
-            // [FIX] Any error maps to "Need Upload"
-            throw new Error("CORS_BLOCK");
+            console.warn("[PdfEmbed] Falha no carregamento direto, tentando Puter fallback:", err);
+            let targetUrl = effectiveUrl;
+            if (effectiveUrl.includes("/proxy-pdf?url=")) {
+                try {
+                    const urlParams = new URLSearchParams(effectiveUrl.split("?")[1]);
+                    targetUrl = urlParams.get("url") || effectiveUrl;
+                } catch (e) {}
+            }
+            // @ts-ignore
+            if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+                try {
+                    // @ts-ignore
+                    const res = await window.puter.net.fetch(targetUrl);
+                    if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
+                    const arrayBuffer = await res.arrayBuffer();
+                    // @ts-ignore
+                    const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+                    pdfDoc = await loadingTask.promise;
+                } catch (puterErr) {
+                    console.error("[PdfEmbed] Puter fallback fetch failed:", puterErr);
+                    throw new Error("CORS_BLOCK");
+                }
+            } else {
+                throw new Error("CORS_BLOCK");
+            }
         }
+        pdfDocRef.current = pdfDoc; // Cache para reuso
+        await renderPageOnCanvas(pdfDoc);
 
       } catch (e: any) {
         console.error("PDF Render Fallback Error:", e);

@@ -379,8 +379,33 @@ export async function carregarDocumentoPDF(url) {
 
   try {
     console.log("PDF-Core: Loading:", url);
-    const loadingTask = pdfjsLib.getDocument(url);
-    const pdf = await loadingTask.promise;
+    let loadingTask = pdfjsLib.getDocument(url);
+    let pdf;
+    try {
+      pdf = await loadingTask.promise;
+    } catch (err) {
+      console.warn("PDF-Core: Direct/Proxy load failed, trying Puter fallback...", err);
+      let targetUrl = url;
+      if (url && typeof url === "string" && url.includes("/proxy-pdf?url=")) {
+        try {
+          const urlParams = new URLSearchParams(url.split("?")[1]);
+          targetUrl = urlParams.get("url") || url;
+        } catch (e) {}
+      } else if (window.__pdfOriginalUrl) {
+        targetUrl = window.__pdfOriginalUrl;
+      }
+
+      if (targetUrl && targetUrl.startsWith("http") && typeof window !== "undefined" && window.puter && window.puter.net && window.puter.net.fetch) {
+        console.log("PDF-Core: Fetching via puter.net.fetch:", targetUrl);
+        const res = await window.puter.net.fetch(targetUrl);
+        if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
+        const arrayBuffer = await res.arrayBuffer();
+        loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        pdf = await loadingTask.promise;
+      } else {
+        throw err;
+      }
+    }
     viewerState.pdfDoc = pdf;
 
     // Inicializa a sidebar com o número total de páginas para criar os containers/details

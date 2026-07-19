@@ -53,6 +53,8 @@ import {
   onClickImagemFinal,
   removerImagemFinal,
   startImageSlotMode,
+  iniciarCapturaParaSlotAlternativa,
+  iniciarOcrCampo,
 } from "./cropper/mode.js";
 import { salvarQuestao } from "./cropper/save-handlers.js";
 import "./debug/chat-debugger.js";
@@ -108,6 +110,7 @@ window.confirmImageSlotMode = confirmImageSlotMode;
 window.cancelImageSlotMode = cancelImageSlotMode;
 window.salvarQuestao = salvarQuestao;
 window.cancelarRecorte = cancelarRecorte;
+window.startImageSlotMode = startImageSlotMode;
 
 // Added for Slot Edit Mode
 import { deleteImageSlot, editImageSlotMode } from "./cropper/mode.js";
@@ -715,24 +718,8 @@ window.iniciarFluxoUploadManual = function () {
 // Deprecated Legacy Function (kept if needed for internal references)
 window.generatePDFUploadInterface = window.iniciarFluxoPesquisa;
 
-window.iniciar_captura_para_slot_alternativa = function (letra, index) {
-  window.__target_alt_letra = String(letra || "")
-    .trim()
-    .toUpperCase();
-  window.__target_alt_index = Number(index);
-
-  // Reaproveita teu fluxo existente de recorte/UI
-  ativarModoRecorte(); // jÃ¡ existe e liga o cropper + botÃµes flutuantes [file:2]
-};
-
-window.iniciar_ocr_campo = function (elementId) {
-  // Define o contexto global para o salvar lidar depois
-  window.__targetSlotContext = "ocr_field_" + elementId;
-  window.__targetSlotIndex = null; // não usamos index numérico aqui, o ID já basta
-
-  // Inicia o modo de recorte (mesma UI de sempre)
-  ativarModoRecorte();
-};
+window.iniciar_captura_para_slot_alternativa = iniciarCapturaParaSlotAlternativa;
+window.iniciar_ocr_campo = iniciarOcrCampo;
 
 // --- NOVO SISTEMA DE ZOOM DE IMAGEM (MODAL) ---
 window.expandirImagem = function (src) {

@@ -2,7 +2,7 @@ import { renderizarQuestaoFinal } from "../render/final/render-questao.js";
 import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
 import { updateTabStatus, addLogToQuestionTab } from "../ui/sidebar-tabs.js";
 import { mostrarPainel } from "../viewer/sidebar.js";
-import { restaurarVisualizacaoOriginal } from "./cropper-core.js";
+import { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } from "./cropper-core.js";
 import { CropperState } from "./cropper-state.js";
 import { renderizarGaleriaModal } from "./gallery.js";
 import { extractImageFromCropData } from "./selection-overlay.js";
@@ -306,13 +306,36 @@ export function salvarQuestao() {
     if (!result || !result.blobUrl) return;
     const imgSrc = result.blobUrl;
 
-    // --- ROTEAMENTO DOS CENÁRIOS ---
     if (
       window.__target_alt_letra !== null &&
       window.__target_alt_index !== null
     ) {
+      const letra = window.__target_alt_letra;
+      const idx = window.__target_alt_index;
       tratarSalvarAlternativa(imgSrc);
       CropperState.deleteGroup(activeGroup.id); // Limpa o temp
+      restaurarVisualizacaoOriginal();
+      resetarInterfaceBotoes();
+      window.dispatchEvent(
+        new CustomEvent("image-slot-mode-change", {
+          detail: { slotId: `alt_${letra}_${idx}`, mode: "idle" },
+        }),
+      );
+      return;
+    }
+
+    if (
+      window.__targetSlotContext !== null &&
+      window.__targetSlotContext.startsWith("ocr_field_")
+    ) {
+      const elementId = window.__targetSlotContext.replace("ocr_field_", "");
+      import("../services/OcrQueueService.ts").then((mod) => {
+        mod.ocrService.addToQueue(imgSrc, elementId);
+      });
+      CropperState.deleteGroup(activeGroup.id);
+      window.__targetSlotContext = null;
+      restaurarVisualizacaoOriginal();
+      resetarInterfaceBotoes();
       return;
     }
 
@@ -322,6 +345,8 @@ export function salvarQuestao() {
     ) {
       tratarSalvarSlotEstrutura(imgSrc);
       CropperState.deleteGroup(activeGroup.id);
+      restaurarVisualizacaoOriginal();
+      resetarInterfaceBotoes();
       return;
     }
 
@@ -329,6 +354,8 @@ export function salvarQuestao() {
     if (window.__capturandoImagemFinal === true) {
       tratarSalvarSuporte(imgSrc);
       CropperState.deleteGroup(activeGroup.id);
+      restaurarVisualizacaoOriginal();
+      resetarInterfaceBotoes();
       return;
     }
   });

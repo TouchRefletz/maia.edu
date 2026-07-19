@@ -110,7 +110,11 @@ const ChatContentBlockRenderer: React.FC<{
           }}
         >
            <div className="chat-image-icon" style={{display:'block', marginBottom:'8px', fontSize:'1.2em'}}>🖼️</div>
-           <div className="chat-image-desc markdown-content" style={{fontSize:'0.9em'}}>Buscando imagem: {conteudoSafe}...</div>
+           <div 
+             className="chat-image-desc markdown-content" 
+             style={{fontSize:'0.9em'}}
+             dangerouslySetInnerHTML={{ __html: `Buscando imagem: ${conteudoSafe}...` }}
+           />
         </div>
       );
     case 'questao':

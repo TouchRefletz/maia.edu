@@ -259,8 +259,29 @@ export async function gerarPreviewPDF(args) {
         updateUI();
         renderPage(state.pageNum);
       } catch (retryErr) {
-        console.error("PV Direct Retry Failed:", retryErr);
-        handleError(msg);
+        console.error("PV Direct Retry Failed, trying Puter fallback...", retryErr);
+        try {
+          if (cleanUrlInput.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+            const res = await window.puter.net.fetch(cleanUrlInput);
+            if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
+            const arrayBuffer = await res.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            state.pdfDoc = await loadingTask.promise;
+
+            const page = await state.pdfDoc.getPage(1);
+            const containerWidth = els.scroll.clientWidth - 80;
+            const unscaledViewport = page.getViewport({ scale: 1 });
+            const fitScale = containerWidth / unscaledViewport.width;
+            state.scale = Math.min(Math.max(fitScale, 0.6), 1.5);
+            updateUI();
+            renderPage(state.pageNum);
+          } else {
+            throw retryErr;
+          }
+        } catch (puterErr) {
+          console.error("PV Puter Fallback Failed:", puterErr);
+          handleError(msg);
+        }
       }
     } finally {
       state.isLoading = false;

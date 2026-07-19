@@ -79,7 +79,7 @@ export const Alternativas: React.FC<AlternativasProps> = ({
               </div>
               
               {/* Conteúdo com blocos individuais */}
-              <div className="alt-content">
+              <div className="alt-content" style={{ flex: 1, width: '100%', minWidth: 0 }}>
                 <AlternativeStructure
                   estrutura={estrutura}
                   letra={letra}
@@ -98,9 +98,9 @@ export const Alternativas: React.FC<AlternativasProps> = ({
 
         // Modo normal
         return (
-          <div className="alt-row" key={`${letra}-${index}`}>
+          <div className="alt-row" key={`${letra}-${index}`} style={{ display: 'flex', width: '100%', alignItems: 'flex-start' }}>
             <span className="alt-letter">{letra}</span>
-            <div className="alt-content">
+            <div className="alt-content" style={{ flex: 1, width: '100%', minWidth: 0 }}>
               <AlternativeStructure
                 estrutura={estrutura}
                 letra={letra}

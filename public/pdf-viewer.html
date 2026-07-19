@@ -242,17 +242,17 @@
 
         let arrayBuffer;
 
-        // Tenta puter.fetch primeiro (bypass CORS)
-        if (typeof puter !== 'undefined' && puter.fetch) {
+        // Tenta puter.net.fetch primeiro (bypass CORS)
+        if (typeof puter !== 'undefined' && puter.net && puter.net.fetch) {
           try {
-            const response = await puter.fetch(pdfUrl);
+            const response = await puter.net.fetch(pdfUrl);
             if (!response.ok) {
               throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             const blob = await response.blob();
             arrayBuffer = await blob.arrayBuffer();
           } catch (puterErr) {
-            console.warn('[PDFViewer] puter.fetch falhou, tentando fetch nativo:', puterErr);
+            console.warn('[PDFViewer] puter.net.fetch falhou, tentando fetch nativo:', puterErr);
             // Fallback para fetch nativo (pode funcionar se same-origin ou CORS habilitado)
             const response = await fetch(pdfUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);

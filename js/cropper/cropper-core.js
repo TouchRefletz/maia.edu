@@ -71,6 +71,15 @@ export function resetarInterfaceBotoes() {
   const floatParams = document.getElementById("floatingActionParams");
   if (floatParams) floatParams.classList.add("hidden");
 
+  // Reset do texto e classe do botão de confirmação flutuante
+  const btnConfirm = document.querySelector(
+    "#floatingActionParams button[data-action='confirm-crop']"
+  );
+  if (btnConfirm) {
+    btnConfirm.innerText = "✅ Confirmar Seleção";
+    btnConfirm.className = "flyingBtn btn--success";
+  }
+
   // 2. Reseta variável de estado de edição
   window.__capturandoImagemFinal = false;
 
@@ -106,9 +115,14 @@ export function cancelarRecorte() {
     }
   }
 
-  // Limpa variáveis globais de slot, se existirem
+  const altLetra = window.__target_alt_letra;
+  const altIndex = window.__target_alt_index;
+
+  // Limpa variáveis globais de slot e alternativa, se existirem
   window.__targetSlotIndex = null;
   window.__targetSlotContext = null;
+  window.__target_alt_letra = null;
+  window.__target_alt_index = null;
 
   // Chama a limpeza lógica
   restaurarVisualizacaoOriginal(); // Não precisa de await se não for bloquear nada depois
@@ -118,4 +132,12 @@ export function cancelarRecorte() {
 
   // Re-exibe o painel se necessário (pois slot mode esconde/usa painel)
   import("../viewer/sidebar.js").then((mod) => mod.mostrarPainel());
+
+  if (altLetra !== null && altIndex !== null) {
+    window.dispatchEvent(
+      new CustomEvent("image-slot-mode-change", {
+        detail: { slotId: `alt_${altLetra}_${altIndex}`, mode: "idle" },
+      }),
+    );
+  }
 }

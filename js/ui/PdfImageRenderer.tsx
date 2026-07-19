@@ -159,8 +159,32 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
       await renderPdfjs(url);
       setRenderState('pdfjs');
     } catch (e) {
-      console.warn('[PdfImageRenderer] URL direta falhou (Provavel CORS). Solicitando upload manual.', e);
-      // Fallback imediato para upload manual sem tentar proxies
+      console.warn('[PdfImageRenderer] URL direta falhou (Provavel CORS). Tentando Puter fallback...', e);
+      
+      let targetUrl = url;
+      if (url.includes("/proxy-pdf?url=")) {
+        try {
+          const urlParams = new URLSearchParams(url.split("?")[1]);
+          targetUrl = urlParams.get("url") || url;
+        } catch (err) {}
+      }
+
+      // @ts-ignore
+      if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+        try {
+          // @ts-ignore
+          const res = await window.puter.net.fetch(targetUrl);
+          if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
+          const arrayBuffer = await res.arrayBuffer();
+          const typedArray = new Uint8Array(arrayBuffer);
+          await renderPdfjsFromData(typedArray);
+          setRenderState('pdfjs');
+          return;
+        } catch (puterErr) {
+          console.error('[PdfImageRenderer] Puter fallback fetch failed:', puterErr);
+        }
+      }
+
       setErrorMessage('Acesso direto bloqueado pelo navegador. Por favor, baixe o PDF e selecione-o abaixo.');
       setRenderState('upload');
     }

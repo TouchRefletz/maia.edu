@@ -54,11 +54,22 @@ async function uploadToTmpFiles(file, customName = null, signal = null) {
 async function downloadPdfFromUrl(url, signal = null) {
   try {
     const res = await fetch(url, { signal });
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-    const blob = await res.blob();
-    return blob;
+    if (res.ok) {
+      return await res.blob();
+    }
+    throw new Error(`Status ${res.status}`);
   } catch (e) {
-    console.warn("[Manual] Failed to download PDF from URL:", url, e);
+    console.warn("[Manual] Failed to download PDF from URL directly, trying Puter fallback:", url, e);
+    try {
+      if (typeof window !== "undefined" && window.puter && window.puter.net && window.puter.net.fetch) {
+        const res = await window.puter.net.fetch(url);
+        if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
+        const blob = await res.blob();
+        return blob;
+      }
+    } catch (puterErr) {
+      console.error("[Manual] Puter fallback fetch also failed:", puterErr);
+    }
     return null;
   }
 }

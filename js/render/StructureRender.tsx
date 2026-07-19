@@ -432,22 +432,38 @@ export const MainStructure: React.FC<{
 };
 
 // --- COMPONENTE: BLOCO DE IMAGEM (ALTERNATIVA) ---
-const AlternativeImageBlock: React.FC<{
+export const AlternativeImageBlock: React.FC<{
   bloco: EstruturaBloco;
   letra: string;
   imgIndex: number;
-  src: string | undefined;
+  src?: string;
   isReadOnly: boolean;
   conteudo: string;
   conteudoRawAttr: string;
   temConteudo: boolean;
-  // Props de revisão para a descrição
   isReviewMode?: boolean;
   descricaoFieldId?: string;
   descricaoState?: 'approved' | 'rejected' | null;
   onApprove?: (fieldId: string) => void;
   onReject?: (fieldId: string) => void;
 }> = ({ bloco, letra, imgIndex, src, isReadOnly, conteudo, conteudoRawAttr, temConteudo, isReviewMode, descricaoFieldId, descricaoState, onApprove, onReject }) => {
+
+  const [isCapturing, setIsCapturing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isReadOnly) return;
+
+    const handleModeChange = (e: any) => {
+      if (e.detail && e.detail.slotId === `alt_${letra}_${imgIndex}`) {
+        setIsCapturing(e.detail.mode === "capturing");
+      }
+    };
+
+    window.addEventListener("image-slot-mode-change" as any, handleModeChange);
+    return () => {
+      window.removeEventListener("image-slot-mode-change" as any, handleModeChange);
+    };
+  }, [letra, imgIndex, isReadOnly]);
 
   // Renderiza a descrição com ou sem controles de revisão
   const renderDescricao = () => {
@@ -487,9 +503,8 @@ const AlternativeImageBlock: React.FC<{
               ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
               : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
             }
-          >
-            {isReadOnly ? conteudo : `IA: ${conteudo}`}
-          </div>
+            dangerouslySetInnerHTML={{ __html: isReadOnly ? conteudo : `IA: ${conteudo}` }}
+          />
         </div>
       );
     }
@@ -502,11 +517,79 @@ const AlternativeImageBlock: React.FC<{
           ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
           : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
         }
-      >
-        {isReadOnly ? conteudo : `IA: ${conteudo}`}
-      </div>
+        dangerouslySetInnerHTML={{ __html: isReadOnly ? conteudo : `IA: ${conteudo}` }}
+      />
     );
   };
+
+  if (isCapturing) {
+    return (
+      <div 
+        className="structure-block" 
+        style={{
+          border: '2px dashed var(--color-primary, #00BCD4)', 
+          padding: '12px', 
+          borderRadius: '8px', 
+          background: 'rgba(0, 188, 212, 0.05)',
+          marginTop: '8px',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ textAlign: 'center', marginBottom: '8px', color: 'var(--color-primary, #00BCD4)', fontWeight: 'bold', fontSize: '11px' }}>
+          ✂️ Recortando Imagem para Alternativa {letra}
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            style={{ flex: 1 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.CropperState) window.CropperState.undo();
+            }}
+          >
+            ⟲ Desfazer
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            style={{ flex: 1 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.CropperState) window.CropperState.redo();
+            }}
+          >
+            ⟳ Refazer
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="btn btn--outline btn--sm btn--full-width"
+          style={{ marginBottom: '6px' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.cancelarRecorte) window.cancelarRecorte();
+          }}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          className="btn btn--primary btn--sm btn--full-width"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.salvarQuestao) window.salvarQuestao();
+          }}
+        >
+          Confirmar Recorte
+        </button>
+      </div>
+    );
+  }
 
   if (src) {
     return (
@@ -546,9 +629,8 @@ const AlternativeImageBlock: React.FC<{
             className="markdown-content"
             data-raw={conteudoRawAttr}
             style={{ fontSize: '10px', color: 'gray', marginTop: '4px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            IA: {conteudo}
-          </div>
+            dangerouslySetInnerHTML={{ __html: `IA: ${conteudo}` }}
+          />
         )}
         {isReviewMode && renderDescricao()}
       </div>
@@ -595,7 +677,7 @@ export const AlternativeStructure: React.FC<{
   };
 
   return (
-    <div className="alt-estrutura">
+    <div className="alt-estrutura" style={{ width: '100%' }}>
       {estrutura.map((bloco, idx) => {
         const tipo = String(bloco?.tipo || 'texto').toLowerCase();
         // Não sanitizamos aqui para preservar LaTeX, o componente filho sanitiza se precisar

@@ -16,6 +16,11 @@ let __editingGroupId = null;
 import { getActiveTab } from "../ui/sidebar-tabs.js";
 
 export function ativarModoRecorte() {
+  const floatParams = document.getElementById("floatingActionParams");
+  if (floatParams) {
+    floatParams.classList.remove("hidden");
+  }
+
   if (viewerState.cropper) return;
   mostrarPainel();
   iniciarCropper();
@@ -27,19 +32,137 @@ export function ativarModoRecorte() {
 }
 
 export function iniciarCapturaParaSlot(index, contexto) {
-  console.log(`Iniciando captura para slot ${index} do contexto ${contexto}`);
-  window.__targetSlotIndex = index;
+  console.log(`[SlotMode] Iniciando captura para slot ${index} do contexto ${contexto}`);
+  window.__targetSlotIndex = Number(index);
   window.__targetSlotContext = contexto;
+  window.__target_alt_letra = null;
+  window.__target_alt_index = null;
+
   ativarModoRecorte();
+
+  // Create a new temporary group for this slot
+  const tempGroup = CropperState.createGroup({
+    tags: ["slot-mode", "NOVO"],
+    label: `Slot ${index} (${contexto})`,
+  });
+
+  if (!tempGroup.tags.includes("slot-mode")) {
+    tempGroup.tags.push("slot-mode");
+  }
+
+  const activeTab = getActiveTab();
+  let parentGroupId = null;
+  if (activeTab && activeTab.groupId) {
+    parentGroupId = activeTab.groupId;
+  }
+
+  tempGroup.metadata = {
+    slotId: index,
+    contexto: contexto,
+    parentGroupId: parentGroupId,
+  };
+
+  CropperState.setActiveGroup(tempGroup.id);
+  refreshOverlayPosition();
+
   const btnConfirm = document.querySelector(
     "#floatingActionParams .btn--success",
   );
   if (btnConfirm) {
     btnConfirm.innerText = "📍 Preencher Espaço";
-    btnConfirm.classList.remove("btn--success");
-    btnConfirm.classList.add("btn--primary");
   }
 }
+
+export function iniciarCapturaParaSlotAlternativa(letra, index) {
+  console.log(`[SlotMode] Iniciando captura para alternativa: ${letra}, index: ${index}`);
+
+  window.__target_alt_letra = String(letra || "").trim().toUpperCase();
+  window.__target_alt_index = Number(index);
+  window.__targetSlotIndex = null;
+  window.__targetSlotContext = null;
+
+  if (!viewerState.cropper) {
+    mostrarPainel();
+    iniciarCropper();
+    const btnHeader = document.getElementById("btnRecortarHeader");
+    if (btnHeader) {
+      btnHeader.style.opacity = "0.5";
+      btnHeader.style.pointerEvents = "none";
+    }
+  }
+
+  const tempGroup = CropperState.createGroup({
+    tags: ["slot-mode", "NOVO"],
+    label: `Alternativa ${letra}`,
+  });
+
+  if (!tempGroup.tags.includes("slot-mode")) {
+    tempGroup.tags.push("slot-mode");
+  }
+
+  const activeTab = getActiveTab();
+  let parentGroupId = null;
+  if (activeTab && activeTab.groupId) {
+    parentGroupId = activeTab.groupId;
+  }
+
+  tempGroup.metadata = {
+    altLetra: letra,
+    altIndex: index,
+    parentGroupId: parentGroupId,
+  };
+
+  CropperState.setActiveGroup(tempGroup.id);
+  refreshOverlayPosition();
+
+  window.dispatchEvent(
+    new CustomEvent("image-slot-mode-change", {
+      detail: { slotId: `alt_${letra}_${index}`, mode: "capturing" },
+    }),
+  );
+}
+
+export function iniciarOcrCampo(elementId) {
+  console.log(`[SlotMode] Iniciando OCR para campo: ${elementId}`);
+
+  window.__targetSlotContext = "ocr_field_" + elementId;
+  window.__targetSlotIndex = null;
+  window.__target_alt_letra = null;
+  window.__target_alt_index = null;
+
+  ativarModoRecorte();
+
+  const tempGroup = CropperState.createGroup({
+    tags: ["slot-mode", "NOVO"],
+    label: `OCR: ${elementId}`,
+  });
+
+  if (!tempGroup.tags.includes("slot-mode")) {
+    tempGroup.tags.push("slot-mode");
+  }
+
+  const activeTab = getActiveTab();
+  let parentGroupId = null;
+  if (activeTab && activeTab.groupId) {
+    parentGroupId = activeTab.groupId;
+  }
+
+  tempGroup.metadata = {
+    elementId: elementId,
+    parentGroupId: parentGroupId,
+  };
+
+  CropperState.setActiveGroup(tempGroup.id);
+  refreshOverlayPosition();
+
+  const btnConfirm = document.querySelector(
+    "#floatingActionParams .btn--success",
+  );
+  if (btnConfirm) {
+    btnConfirm.innerText = "🔍 Ler Campo";
+  }
+}
+
 
 export function iniciarCapturaImagemQuestao() {
   window.__capturandoImagemFinal = true;
