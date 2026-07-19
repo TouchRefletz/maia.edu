@@ -6,6 +6,7 @@ import { customAlert } from '../../ui/GlobalAlertsLogic';
 // @ts-ignore - JS module
 import { showConfirmModalWithCheckbox } from '../../ui/modal-confirm.js';
 import { PainelGabarito, PainelQuestao } from './RenderComponents';
+import { TextAuditModal } from './TextAuditModal';
 
 // Declaração de tipos para globais e módulos legados
 declare global {
@@ -125,13 +126,23 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
   onClose,
   onConfirm
 }) => {
+  const [currentQ, setCurrentQ] = useState<any>(q);
+  const [currentG, setCurrentG] = useState<any>(g);
+
+  // Atualiza estado local se as props mudarem
+  useEffect(() => {
+    setCurrentQ(q);
+    setCurrentG(g);
+  }, [q, g]);
+
   const [isCopying, setIsCopying] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
 
-  // Calcula o JSON apenas quando as props mudam
+  // Calcula o JSON apenas quando currentQ, currentG ou tituloMaterial mudam
   const jsonString = useMemo(() => {
-    return gerarJsonFinalLogic(q, g, tituloMaterial);
-  }, [q, g, tituloMaterial]);
+    return gerarJsonFinalLogic(currentQ, currentG, tituloMaterial);
+  }, [currentQ, currentG, tituloMaterial]);
 
   // Renderiza LaTeX após montar o componente e quando os dados mudam
   useEffect(() => {
@@ -140,7 +151,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
       // Pequeno delay para garantir que o React renderizou o DOM
       setTimeout(() => renderLatexIn(modalEl), 100);
     }
-  }, [q, g]);
+  }, [currentQ, currentG]);
 
   const handleCopyJson = () => {
     navigator.clipboard.writeText(jsonString);
@@ -149,7 +160,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
   };
 
   const handleConfirm = async () => {
-    if (!q || !g) {
+    if (!currentQ || !currentG) {
       customAlert('❌ Erro: Dados incompletos. Processe a questão e o gabarito.');
       return;
     }
@@ -207,6 +218,14 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              className="btn btn--sm btn--outline"
+              onClick={() => setIsAuditOpen(true)}
+              title="Auditar erros de digitação e alucinações de IA"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#3b82f6', color: '#60a5fa' }}
+            >
+              <span>🧹</span> Auditar Texto & Alucinações
+            </button>
             <button className="btn btn--sm btn--outline js-ver-originais" title="Ver prints originais">
               👁️ Originais
             </button>
@@ -220,6 +239,19 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
           </div>
         </div>
 
+        {/* MODAL DE AUDITORIA DE TEXTO OPCIONAL */}
+        {isAuditOpen && (
+          <TextAuditModal
+            q={currentQ}
+            g={currentG}
+            onClose={() => setIsAuditOpen(false)}
+            onApplyFixes={(updatedQ, updatedG) => {
+              setCurrentQ(updatedQ);
+              setCurrentG(updatedG);
+            }}
+          />
+        )}
+
         {/* BODY */}
         <div className="modal-body" style={{ background: 'var(--color-background)', padding: '25px', overflowY: 'auto', flex: 1 }}>
           <div className="review-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '30px', height: '100%' }}>
@@ -229,7 +261,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
               style={{ background: 'var(--color-surface)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', maxHeight: '100%' }}
             >
                 {/* Renderização Direta do Componente React (Alive) */}
-                <PainelQuestao q={q} tituloMaterial={tituloMaterial} imagensFinais={imagensFinais} />
+                <PainelQuestao q={currentQ} tituloMaterial={tituloMaterial} imagensFinais={imagensFinais} />
             </div>
             
             {/* Coluna Gabarito */}
@@ -238,7 +270,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
               style={{ background: 'var(--color-surface)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', maxHeight: '100%' }}
             >
                 {/* Renderização Direta do Componente React (Alive) */}
-                <PainelGabarito g={g} imagensFinais={imagensFinais} explicacaoArray={explicacaoArray} />
+                <PainelGabarito g={currentG} imagensFinais={imagensFinais} explicacaoArray={explicacaoArray} />
             </div>
           </div>
 
