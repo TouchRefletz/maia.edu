@@ -69,14 +69,18 @@ export const decodeEntities = (s) =>
 // Helper para processar LaTeX inline ($...$ -> \(...\))
 export const processLatex = (s) => {
   if (!s) return "";
-  // Substitui $...$ por \(...\) garantindo que não pegue \$ escapado
-  return s.replace(/([^\\]|^)\$([^$]+)\$/g, (match, prefix, content) => {
+  
+  // 1. Escapa moedas R$ não escapadas para R\$ antes de varrer cifrões
+  let cleaned = String(s).replace(/(^|[^\\])R\$/g, "$1R\\$");
+
+  // 2. Substitui $...$ por \(...\) garantindo que não pegue \$ escapado nem quebras de linha
+  return cleaned.replace(/([^\\]|^)\$([^$\n]+)\$/g, (match, prefix, content) => {
     // Se for apenas números, pontos, vírgulas ou espaços (ex: datas, valores), remove o LaTeX
     // para evitar fontes de matemática estranhas e o problema dos parênteses.
     if (/^[0-9.,\s]+$/.test(content)) {
       return prefix + content;
     }
-    // Caso contrário, converte para sintaxe MathJax \(...\)
+    // Caso contrário, converte para sintaxe MathJax/KaTeX \(...\)
     // Precisamos de 4 barras invertidas na string literal para resultar em 2 no output (\),
     // que o markdown consome para virar 1 na renderização final.
     // ESCAPA backslashes no conteúdo para sobreviverem ao markdown (ex: \text -> \\text)

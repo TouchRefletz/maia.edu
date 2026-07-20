@@ -105,9 +105,10 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
     
     markdownElements.forEach((el) => {
       // Cast para HTMLElement para acessar propriedades específicas se necessário
-      const htmlEl = el as HTMLElement;
+      let raw = htmlEl.getAttribute('data-raw') || htmlEl.innerHTML;
       
-      const raw = htmlEl.getAttribute('data-raw') || htmlEl.innerHTML;
+      // Sanitiza R$ não escapado para R\$ para evitar corrupção no KaTeX
+      raw = raw.replace(/(^|[^\\])R\$/g, '$1R\\$');
       
       // O renderer do marked converte markdown para HTML
       htmlEl.innerHTML = window.marked!.parse(raw);

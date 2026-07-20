@@ -98,14 +98,8 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
             }
           } catch (proxyErr) {
             console.warn("[PDFGenerator] Falha no Worker Proxy, tentando Puter fallback...", proxyErr);
-            // 2. Fallback: Puter com autenticação explícita
+            // 2. Fallback: Puter fetch
             if (typeof window.puter !== "undefined" && window.puter.net && window.puter.net.fetch) {
-              if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && !window.puter.auth.isSignedIn()) {
-                console.log("[PDFGenerator] Usuário não logado no Puter. Solicitando autenticação...");
-                if (typeof window.puter.auth.signIn === "function") {
-                  await window.puter.auth.signIn();
-                }
-              }
               console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
               const response = await window.puter.net.fetch(url);
               if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);

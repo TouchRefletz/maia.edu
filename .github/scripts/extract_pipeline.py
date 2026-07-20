@@ -185,12 +185,13 @@ QUESTION_EXTRACT_PROMPT = """
         2. **MATEMÁTICA E QUÍMICA (LATEX):** - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser escrita exclusivamente em LaTeX.
             - **INLINE (No meio do texto):** Se a fórmula faz parte da frase, use o bloco do tipo 'texto' e envolva o LaTeX entre cifrões unitários. Exemplo: "A massa de $H_2O$ é..." ou "Sendo $x = 2$, calcule...".
             - **DISPLAY (Isolada):** Use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
+            - **MOEDAS (R$):** NUNCA use o cifrão da moeda Real ($) solto dentro de blocos LaTeX sem escape. Use R\$ (com barra de escape) ou escreva a moeda fora dos cifrões (ex: R\$ $2,00$ ou \text{R\$ } 2,00).
 
         3. **ESTRUTURA:**
             - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
             - Se houver Texto com equação pequena no meio, gere 1 bloco: {tipo: 'texto', conteudo: 'O valor de $x$ é...'}.
             - JAMAIS use ASCII para matemática (nada de x^2 ou H2O normal). Use $x^2$ e $H_2O$.
-            - **TABELAS:** Se a questão contiver uma tabela de dados, use o tipo 'tabela' e formate o conteúdo EXCLUSIVAMENTE como uma tabela Markdown.
+            - **TABELAS:** Para tabelas simples sem células mescladas, use formato Markdown Table. Para TABELAS COMPLEXAS (com células mescladas, colspan/rowspan ou múltiplos níveis de cabeçalho), você DEVE obrigatoriamente usar HTML nativo (<table>, <thead>, <tbody>, <tr>, <th colspan="...">, <td rowspan="...">). JAMAIS crie colunas vazias em Markdown para tentar simular mesclagem. Não envolva marcadores simples de tabela (como + ou -) em LaTeX desnecessário.
 
         Analise as imagens fornecidas. Junte as informações de todas as imagens.
 """.strip()
@@ -216,7 +217,8 @@ _BLOCO_CONTEUDO = {
                 "(lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; "
                 "(codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; "
                 "(separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', "
-                "'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE."
+                "'Adaptado de ...', autor/obra/URL); (tabela) use formato Markdown Table (para tabelas simples) "
+                "ou HTML <table> (para tabelas complexas com mesclagem/colspan/rowspan)."
             ),
         },
     },

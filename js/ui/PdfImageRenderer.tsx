@@ -173,15 +173,6 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
       if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
         try {
           // @ts-ignore
-          if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && !window.puter.auth.isSignedIn()) {
-            console.log('[PdfImageRenderer] Usuário não logado no Puter. Solicitando autenticação...');
-            // @ts-ignore
-            if (typeof window.puter.auth.signIn === "function") {
-              // @ts-ignore
-              await window.puter.auth.signIn();
-            }
-          }
-          // @ts-ignore
           const res = await window.puter.net.fetch(targetUrl);
           if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();

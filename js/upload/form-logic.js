@@ -82,23 +82,31 @@ async function downloadPdfFromUrl(url, signal = null) {
     console.warn("[Manual] Direct fetch failed, attempting Puter fallback:", url, e);
   }
 
-  // 3. Tertiary Attempt: Puter Fallback (with explicit auth check & sign in)
+  // 3. Tertiary Attempt: Puter Fallback (Apenas no Upload Manual via Link)
   try {
-    if (typeof window !== "undefined" && window.puter) {
-      if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function") {
-        if (!window.puter.auth.isSignedIn()) {
-          console.log("[Manual] User not signed in to Puter. Prompting explicit Puter sign in...");
-          if (typeof window.puter.auth.signIn === "function") {
-            await window.puter.auth.signIn();
-          }
+    if (typeof window !== "undefined" && window.puter && window.puter.net && typeof window.puter.net.fetch === "function") {
+      // 3a. Tenta primeiro sem forçar login
+      try {
+        const res = await window.puter.net.fetch(url);
+        if (res.ok) {
+          return await res.blob();
+        }
+      } catch (silentErr) {
+        console.warn("[Manual] Puter fetch direto falhou, verificando autenticação...", silentErr);
+      }
+
+      // 3b. Se necessário para baixar no upload manual e o usuário não estiver logado, solicita o login
+      if (window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && !window.puter.auth.isSignedIn()) {
+        console.log("[Manual] Solicitando autenticação no Puter para download do arquivo...");
+        if (typeof window.puter.auth.signIn === "function") {
+          await window.puter.auth.signIn();
         }
       }
-      if (window.puter.net && typeof window.puter.net.fetch === "function") {
-        const res = await window.puter.net.fetch(url);
-        if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
-        const blob = await res.blob();
-        return blob;
-      }
+
+      const res = await window.puter.net.fetch(url);
+      if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
+      const blob = await res.blob();
+      return blob;
     }
   } catch (puterErr) {
     if (puterErr.name === "AbortError") throw puterErr;
