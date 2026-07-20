@@ -216,7 +216,7 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
 /**
  * Fluxo Unificado: Extrai questão E busca gabarito automaticamente
  */
-export async function confirmarEnvioIA(tabId = null) {
+export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
   // --- PASSO 1: PREPARAÇÃO DE DADOS E ESTADO ---
   const dadosIniciais = await inicializarEnvioCompleto();
   if (!dadosIniciais) {
@@ -228,6 +228,24 @@ export async function confirmarEnvioIA(tabId = null) {
     return;
   }
   const { styleviewerSidebar, listaImagens, uiState } = dadosIniciais;
+
+  // Se não veio customInstruction direta, tenta buscar do CropperState via tabId
+  if (!customInstruction && tabId) {
+    try {
+      const { getTabsState } = await import("../ui/sidebar-tabs.js");
+      const { CropperState } = await import("../cropper/cropper-state.js");
+      const tabs = getTabsState().tabs;
+      const tab = tabs.find((t) => t.id === tabId);
+      if (tab && tab.groupId) {
+        const group = CropperState.groups.find((g) => g.id === tab.groupId || String(g.id) === String(tab.groupId));
+        if (group && group.customInstruction) {
+          customInstruction = group.customInstruction;
+        }
+      }
+    } catch (err) {
+      console.warn("Erro ao buscar instrução do grupo:", err);
+    }
+  }
 
   // --- PASSO 1.5: CRIAR ABORT CONTROLLER PARA CANCELAMENTO ---
   let abortController = null;
@@ -260,8 +278,25 @@ export async function confirmarEnvioIA(tabId = null) {
     // ============================================================
     setStatus("📝 [QUESTÃO] Enviando imagens para IA...");
 
-    const { promptDaIA: promptQuestao, JSONEsperado: JSONQuestao } =
+    const { promptDaIA: promptQuestaoBase, JSONEsperado: JSONQuestao } =
       obterConfiguracaoIA("prova");
+
+    let promptQuestao = promptQuestaoBase;
+    if (customInstruction && customInstruction.trim()) {
+      setStatus(`⚡ [PRIORIDADE MÁXIMA] Aplicando instrução personalizada: "${customInstruction.trim()}"`);
+      promptQuestao = `
+============================================================
+🚨🚨 INSTRUÇÃO DE PRIORIDADE MÁXIMA DO USUÁRIO 🚨🚨
+ESTA INSTRUÇÃO FOI FORNECIDA PELO USUÁRIO PARA ESTA EXTRAÇÃO ESPECÍFICA.
+ELA POSSUI PRIORIDADE MÁXIMA E ABSOLUTA SOBRE QUALQUER OUTRA REGRA E DIRETRIZ DE EXTRAÇÃO:
+
+"${customInstruction.trim()}"
+
+APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUESTÃO.
+============================================================
+
+` + promptQuestaoBase;
+    }
 
     setStatus(`📝 [QUESTÃO] Analisando ${listaImagens.length} imagem(ns)...`);
 

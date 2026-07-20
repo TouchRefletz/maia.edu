@@ -99,25 +99,19 @@ export const safeMarkdown = (s) => {
   // Processa LaTeX inline antes do markdown para evitar crash com caracteres especiais
   decoded = processLatex(decoded);
 
-  // Verifica se o texto possui indícios de formatação markdown
+  // Verifica se o texto possui indícios de formatação markdown ou HTML
   const temMarkdown = /[*_`#\[\]()]/.test(decoded) || 
                       /^([-+*])\s/m.test(decoded) || 
                       /^(\d+)[.)]\s/m.test(decoded) || 
                       /^>\s/m.test(decoded) || 
-                      /\|/.test(decoded);
+                      /\|/.test(decoded) ||
+                      /<[a-zA-Z\/][^>]*>/.test(decoded);
 
   if (!temMarkdown) {
     // Se só tiver latex (\(...\)), não precisa de markdown, mas precisamos garantir que o HTML escape funcione para o resto
-    // Mas wait, safe() escapa < e >. Se o latex tiver < ou >, pode quebrar?
-    // MathJax costuma lidar, mas idealmente não escapamos o conteúdo do LaTeX.
-    // Porem, como estamos fazendo replace simples, vamos assumir que o usuário confia no input ou usar marked.
-    // Vamos deixar passar pelo marked se tiver latex também?
-
-    // Melhora: se tiver \( ou \[, considera que tem formatação rica e joga pro marked ou retorna direto
     if (decoded.includes("\\(") || decoded.includes("\\[")) {
       // Deixa cair no bloco do marked abaixo ou fallback
     } else {
-      // safe() escapa ", mas innerHTML não precisa disso - apenas < > & são perigosos
       return decoded
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")

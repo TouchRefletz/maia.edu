@@ -104,7 +104,7 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
 
   if (tabId) {
     // Iniciar o processo de envio real (Usa a função oficial do sistema)
-    confirmarEnvioIA(tabId);
+    confirmarEnvioIA(tabId, group.customInstruction);
   } else {
     // Modo antigo (sem abas): Atualiza modal e exibe
     renderizarGaleriaModal();

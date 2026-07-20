@@ -178,12 +178,21 @@ export const CropperState = {
       tipo: options.tipo || "questao_completa", // Guarda se nasceu como parte ou completa
       // Visual Status: 'draft' (default/gray) | 'verified' (cyan) | 'sent' (final)
       status: options.status || "draft",
+      customInstruction: options.customInstruction || "",
     };
     this.groups.push(newGroup);
     this.renumberGroups(); // Garante o número correto sequencial
     this.activeGroupId = id;
     this.notify();
     return newGroup;
+  },
+
+  setCustomInstruction(groupId, instruction) {
+    const group = this.groups.find((g) => g.id === groupId || String(g.id) === String(groupId));
+    if (group) {
+      group.customInstruction = instruction || "";
+      this.notify();
+    }
   },
 
   // Remove groups from a specific page that match a status (e.g., clear drafts)

@@ -1,5 +1,5 @@
-// loader.tsx
 import { useEffect, useRef } from 'react';
+import { decodeEntities, processLatex } from '../normalize/primitives';
 
 // 1. Definição de Tipos Globais para as bibliotecas que são carregadas via CDN
 declare global {
@@ -107,8 +107,13 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
       const htmlEl = el as HTMLElement;
       let raw = htmlEl.getAttribute('data-raw') || htmlEl.innerHTML;
       
-      // Sanitiza R$ não escapado para R\$ para evitar corrupção no KaTeX
-      raw = raw.replace(/(^|[^\\])R\$/g, '$1R\\$');
+      // Decodifica entidades HTML (&lt;table&gt; -> <table>) para que o marked renderize HTML nativo
+      if (raw.includes('&lt;') || raw.includes('&gt;') || raw.includes('&quot;')) {
+        raw = decodeEntities(raw);
+      }
+      
+      // Processa LaTeX: converte $math$ em \(math\), remove $ de números e protege moedas R$
+      raw = processLatex(raw);
       
       // O renderer do marked converte markdown para HTML
       htmlEl.innerHTML = window.marked!.parse(raw);
@@ -121,8 +126,7 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
       delimiters: [
         { left: '\\[', right: '\\]', display: true }, // Bloco isolado
         { left: '$$', right: '$$', display: true },   // Bloco isolado (alternativo)
-        { left: '\\(', right: '\\)', display: false },// Inline padrão
-        { left: '$', right: '$', display: false },    // Inline prático
+        { left: '\\(', right: '\\)', display: false },// Inline padrão \(...\)
       ],
       throwOnError: false,
     });

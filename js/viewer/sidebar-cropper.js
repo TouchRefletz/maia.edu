@@ -472,6 +472,155 @@ function createGroupCard(group, isEditing) {
   header.appendChild(count);
   item.appendChild(header);
 
+  // Global set to track which groups are currently editing custom instruction
+  window.__editingInstructionGroupIds = window.__editingInstructionGroupIds || new Set();
+
+  // Helper to escape HTML strings safely
+  const escapeHtmlStr = (str) => {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
+  // --- INSTRUCTION UI (PERSISTENT / EDITABLE ON CARD) ---
+  if (!isEditing && group.status !== "sent" && group.status !== "ready") {
+    const isEditingInstruction = window.__editingInstructionGroupIds.has(group.id);
+
+    if (isEditingInstruction) {
+      const editorDiv = document.createElement("div");
+      editorDiv.className = "cropper-instruction-editor";
+      editorDiv.style.cssText = `
+        margin-top: 6px;
+        margin-bottom: 8px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(168, 85, 247, 0.5);
+        border-radius: 8px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      `;
+
+      const label = document.createElement("label");
+      label.style.cssText = `
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #c084fc;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      `;
+      label.innerHTML = `⚡ <span>Instrução Personalizada</span> <span style="font-size: 0.65rem; background: rgba(168, 85, 247, 0.25); color: #e9d5ff; padding: 1px 6px; border-radius: 4px; font-weight: 600;">PRIORIDADE MÁXIMA</span>`;
+
+      const textarea = document.createElement("textarea");
+      textarea.placeholder = "Ex: Esta questão é de Química Orgânica / Foque na tabela / Ignore a anotação no canto...";
+      textarea.value = group.customInstruction || "";
+      textarea.style.cssText = `
+        width: 100%;
+        min-height: 54px;
+        background: rgba(15, 15, 15, 0.85);
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        border-radius: 6px;
+        color: #ffffff;
+        padding: 6px 8px;
+        font-size: 0.8rem;
+        font-family: inherit;
+        resize: vertical;
+        outline: none;
+        box-sizing: border-box;
+      `;
+
+      const btnRow = document.createElement("div");
+      btnRow.style.cssText = "display: flex; justify-content: flex-end; gap: 6px;";
+
+      const btnCancel = document.createElement("button");
+      btnCancel.className = "btn btn--sm btn--outline";
+      btnCancel.innerText = "Cancelar";
+      btnCancel.style.cssText = "font-size: 0.75rem; padding: 3px 8px;";
+      btnCancel.onclick = (e) => {
+        e.stopPropagation();
+        window.__editingInstructionGroupIds.delete(group.id);
+        CropperState.notify();
+      };
+
+      const btnSave = document.createElement("button");
+      btnSave.className = "btn btn--sm btn--primary";
+      btnSave.innerText = "Salvar";
+      btnSave.style.cssText = "font-size: 0.75rem; padding: 3px 8px; background: #a855f7; border-color: #a855f7; color: #fff;";
+      btnSave.onclick = (e) => {
+        e.stopPropagation();
+        const val = textarea.value.trim();
+        CropperState.setCustomInstruction(group.id, val);
+        window.__editingInstructionGroupIds.delete(group.id);
+      };
+
+      btnRow.appendChild(btnCancel);
+      btnRow.appendChild(btnSave);
+      editorDiv.appendChild(label);
+      editorDiv.appendChild(textarea);
+      editorDiv.appendChild(btnRow);
+      editorDiv.onclick = (e) => e.stopPropagation();
+
+      item.appendChild(editorDiv);
+    } else if (group.customInstruction) {
+      const badgeBox = document.createElement("div");
+      badgeBox.className = "cropper-instruction-badge";
+      badgeBox.style.cssText = `
+        background: rgba(168, 85, 247, 0.12);
+        border: 1px dashed rgba(168, 85, 247, 0.6);
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-top: 4px;
+        margin-bottom: 8px;
+        font-size: 0.78rem;
+        color: #e9d5ff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+      `;
+
+      const textSpan = document.createElement("span");
+      textSpan.style.cssText = "overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;";
+      textSpan.title = group.customInstruction;
+      textSpan.innerHTML = `⚡ <strong style="color: #c084fc;">Prioridade Máxima:</strong> "${escapeHtmlStr(group.customInstruction)}"`;
+
+      const actionBtns = document.createElement("div");
+      actionBtns.style.cssText = "display: flex; gap: 4px; align-items: center; flex-shrink: 0;";
+
+      const btnEditInst = document.createElement("button");
+      btnEditInst.title = "Editar instrução";
+      btnEditInst.innerText = "✏️";
+      btnEditInst.style.cssText = "background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.8rem; opacity: 0.85;";
+      btnEditInst.onclick = (e) => {
+        e.stopPropagation();
+        window.__editingInstructionGroupIds.add(group.id);
+        CropperState.notify();
+      };
+
+      const btnClearInst = document.createElement("button");
+      btnClearInst.title = "Remover instrução";
+      btnClearInst.innerText = "✕";
+      btnClearInst.style.cssText = "background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.85rem; color: #f87171;";
+      btnClearInst.onclick = (e) => {
+        e.stopPropagation();
+        CropperState.setCustomInstruction(group.id, "");
+      };
+
+      actionBtns.appendChild(btnEditInst);
+      actionBtns.appendChild(btnClearInst);
+      badgeBox.appendChild(textSpan);
+      badgeBox.appendChild(actionBtns);
+      badgeBox.onclick = (e) => e.stopPropagation();
+
+      item.appendChild(badgeBox);
+    }
+  }
+
   // ACTIONS CONTAINER
   const actionsDiv = document.createElement("div");
   actionsDiv.className = "cropper-actions";
@@ -688,10 +837,14 @@ function createGroupCard(group, isEditing) {
       btnSend.onclick = async (e) => {
         e.stopPropagation();
 
+        const confirmMsg = group.customInstruction
+          ? `Você está prestes a enviar esta questão para processamento.\n\n⚡ INSTRUÇÃO DE PRIORIDADE MÁXIMA:\n"${group.customInstruction}"`
+          : "Você está prestes a enviar esta questão para processamento. Este processo envolve chamadas à IA e não pode ser cancelado após iniciado.";
+
         // Modal de confirmação
         const confirmed = await showConfirmModal(
           "Enviar Questão",
-          "Você está prestes a enviar esta questão para processamento. Este processo envolve chamadas à IA e não pode ser cancelado após iniciado.",
+          confirmMsg,
           "Enviar",
           "Cancelar",
           true, // isPositiveAction - cor primária
@@ -750,6 +903,27 @@ function createGroupCard(group, isEditing) {
         CropperState.setActiveGroup(group.id);
       };
 
+      const btnInstruction = document.createElement("button");
+      btnInstruction.className = "btn btn--sm btn--outline btn-instrucao";
+      if (group.customInstruction) {
+        btnInstruction.style.cssText = "border-color: #a855f7; color: #c084fc; background: rgba(168, 85, 247, 0.18);";
+        btnInstruction.innerText = "⚡ Instrução";
+      } else {
+        btnInstruction.style.cssText = "border-color: rgba(168, 85, 247, 0.4); color: #c084fc;";
+        btnInstruction.innerText = "+ Instrução";
+      }
+      btnInstruction.title = "Adicionar instrução personalizada para a IA com prioridade máxima";
+      btnInstruction.onclick = (e) => {
+        e.stopPropagation();
+        window.__editingInstructionGroupIds = window.__editingInstructionGroupIds || new Set();
+        if (window.__editingInstructionGroupIds.has(group.id)) {
+          window.__editingInstructionGroupIds.delete(group.id);
+        } else {
+          window.__editingInstructionGroupIds.add(group.id);
+        }
+        CropperState.notify();
+      };
+
       const btnDel = document.createElement("button");
       btnDel.className = "btn btn--sm btn--outline btn-icon";
       btnDel.style.color = "var(--color-error)";
@@ -771,6 +945,7 @@ function createGroupCard(group, isEditing) {
 
       actionsDiv.appendChild(btnSend);
       actionsDiv.appendChild(btnEdit);
+      actionsDiv.appendChild(btnInstruction);
       actionsDiv.appendChild(btnDel);
     }
   }
