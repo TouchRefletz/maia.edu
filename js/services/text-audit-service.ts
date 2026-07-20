@@ -1,4 +1,4 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
+import { gerarConteudoEmJSONComImagemStream, sanitizeJsonForPrompt } from "../api/worker.js";
 
 export interface AuditItem {
   id: string;
@@ -16,11 +16,12 @@ export interface AuditOptions {
   useAI?: boolean;
   modelId?: string;
   onStatusUpdate?: (status: string) => void;
+  signal?: AbortSignal;
 }
 
 // Regex para ideogramas CJK (Chinês, Japonês, Coreano) e caracteres UTF-8 corrompidos
-const CJK_REGEX = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+/g;
-const BROKEN_SYMBOL_REGEX = /(?:ï¿½|)+/g;
+const CJK_REGEX_GLOBAL = /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+/g;
+const BROKEN_SYMBOL_REGEX_GLOBAL = /(?:ï¿½|\uFFFD)+/g;
 
 /**
  * Esquema estruturado para resposta da IA (Structured Output Schema)
@@ -66,6 +67,51 @@ const auditResponseSchema = {
 };
 
 /**
+ * Verifica se uma string é texto legível humano e descarta dados base64 / imagens
+ */
+function isCleanTextString(val: any): boolean {
+  if (typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (trimmed.length < 2) return false;
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) return false;
+  if (trimmed.length > 80 && !trimmed.includes(' ')) return false;
+  if (trimmed.length > 3000) return false; // descarta grandes blocos de dados
+  return true;
+}
+
+/**
+ * Remove recursivamente propriedades de imagens, base64 e metadados pesados de um objeto
+ */
+function cleanObjectForAudit(obj: any): any {
+  if (typeof obj === 'string') {
+    return isCleanTextString(obj) ? obj : '[REMOVED_NON_TEXT_DATA]';
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(cleanObjectForAudit).filter(item => item !== '[REMOVED_NON_TEXT_DATA]');
+  }
+  if (typeof obj === 'object' && obj !== null) {
+    const cleaned: Record<string, any> = {};
+    const keysToIgnore = [
+      'fotos_originais', 'foto_original', 'alertas_credito', 'creditos', 'meta',
+      'imagens', 'base64', 'cropped_base64', 'imagem_base64', 'pdfjs_x', 'pdfjs_y',
+      'pdfjs_crop_w', 'pdfjs_crop_h', 'pdfjs_source_w', 'pdfjs_source_h', 'src', 'url'
+    ];
+
+    for (const [key, value] of Object.entries(obj)) {
+      if (keysToIgnore.includes(key) || /base64|foto|imagem|image|crop|pdfjs|url|src|svg/i.test(key)) {
+        continue;
+      }
+      const cleanedValue = cleanObjectForAudit(value);
+      if (cleanedValue !== '[REMOVED_NON_TEXT_DATA]') {
+        cleaned[key] = cleanedValue;
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+/**
  * Extrai todos os campos de texto analisáveis dos objetos de questão e gabarito
  */
 function extractTextFields(q: any, g: any): Array<{ path: string; target: 'questao' | 'gabarito'; text: string }> {
@@ -77,15 +123,17 @@ function extractTextFields(q: any, g: any): Array<{ path: string; target: 'quest
     for (const [key, val] of Object.entries(obj)) {
       const currentPath = pathPrefix ? `${pathPrefix}.${key}` : key;
 
-      if (['fotos_originais', 'foto_original', 'alertas_credito', 'creditos', 'meta', 'imagens'].includes(key)) {
+      if (/base64|foto|imagem|image|crop|pdfjs|url|src|svg|meta|credito/i.test(key)) {
         continue;
       }
 
-      if (typeof val === 'string' && val.trim().length > 0) {
-        fields.push({ path: currentPath, target, text: val });
+      if (typeof val === 'string') {
+        if (isCleanTextString(val)) {
+          fields.push({ path: currentPath, target, text: val });
+        }
       } else if (Array.isArray(val)) {
         val.forEach((item, idx) => {
-          if (typeof item === 'string' && item.trim().length > 0) {
+          if (typeof item === 'string' && isCleanTextString(item)) {
             fields.push({ path: `${currentPath}[${idx}]`, target, text: item });
           } else if (typeof item === 'object' && item !== null) {
             addIfText(item, `${currentPath}[${idx}]`, target);
@@ -104,18 +152,22 @@ function extractTextFields(q: any, g: any): Array<{ path: string; target: 'quest
 }
 
 /**
- * Executa detecção rápida de caracteres estranhos e UTF-8 corrompidos
+ * Executa detecção rápida de caracteres estranhos e UTF-8 corrompidos (Imune a loops infinitos com matchAll)
  */
 function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }>): AuditItem[] {
   const items: AuditItem[] = [];
 
   fields.forEach(({ path, target, text }) => {
     // 1. Ideogramas orientais (Chinês/Japonês/Coreano)
-    let cjkMatch;
-    CJK_REGEX.lastIndex = 0;
-    while ((cjkMatch = CJK_REGEX.exec(text)) !== null) {
-      const badSnippet = cjkMatch[0];
-      const cleanedText = text.replace(badSnippet, '').replace(/\s+/g, ' ').trim();
+    const cjkMatches = Array.from(text.matchAll(CJK_REGEX_GLOBAL));
+    const seenCjk = new Set<string>();
+
+    cjkMatches.forEach(m => {
+      const badSnippet = m[0];
+      if (!badSnippet || seenCjk.has(badSnippet)) return;
+      seenCjk.add(badSnippet);
+
+      const cleanedText = text.replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').replace(/\s+/g, ' ').trim();
       items.push({
         id: `heur_cjk_${Math.random().toString(36).substring(2, 9)}`,
         fieldPath: path,
@@ -126,14 +178,18 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
         source: 'heuristica',
         status: 'pending'
       });
-    }
+    });
 
-    // 2. Símbolos corrompidos de encoding (ï¿½ ou )
-    let brokenMatch;
-    BROKEN_SYMBOL_REGEX.lastIndex = 0;
-    while ((brokenMatch = BROKEN_SYMBOL_REGEX.exec(text)) !== null) {
-      const badSnippet = brokenMatch[0];
-      const cleanedText = text.replace(badSnippet, '').trim();
+    // 2. Símbolos corrompidos de encoding (ï¿½ ou \uFFFD)
+    const brokenMatches = Array.from(text.matchAll(BROKEN_SYMBOL_REGEX_GLOBAL));
+    const seenBroken = new Set<string>();
+
+    brokenMatches.forEach(m => {
+      const badSnippet = m[0];
+      if (!badSnippet || seenBroken.has(badSnippet)) return;
+      seenBroken.add(badSnippet);
+
+      const cleanedText = text.replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').trim();
       items.push({
         id: `heur_symbol_${Math.random().toString(36).substring(2, 9)}`,
         fieldPath: path,
@@ -144,7 +200,7 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
         source: 'heuristica',
         status: 'pending'
       });
-    }
+    });
   });
 
   return items;
@@ -155,27 +211,35 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
  */
 async function checkWithLanguageTool(
   fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }>,
-  onStatusUpdate?: (status: string) => void
+  onStatusUpdate?: (status: string) => void,
+  signal?: AbortSignal
 ): Promise<AuditItem[]> {
   const items: AuditItem[] = [];
+  const fieldsToScan = fields.slice(0, 8);
 
-  for (let i = 0; i < fields.length; i++) {
-    const { path, target, text } = fields[i];
-    if (text.length < 3) continue;
+  for (let i = 0; i < fieldsToScan.length; i++) {
+    if (signal?.aborted) break;
+    const { path, target, text } = fieldsToScan[i];
+    if (text.length < 4 || text.length > 1500) continue;
 
-    onStatusUpdate?.(`LanguageTool: Analisando campo ${i + 1}/${fields.length}...`);
+    onStatusUpdate?.(`LanguageTool: Analisando campo ${i + 1}/${fieldsToScan.length}...`);
 
     try {
       const formData = new URLSearchParams();
       formData.append('text', text);
       formData.append('language', 'pt-BR');
-      formData.append('enabledOnly', 'false');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       const response = await fetch('https://api.languagetool.org/v2/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        body: formData.toString(),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) continue;
 
@@ -198,13 +262,13 @@ async function checkWithLanguageTool(
           targetObject: target,
           originalText: text,
           suggestedText: fixedText,
-          reason: `LanguageTool: ${match.message || match.rule?.description || 'Correção gramatical/ortográfica'}`,
+          reason: `LanguageTool: ${match.message || match.rule?.description || 'Correção ortográfica'}`,
           source: 'languagetool',
           status: 'pending'
         });
       });
     } catch (err) {
-      console.warn(`[LanguageTool] Erro ao consultar campo ${path}:`, err);
+      console.warn(`[LanguageTool] Erro ou timeout no campo ${path}:`, err);
     }
   }
 
@@ -212,44 +276,43 @@ async function checkWithLanguageTool(
 }
 
 /**
- * Executa auditoria via IA utilizando Saída Estruturada (Structured Output Schema)
+ * Executa auditoria via IA utilizando Saída Estruturada com JSON extremamente leve
  */
 async function checkWithAI(
   q: any,
   g: any,
   modelId: string = 'models/gemini-3.5-flash',
-  onStatusUpdate?: (status: string) => void
+  onStatusUpdate?: (status: string) => void,
+  signal?: AbortSignal
 ): Promise<AuditItem[]> {
-  onStatusUpdate?.('IA: Enviando JSON para auditoria tipográfica via Saída Estruturada...');
+  if (signal?.aborted) return [];
+  onStatusUpdate?.('IA: Enviando texto para auditoria tipográfica...');
 
-  const cleanQ = JSON.parse(JSON.stringify(q || {}));
-  const cleanG = JSON.parse(JSON.stringify(g || {}));
-
-  delete cleanQ.fotos_originais;
-  delete cleanQ.foto_original;
-  delete cleanG.fotos_originais;
-  delete cleanG.foto_original;
+  const cleanQ = cleanObjectForAudit(q || {});
+  const cleanG = cleanObjectForAudit(g || {});
 
   const payloadToScan = {
     dados_questao: cleanQ,
     dados_gabarito: cleanG
   };
 
-  const prompt = `Você é um Auditor Tipográfico e Especialista em Detecção de Alucinações de LLM para questões em Português (pt-BR).
+  const jsonText = JSON.stringify(payloadToScan);
+  if (jsonText.length > 15000) {
+    console.warn('[AI Audit] Payload textual muito grande, cancelando envio por segurança de memória.');
+    return [];
+  }
 
-Examine cuidadosamente a estrutura JSON fornecida contendo a questão e o gabarito.
-Sua única responsabilidade é identificar:
-1. Ideogramas chineses, japoneses, coreanos ou símbolos de línguas estrangeiras inseridos indevidamente no meio do texto.
-2. Acentuação corrompida ou trocada (por exemplo, uso de 'â' em vez de 'ã' como em 'questâo' -> 'questão', 'nâo' -> 'não', acentos invertidos).
-3. Palavras com erros gráficos de OCR ou símbolos UTF-8 quebrados.
-4. Repetições anormais ou degeneradas de palavras/frases.
+  const prompt = `Você é um Auditor Tipográfico para questões em Português (pt-BR).
 
-REGRAS:
-- NÃO modifique o conteúdo conceitual nem a lógica das alternativas.
-- Altere apenas falhas de acentuação, ortografia ou ideogramas indesejados.
+Examine o JSON a seguir. Identifique APENAS:
+1. Ideogramas orientais (chinês/japonês/coreano como 汉字) inseridos indevidamente.
+2. Acentuação corrompida ou trocada (ex: 'questâo' em vez de 'questão', 'nâo' em vez de 'não').
+3. Símbolos UTF-8 quebrados ou erros de digitação óbvios.
 
-Dados para auditoria:
-${JSON.stringify(payloadToScan, null, 2)}`;
+NÃO altere lógica das alternativas nem o significado pedagógico.
+
+JSON para auditoria:
+${jsonText}`;
 
   try {
     let resultJson: any = null;
@@ -297,31 +360,32 @@ export async function runFullTextAudit(
     useLanguageTool = true,
     useAI = true,
     modelId = 'models/gemini-3.5-flash',
-    onStatusUpdate
+    onStatusUpdate,
+    signal
   } = options;
 
   const allItems: AuditItem[] = [];
   const fields = extractTextFields(q, g);
 
-  // 1. Executa Heurísticas locais para ideogramas e UTF-8 corrompido
+  // 1. Executa Heurísticas locais para ideogramas e UTF-8 corrompido (Instantâneo, 0ms)
   onStatusUpdate?.('Verificando ideogramas orientais e codificação...');
   const heuristicItems = runHeuristicCheck(fields);
   allItems.push(...heuristicItems);
 
   // 2. Executa LanguageTool se ativado
-  if (useLanguageTool) {
+  if (useLanguageTool && !signal?.aborted) {
     try {
-      const ltItems = await checkWithLanguageTool(fields, onStatusUpdate);
+      const ltItems = await checkWithLanguageTool(fields, onStatusUpdate, signal);
       allItems.push(...ltItems);
     } catch (e) {
       console.error('[Full Audit] Erro no LanguageTool:', e);
     }
   }
 
-  // 3. Executa IA com Saída Estruturada se ativada
-  if (useAI) {
+  // 3. Executa IA se ativada
+  if (useAI && !signal?.aborted) {
     try {
-      const aiItems = await checkWithAI(q, g, modelId, onStatusUpdate);
+      const aiItems = await checkWithAI(q, g, modelId, onStatusUpdate, signal);
       allItems.push(...aiItems);
     } catch (e) {
       console.error('[Full Audit] Erro na IA:', e);

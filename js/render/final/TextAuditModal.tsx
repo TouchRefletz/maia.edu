@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuditItem, AuditOptions, runFullTextAudit, applyAuditFix } from '../../services/text-audit-service';
 import { IA_MODELS } from '../../ui/ModelSelectorModal';
 
@@ -15,10 +15,13 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
   onClose,
   onApplyFixes
 }) => {
+  const isMounted = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [currentQ, setCurrentQ] = useState<any>(q);
   const [currentG, setCurrentG] = useState<any>(g);
 
-  const [useLanguageTool, setUseLanguageTool] = useState(true);
+  const [useLanguageTool, setUseLanguageTool] = useState(false); // Desativado por padrão por performance
   const [useAI, setUseAI] = useState(true);
   const [selectedModel, setSelectedModel] = useState('models/gemini-3.5-flash');
 
@@ -27,30 +30,70 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
   const [items, setItems] = useState<AuditItem[]>([]);
   const [hasRun, setHasRun] = useState(false);
 
-  // Executa auditoria inicial ao abrir
+  // No mount: Executa apenas a verificação instantânea por Heurísticas (0ms, sem chamadas pesadas)
   useEffect(() => {
-    handleRunAudit();
+    isMounted.current = true;
+    runQuickHeuristicOnly();
+
+    return () => {
+      isMounted.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
-  const handleRunAudit = async () => {
+  const runQuickHeuristicOnly = async () => {
     setIsAuditing(true);
-    setStatusText('Iniciando auditoria...');
+    setStatusText('Executando verificação rápida de ideogramas...');
+    try {
+      const auditResults = await runFullTextAudit(currentQ, currentG, {
+        useLanguageTool: false,
+        useAI: false,
+        onStatusUpdate: (msg) => { if (isMounted.current) setStatusText(msg); }
+      });
+      if (isMounted.current) {
+        setItems(auditResults);
+        setHasRun(true);
+      }
+    } catch (err) {
+      console.error('Erro na auditoria rápida:', err);
+    } finally {
+      if (isMounted.current) setIsAuditing(false);
+    }
+  };
+
+  const handleRunAudit = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    setIsAuditing(true);
+    setStatusText('Iniciando auditoria de texto...');
     try {
       const options: AuditOptions = {
         useLanguageTool,
         useAI,
         modelId: selectedModel,
-        onStatusUpdate: (msg) => setStatusText(msg)
+        onStatusUpdate: (msg) => {
+          if (isMounted.current) setStatusText(msg);
+        },
+        signal: abortControllerRef.current.signal
       };
 
       const auditResults = await runFullTextAudit(currentQ, currentG, options);
-      setItems(auditResults);
-      setHasRun(true);
-    } catch (err) {
-      console.error('Erro na auditoria:', err);
-      setStatusText('Erro ao executar auditoria.');
+      if (isMounted.current) {
+        setItems(auditResults);
+        setHasRun(true);
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Erro na auditoria:', err);
+        if (isMounted.current) setStatusText('Erro ao executar auditoria.');
+      }
     } finally {
-      setIsAuditing(false);
+      if (isMounted.current) setIsAuditing(false);
     }
   };
 
@@ -60,12 +103,10 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
     setCurrentG(updatedG);
     onApplyFixes(updatedQ, updatedG);
 
-    // Marca item como aceito
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'accepted' } : i));
   };
 
   const handleRejectItem = (item: AuditItem) => {
-    // Marca item como recusado
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'rejected' } : i));
   };
 
@@ -128,7 +169,10 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (abortControllerRef.current) abortControllerRef.current.abort();
+              onClose();
+            }}
             className="btn btn--sm"
             style={{ background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '6px 14px' }}
           >
@@ -188,7 +232,7 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
               display: 'flex', alignItems: 'center', gap: '8px'
             }}
           >
-            {isAuditing ? '⏳ Analisando...' : '🔍 Executar Auditoria'}
+            {isAuditing ? '⏳ Analisando...' : '🔍 Executar Auditoria Completa'}
           </button>
         </div>
 
@@ -379,7 +423,10 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (abortControllerRef.current) abortControllerRef.current.abort();
+              onClose();
+            }}
             style={{
               background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px',
               padding: '8px 20px', fontWeight: 600, cursor: 'pointer'
