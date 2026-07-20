@@ -104,7 +104,7 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
     }
     
     markdownElements.forEach((el) => {
-      // Cast para HTMLElement para acessar propriedades específicas se necessário
+      const htmlEl = el as HTMLElement;
       let raw = htmlEl.getAttribute('data-raw') || htmlEl.innerHTML;
       
       // Sanitiza R$ não escapado para R\$ para evitar corrupção no KaTeX
