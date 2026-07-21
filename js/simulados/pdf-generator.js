@@ -99,7 +99,7 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
           } catch (proxyErr) {
             console.warn("[PDFGenerator] Falha no Worker Proxy, tentando Puter fallback...", proxyErr);
             // 2. Fallback: Puter fetch
-            if (typeof window.puter !== "undefined" && window.puter.net && window.puter.net.fetch) {
+            if (typeof window.puter !== "undefined" && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
               console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
               const response = await window.puter.net.fetch(url);
               if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);

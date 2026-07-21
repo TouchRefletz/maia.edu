@@ -395,7 +395,7 @@ export async function carregarDocumentoPDF(url) {
         targetUrl = window.__pdfOriginalUrl;
       }
 
-      if (targetUrl && targetUrl.startsWith("http") && typeof window !== "undefined" && window.puter && window.puter.net && window.puter.net.fetch) {
+      if (targetUrl && targetUrl.startsWith("http") && typeof window !== "undefined" && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
         console.log("PDF-Core: Fetching via puter.net.fetch:", targetUrl);
         const res = await window.puter.net.fetch(targetUrl);
         if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);

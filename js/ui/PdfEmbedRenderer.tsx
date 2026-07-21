@@ -102,13 +102,12 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   const [manualUrlInput, setManualUrlInput] = useState<string>('');
   const effectiveUrl = manualPdfUrl || baseUrl;
 
-  // Estado do toggle - inicia com 'puter' como padrão quando há URL
-  // Fallback: puter → embed (Chrome/Edge) → pdfjs
+  // Estado do toggle - inicia com 'pdfjs' como padrão (seguro, nativo e sem modal do Puter)
   const [renderMode, setRenderMode] = useState<'puter' | 'embed' | 'pdfjs'>(
     props.forceRenderMode === 'pdfjs' ? 'pdfjs' :
     props.forceRenderMode === 'embed' ? 'embed' :
     props.forceRenderMode === 'puter' ? 'puter' :
-    'puter' // Default: sempre tenta puter primeiro
+    'pdfjs' // Default: PDF.js nativo (evita abrir modal do Puter)
   );
   
   // [NEW] Estado para rastrear falha do modo Puter (iframe)
@@ -665,7 +664,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
                 } catch (e) {}
             }
             // @ts-ignore
-            if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+            if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
                 try {
                     // @ts-ignore
                     const res = await window.puter.net.fetch(targetUrl);

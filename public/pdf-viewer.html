@@ -7,8 +7,6 @@
 
   <!-- PDF.js (mesma versão do app principal) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- Puter SDK (para puter.fetch bypass CORS) -->
-  <script src="https://js.puter.com/v2/"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -236,35 +234,14 @@
         return;
       }
 
-      // === 3. FETCH PDF VIA PUTER ===
+      // === 3. FETCH PDF ===
       try {
-        updateLoading('Obtendo documento via proxy...');
+        updateLoading('Obtendo documento...');
 
         let arrayBuffer;
-
-        // Tenta puter.net.fetch primeiro (bypass CORS)
-        if (typeof puter !== 'undefined' && puter.net && puter.net.fetch) {
-          try {
-            const response = await puter.net.fetch(pdfUrl);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            const blob = await response.blob();
-            arrayBuffer = await blob.arrayBuffer();
-          } catch (puterErr) {
-            console.warn('[PDFViewer] puter.net.fetch falhou, tentando fetch nativo:', puterErr);
-            // Fallback para fetch nativo (pode funcionar se same-origin ou CORS habilitado)
-            const response = await fetch(pdfUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            arrayBuffer = await response.arrayBuffer();
-          }
-        } else {
-          // Sem Puter SDK — fetch direto
-          console.warn('[PDFViewer] Puter SDK não disponível, usando fetch nativo');
-          const response = await fetch(pdfUrl);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          arrayBuffer = await response.arrayBuffer();
-        }
+        const response = await fetch(pdfUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        arrayBuffer = await response.arrayBuffer();
 
         // === 4. RENDER COM PDF.JS ===
         updateLoading('Renderizando página...');

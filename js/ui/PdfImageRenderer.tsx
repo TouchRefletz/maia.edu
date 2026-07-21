@@ -170,7 +170,7 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
       }
 
       // @ts-ignore
-      if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+      if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
         try {
           // @ts-ignore
           const res = await window.puter.net.fetch(targetUrl);

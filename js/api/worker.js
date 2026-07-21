@@ -82,25 +82,40 @@ function decodeBase64ToUtf8(base64Data) {
 }
 
 function detectRepetitionDegeneration(text) {
-  if (text.length < 15) return false;
+  if (!text || text.length < 15) return false;
 
-  for (let len = 3; len <= 120; len++) {
-    // Determine repeats threshold based on pattern length
-    const requiredRepeats = len < 6 ? 8 : (len < 15 ? 6 : 5);
+  // 1. Checagem rápida de repetição contínua do mesmo caractere no final do texto
+  const lastChar = text[text.length - 1];
+  let singleCharCount = 0;
+  for (let i = text.length - 1; i >= 0; i--) {
+    if (text[i] === lastChar) {
+      singleCharCount++;
+    } else {
+      break;
+    }
+  }
+
+  // Para caracteres de espaço/quebra de linha/tabulação, tolera até 40 repetições.
+  // Para qualquer outro caractere (ex: '/', 'a', '.', '*', '?', '#', '\\', etc.), 15 repetições seguidas indicam loop de degeneração.
+  const maxSingleChar = /\s/.test(lastChar) ? 40 : 15;
+  if (singleCharCount >= maxSingleChar) {
+    console.warn(
+      `[Repetition Detector] Caractere único '${lastChar}' repetiu ${singleCharCount} vezes seguidas.`
+    );
+    return true;
+  }
+
+  // 2. Checagem de padrões repetitivos de tamanho N (len = 1 até 120)
+  for (let len = 1; len <= 120; len++) {
+    const requiredRepeats =
+      len === 1 ? 15 : len === 2 ? 8 : len < 6 ? 6 : len < 15 ? 5 : 4;
+
     if (text.length < len * requiredRepeats) continue;
 
     const pattern = text.slice(-len);
 
-    // Filter out patterns that are purely whitespace or repeating a single character
-    const trimmed = pattern.trim();
-    if (trimmed.length < 2) continue;
-
-    const isSingleCharRepeat = [...pattern].every((c) => c === pattern[0]);
-    if (isSingleCharRepeat) continue;
-
-    // Filter out JSON structures, whitespace, numbers, etc.
-    const isJsonStructureOnly = /^[ \t\r\n{},[\]":\-\d.]+$/.test(pattern);
-    if (isJsonStructureOnly) continue;
+    // Se o padrão for puramente espaço/white-space, exige número maior de repetições
+    const isPureWhitespace = /^\s+$/.test(pattern);
 
     let repeats = 1;
     let index = text.length - len;
@@ -115,9 +130,13 @@ function detectRepetitionDegeneration(text) {
       }
     }
 
-    if (repeats >= requiredRepeats) {
+    const effectiveRequired = isPureWhitespace
+      ? Math.max(requiredRepeats, 25)
+      : requiredRepeats;
+
+    if (repeats >= effectiveRequired) {
       console.warn(
-        `[Repetition Detector] Detected degeneration pattern "${pattern}" repeating ${repeats} times.`
+        `[Repetition Detector] Padrão de degeneração "${pattern.substring(0, 30)}${pattern.length > 30 ? "..." : ""}" detectado (${repeats} repetições).`
       );
       return true;
     }
@@ -408,6 +427,11 @@ async function chamarPuterAI(
       typeof part === "string" ? part : part?.text || part?.content || "";
     answerText += textChunk;
     handlers?.onAnswerDelta?.(textChunk);
+
+    if (detectRepetitionDegeneration(answerText)) {
+      console.warn("[Puter Stream] Loop de repetição detectado!");
+      throw new Error("REPETITION_DEGENERATION_ERROR");
+    }
   }
 
   if (!answerText || !answerText.trim()) {

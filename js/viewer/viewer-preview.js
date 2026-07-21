@@ -261,7 +261,7 @@ export async function gerarPreviewPDF(args) {
       } catch (retryErr) {
         console.error("PV Direct Retry Failed, trying Puter fallback...", retryErr);
         try {
-          if (cleanUrlInput.startsWith("http") && window.puter && window.puter.net && window.puter.net.fetch) {
+          if (cleanUrlInput.startsWith("http") && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
             const res = await window.puter.net.fetch(cleanUrlInput);
             if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
             const arrayBuffer = await res.arrayBuffer();
