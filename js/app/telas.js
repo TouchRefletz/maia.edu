@@ -6767,6 +6767,23 @@ export async function verificarAdminEShowSidebar(user) {
             sidebarItems.appendChild(btnApendiceB);
           }
         }
+
+        if (!document.querySelector(".js-iniciar-verificar-questoes")) {
+          const btnVerificarQuestoes = document.createElement("button");
+          btnVerificarQuestoes.className = "nav-sidebar-item nav-item--verificar-questoes js-iniciar-verificar-questoes";
+          btnVerificarQuestoes.innerHTML = `
+            <span class="nav-icon">🔍</span>
+            <span class="nav-label">
+              <span class="nav-title">Verificar Questões</span>
+              <span class="nav-desc">Auditoria Pós-Envio</span>
+            </span>
+          `;
+          if (divider) {
+            sidebarItems.insertBefore(btnVerificarQuestoes, divider);
+          } else {
+            sidebarItems.appendChild(btnVerificarQuestoes);
+          }
+        }
         // Mostra o botão Prompt Apêndice A no menu +
         const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
         if (apendiceAPromptBtn) {
@@ -6777,6 +6794,7 @@ export async function verificarAdminEShowSidebar(user) {
       document.querySelector(".js-iniciar-admin")?.remove();
       document.querySelector(".js-iniciar-apendice-a")?.remove();
       document.querySelector(".js-iniciar-apendice-b")?.remove();
+      document.querySelector(".js-iniciar-verificar-questoes")?.remove();
       
       const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
       if (apendiceAPromptBtn) {

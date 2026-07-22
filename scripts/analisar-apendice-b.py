@@ -171,10 +171,10 @@ def main():
     csv_path = r"C:\Users\jcamp\Downloads\maia.api\experiments\questoes_selecionadas_125_triagem_ptbr.csv"
     df = pd.read_csv(csv_path)
     
-    # Carregar Apêndice B de ambas as áreas (Linguagens e Humanas)
+    # Carregar Apêndice B de todas as 5 áreas (Linguagens, Humanas, Natureza, Matemática, Interdisciplinar)
+    apendice_b_base = r"C:\Users\jcamp\Downloads\maia.api\experiments\apêndice b"
     apendice_b_dirs = [
-        r"C:\Users\jcamp\Downloads\maia.api\experiments\apêndice b\linguagens",
-        r"C:\Users\jcamp\Downloads\maia.api\experiments\apêndice b\humanas"
+        os.path.join(apendice_b_base, d) for d in ["linguagens", "humanas", "natureza", "matemática", "interdisciplinar"]
     ]
     apendice_b_data = []
     
@@ -215,7 +215,7 @@ def main():
                         "justificativas": justs
                     })
 
-    # Definição dos Estudos de Caso de Linguagens
+    # Definição dos Estudos de Caso por área
     lc_cases_list = [
         ('ENEM2025_LC_23', 'Adriana Varejão e a História Colonial', 89.0, 'Muito Difícil', 'Média-Alta',
          'A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.'),
@@ -227,7 +227,6 @@ def main():
          'Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística ("variação diatópica"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.')
     ]
 
-    # Definição dos Estudos de Caso de Ciências Humanas
     ch_cases_list = [
         ('ENEM2025_CH_59', 'Desmatamento na Amazônia e Regime de Chuvas', 90.1, 'Muito Difícil', 'Baixa',
          'A IA subestimou criticamente a complexidade ao assumir que a resposta estava explícita no fragmento do texto. Porém, para os estudantes humanos, a alternativa correta ("alteração da paisagem em locais estratégicos") exige correlacionar o desmatamento com a dinâmica climática em larga escala, gerando forte distração cognitiva devido à abstração dos termos.'),
@@ -237,8 +236,52 @@ def main():
          'A IA tratou a questão como simples identificação conceitual direta. Ignorou que, na prova real, a exigência de classificar e diferenciar as formas justas (monarquia, aristocracia, politeia) de seus desvios corrompidos (tirania, oligarquia, demagogia) gera grande confusão terminológica e exige maior esforço de eliminação de distratores.')
     ]
 
+    # Estudos de Caso de Ciências da Natureza (Todas as 6 questões inéditas ENEM 2025)
+    cn_cases_list = [
+        ('ENEM2025_CN_119', 'Neutralização de Aminas e Volatilidade (Química Orgânica)', 90.1, 'Muito Difícil', 'Média',
+         'A IA subestimou a complexidade ao considerar a neutralização uma reação padrão de 2 etapas. Na prova real, os alunos confundiram a volatilidade e basicidade das aminas orgânicas com compostos ácidos, gerando alto índice de erro.'),
+        ('ENEM2025_CN_98', 'Circuito Elétrico com Chaves e Lâmpadas (Física)', 45.6, 'Média', 'Baixa',
+         'O modelo reduziu o circuito a um cálculo de resistência simples, ignorando a análise de estado das chaves abertas/fechadas que confunde o estudante sob a pressão do tempo.'),
+        ('ENEM2025_CN_95', 'Genética Mendeliana e Probabilidade em Heredogramas (Biologia)', 44.4, 'Média', 'Baixa',
+         'Atribuiu complexidade baixa por tratar a leitura do heredograma como direta, desconsiderando o produto de probabilidades genéticas e os distratores de consanguinidade.'),
+        ('ENEM2025_CN_100', 'Transferência de Calor e Calorimetria (Física)', 51.5, 'Média', 'Baixa',
+         'Classificou o item como complexidade baixa devido ao enunciado objetivo, mas subestimou a conversão de unidades térmicas e o ajuste do fluxo de calor.'),
+        ('ENEM2025_CN_96', 'Bioquímica e Fase Clara da Fotossíntese (Biologia)', 31.4, 'Fácil', 'Baixa',
+         'Alinhou-se bem ao padrão real fácil, identificando os fotossistemas e a fotólise da água como conceito direto do ensino médio.'),
+        ('ENEM2025_CN_94', 'Ecologia e Competição por Espécies Invasoras (Biologia)', 28.7, 'Fácil', 'Baixa',
+         'Previu a complexidade baixa adequadamente, alinhando-se com a facilidade empírica e a alta taxa de acerto dos candidatos na TRI.')
+    ]
+
+    # Estudos de Caso de Matemática (Todas as 6 questões inéditas ENEM 2025)
+    mt_cases_list = [
+        ('ENEM2025_MT_168', 'Geometria Espacial - Cilindro Inscrito em Prisma', 69.9, 'Difícil', 'Média',
+         'Atribuiu 4/5 para raciocínio complexo devido às 4 etapas de resolução. Contudo, subestimou o acúmulo de erros de aproximação que afeta fortemente alunos humanos.'),
+        ('ENEM2025_MT_140', 'Rótulos Nutricionais e Tabela Aritmética', 69.5, 'Difícil', 'Baixa',
+         'Considerou o cálculo aritmético direto, ignorando que a tabela de porções variáveis causa altíssimo índice de erro em interpretação de unidades.'),
+        ('ENEM2025_MT_170', 'Análise Combinatória e Arranjos em Filas', 64.0, 'Média-Alta', 'Baixa',
+         'Identificou a fórmula de fatorial, mas subestimou a distração de casos restritivos em agrupamentos de pessoas.'),
+        ('ENEM2025_MT_155', 'Função Quadrática e Vértice da Parábola', 53.2, 'Média', 'Baixa',
+         'Mapeou o ponto de máximo no vértice (y_v), mas desconsiderou a interpretação do significado prático das raízes no contexto.'),
+        ('ENEM2025_MT_153', 'Estatística - Mediana com Frequência Acumulada', 46.4, 'Média', 'Baixa',
+         'Tratou como cálculo direto de mediana, mas a presença de frequências acumuladas em tabela confunde a contagem de elementos centrais.'),
+        ('ENEM2025_MT_142', 'Escala Cartográfica Linear e Proporção', 31.0, 'Fácil', 'Baixa',
+         'Classificou adequadamente como aplicação simples de razão de escala linear 1:N, refletindo a facilidade empírica observada na TRI.')
+    ]
+
+    # Estudos de Caso de Interdisciplinar (Exclusivamente FUVEST 2026)
+    int_cases_list = [
+        ('FUVEST2026_Q36', 'Topografia e Trigonometria Interdisciplinar (Geografia/Matemática)', 83.9, 'Muito Difícil', 'Média',
+         'Exige leitura de perfil topográfico e cálculo trigonométrico em 4 etapas encadeadas. A IA atribuiu nota 4 em raciocínio e visual, mas subestimou os erros humanos no ajuste de altitude do prisma.'),
+        ('FUVEST2026_Q34', 'Hidroquímica Fluvial Amazônica e Geologia (Química/Geografia)', 70.3, 'Difícil', 'Média',
+         'Demanda cruzar a composição de sedimentos (Química) com o mapa da bacia amazônica e a erosão andina (Geografia). Ativou nota 4/5 para Elementos Visuais e Domínio.'),
+        ('FUVEST2026_Q32', 'Equilíbrio Químico e Le Chatelier em Sucos (Química/Biologia)', 48.5, 'Média', 'Baixa',
+         'Envolve Princípio de Le Chatelier e variação de pH. O modelo considerou a questão direta em 2 etapas, prevendo complexidade mediana alinhada à banca.'),
+        ('FUVEST2026_Q08', 'Variação Sociolinguística em Texto Literário (Língua Portuguesa/História)', 9.3, 'Muito Fácil', 'Baixa',
+         'Item de compreensão direta de texto. O modelo pontuou baixo (10/25), alinhando-se com a alta taxa de acerto dos candidatos na FUVEST 2026.')
+    ]
+
     # Função interna para processar cada segmento/visão
-    def process_segment(df_sub, case_studies_def):
+    def process_segment(df_sub, case_studies_def, cutoff_year=2025):
         matched = []
         for idx, row in df_sub.iterrows():
             excel_id = row['id']
@@ -258,9 +301,9 @@ def main():
                     if db_q['ano'] == excel_ano and db_q['q_num'] == excel_q_num:
                         db_match = db_q
                         break
-            if not db_match and excel_ano == 2025:
+            if not db_match and excel_ano >= cutoff_year:
                 for db_q in db_questions:
-                    if db_q['q_num'] == excel_q_num and 'azul' in db_q['db_id'].lower():
+                    if db_q['q_num'] == excel_q_num and ('azul' in db_q['db_id'].lower() or 'fuvest' in db_q['db_id'].lower()):
                         db_match = db_q
                         break
                         
@@ -299,7 +342,7 @@ def main():
         if len(matched_df) == 0:
             return None
             
-        matched_df['cutoff'] = matched_df['ano'].apply(lambda y: 'Pré-cutoff' if y < 2025 else 'Pós-cutoff')
+        matched_df['cutoff'] = matched_df['ano'].apply(lambda y: 'Pré-cutoff' if y < cutoff_year else 'Pós-cutoff')
         pre_df = matched_df[matched_df['cutoff'] == 'Pré-cutoff'].copy()
         post_df = matched_df[matched_df['cutoff'] == 'Pós-cutoff'].copy()
         
@@ -333,8 +376,8 @@ def main():
                     'pearson': float(matched_df['real_difficulty'].corr(matched_df[col_key]))
                 },
                 'pre_cutoff': {
-                    'spearman': float(pre_df['real_difficulty'].rank().corr(pre_df[col_key].rank())),
-                    'pearson': float(pre_df['real_difficulty'].corr(pre_df[col_key]))
+                    'spearman': float(pre_df['real_difficulty'].rank().corr(pre_df[col_key].rank())) if len(pre_df) > 1 else 0.0,
+                    'pearson': float(pre_df['real_difficulty'].corr(pre_df[col_key])) if len(pre_df) > 1 else 0.0
                 },
                 'post_cutoff': {
                     'spearman': float(post_df['real_difficulty'].rank().corr(post_df[col_key].rank())) if len(post_df) > 1 else 0.0,
@@ -404,21 +447,31 @@ def main():
             'post_df': post_df
         }
 
-    # Separar os subsets de dados
+    # Separar os subsets de dados para cada uma das 5 áreas + consolidado
     lc_df = df[df['area'] == 'Linguagens'].copy()
     ch_df = df[df['area'] == 'Humanas'].copy()
-    both_df = df[(df['area'] == 'Linguagens') | (df['area'] == 'Humanas')].copy()
+    cn_df = df[df['area'] == 'Natureza'].copy()
+    mt_df = df[df['area'] == 'Matematica'].copy()
+    int_df = df[df['area'] == 'Interdisciplinar'].copy()
+
+    all_cases_list = lc_cases_list + ch_cases_list + cn_cases_list + mt_cases_list + int_cases_list
 
     # Processar cada segmento
     print("Processing segment: Linguagens...")
-    lc_results = process_segment(lc_df, lc_cases_list)
+    lc_results = process_segment(lc_df, lc_cases_list, cutoff_year=2025)
     print("Processing segment: Ciências Humanas...")
-    ch_results = process_segment(ch_df, ch_cases_list)
-    print("Processing segment: Consolidado...")
-    consolidado_results = process_segment(both_df, [])
+    ch_results = process_segment(ch_df, ch_cases_list, cutoff_year=2025)
+    print("Processing segment: Ciências da Natureza...")
+    cn_results = process_segment(cn_df, cn_cases_list, cutoff_year=2025)
+    print("Processing segment: Matemática e Tecnologias...")
+    mt_results = process_segment(mt_df, mt_cases_list, cutoff_year=2025)
+    print("Processing segment: Interdisciplinar (FUVEST)...")
+    int_results = process_segment(int_df, int_cases_list, cutoff_year=2026)
+    print("Processing segment: Consolidado (Geral 125)...")
+    consolidado_results = process_segment(df, all_cases_list, cutoff_year=2025)
 
-    if not lc_results or not ch_results or not consolidado_results:
-        print("Error: Could not process segments.")
+    if not lc_results or not ch_results or not cn_results or not mt_results or not int_results or not consolidado_results:
+        print("Error: Could not process all segments.")
         return
 
     # Salvar estrutura multissegmentada no JSON
@@ -442,6 +495,36 @@ def main():
             'faixas_stats': ch_results['faixas_stats'],
             'case_studies': ch_results['case_studies'],
             'questions_list': ch_results['questions_list']
+        },
+        'natureza': {
+            'n_total': cn_results['n_total'],
+            'n_pre_cutoff': cn_results['n_pre_cutoff'],
+            'n_post_cutoff': cn_results['n_post_cutoff'],
+            'correlations': cn_results['correlations'],
+            'comparisons': cn_results['comparisons'],
+            'faixas_stats': cn_results['faixas_stats'],
+            'case_studies': cn_results['case_studies'],
+            'questions_list': cn_results['questions_list']
+        },
+        'matematica': {
+            'n_total': mt_results['n_total'],
+            'n_pre_cutoff': mt_results['n_pre_cutoff'],
+            'n_post_cutoff': mt_results['n_post_cutoff'],
+            'correlations': mt_results['correlations'],
+            'comparisons': mt_results['comparisons'],
+            'faixas_stats': mt_results['faixas_stats'],
+            'case_studies': mt_results['case_studies'],
+            'questions_list': mt_results['questions_list']
+        },
+        'interdisciplinar': {
+            'n_total': int_results['n_total'],
+            'n_pre_cutoff': int_results['n_pre_cutoff'],
+            'n_post_cutoff': int_results['n_post_cutoff'],
+            'correlations': int_results['correlations'],
+            'comparisons': int_results['comparisons'],
+            'faixas_stats': int_results['faixas_stats'],
+            'case_studies': int_results['case_studies'],
+            'questions_list': int_results['questions_list']
         },
         'consolidado': {
             'n_total': consolidado_results['n_total'],

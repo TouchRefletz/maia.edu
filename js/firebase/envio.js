@@ -82,9 +82,9 @@ export function tratarErroEnvioFirebase(error, btnEnviar) {
   }
 }
 
-export async function enviarDadosParaFirebase() {
+export async function enviarDadosParaFirebase(overrideQ, overrideG) {
   // 1. Inicia e valida
-  const contextoEnvio = iniciarPreparacaoEnvio();
+  const contextoEnvio = iniciarPreparacaoEnvio(overrideQ, overrideG);
   if (!contextoEnvio) return;
   const { btnEnviar, q, g } = contextoEnvio;
 

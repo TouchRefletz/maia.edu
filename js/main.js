@@ -373,6 +373,15 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASO 9.0c: Iniciar Modo Verificar Questões ---
+    const gatilhoVerificarQuestoes = e.target.closest(".js-iniciar-verificar-questoes");
+    if (gatilhoVerificarQuestoes) {
+      import("./ui/verificar-questoes-screen.tsx").then(({ iniciarModoVerificacaoQuestoes }) => {
+        iniciarModoVerificacaoQuestoes();
+      });
+      return;
+    }
+
     // --- CASO 9.1: Iniciar Modo Simulados ---
     const gatilhoSimulados = e.target.closest(".js-iniciar-simulados");
     if (gatilhoSimulados) {

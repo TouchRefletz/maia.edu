@@ -5,6 +5,7 @@ import { safe } from '../../normalize/primitives.js';
 import { customAlert } from '../../ui/GlobalAlertsLogic';
 // @ts-ignore - JS module
 import { showConfirmModalWithCheckbox } from '../../ui/modal-confirm.js';
+import { getActiveTab } from '../../ui/sidebar-tabs.js';
 import { PainelGabarito, PainelQuestao } from './RenderComponents';
 import { TextAuditModal } from './TextAuditModal';
 
@@ -34,7 +35,7 @@ interface JsonReviewModalProps {
   htmlQuestaoSide?: string; // Tornado opcional (deprecated)
   htmlGabaritoSide?: string; // Tornado opcional (deprecated)
   onClose: () => void;
-  onConfirm: (payload: string) => void;
+  onConfirm: (payload: string, updatedQ?: any, updatedG?: any) => void;
 }
 
 // --- FUNÇÕES DE LÓGICA (Portadas do JS original) ---
@@ -180,7 +181,20 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
     }
 
     setIsSending(true);
-    onConfirm(jsonString);
+    // CRITICAL FIX: Garante sincronia dos objetos editados/auditados com as variáveis globais do sistema e a aba ativa antes de disparar o envio
+    window.__ultimaQuestaoExtraida = currentQ;
+    window.__ultimoGabaritoExtraido = currentG;
+    try {
+      const activeTab: any = getActiveTab();
+      if (activeTab && activeTab.type === 'question') {
+        activeTab.response = currentQ;
+        activeTab.gabaritoResponse = currentG;
+      }
+    } catch (e) {
+      console.warn('Erro ao atualizar aba ativa:', e);
+    }
+
+    onConfirm(jsonString, currentQ, currentG);
   };
 
   return (
@@ -248,6 +262,19 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
             onApplyFixes={(updatedQ, updatedG) => {
               setCurrentQ(updatedQ);
               setCurrentG(updatedG);
+
+              // CRITICAL FIX: Sincroniza imediatamente com window globals e a aba ativa
+              window.__ultimaQuestaoExtraida = updatedQ;
+              window.__ultimoGabaritoExtraido = updatedG;
+              try {
+                const activeTab: any = getActiveTab();
+                if (activeTab && activeTab.type === 'question') {
+                  activeTab.response = updatedQ;
+                  activeTab.gabaritoResponse = updatedG;
+                }
+              } catch (e) {
+                console.warn('Erro ao sincronizar aba ativa durante auditoria:', e);
+              }
             }}
           />
         )}
@@ -341,10 +368,14 @@ export function mountJsonReviewModal(
     container.remove();
   };
 
-  const handleConfirm = async (payload: string) => {
-    // Chama a função de envio para Firebase
+  const handleConfirm = async (payload: string, updatedQ?: any, updatedG?: any) => {
+    // Sincroniza variáveis globais se passadas
+    if (updatedQ) window.__ultimaQuestaoExtraida = updatedQ;
+    if (updatedG) window.__ultimoGabaritoExtraido = updatedG;
+
+    // Chama a função de envio para Firebase passando os dados auditados/atualizados
     const { enviarDadosParaFirebase } = await import('../../firebase/envio.js');
-    enviarDadosParaFirebase();
+    await (enviarDadosParaFirebase as any)(updatedQ, updatedG);
     
     // Callback opcional
     if (data.onConfirmCallback) data.onConfirmCallback();

@@ -55,6 +55,14 @@ export async function iniciarModoAdmin() {
         </div>
 
         <div class="admin-section">
+          <h2>🔍 Auditoria Pós-Envio & Correção de Questões</h2>
+          <p class="admin-desc">Selecione uma questão do Firebase, anexe a foto da prova original, audite incoerências com IA e grave as correções permanentemente no banco.</p>
+          <div class="admin-actions">
+            <button id="btnAbrirVerificacao" class="btn btn--primary" style="background:#38bdf8; color:#0f172a; border:none; font-weight:bold;">🔍 Abrir Verificar Questões</button>
+          </div>
+        </div>
+
+        <div class="admin-section">
           <h2>📦 Banco de Questões (Firebase)</h2>
           <p class="admin-desc">Exclua permanentemente os nós de questões do Firebase Realtime Database. As questões não aparecerão mais nas listas do site.</p>
           <div class="admin-actions">
@@ -105,6 +113,16 @@ function setupListeners() {
   if (btnVoltar) {
     btnVoltar.addEventListener("click", () => {
       gerarTelaInicial();
+    });
+  }
+
+  // Abrir Verificar Questões
+  const btnAbrirVerificacao = document.getElementById("btnAbrirVerificacao");
+  if (btnAbrirVerificacao) {
+    btnAbrirVerificacao.addEventListener("click", () => {
+      import("./verificar-questoes-screen.tsx").then(({ iniciarModoVerificacaoQuestoes }) => {
+        iniciarModoVerificacaoQuestoes();
+      });
     });
   }
 

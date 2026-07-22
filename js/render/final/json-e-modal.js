@@ -139,10 +139,10 @@ export function renderizarTelaFinal() {
 }
 
 // Função auxiliar para envio, mantida para compatibilidade
-export function iniciarPreparacaoEnvio() {
+export function iniciarPreparacaoEnvio(overrideQ, overrideG) {
   const btnEnviar = document.getElementById("btnConfirmarEnvioFinal");
-  const q = window.__ultimaQuestaoExtraida;
-  const g = window.__ultimoGabaritoExtraido;
+  const q = overrideQ || window.__ultimaQuestaoExtraida;
+  const g = overrideG || window.__ultimoGabaritoExtraido;
 
   if (!q || !g) {
     customAlert("❌ Erro: Dados incompletos. Processe a questão e o gabarito.");
