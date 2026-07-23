@@ -312,15 +312,22 @@ export function salvarQuestao() {
     ) {
       const letra = window.__target_alt_letra;
       const idx = window.__target_alt_index;
-      tratarSalvarAlternativa(imgSrc);
-      CropperState.deleteGroup(activeGroup.id); // Limpa o temp
-      restaurarVisualizacaoOriginal();
-      resetarInterfaceBotoes();
-      window.dispatchEvent(
-        new CustomEvent("image-slot-mode-change", {
-          detail: { slotId: `alt_${letra}_${idx}`, mode: "idle" },
-        }),
-      );
+      
+      calculateCropContext(lastCrop.anchorData).then((cropContext) => {
+        const finalImgData = cropContext
+          ? { ...cropContext, blobUrl: result.blobUrl, url: result.blobUrl }
+          : result.blobUrl;
+
+        tratarSalvarAlternativa(finalImgData);
+        CropperState.deleteGroup(activeGroup.id); // Limpa o temp
+        restaurarVisualizacaoOriginal();
+        resetarInterfaceBotoes();
+        window.dispatchEvent(
+          new CustomEvent("image-slot-mode-change", {
+            detail: { slotId: `alt_${letra}_${idx}`, mode: "idle" },
+          }),
+        );
+      });
       return;
     }
 

@@ -607,6 +607,44 @@ export const AlternativeImageBlock: React.FC<{
     );
   }
 
+  // Se tem dados de PDF para renderizar via PdfEmbedRenderer
+  const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
+  const pdfUrl = bloco.pdf_url || null;
+
+  if (hasPdfData || pdfUrl) {
+    return (
+      <div className="structure-block structure-image-wrapper">
+        <PdfEmbedRenderer
+          pdfUrl={pdfUrl}
+          pdf_page={bloco.pdf_page}
+          pdf_zoom={bloco.pdf_zoom}
+          pdf_left={bloco.pdf_left}
+          pdf_top={bloco.pdf_top}
+          pdf_width={bloco.pdf_width}
+          pdf_height={bloco.pdf_height}
+          pdfjs_source_w={bloco.pdfjs_source_w}
+          pdfjs_source_h={bloco.pdfjs_source_h}
+          pdfjs_x={bloco.pdfjs_x}
+          pdfjs_y={bloco.pdfjs_y}
+          pdfjs_crop_w={bloco.pdfjs_crop_w}
+          pdfjs_crop_h={bloco.pdfjs_crop_h}
+          scaleToFit={true}
+        />
+        {renderDescricao()}
+        {!isReadOnly && (
+          <button
+            className="btn-trocar-img"
+            data-action="edit-slot-alt" 
+            data-slot-id={imgIndex}
+            data-letter={letra}
+          >
+            <span className="btn-ico">🔄</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (src) {
     return (
       <div className="structure-block structure-image-wrapper">
