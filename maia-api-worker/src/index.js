@@ -3762,6 +3762,8 @@ FORMATO DE SAÍDA:
 		model: groqModelId,
 		messages: openAIMessages,
 		stream: true,
+		max_completion_tokens: 16384,
+		max_tokens: 16384,
 	};
 
 	if (jsonMode && schema) {
@@ -3772,6 +3774,8 @@ FORMATO DE SAÍDA:
 				schema: normalizeSchemaToStandard(schema),
 			},
 		};
+	} else if (jsonMode) {
+		payload.response_format = { type: 'json_object' };
 	}
 
 	const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -4124,6 +4128,8 @@ FORMATO DE SAÍDA:
 		model: vertexMaaSModelId,
 		messages: openAIMessages,
 		stream: true,
+		max_completion_tokens: 16384,
+		max_tokens: 16384,
 	};
 
 	if (thinking === false) {
