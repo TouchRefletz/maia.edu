@@ -74,6 +74,20 @@ const sanitizeContent = (content: string) => {
     .replace(/>/g, '&gt;');
 };
 
+// Helper para extrair URL da imagem mesmo se o bloco tiver sido desestruturado em chaves numéricas ("0", "1", ...)
+const extractUrlFromBloco = (bloco: any): string | undefined => {
+  if (!bloco || typeof bloco !== 'object') return undefined;
+  if (bloco.url) return String(bloco.url);
+  if (bloco.src) return String(bloco.src);
+  let str = '';
+  let i = 0;
+  while (String(i) in bloco) {
+    str += bloco[String(i)];
+    i++;
+  }
+  return i > 0 ? str : undefined;
+};
+
 // --- COMPONENTE: BLOCO DE TEXTO (REUTILIZÁVEL) ---
 // Adaptado para aceitar atributos extras se necessário
 const StructureTextBlock: React.FC<{
@@ -366,7 +380,7 @@ export const MainStructure: React.FC<{
 
         if (tipo === 'imagem' || !tipo) {
           const currentImgIndex = globalImgCounter++;
-          const src = bloco.url || imagensExternas?.[currentImgIndex];
+          const src = extractUrlFromBloco(bloco) || imagensExternas?.[currentImgIndex];
           
           // ID específico para a descrição da imagem
           const descricaoFieldId = `${fieldId}_descricao`;
@@ -694,7 +708,7 @@ export const AlternativeStructure: React.FC<{
 
         if (tipo === 'imagem') {
           const currentImgIndex = globalImgCounter++;
-          const src = bloco.url || imgsFallback?.[currentImgIndex];
+          const src = extractUrlFromBloco(bloco) || imgsFallback?.[currentImgIndex];
           
           // ID específico para a descrição da imagem
           const descricaoFieldId = `${fieldId}_descricao`;

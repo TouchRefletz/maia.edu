@@ -176,6 +176,43 @@ export const _processarQuestao = (root) => {
 };
 
 /**
+ * Reconstrói uma string a partir de um objeto cujos caracteres foram espalhados
+ * em chaves numéricas ("0", "1", "2", ...).
+ */
+export const _reconstructStringFromIndexedObject = (obj) => {
+  if (!obj || typeof obj !== "object") return null;
+  let str = "";
+  let i = 0;
+  while (String(i) in obj) {
+    str += obj[String(i)];
+    i++;
+  }
+  return i > 0 ? str : null;
+};
+
+/**
+ * Sanitiza um bloco de estrutura caso ele possua chaves numéricas ("0", "1", ...),
+ * removendo essas chaves e restaurando a URL da imagem.
+ */
+export const _sanitizeBlocoIfCorrupted = (bloco) => {
+  if (!bloco || typeof bloco !== "object") return bloco;
+  const reconstructedStr = _reconstructStringFromIndexedObject(bloco);
+  if (reconstructedStr) {
+    const cleanBloco = { ...bloco };
+    let i = 0;
+    while (String(i) in cleanBloco) {
+      delete cleanBloco[String(i)];
+      i++;
+    }
+    if (!cleanBloco.url && !cleanBloco.src) {
+      cleanBloco.url = reconstructedStr;
+    }
+    return cleanBloco;
+  }
+  return bloco;
+};
+
+/**
  * 4. HELPER: INJETOR DE IMAGENS
  * Percorre uma lista de blocos e associa imagens de um array externo aos blocos do tipo 'imagem'.
  */
@@ -183,37 +220,47 @@ export const _injetarImagensEmEstrutura = (estrutura, imagensDisponiveis) => {
   let cursor = 0;
 
   return (estrutura || []).map((bloco) => {
-    const tipo = String(bloco?.tipo || "texto")
+    // Sanitiza bloco original se contiver chaves numéricas corrompidas
+    const sanitizedBloco = _sanitizeBlocoIfCorrupted(bloco);
+
+    const tipo = String(sanitizedBloco?.tipo || "texto")
       .toLowerCase()
       .trim();
-    const conteudo = String(bloco?.conteudo ?? "");
+    const conteudo = String(sanitizedBloco?.conteudo ?? "");
 
     if (tipo === "imagem") {
-      // Pega da memória local OU mantém o que já estava salvo
-      // [FIX] Preservar campos novos (imagem_url, pdf_url, etc) com ...bloco
-      const imagemLocal = imagensDisponiveis[cursor];
+      const imagemLocal = imagensDisponiveis ? imagensDisponiveis[cursor] : null;
       cursor++;
 
       if (imagemLocal) {
-        // Se temos uma imagem salva localmente (edição), ela tem prioridade total
-        // Misturamos com o bloco original apenas para manter campos que não mudaram (se houver)
-        // Mas garantimos que conteudo/url/etc venham do local
-        return {
-          ...bloco, // Base original
-          ...imagemLocal, // Sobrescreve com dados locais (pdf_url, coords, etc)
-          tipo: "imagem", // Garante tipo
-          conteudo: imagemLocal.conteudo || bloco.conteudo, // Mantém descrição se não houver nova
-        };
+        if (typeof imagemLocal === "string") {
+          return {
+            ...sanitizedBloco,
+            tipo: "imagem",
+            url: imagemLocal,
+            conteudo: sanitizedBloco.conteudo || conteudo,
+          };
+        } else if (typeof imagemLocal === "object" && imagemLocal !== null) {
+          const sanitizedLocal = _sanitizeBlocoIfCorrupted(imagemLocal);
+          return {
+            ...sanitizedBloco,
+            ...sanitizedLocal,
+            tipo: "imagem",
+            url: sanitizedLocal.url || sanitizedLocal.src || sanitizedBloco.url,
+            conteudo: sanitizedLocal.conteudo || sanitizedBloco.conteudo || conteudo,
+          };
+        }
       }
 
       return {
-        ...bloco, // Preserva outros campos (conteudo, metadados PDF, etc)
+        ...sanitizedBloco,
         tipo: "imagem",
+        url: sanitizedBloco.url || sanitizedBloco.src,
         conteudo: conteudo,
       };
     }
 
-    return { ...bloco, tipo, conteudo };
+    return { ...sanitizedBloco, tipo, conteudo };
   });
 };
 
