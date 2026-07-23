@@ -530,19 +530,21 @@ export function applyAuditFix(q: any, g: any, item: AuditItem): { updatedQ: any;
 
   const rootObj = item.targetObject === 'gabarito' ? updatedG : updatedQ;
 
-  let pathStr = item.fieldPath;
+  let pathStr = item.fieldPath || '';
   if (pathStr.startsWith('dados_questao.')) {
     pathStr = pathStr.substring('dados_questao.'.length);
   } else if (pathStr.startsWith('dados_gabarito.')) {
     pathStr = pathStr.substring('dados_gabarito.'.length);
   }
 
+  if (!pathStr) return { updatedQ, updatedG };
+
   const keys = pathStr.replace(/\[(\d+)\]/g, '.$1').split('.');
   let current: any = rootObj;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const k = keys[i];
-    if (current[k] === undefined || current[k] === null) {
+    if (current === undefined || current === null || current[k] === undefined || current[k] === null) {
       return { updatedQ, updatedG };
     }
     current = current[k];
@@ -550,20 +552,56 @@ export function applyAuditFix(q: any, g: any, item: AuditItem): { updatedQ: any;
 
   const lastKey = keys[keys.length - 1];
   if (typeof current[lastKey] === 'string') {
-    const val = current[lastKey];
-    if (val.includes(item.originalText)) {
-      current[lastKey] = val.replace(item.originalText, item.suggestedText);
-    } else {
-      const normVal = val.replace(/\s+/g, ' ');
-      const normOrig = item.originalText.replace(/\s+/g, ' ');
-      if (normVal.includes(normOrig)) {
-        current[lastKey] = val.replace(item.originalText.trim(), item.suggestedText.trim());
-      } else if (val.length <= item.suggestedText.length * 2 && item.suggestedText.length <= val.length * 2) {
-        current[lastKey] = item.suggestedText;
-      } else {
-        console.warn(`[applyAuditFix] Trecho original não encontrado exatamente no campo ${pathStr}, aplicando substituição direta do texto sugerido.`);
-        current[lastKey] = item.suggestedText;
+    const val: string = current[lastKey];
+    const orig: string = item.originalText || '';
+    const sugg: string = item.suggestedText || '';
+
+    if (!val) {
+      current[lastKey] = sugg;
+      return { updatedQ, updatedG };
+    }
+
+    // 1. Substituição exata do trecho (substring match)
+    if (orig && val.includes(orig)) {
+      current[lastKey] = val.replace(orig, sugg);
+      return { updatedQ, updatedG };
+    }
+
+    // 2. Substituição de trecho ignorando diferenças de espaços e quebras de linha
+    if (orig && orig.trim().length > 1) {
+      const escapeRegexp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = escapeRegexp(orig.trim()).replace(/\\\s+/g, '\\s+');
+      try {
+        const reg = new RegExp(pattern, 'i');
+        if (reg.test(val)) {
+          current[lastKey] = val.replace(reg, sugg.trim());
+          return { updatedQ, updatedG };
+        }
+      } catch (e) {
+        // Fallthrough se o regex falhar
       }
+    }
+
+    // 3. Caso o original corresponda quase totalmente ao valor do campo inteiro
+    const valTrim = val.trim();
+    const origTrim = orig.trim();
+    const isFullFieldMatch = origTrim.length > 0 && (
+      valTrim === origTrim ||
+      (valTrim.length > 0 && origTrim.length / valTrim.length >= 0.75)
+    );
+
+    if (isFullFieldMatch) {
+      current[lastKey] = sugg;
+      return { updatedQ, updatedG };
+    }
+
+    // 4. PREVENÇÃO DE DESTRUIÇÃO: Se o trecho sugerido for pequeno em relação ao campo,
+    // NÃO substitui o campo inteiro para evitar apagar o texto!
+    if (sugg.trim().length < valTrim.length * 0.7) {
+      console.warn(`[applyAuditFix] Trecho original ("${orig}") não encontrado com segurança no campo ${pathStr}. Substituição total abortada para evitar perda de dados.`);
+    } else {
+      // Se a sugestão for um texto completo fornecido pela IA para o campo inteiro
+      current[lastKey] = sugg;
     }
   }
 

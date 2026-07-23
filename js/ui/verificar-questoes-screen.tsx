@@ -58,23 +58,24 @@ function highlightAuditItemsInCard(containerEl: HTMLElement, items: AuditItem[])
   const activeItems = items.filter(i => i.status === 'pending' || i.status === 'accepted');
   if (activeItems.length === 0) return;
 
-  const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
   activeItems.forEach(item => {
     const isAccepted = item.status === 'accepted';
-    const targetSnippet = isAccepted ? item.suggestedText : item.originalText;
+    let targetSnippet = (isAccepted ? item.suggestedText : item.originalText) || '';
+    targetSnippet = targetSnippet.trim();
     if (!targetSnippet || targetSnippet.length < 2) return;
 
-    // Procura nós de texto dentro do elemento card
+    // Se o snippet for muito longo, usa os primeiros 60 caracteres significativos para localização limpa no DOM
+    const searchSnippet = targetSnippet.length > 80 ? targetSnippet.substring(0, 60).trim() : targetSnippet;
+
     const walker = document.createTreeWalker(containerEl, NodeFilter.SHOW_TEXT, null);
-    const nodesToReplace: Array<{ textNode: Node; parentNode: Node; text: string }> = [];
+    const nodesToReplace: Array<{ textNode: Node; parentNode: HTMLElement; text: string }> = [];
 
     let currentNode = walker.nextNode();
     while (currentNode) {
       const val = currentNode.nodeValue || '';
-      if (val.includes(targetSnippet)) {
+      if (val.includes(searchSnippet)) {
         const pNode = currentNode.parentNode as HTMLElement | null;
-        if (pNode && pNode.nodeName !== 'MARK' && pNode.nodeName !== 'SCRIPT' && pNode.nodeName !== 'STYLE') {
+        if (pNode && !pNode.closest('mark, script, style, svg, .katex, .mjx-container, .MathJax, button')) {
           nodesToReplace.push({ textNode: currentNode, parentNode: pNode, text: val });
         }
       }
@@ -82,18 +83,36 @@ function highlightAuditItemsInCard(containerEl: HTMLElement, items: AuditItem[])
     }
 
     nodesToReplace.forEach(({ textNode, parentNode, text }) => {
-      const bg = isAccepted ? '#22c55e' : '#f59e0b';
-      const color = isAccepted ? '#ffffff' : '#000000';
+      const bg = isAccepted ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.25)';
+      const borderColor = isAccepted ? '#22c55e' : '#f59e0b';
+      const color = isAccepted ? '#86efac' : '#fef08a';
       const icon = isAccepted ? '✓' : '⚠️';
 
-      const span = document.createElement('span');
-      const escaped = escapeRegExp(targetSnippet);
-      const highlightedHtml = text.replace(
-        new RegExp(escaped, 'g'),
-        `<mark style="background:${bg}; color:${color}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:inherit; font-family:inherit;" title="${item.reason}">${targetSnippet} ${icon}</mark>`
-      );
-      span.innerHTML = highlightedHtml;
-      parentNode.replaceChild(span, textNode);
+      const parts = text.split(searchSnippet);
+      const frag = document.createDocumentFragment();
+
+      parts.forEach((part, idx) => {
+        if (part) {
+          frag.appendChild(document.createTextNode(part));
+        }
+        if (idx < parts.length - 1) {
+          const mark = document.createElement('mark');
+          mark.style.background = bg;
+          mark.style.color = color;
+          mark.style.border = `1px solid ${borderColor}`;
+          mark.style.padding = '1px 5px';
+          mark.style.borderRadius = '4px';
+          mark.style.fontWeight = '600';
+          mark.style.display = 'inline';
+          mark.style.fontFamily = 'inherit';
+          mark.style.fontSize = 'inherit';
+          mark.title = item.reason;
+          mark.textContent = `${searchSnippet} ${icon}`;
+          frag.appendChild(mark);
+        }
+      });
+
+      parentNode.replaceChild(frag, textNode);
     });
   });
 }
@@ -768,14 +787,15 @@ const VerificarQuestoesApp: React.FC = () => {
             {/* DIREITA: CARD DA QUESTÃO TÉCNICO (LIVE RENDER) COM DESTAQUES VISUAIS */}
             <div style={{
               background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px',
-              display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '800px', overflowY: 'auto'
+              display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '800px', overflowY: 'auto',
+              maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box'
             }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>🎴</span> Card da Questão (Renderização Completa com Destaques)
               </h3>
 
               {/* CARD TÉCNICO DO MAIA.EDU COM HIGHLIGHTS DOM APLICADOS */}
-              <div ref={cardRef} style={{ background: '#0f172a', borderRadius: '8px', padding: '10px' }}></div>
+              <div ref={cardRef} style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', width: '100%', maxWidth: '100%', overflowX: 'auto', boxSizing: 'border-box' }}></div>
             </div>
           </div>
         )}
