@@ -63,6 +63,17 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
     }
   };
 
+  const handleCancelAudit = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (isMounted.current) {
+      setIsAuditing(false);
+      setStatusText('Análise cancelada pelo usuário.');
+    }
+  };
+
   const handleRunAudit = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -88,9 +99,11 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
         setHasRun(true);
       }
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
+      if (err?.name !== 'AbortError' && !abortControllerRef.current?.signal.aborted) {
         console.error('Erro na auditoria:', err);
         if (isMounted.current) setStatusText('Erro ao executar auditoria.');
+      } else if (isMounted.current) {
+        setStatusText('Análise cancelada.');
       }
     } finally {
       if (isMounted.current) setIsAuditing(false);
@@ -223,25 +236,46 @@ export const TextAuditModal: React.FC<TextAuditModalProps> = ({
             )}
           </div>
 
-          <button
-            onClick={handleRunAudit}
-            disabled={isAuditing}
-            style={{
-              background: isAuditing ? '#475569' : '#3b82f6', color: '#fff', border: 'none',
-              borderRadius: '6px', padding: '8px 18px', fontWeight: 600, cursor: isAuditing ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: '8px'
-            }}
-          >
-            {isAuditing ? '⏳ Analisando...' : '🔍 Executar Auditoria Completa'}
-          </button>
+          {isAuditing ? (
+            <button
+              onClick={handleCancelAudit}
+              style={{
+                background: '#ef4444', color: '#fff', border: 'none',
+                borderRadius: '6px', padding: '8px 18px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}
+            >
+              ⛔ Cancelar Análise
+            </button>
+          ) : (
+            <button
+              onClick={handleRunAudit}
+              style={{
+                background: '#3b82f6', color: '#fff', border: 'none',
+                borderRadius: '6px', padding: '8px 18px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}
+            >
+              🔍 Executar Auditoria Completa
+            </button>
+          )}
         </div>
 
         {/* BODY */}
         <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto', background: '#0f172a' }}>
           {isAuditing && (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#60a5fa' }}>
-              <div style={{ fontSize: '1.8rem', marginBottom: '10px' }}>⏳</div>
+            <div style={{ padding: '30px', textAlign: 'center', color: '#60a5fa', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <div style={{ fontSize: '1.8rem' }}>⏳</div>
               <div style={{ fontWeight: 600 }}>{statusText}</div>
+              <button
+                onClick={handleCancelAudit}
+                style={{
+                  background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px',
+                  padding: '6px 16px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                ⛔ Cancelar Análise da IA
+              </button>
             </div>
           )}
 

@@ -111,6 +111,10 @@ const VerificarQuestoesApp: React.FC = () => {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
 
+  const [useLanguageTool, setUseLanguageTool] = useState(true);
+  const [useAI, setUseAI] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const [isAuditing, setIsAuditing] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [items, setItems] = useState<AuditItem[]>([]);
@@ -314,15 +318,34 @@ const VerificarQuestoesApp: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Executa auditoria com IA incluindo TODOS os campos do JSON e Imagem
+  const handleCancelAudit = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsAuditing(false);
+    setStatusText('Análise cancelada pelo usuário.');
+  };
+
+  // Executa auditoria incluindo opções selecionadas (IA, LanguageTool ou Ambos)
   const handleRunAudit = async () => {
     if (!currentQ) {
       customAlert('⚠️ Por favor, selecione primeiro uma questão do banco.');
       return;
     }
 
+    if (!useLanguageTool && !useAI) {
+      customAlert('⚠️ Selecione pelo menos uma opção de auditoria (LanguageTool ou IA).');
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setIsAuditing(true);
-    setStatusText('Iniciando auditoria de texto, imagem, identificação e incoerências lógicas...');
+    setStatusText('Iniciando auditoria...');
 
     try {
       const auditResults = await runFullTextAudit(currentQ, currentG, {
@@ -330,19 +353,25 @@ const VerificarQuestoesApp: React.FC = () => {
         idQuestao,
         identificacao: currentQ?.identificacao || idQuestao,
         meta: currentQ?.meta || currentG?.meta || { material_origem: chaveProva, source_url: sourceUrl },
-        useLanguageTool: true,
-        useAI: true,
+        useLanguageTool,
+        useAI,
         modelId: selectedModel,
         imageBase64: imageBase64 || undefined,
         imageMimeType,
         checkInconsistencies,
-        onStatusUpdate: (msg) => setStatusText(msg)
+        onStatusUpdate: (msg) => setStatusText(msg),
+        signal: abortControllerRef.current.signal
       });
 
       setItems(auditResults);
     } catch (err: any) {
-      console.error('Erro na auditoria:', err);
-      customAlert('❌ Erro durante a auditoria: ' + (err.message || err));
+      if (err?.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+        console.log('Auditoria cancelada pelo usuário.');
+        setStatusText('Análise cancelada.');
+      } else {
+        console.error('Erro na auditoria:', err);
+        customAlert('❌ Erro durante a auditoria: ' + (err.message || err));
+      }
     } finally {
       setIsAuditing(false);
     }
@@ -595,55 +624,98 @@ const VerificarQuestoesApp: React.FC = () => {
           )}
         </div>
 
-        {/* CONTROLES DA IA */}
+        {/* CONTROLES DA IA E AUDITORIA */}
         {currentQ && (
           <div style={{
             background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '16px 20px',
             display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modelo IA:</span>
-                <select
-                  value={selectedModel}
-                  onChange={e => setSelectedModel(e.target.value)}
-                  style={{ background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '6px', padding: '6px 10px', fontSize: '0.85rem' }}
-                >
-                  {IA_MODELS.map(m => (
-                    <option key={m.id} value={m.id}>{m.title}</option>
-                  ))}
-                </select>
-              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={useLanguageTool}
+                  onChange={e => setUseLanguageTool(e.target.checked)}
+                />
+                <span>LanguageTool (Sem IA)</span>
+              </label>
 
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={checkInconsistencies}
-                  onChange={e => setCheckInconsistencies(e.target.checked)}
+                  checked={useAI}
+                  onChange={e => setUseAI(e.target.checked)}
                 />
-                <span>Verificar Incoerências Lógicas e Pedagógicas</span>
+                <span>Auditoria com IA</span>
               </label>
+
+              {useAI && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modelo IA:</span>
+                    <select
+                      value={selectedModel}
+                      onChange={e => setSelectedModel(e.target.value)}
+                      style={{ background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '6px', padding: '6px 10px', fontSize: '0.85rem' }}
+                    >
+                      {IA_MODELS.map(m => (
+                        <option key={m.id} value={m.id}>{m.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={checkInconsistencies}
+                      onChange={e => setCheckInconsistencies(e.target.checked)}
+                    />
+                    <span>Verificar Incoerências Lógicas e Pedagógicas</span>
+                  </label>
+                </>
+              )}
             </div>
 
-            <button
-              onClick={handleRunAudit}
-              disabled={isAuditing}
-              style={{
-                background: isAuditing ? '#475569' : '#8b5cf6', color: '#fff', border: 'none',
-                borderRadius: '6px', padding: '10px 20px', fontWeight: 700, cursor: isAuditing ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: '8px'
-              }}
-            >
-              {isAuditing ? '⏳ Analisando...' : '🔍 Executar Verificação Avançada com IA'}
-            </button>
+            {isAuditing ? (
+              <button
+                onClick={handleCancelAudit}
+                style={{
+                  background: '#ef4444', color: '#fff', border: 'none',
+                  borderRadius: '6px', padding: '10px 20px', fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                ⛔ Cancelar Análise
+              </button>
+            ) : (
+              <button
+                onClick={handleRunAudit}
+                style={{
+                  background: '#8b5cf6', color: '#fff', border: 'none',
+                  borderRadius: '6px', padding: '10px 20px', fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}
+              >
+                🔍 Executar Verificação
+              </button>
+            )}
           </div>
         )}
 
         {/* STATUS DA AUDITORIA */}
         {isAuditing && (
-          <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b', borderRadius: '8px', border: '1px solid #3b82f6', color: '#60a5fa' }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⏳</div>
+          <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b', borderRadius: '8px', border: '1px solid #3b82f6', color: '#60a5fa', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+            <div style={{ fontSize: '1.5rem' }}>⏳</div>
             <div style={{ fontWeight: 600 }}>{statusText}</div>
+            <button
+              onClick={handleCancelAudit}
+              style={{
+                background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px',
+                padding: '8px 18px', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              ⛔ Cancelar Análise da IA
+            </button>
           </div>
         )}
 

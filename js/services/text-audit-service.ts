@@ -251,14 +251,31 @@ async function checkWithLanguageTool(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3500);
 
-      const response = await fetch('https://api.languagetool.org/v2/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-        signal: controller.signal
-      });
+      const onParentAbort = () => controller.abort();
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(timeoutId);
+          break;
+        }
+        signal.addEventListener('abort', onParentAbort);
+      }
 
-      clearTimeout(timeoutId);
+      let response: Response;
+      try {
+        response = await fetch('https://api.languagetool.org/v2/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener('abort', onParentAbort);
+        }
+      }
+
+      if (signal?.aborted) break;
 
       if (!response.ok) continue;
 
@@ -286,7 +303,8 @@ async function checkWithLanguageTool(
           status: 'pending'
         });
       });
-    } catch (err) {
+    } catch (err: any) {
+      if (signal?.aborted) break;
       console.warn(`[LanguageTool] Erro ou timeout no campo ${path}:`, err);
     }
   }
@@ -409,9 +427,11 @@ ${jsonText}`;
         attachments,
         imageMimeType,
         {},
-        { model: modelId }
+        { model: modelId, signal }
       );
     }
+
+    if (signal?.aborted) return [];
 
     if (!resultJson || !Array.isArray(resultJson.issues)) {
       return [];
