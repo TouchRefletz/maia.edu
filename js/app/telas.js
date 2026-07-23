@@ -1476,11 +1476,11 @@ export function gerarTelaInicial() {
       renderUserButton(user);
       verificarAdminEShowSidebar(user);
 
-      if (user && !user.isAnonymous) {
-        // 2. Sync Logic when Logged In (Real User)
+      const currentUid = user && !user.isAnonymous ? user.uid : null;
+      if (currentUid && window.__lastSyncedUid !== currentUid) {
+        window.__lastSyncedUid = currentUid;
         console.log("Usuário logado detectado. Iniciando sync...");
         ChatStorageService.syncPendingToCloud();
-        // [FIX] Ensure we FETCH cloud chats too
         ChatStorageService.syncFromCloud(user.uid).then(() => {
           console.log("Chats baixados da nuvem.");
         });

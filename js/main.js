@@ -299,13 +299,6 @@ if (!window.__globalListenerRegistered) {
       if (isOpening) {
         import("./app/telas.js").then(({ loadSidebarChats }) => {
           loadSidebarChats().catch(console.error);
-
-          const user = auth.currentUser;
-          if (user && !user.isAnonymous) {
-            import("./services/chat-storage.js").then(({ ChatStorageService }) => {
-              ChatStorageService.syncFromCloud(user.uid).catch(console.error);
-            });
-          }
         });
       }
       return;
