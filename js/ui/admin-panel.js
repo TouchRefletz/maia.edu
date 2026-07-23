@@ -385,16 +385,56 @@ export async function iniciarModoAdmin() {
             <p class="admin-desc">Defina ou restaure o link oficial da prova original em PDF para exibir o botão <strong>"🔗 Ver Fonte Original"</strong> nos cards de questões do banco.</p>
             
             <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;">
+              
+              <!-- Modo 1: Seleção por Dropdown -->
               <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid var(--color-border);">
-                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">1. Chave da Prova / Material (Obrigatório):</label>
-                <input type="text" id="inputProvaRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="Ex: ENEM_2023 ou FUVEST_2024" />
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <h3 style="margin:0; font-size:1rem; display:flex; align-items:center; gap:8px;">
+                    <span>📋</span> Selecionar do Banco de Dados
+                  </h3>
+                  <button class="btn btn--sm btn--outline js-btn-recarregar-lista" style="font-size:0.8rem; padding:4px 10px;">🔄 Recarregar Banco</button>
+                </div>
                 
-                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">2. ID Específico da Questão (Opcional - deixe em branco para aplicar a TODAS as questões da prova):</label>
-                <input type="text" id="inputQuestaoRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="Ex: QUESTÃO_01 (Deixe em branco para atualizar a prova inteira)" />
-
-                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">3. Link Oficial da Prova em PDF (source_url):</label>
-                <input type="url" id="inputUrlRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="https://exemplo.com/provas/prova_oficial.pdf" />
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                  <div style="flex:1; min-width:220px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">1. Prova / Material:</label>
+                    <select id="selectProvaRestaurarLink" class="apendice-select" style="width:100%;">
+                      <option value="">-- Carregando provas... --</option>
+                    </select>
+                  </div>
+                  
+                  <div style="flex:1; min-width:220px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">2. Questão (Opcional):</label>
+                    <select id="selectQuestaoRestaurarLink" class="apendice-select" style="width:100%;" disabled>
+                      <option value="">-- Selecione uma prova primeiro --</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              <!-- Modo 2: Entrada Manual / Edição de Link -->
+              <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <h3 style="margin-top:0; margin-bottom:12px; font-size:1rem; display:flex; align-items:center; gap:8px;">
+                  <span>✏️</span> Ou Digite a Chave Manualmente e Insira o Link Oficial
+                </h3>
+                
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                  <div style="flex:1; min-width:180px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">Chave da Prova (provaKey):</label>
+                    <input type="text" id="inputProvaRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:0;" placeholder="Ex: ENEM_2023 ou FUVEST_2024" />
+                  </div>
+                  <div style="flex:1; min-width:180px;">
+                    <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">ID Questão (Deixe em branco para toda a prova):</label>
+                    <input type="text" id="inputQuestaoRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:0;" placeholder="Ex: QUESTÃO_01 (Opcional)" />
+                  </div>
+                </div>
+
+                <div>
+                  <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">Link Oficial da Prova em PDF (source_url):</label>
+                  <input type="url" id="inputUrlRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:0;" placeholder="https://exemplo.com/provas/prova_oficial.pdf" />
+                </div>
+              </div>
+
             </div>
 
             <div class="admin-actions">
@@ -657,6 +697,71 @@ function setupListeners() {
     });
   }
 
+  // Dropdown Aba 5: Restaurar Link Prova
+  const selectProvaLink = document.getElementById("selectProvaRestaurarLink");
+  const selectQuestaoLink = document.getElementById("selectQuestaoRestaurarLink");
+  const inputProvaLink = document.getElementById("inputProvaRestaurarLink");
+  const inputQuestaoLink = document.getElementById("inputQuestaoRestaurarLink");
+  const inputUrlLink = document.getElementById("inputUrlRestaurarLink");
+
+  if (selectProvaLink && selectQuestaoLink) {
+    selectProvaLink.addEventListener("change", async (e) => {
+      const provaKey = e.target.value;
+      if (inputProvaLink) inputProvaLink.value = provaKey;
+
+      if (!provaKey || !cacheProvasQuestoes[provaKey]) {
+        selectQuestaoLink.innerHTML = '<option value="">-- Selecione uma prova primeiro --</option>';
+        selectQuestaoLink.disabled = true;
+        if (inputQuestaoLink) inputQuestaoLink.value = "";
+        return;
+      }
+
+      const qKeys = [...cacheProvasQuestoes[provaKey]].sort();
+      let html = '<option value="">-- Aplicar em TODAS as questões da prova --</option>';
+      for (const qKey of qKeys) {
+        html += `<option value="${escapeHtml(qKey)}">${escapeHtml(qKey)}</option>`;
+      }
+      selectQuestaoLink.innerHTML = html;
+      selectQuestaoLink.disabled = false;
+      if (inputQuestaoLink) inputQuestaoLink.value = "";
+
+      try {
+        const snap = await get(ref(db, `questoes/${provaKey}`));
+        if (snap.exists()) {
+          const qDataMap = snap.val();
+          for (const k in qDataMap) {
+            const foundUrl = qDataMap[k]?.meta?.source_url || qDataMap[k]?.meta?.source_url_prova || qDataMap[k]?.dados_questao?.source_url;
+            if (foundUrl && inputUrlLink) {
+              inputUrlLink.value = foundUrl;
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar link existente:", err);
+      }
+    });
+
+    selectQuestaoLink.addEventListener("change", async (e) => {
+      const qKey = e.target.value;
+      const provaKey = selectProvaLink ? selectProvaLink.value : "";
+      if (inputQuestaoLink) inputQuestaoLink.value = qKey;
+
+      if (provaKey && qKey) {
+        try {
+          const snap = await get(ref(db, `questoes/${provaKey}/${qKey}`));
+          if (snap.exists() && inputUrlLink) {
+            const val = snap.val();
+            const foundUrl = val?.meta?.source_url || val?.meta?.source_url_prova || val?.dados_questao?.source_url || "";
+            if (foundUrl) inputUrlLink.value = foundUrl;
+          }
+        } catch (err) {
+          console.warn("Erro ao buscar link da questão:", err);
+        }
+      }
+    });
+  }
+
   // Salvar & Restaurar Link da Prova Original (Aba 5)
   const btnSalvarLink = document.getElementById("btnSalvarLinkOriginalAdmin");
   if (btnSalvarLink) {
@@ -821,12 +926,14 @@ function setupListeners() {
 async function carregarTodasInstanciasProvas() {
   const selectsProva = [
     document.getElementById("selectProvaAdmin"),
-    document.getElementById("selectProvaVincular")
+    document.getElementById("selectProvaVincular"),
+    document.getElementById("selectProvaRestaurarLink")
   ].filter(Boolean);
 
   const selectsQuestao = [
     document.getElementById("selectQuestaoAdmin"),
-    document.getElementById("selectQuestaoVincular")
+    document.getElementById("selectQuestaoVincular"),
+    document.getElementById("selectQuestaoRestaurarLink")
   ].filter(Boolean);
 
   selectsProva.forEach(s => s.innerHTML = '<option value="">⏳ Carregando provas...</option>');

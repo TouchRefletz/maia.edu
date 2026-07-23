@@ -28,6 +28,7 @@ export interface EstruturaBloco {
   
   // Sistema de Imagens via PDF Embed + PDF.js Fallback
   pdf_url?: string | null;        // URL pública do PDF (do manifesto)
+  pdfUrl?: string | null;         // Alias camelCase
   pdf_page?: number;              // Número da página
   pdf_zoom?: number;              // Zoom para embed (100, 150, 200, etc)
   pdf_left?: number;              // Coordenada X (pontos PDF)
