@@ -55,6 +55,9 @@ interface PdfEmbedRendererProps {
 
   // Se true, não usa arquivo automático do viewer (prova que está aberta)
   readOnly?: boolean;
+
+  // Se true, oculta os controles de edição/toggle de modo de renderização
+  hideControls?: boolean;
 }
 
 /**
@@ -290,9 +293,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       setIsLoadingLocal(false); // Reset loading state
       
       // Se estiver em embed, muda para pdfjs (embed não suporta arquivo local)
-      // MAS: só faz isso se NÃO estiver em readOnly (banco de questões)
-      // Em readOnly sem URL, deve continuar mostrando "Visualização não disponível"
-      if (renderMode === 'embed' && !props.readOnly) {
+      if (renderMode === 'embed') {
         setRenderMode('pdfjs');
       }
     };
@@ -597,15 +598,9 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
       return;
     }
 
-    // [READONLY LOGIC] 
-    // - Sem readOnly: usa arquivo do viewer (window.__pdfLocalFile) automaticamente
-    // - Com readOnly: NÃO usa arquivo da prova (que está aberto no viewer), pede upload manual
-    // - [FIX] Se hasUploadedFile é true, o usuário fez upload MANUAL neste componente, então DEVEMOS usar.
-    const canUseViewerFile = !props.readOnly || hasUploadedFile;
-
-    // Se temos arquivo local (via upload ou global), prioriza ele - MAS só se !readOnly
+    // Se temos arquivo local (via upload ou global), prioriza ele para renderizar no canvas
     // @ts-ignore
-    if (canUseViewerFile && window.__pdfLocalFile) {
+    if (typeof window !== 'undefined' && window.__pdfLocalFile) {
         setFallbackError(null); // Clear any previous URL errors
         setIsLoadingLocal(true); // [FIX] Inicia loading antes de processar
         
@@ -708,14 +703,12 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
   const controlsContainerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '4px',
-    right: '4px',
+    top: '6px',
+    right: '6px',
     zIndex: 100,
     display: 'flex',
-    gap: '4px',
+    gap: '6px',
     alignItems: 'center',
-    transform: `scale(${dynamicScale*3})`,
-    transformOrigin: 'top right',
     pointerEvents: 'none',
   };
 
@@ -778,26 +771,29 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
 
   // Botão de editar link — SÓ aparece quando há URL ativa (senão é redundante com o placeholder)
   // --- AGRUPAMENTO DOS CONTROLES (RECURSIVO/DINÂMICO) ---
-  const renderControls = () => (
-    <div style={controlsContainerStyle}>
-      {effectiveUrl && (
-        <button
-          style={editLinkButtonStyle}
-          onClick={handleEditLink}
-          title="Trocar ou remover link do PDF"
+  const renderControls = () => {
+    if (props.readOnly || props.hideControls) return null;
+    return (
+      <div style={controlsContainerStyle}>
+        {effectiveUrl && (
+          <button
+            style={editLinkButtonStyle}
+            onClick={handleEditLink}
+            title="Trocar ou remover link do PDF"
+          >
+            🔗 Editar
+          </button>
+        )}
+        <button 
+          style={toggleButtonStyle} 
+          onClick={toggleRenderMode} 
+          title="Alternar modo de visualização"
         >
-          🔗 Editar
+          {modeLabels[renderMode]}
         </button>
-      )}
-      <button 
-        style={toggleButtonStyle} 
-        onClick={toggleRenderMode} 
-        title="Alternar modo de visualização"
-      >
-        {modeLabels[renderMode]}
-      </button>
-    </div>
-  );
+      </div>
+    );
+  };
 
   // --- RENDER CACHED IMAGE (Base64) ---
   if (cachedImage) {
@@ -1272,9 +1268,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   // Se houver erro ou falta de URL, mostramos UI de Upload
   // [READONLY LOGIC] hasLocalFile só conta se !readOnly
   // [FIX] hasUploadedFile força re-render quando usuário faz upload
-  // [FIX] isLoadingLocal previne mostrar placeholder enquanto carrega
-  const canUseViewerFile = !props.readOnly;
-  const hasLocalFile = (canUseViewerFile && typeof window !== 'undefined' && !!(window as any).__pdfLocalFile) || hasUploadedFile;
+  const hasLocalFile = (typeof window !== 'undefined' && !!(window as any).__pdfLocalFile) || hasUploadedFile;
   
   // [FIX] Não mostrar upload UI se estiver carregando OU se tiver arquivo local
   // Erro só mostra upload UI se for NEEDS_UPLOAD ou CORS_BLOCK, não erros de processamento com arquivo já carregado

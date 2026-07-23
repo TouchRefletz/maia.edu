@@ -12,7 +12,11 @@ import {
 } from "./card-partes.js";
 import { prepararImagensVisualizacao } from "./imagens.js";
 
-export function prepararElementoCard(idFirebase, q, g, meta) {
+export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [], sourceUrl = null) {
+  if (sourceUrl && typeof window !== "undefined" && !window.__pdfOriginalUrl) {
+    window.__pdfOriginalUrl = sourceUrl;
+  }
+
   // 1. Criação do elemento DOM
   const card = document.createElement("div");
   card.className = "q-card";
@@ -89,12 +93,11 @@ export function prepararElementoCard(idFirebase, q, g, meta) {
         let conteudoHtml = "";
 
         if (alt.estrutura) {
-          // MUDANÇA: Passa 'banco' como contexto para desabilitar edição
-          // Assume que renderizar_estrutura_alternativa está no escopo global
+          // Passa imagens da questão e contexto 'banco'
           conteudoHtml = renderizar_estrutura_alternativa(
             alt.estrutura,
             letra,
-            [],
+            imgsOriginalQ,
             "banco",
           );
         } else {
@@ -398,13 +401,27 @@ export function criarCardTecnico(idFirebase, fullData) {
     htmlImgsSuporte,
   );
 
+  const sourceUrl =
+    meta.source_url ||
+    meta.source_url_prova ||
+    q.source_url ||
+    q.pdf_url ||
+    q.meta?.source_url ||
+    q.source_url_prova ||
+    g.source_url ||
+    g.meta?.source_url ||
+    fullData.source_url ||
+    fullData.source_url_prova ||
+    null;
+
   // 3. Cria o elemento base do card e gera o HTML das alternativas
-  // Nota: Assumo que 'prepararElementoCard' já cria o div container e gera o ID único
   const { card, htmlAlts, cardId } = prepararElementoCard(
     idFirebase,
     q,
     g,
     meta,
+    imgsOriginalQ,
+    sourceUrl,
   );
 
   // 4. Monta o HTML final juntando as partes modularizadas
@@ -415,7 +432,7 @@ export function criarCardTecnico(idFirebase, fullData) {
     `<div class="q-body">${htmlCorpoQuestao}</div>`,
     `<div class="q-options" id="${cardId}_opts">${htmlAlts}</div>`,
     gerarHtmlResolucao(cardId, g, rawImgsG, jsonImgsG),
-    gerarHtmlFooter(cardId, imgsOriginalQ, jsonImgsQ, meta.source_url),
+    gerarHtmlFooter(cardId, imgsOriginalQ, jsonImgsQ, sourceUrl),
   ].join("");
 
   // 5. Hidratação dos componentes React (Questão e Passos)

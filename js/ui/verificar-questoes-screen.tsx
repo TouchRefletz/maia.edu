@@ -104,6 +104,7 @@ const VerificarQuestoesApp: React.FC = () => {
   const [currentG, setCurrentG] = useState<any>(null);
   const [chaveProva, setChaveProva] = useState<string>('');
   const [idQuestao, setIdQuestao] = useState<string>('');
+  const [sourceUrl, setSourceUrl] = useState<string>('');
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -173,10 +174,15 @@ const VerificarQuestoesApp: React.FC = () => {
     if (cardRef.current && currentQ) {
       cardRef.current.innerHTML = '';
       try {
+        const metaPayload = {
+          material_origem: chaveProva || 'ORIGEM',
+          source_url: sourceUrl || undefined
+        };
+
         const cardEl = criarCardTecnico(idQuestao || 'QUESTAO_ID', {
           dados_questao: currentQ,
           dados_gabarito: currentG || {},
-          meta: { material_origem: chaveProva || 'ORIGEM' }
+          meta: metaPayload
         });
 
         cardRef.current.appendChild(cardEl);
@@ -191,7 +197,7 @@ const VerificarQuestoesApp: React.FC = () => {
         console.error('Erro ao renderizar Card Técnico:', err);
       }
     }
-  }, [currentQ, currentG, idQuestao, chaveProva, items]);
+  }, [currentQ, currentG, idQuestao, chaveProva, items, sourceUrl]);
 
   // Carrega os dados completos da questão buscando no Firebase
   const carregarQuestaoCompleta = async (selected: any) => {
@@ -208,6 +214,7 @@ const VerificarQuestoesApp: React.FC = () => {
     try {
       let qObj = selected.fullData?.dados_questao || selected.dados_questao || selected.questao;
       let gObj = selected.fullData?.dados_gabarito || selected.dados_gabarito || selected.gabarito;
+      let metaObj = selected.fullData?.meta || selected.meta || {};
 
       // Se faltar dados estruturados, faz fetch no nó do Firebase para ter 100% das informações
       if (!qObj || !qObj.enunciado || !qObj.estrutura || !qObj.identificacao) {
@@ -217,6 +224,7 @@ const VerificarQuestoesApp: React.FC = () => {
           const val = snap.val();
           qObj = val.dados_questao || val;
           gObj = val.dados_gabarito || val;
+          metaObj = val.meta || metaObj;
         }
       }
 
@@ -230,6 +238,14 @@ const VerificarQuestoesApp: React.FC = () => {
 
       setCurrentQ(snapshotQ);
       setCurrentG(snapshotG);
+
+      const urlFound = metaObj.source_url ||
+                       metaObj.source_url_prova ||
+                       qObj?.source_url ||
+                       qObj?.source_url_prova ||
+                       (window as any).__pdfOriginalUrl ||
+                       '';
+      setSourceUrl(urlFound);
 
       const extractImgUrl = (img: any): string | null => {
         if (!img) return null;
@@ -313,7 +329,7 @@ const VerificarQuestoesApp: React.FC = () => {
         chaveProva,
         idQuestao,
         identificacao: currentQ?.identificacao || idQuestao,
-        meta: currentQ?.meta || currentG?.meta || { material_origem: chaveProva },
+        meta: currentQ?.meta || currentG?.meta || { material_origem: chaveProva, source_url: sourceUrl },
         useLanguageTool: true,
         useAI: true,
         modelId: selectedModel,
@@ -403,10 +419,36 @@ const VerificarQuestoesApp: React.FC = () => {
       const { questaoFinal, gabaritoLimpo } = construirDadosParaEnvio(currentQ, currentG);
       const { idPinecone } = gerarIdentificadoresEnvio(chaveProva, currentQ);
 
-      const payloadParaSalvar = await prepararPayloadComImagens(null, questaoFinal, gabaritoLimpo);
+      const metaOriginal = originalSnapshotRef.current?.q?.meta ||
+                           originalSnapshotRef.current?.q?.dados_questao?.meta ||
+                           currentQ?.meta ||
+                           {};
 
-      if (imageSrc && !(payloadParaSalvar as any).fotos_originais) {
-        (payloadParaSalvar as any).fotos_originais = [imageSrc];
+      const finalSourceUrl = sourceUrl.trim() ||
+                             metaOriginal.source_url ||
+                             metaOriginal.source_url_prova ||
+                             (window as any).__pdfOriginalUrl ||
+                             null;
+
+      const payloadParaSalvar = await prepararPayloadComImagens(null, questaoFinal, gabaritoLimpo, {
+        ...metaOriginal,
+        source_url: finalSourceUrl || undefined
+      });
+
+      if (!(payloadParaSalvar as any).meta) {
+        (payloadParaSalvar as any).meta = {};
+      }
+      if (finalSourceUrl) {
+        (payloadParaSalvar as any).meta.source_url = finalSourceUrl;
+      }
+
+      // Preserva fotos_originais apenas se forem URLs HTTP/HTTPS reais (nunca salva base64)
+      const existingFotos = originalSnapshotRef.current?.q?.fotos_originais || currentQ?.fotos_originais || [];
+      if (Array.isArray(existingFotos) && existingFotos.length > 0) {
+        const cleanFotos = existingFotos.filter((f: any) => typeof f === 'string' && f.startsWith('http'));
+        if (cleanFotos.length > 0) {
+          (payloadParaSalvar as any).fotos_originais = cleanFotos;
+        }
       }
 
       // 1. SALVA ARQUIVOS DE BACKUP NO PC DO USUÁRIO ([ANTE-CORRECAO] E [POS-CORRECAO])
@@ -519,6 +561,38 @@ const VerificarQuestoesApp: React.FC = () => {
               <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
             </label>
           </div>
+
+          {/* CAMPO EDITÁVEL: LINK DA PROVA ORIGINAL (PDF/FONTE) */}
+          {currentQ && (
+            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '12px', borderTop: '1px solid #334155', marginTop: '6px' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#38bdf8', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                🔗 Link da Prova Original (Fonte / PDF):
+              </span>
+              <input
+                type="url"
+                value={sourceUrl}
+                onChange={e => setSourceUrl(e.target.value)}
+                placeholder="Cole o link oficial HTTP/HTTPS da prova original em PDF (Ex: https://exemplo.com/prova.pdf)"
+                style={{
+                  flex: 1, background: '#0f172a', color: '#f8fafc', border: '1px solid #475569',
+                  borderRadius: '6px', padding: '8px 12px', fontSize: '0.88rem'
+                }}
+              />
+              {sourceUrl ? (
+                <button
+                  type="button"
+                  onClick={() => window.open(sourceUrl, '_blank')}
+                  style={{
+                    background: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8',
+                    borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600
+                  }}
+                  title="Testar link abrindo em nova aba"
+                >
+                  🌐 Testar Link
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
 
         {/* CONTROLES DA IA */}

@@ -17,6 +17,13 @@ export interface AuditOptions {
   modelId?: string;
   onStatusUpdate?: (status: string) => void;
   signal?: AbortSignal;
+  chaveProva?: string;
+  idQuestao?: string;
+  identificacao?: string;
+  meta?: any;
+  imageBase64?: string | null;
+  imageMimeType?: string;
+  checkInconsistencies?: boolean;
 }
 
 // Regex para ideogramas CJK (Chinês, Japonês, Coreano) e caracteres UTF-8 corrompidos

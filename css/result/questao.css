@@ -84,34 +84,82 @@
   padding: 0 30px 20px 30px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .q-opt-btn {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 12px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: transparent;
+  border-radius: 8px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.02));
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-align: left;
   color: var(--color-text);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .q-opt-btn:hover {
-  background: var(--color-secondary);
+  background: var(--color-secondary, rgba(255, 255, 255, 0.05));
+  border-color: rgba(var(--color-primary-rgb, 99, 102, 241), 0.35);
+  transform: translateY(-1px);
 }
 
 .q-opt-letter {
   font-weight: 700;
+  font-size: 0.95rem;
   color: var(--color-text-secondary);
   min-width: 24px;
   padding-top: 2px;
-  /* Ajuste fino ótico */
+  flex-shrink: 0;
+}
+
+.q-opt-content {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Imagens dentro das Alternativas */
+.alt-estrutura {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alt-image-wrapper,
+.q-opt-content .structure-image-wrapper {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px;
+  margin: 4px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.alt-img,
+.q-opt-content .structure-img {
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 6px;
+  display: block;
 }
 
 /* Justificativa por alternativa */

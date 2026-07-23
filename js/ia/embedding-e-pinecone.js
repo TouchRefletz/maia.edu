@@ -35,6 +35,40 @@ export async function processarEmbeddingSemantico(
   return { vetorEmbedding, textoParaVetorizar };
 }
 
+function isBase64OrDataUrl(str) {
+  if (typeof str !== "string") return false;
+  if (str.startsWith("data:image/") || str.startsWith("data:application/")) return true;
+  if (str.length > 1000 && !str.includes(" ") && !str.includes("\n")) return true;
+  return false;
+}
+
+function sanitizarPayloadParaPinecone(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizarPayloadParaPinecone(item));
+  }
+
+  const cleanObj = {};
+  for (const key in obj) {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+    const val = obj[key];
+
+    if (isBase64OrDataUrl(val)) {
+      cleanObj[key] = "[base64_image_omitted]";
+      continue;
+    }
+
+    if (typeof val === "object" && val !== null) {
+      cleanObj[key] = sanitizarPayloadParaPinecone(val);
+    } else {
+      cleanObj[key] = val;
+    }
+  }
+
+  return cleanObj;
+}
+
 export async function indexarNoPinecone(
   btnEnviar,
   vetorEmbedding,
@@ -71,8 +105,9 @@ export async function indexarNoPinecone(
       // 2. Normaliza: Se for um item único, transforma numa lista. Se já for lista, mantém.
       const materia = Array.isArray(valorBruto) ? valorBruto : [valorBruto];
 
-      // Serializa o JSON completo
-      const jsonString = JSON.stringify(payloadCompleto || {});
+      // Sanitiza dados de imagem/base64 gigantes para não estourar o limite de metadata do Pinecone (40KB)
+      const payloadLimpo = sanitizarPayloadParaPinecone(payloadCompleto || {});
+      const jsonString = JSON.stringify(payloadLimpo);
       const jsonSizeKB = new TextEncoder().encode(jsonString).length / 1024;
 
       console.log(`📦 Pinecone Payload Size: ${jsonSizeKB.toFixed(2)} KB`);

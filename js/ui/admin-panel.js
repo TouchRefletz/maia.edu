@@ -1,4 +1,4 @@
-import { ref, remove, get, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { ref, remove, get, set, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 import { db, auth } from "../main.js";
 import { clearAllPineconeVectors, deletePineconeRecordWorker } from "../api/worker.js";
 import { customAlert } from "./GlobalAlertsLogic.tsx";
@@ -177,6 +177,9 @@ export async function iniciarModoAdmin() {
           </button>
           <button class="admin-tab-btn" data-tab="tab-auditoria">
             <span>🔍</span> Auditoria & Correção
+          </button>
+          <button class="admin-tab-btn" data-tab="tab-restaurar-link">
+            <span>🔗</span> Link Prova Original (PDF)
           </button>
         </div>
 
@@ -371,6 +374,33 @@ export async function iniciarModoAdmin() {
             <p class="admin-desc">Selecione uma questão do Firebase, anexe a foto da prova original, audite incoerências com IA e grave as correções permanentemente no banco.</p>
             <div class="admin-actions">
               <button id="btnAbrirVerificacao" class="btn btn--primary" style="background:#38bdf8; color:#0f172a; border:none; font-weight:bold;">🔍 Abrir Verificar Questões</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONTEÚDO DA ABA 5: RESTAURAR LINK DA PROVA ORIGINAL -->
+        <div id="tab-restaurar-link" class="admin-tab-content">
+          <div class="admin-section">
+            <h2>🔗 Gerenciador / Restaurador do Link da Prova Original (PDF)</h2>
+            <p class="admin-desc">Defina ou restaure o link oficial da prova original em PDF para exibir o botão <strong>"🔗 Ver Fonte Original"</strong> nos cards de questões do banco.</p>
+            
+            <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;">
+              <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 8px; border: 1px solid var(--color-border);">
+                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">1. Chave da Prova / Material (Obrigatório):</label>
+                <input type="text" id="inputProvaRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="Ex: ENEM_2023 ou FUVEST_2024" />
+                
+                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">2. ID Específico da Questão (Opcional - deixe em branco para aplicar a TODAS as questões da prova):</label>
+                <input type="text" id="inputQuestaoRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="Ex: QUESTÃO_01 (Deixe em branco para atualizar a prova inteira)" />
+
+                <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:6px;">3. Link Oficial da Prova em PDF (source_url):</label>
+                <input type="url" id="inputUrlRestaurarLink" class="admin-input-confirm" style="max-width:100%; margin-bottom:14px;" placeholder="https://exemplo.com/provas/prova_oficial.pdf" />
+              </div>
+            </div>
+
+            <div class="admin-actions">
+              <button id="btnSalvarLinkOriginalAdmin" class="btn btn--primary" style="background:#38bdf8; color:#0f172a; border:none; font-weight:bold; padding:12px 24px; cursor:pointer;">
+                💾 Salvar & Restaurar Link da Prova
+              </button>
             </div>
           </div>
         </div>
@@ -624,6 +654,57 @@ function setupListeners() {
       import("./verificar-questoes-screen.tsx").then(({ iniciarModoVerificacaoQuestoes }) => {
         iniciarModoVerificacaoQuestoes();
       });
+    });
+  }
+
+  // Salvar & Restaurar Link da Prova Original (Aba 5)
+  const btnSalvarLink = document.getElementById("btnSalvarLinkOriginalAdmin");
+  if (btnSalvarLink) {
+    btnSalvarLink.addEventListener("click", async () => {
+      const provaKey = (document.getElementById("inputProvaRestaurarLink")?.value || "").trim();
+      const questaoKey = (document.getElementById("inputQuestaoRestaurarLink")?.value || "").trim();
+      const urlValue = (document.getElementById("inputUrlRestaurarLink")?.value || "").trim();
+
+      if (!provaKey || !urlValue) {
+        customAlert("⚠️ Preencha a Chave da Prova e o Link (URL) da Prova em PDF.");
+        return;
+      }
+
+      try {
+        btnSalvarLink.disabled = true;
+        btnSalvarLink.innerText = "⏳ Salvando link no Firebase...";
+
+        if (questaoKey) {
+          // Atualiza apenas uma questão
+          const targetRef = ref(db, `questoes/${provaKey}/${questaoKey}/meta/source_url`);
+          await set(targetRef, urlValue);
+          customAlert(`✅ Link da fonte original salvo para ${provaKey} / ${questaoKey}!`);
+        } else {
+          // Atualiza todas as questões da prova no nó questoes/${provaKey}
+          const provaRef = ref(db, `questoes/${provaKey}`);
+          const snap = await get(provaRef);
+          if (!snap.exists()) {
+            customAlert("❌ Prova não encontrada no Firebase.");
+            return;
+          }
+
+          const qMap = snap.val();
+          let count = 0;
+          const updates = {};
+          for (const qId in qMap) {
+            updates[`questoes/${provaKey}/${qId}/meta/source_url`] = urlValue;
+            count++;
+          }
+          await update(ref(db), updates);
+          customAlert(`🎉 Link da fonte original restaurado em TODAS as ${count} questões da prova ${provaKey}!`);
+        }
+      } catch (err) {
+        console.error("Erro ao salvar link da fonte:", err);
+        customAlert("❌ Erro ao salvar link: " + (err.message || err));
+      } finally {
+        btnSalvarLink.disabled = false;
+        btnSalvarLink.innerText = "💾 Salvar & Restaurar Link da Prova";
+      }
     });
   }
 

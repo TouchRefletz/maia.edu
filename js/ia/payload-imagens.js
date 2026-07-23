@@ -75,7 +75,8 @@ export const processarObjetoRecursivo = async (obj, btnEnviar) => {
 export async function prepararPayloadComImagens(
   btnEnviar,
   questaoFinal,
-  gabaritoLimpo
+  gabaritoLimpo,
+  metaExtra = {}
 ) {
   // 0. Reset do contador
   uploadState.imagensConvertidas = 0;
@@ -85,7 +86,10 @@ export async function prepararPayloadComImagens(
 
   // 2. Monta a estrutura final
   const payloadParaSalvar = {
-    meta: { timestamp: new Date().toISOString() },
+    meta: {
+      timestamp: new Date().toISOString(),
+      ...(metaExtra || {})
+    },
     dados_questao: questaoFinal,
     dados_gabarito: gabaritoLimpo,
   };

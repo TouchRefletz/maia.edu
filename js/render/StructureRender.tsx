@@ -79,6 +79,9 @@ const extractUrlFromBloco = (bloco: any): string | undefined => {
   if (!bloco || typeof bloco !== 'object') return undefined;
   if (bloco.url) return String(bloco.url);
   if (bloco.src) return String(bloco.src);
+  if (bloco.imagem_url) return String(bloco.imagem_url);
+  if (bloco.imagemUrl) return String(bloco.imagemUrl);
+  if (bloco.previewUrl) return String(bloco.previewUrl);
   let str = '';
   let i = 0;
   while (String(i) in bloco) {
@@ -607,13 +610,17 @@ export const AlternativeImageBlock: React.FC<{
     );
   }
 
-  // Se tem dados de PDF para renderizar via PdfEmbedRenderer
-  const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
-  const pdfUrl = bloco.pdf_url || null;
+  // Se tem dados de PDF para renderizar via PdfEmbedRenderer e a URL é válida
+  const globalPdfUrl = typeof window !== 'undefined'
+    ? ((window as any).__pdfOriginalUrl || (window as any).__pdfDownloadUrl || (window as any).__pdfSourceUrl)
+    : null;
 
-  if (hasPdfData || pdfUrl) {
+  const pdfUrl = bloco.pdf_url || bloco.pdfUrl || (bloco.url && String(bloco.url).includes('.pdf') ? String(bloco.url) : null) || globalPdfUrl;
+  const hasPdfData = !!(bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined);
+
+  if (hasPdfData || (pdfUrl && pdfUrl.trim().length > 0)) {
     return (
-      <div className="structure-block structure-image-wrapper">
+      <div className="structure-block structure-image-wrapper alt-image-wrapper">
         <PdfEmbedRenderer
           pdfUrl={pdfUrl}
           pdf_page={bloco.pdf_page}
@@ -629,6 +636,8 @@ export const AlternativeImageBlock: React.FC<{
           pdfjs_crop_w={bloco.pdfjs_crop_w}
           pdfjs_crop_h={bloco.pdfjs_crop_h}
           scaleToFit={true}
+          readOnly={isReadOnly}
+          hideControls={isReadOnly}
         />
         {renderDescricao()}
         {!isReadOnly && (
@@ -647,14 +656,20 @@ export const AlternativeImageBlock: React.FC<{
 
   if (src) {
     return (
-      <div className="structure-block structure-image-wrapper">
+      <div className="structure-block structure-image-wrapper alt-image-wrapper">
         <img
           src={src}
-          className="structure-img"
+          className="structure-img alt-img"
           data-action="expand-image"
           data-src={src}
           style={isReadOnly ? { cursor: 'zoom-in' } : undefined}
-          alt=""
+          alt={`Alternativa ${letra}`}
+          onClick={(e) => {
+            if (window.expandirImagem) {
+              e.stopPropagation();
+              window.expandirImagem(src);
+            }
+          }}
         />
         {renderDescricao()}
         {!isReadOnly && (
@@ -689,6 +704,21 @@ export const AlternativeImageBlock: React.FC<{
         {isReviewMode && renderDescricao()}
       </div>
     );
+  } else if (temConteudo) {
+    return (
+      <div className="alt-image-caption-only" style={{
+        padding: '8px 12px',
+        background: 'rgba(255, 255, 255, 0.04)',
+        borderRadius: '6px',
+        border: '1px dashed var(--color-border)',
+        margin: '6px 0',
+        fontSize: '0.85rem',
+        lineHeight: '1.45',
+        color: 'var(--color-text-secondary)'
+      }}>
+        🖼️ <strong style={{ color: 'var(--color-text)' }}>Descrição da Imagem:</strong> {safeMarkdown(conteudo)}
+      </div>
+    );
   }
   return null;
 };
@@ -708,12 +738,17 @@ export const AlternativeStructure: React.FC<{
 }> = ({ estrutura, letra, imagensExternas, contexto, isReviewMode, reviewState, onApprove, onReject, blockPrefix }) => {
   if (!Array.isArray(estrutura) || estrutura.length === 0) return null;
 
-  const isReadOnly = contexto === 'banco';
+  const isReadOnly = contexto !== 'editor' && !isReviewMode;
 
   // Lógica de Fallback de imagens
   const imgsFallback = (imagensExternas && imagensExternas.length > 0)
     ? imagensExternas
-    : (typeof window !== 'undefined' ? window.__imagensLimpas?.alternativas?.questao?.[letra] || [] : []);
+    : (typeof window !== 'undefined'
+        ? (window.__imagensLimpas?.alternativas?.questao?.[letra] ||
+           window.__imagensLimpas?.questao_original ||
+           (window as any).__currentQuestionImages ||
+           [])
+        : []);
 
   let globalImgCounter = 0;
 
