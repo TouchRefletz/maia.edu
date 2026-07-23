@@ -81,8 +81,14 @@ function decodeBase64ToUtf8(base64Data) {
   }
 }
 
-function detectRepetitionDegeneration(text) {
+function detectRepetitionDegeneration(text, modelName = "") {
   if (!text || text.length < 15) return false;
+
+  const modelLower = String(modelName || "").toLowerCase();
+  const isGptOss =
+    modelLower.includes("gpt-oss") ||
+    modelLower.includes("oss-120b") ||
+    modelLower.includes("gpt_oss");
 
   // 1. Checagem rápida de repetição contínua do mesmo caractere no final do texto
   const lastChar = text[text.length - 1];
@@ -95,27 +101,52 @@ function detectRepetitionDegeneration(text) {
     }
   }
 
-  // Para caracteres de espaço/quebra de linha/tabulação, tolera até 40 repetições.
-  // Para qualquer outro caractere (ex: '/', 'a', '.', '*', '?', '#', '\\', etc.), 15 repetições seguidas indicam loop de degeneração.
-  const maxSingleChar = /\s/.test(lastChar) ? 40 : 15;
+  // Caracteres de formatação markdown, pontuação estrutural e separadores visuais
+  // (ex: '-', '=', '_', '*', '~', '#', '|', '+', ':', '.', '/', '\', '`', ',', ';', etc.)
+  const isMarkdownFormattingChar = /[\s\-_=*~#|+:.\`/>\\,;!()\[\]{}]/.test(lastChar);
+
+  // Limite para caractere único contínuo:
+  // - Para caracteres de formatação/separadores: tolera até 300 (ou 500 se for gpt-oss)
+  // - Para caracteres de conteúdo comum: 40 para gpt-oss, 25 para outros modelos
+  let maxSingleChar;
+  if (isMarkdownFormattingChar) {
+    maxSingleChar = isGptOss ? 500 : 300;
+  } else {
+    maxSingleChar = isGptOss ? 40 : 25;
+  }
+
   if (singleCharCount >= maxSingleChar) {
     console.warn(
-      `[Repetition Detector] Caractere único '${lastChar}' repetiu ${singleCharCount} vezes seguidas.`
+      `[Repetition Detector] Caractere único '${lastChar}' repetiu ${singleCharCount} vezes seguidas (modelo: ${modelName || "desconhecido"}).`
     );
     return true;
   }
 
   // 2. Checagem de padrões repetitivos de tamanho N (len = 1 até 120)
   for (let len = 1; len <= 120; len++) {
-    const requiredRepeats =
-      len === 1 ? 15 : len === 2 ? 8 : len < 6 ? 6 : len < 15 ? 5 : 4;
-
-    if (text.length < len * requiredRepeats) continue;
-
     const pattern = text.slice(-len);
 
-    // Se o padrão for puramente espaço/white-space, exige número maior de repetições
-    const isPureWhitespace = /^\s+$/.test(pattern);
+    // Se o padrão for puramente formatação, separadores markdown ou espaços
+    const isPureFormatting = /^[\s\-_=*~#|+:.\`/>\\,;!()\[\]{}]+$/.test(pattern);
+
+    let requiredRepeats;
+    if (isPureFormatting) {
+      // Padrões de formatação pura exigem um número muito maior de repetições para evitar falso-positivo em divisores/tabelas
+      if (isGptOss) {
+        requiredRepeats = len === 1 ? 120 : len === 2 ? 60 : len < 6 ? 40 : len < 15 ? 25 : 15;
+      } else {
+        requiredRepeats = len === 1 ? 80 : len === 2 ? 40 : len < 6 ? 25 : len < 15 ? 18 : 12;
+      }
+    } else {
+      // Padrões com texto real/conteúdo
+      if (isGptOss) {
+        requiredRepeats = len === 1 ? 35 : len === 2 ? 20 : len < 6 ? 14 : len < 15 ? 10 : 8;
+      } else {
+        requiredRepeats = len === 1 ? 25 : len === 2 ? 14 : len < 6 ? 10 : len < 15 ? 7 : 5;
+      }
+    }
+
+    if (text.length < len * requiredRepeats) continue;
 
     let repeats = 1;
     let index = text.length - len;
@@ -130,13 +161,9 @@ function detectRepetitionDegeneration(text) {
       }
     }
 
-    const effectiveRequired = isPureWhitespace
-      ? Math.max(requiredRepeats, 25)
-      : requiredRepeats;
-
-    if (repeats >= effectiveRequired) {
+    if (repeats >= requiredRepeats) {
       console.warn(
-        `[Repetition Detector] Padrão de degeneração "${pattern.substring(0, 30)}${pattern.length > 30 ? "..." : ""}" detectado (${repeats} repetições).`
+        `[Repetition Detector] Padrão de degeneração "${pattern.substring(0, 30)}${pattern.length > 30 ? "..." : ""}" detectado (${repeats} repetições, modelo: ${modelName || "desconhecido"}).`
       );
       return true;
     }
@@ -428,7 +455,7 @@ async function chamarPuterAI(
     answerText += textChunk;
     handlers?.onAnswerDelta?.(textChunk);
 
-    if (detectRepetitionDegeneration(answerText)) {
+    if (detectRepetitionDegeneration(answerText, modelName)) {
       console.warn("[Puter Stream] Loop de repetição detectado!");
       throw new Error("REPETITION_DEGENERATION_ERROR");
     }
@@ -779,7 +806,7 @@ export async function gerarConteudoEmJSONComImagemStream(
               } catch (err) {
                 console.error("Error in onAnswerDelta handler:", err);
               }
-              if (detectRepetitionDegeneration(answerText)) {
+              if (detectRepetitionDegeneration(answerText, options?.model)) {
                 console.warn("[Worker] Repetition degeneration detected in stream. Cancelling stream and forcing retry...");
                 try {
                   await reader.cancel();
