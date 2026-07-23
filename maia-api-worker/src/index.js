@@ -774,15 +774,15 @@ async function handlePineconeDelete(request, env) {
 	// }
 
 	const body = await request.json();
-	const { slug } = body;
+	const { slug, target } = body || {};
 
 	if (!slug) {
 		return new Response(JSON.stringify({ error: 'Slug is required' }), { status: 400, headers: corsHeaders });
 	}
 
 	try {
-		await executePineconeDelete(slug, env);
-		return new Response(JSON.stringify({ success: true, message: `Deleted ${slug} from Pinecone` }), {
+		await executePineconeDelete(slug, env, target || 'default');
+		return new Response(JSON.stringify({ success: true, message: `Deleted ${slug} from Pinecone (target: ${target || 'default'})` }), {
 			headers: { ...corsHeaders, 'Content-Type': 'application/json' },
 		});
 	} catch (error) {
@@ -1863,36 +1863,50 @@ async function handleGeminiSearch(request, env) {
 /**
  * HELPER: Shared Pinecone Delete
  */
-async function executePineconeDelete(slug, env) {
-	const pineconeHost = env.PINECONE_HOST_DEEP_SEARCH;
+async function executePineconeDelete(slug, env, target = "default") {
+	const hosts = [];
+
+	if (target === 'filter') {
+		if (env.PINECONE_HOST_FILTER) hosts.push(env.PINECONE_HOST_FILTER);
+	} else if (target === 'memory' || target === 'maia-memory') {
+		if (env.PINECONE_HOST_MEMORY) hosts.push(env.PINECONE_HOST_MEMORY);
+	} else {
+		// Default: apenas os índices do Banco de Questões (questoes + maia-deep-search se configurado)
+		if (env.PINECONE_HOST) hosts.push(env.PINECONE_HOST);
+		if (env.PINECONE_HOST_DEEP_SEARCH && !hosts.includes(env.PINECONE_HOST_DEEP_SEARCH)) {
+			hosts.push(env.PINECONE_HOST_DEEP_SEARCH);
+		}
+	}
+
 	const apiKey = env.PINECONE_API_KEY;
 
-	if (!pineconeHost || !apiKey) {
-		console.warn('PINECONE_HOST_DEEP_SEARCH or PINECONE_API_KEY missing, skipping delete.');
-		return;
+	if (hosts.length === 0 || !apiKey) {
+		console.warn('Pinecone host or PINECONE_API_KEY missing, skipping delete.');
+		return { success: false, message: 'Missing Pinecone credentials' };
 	}
 
-	const endpoint = `${pineconeHost}/vectors/delete`;
-
-	const response = await fetch(endpoint, {
-		method: 'POST',
-		headers: {
-			'Api-Key': apiKey,
-			'Content-Type': 'application/json',
-			'X-Pinecone-API-Version': '2024-07',
-		},
-		body: JSON.stringify({
-			ids: [slug],
-			// namespace: '', // Default namespace
-		}),
-	});
-
-	if (!response.ok) {
-		const txt = await response.text();
-		throw new Error(`Pinecone Delete Error: ${txt}`);
+	let deletedCount = 0;
+	for (const pineconeHost of hosts) {
+		const endpoint = `${pineconeHost}/vectors/delete`;
+		try {
+			const res = await fetch(endpoint, {
+				method: 'POST',
+				headers: {
+					'Api-Key': apiKey,
+					'Content-Type': 'application/json',
+					'X-Pinecone-API-Version': '2024-07',
+				},
+				body: JSON.stringify({
+					ids: [slug],
+				}),
+			});
+			if (res.ok) deletedCount++;
+		} catch (e) {
+			console.warn(`Failed to delete ${slug} from ${pineconeHost}:`, e);
+		}
 	}
 
-	return await response.json();
+	return { success: true, deletedFrom: deletedCount };
 }
 
 /**

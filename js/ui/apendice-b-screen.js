@@ -5,7 +5,7 @@ import { gerarTelaInicial } from "../app/telas.js";
 import { openAddQuestionsModal } from "./add-questions-modal.js";
 import { criarCardTecnico } from "../banco/card-template.js";
 import { renderLatexIn } from "../libs/loader.tsx";
-import { verificarSeAdmin } from "./admin-panel.js";
+import { verificarSeAdmin, normalizarJsonApendiceB, lerArquivoJson } from "./admin-panel.js";
 
 /**
  * Inicializa a tela dedicada do Apêndice B.
@@ -208,12 +208,17 @@ function renderApendiceBPendenteScreen(container, nomeProva, idQuestao, fullData
       <button class="btn btn--primary" id="btnRodarApendiceBScreen" style="flex: 1; padding: 12px 20px; font-weight: bold; background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 6px; cursor: pointer;">
         🚀 Rodar Apêndice B (Gemma 4 31B IT)
       </button>
+      <button class="btn btn--secondary" id="btnImportarJsonPendente" style="flex: 1; padding: 12px 20px; font-weight: bold; background: rgba(255,255,255,0.05); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        📂 Importar JSON Existente
+      </button>
     </div>
   `;
 
   container.querySelector("#btnRodarApendiceBScreen").addEventListener("click", () => {
     rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
   });
+
+  setupImportarJsonButton(container.querySelector("#btnImportarJsonPendente"), container, nomeProva, idQuestao, fullData);
 }
 
 async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData) {
@@ -431,6 +436,9 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
       <button class="btn btn--outline" id="btnDownloadDebugJsonScreen" style="flex: 1; padding: 8px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--color-border); border-radius: 6px; background: none; color: var(--color-text); cursor: pointer;">
         📥 Baixar Debug JSON
       </button>
+      <button class="btn btn--outline" id="btnImportarNovoJsonApendiceBScreen" style="flex: 1; padding: 8px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--color-border); border-radius: 6px; background: none; color: var(--color-text); cursor: pointer;">
+        📂 Vincular Outro JSON
+      </button>
       <button class="btn btn--secondary btn--outline" id="btnRefazerApendiceBScreen" style="flex: 1; padding: 8px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--color-border); border-radius: 6px; background: none; color: var(--color-text); cursor: pointer;">
         🔄 Refazer Triagem
       </button>
@@ -456,9 +464,48 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
     downloadAnchor.remove();
   };
 
+  setupImportarJsonButton(container.querySelector("#btnImportarNovoJsonApendiceBScreen"), container, nomeProva, idQuestao, fullData);
+
   container.querySelector("#btnRefazerApendiceBScreen").onclick = () => {
     rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
   };
+}
+
+/**
+ * Helper para importar arquivo .json do Apêndice B e salvar no Firebase RTDB
+ */
+function setupImportarJsonButton(button, container, nomeProva, idQuestao, fullData) {
+  if (!button) return;
+  button.addEventListener("click", () => {
+    const hiddenInput = document.createElement("input");
+    hiddenInput.type = "file";
+    hiddenInput.accept = ".json,application/json";
+    hiddenInput.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const jsonObj = await lerArquivoJson(file);
+        const { finalObj, statusData } = normalizarJsonApendiceB(jsonObj);
+
+        const { ref: dbRef, set } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+        await Promise.all([
+          set(dbRef(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`), statusData),
+          set(dbRef(db, `experimentos_apendice_b/${nomeProva}/${idQuestao}`), finalObj)
+        ]);
+
+        window.bancoState = window.bancoState || {};
+        window.bancoState.apendiceBStatusMap = window.bancoState.apendiceBStatusMap || {};
+        window.bancoState.apendiceBStatusMap[`${nomeProva}/${idQuestao}`] = true;
+
+        customAlert(`✅ JSON de Apêndice B vinculado com sucesso à questão "${idQuestao}"!`);
+        renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData, finalObj);
+      } catch (err) {
+        console.error("Erro ao importar JSON:", err);
+        customAlert(`❌ Falha ao importar JSON: ${err.message}`);
+      }
+    };
+    hiddenInput.click();
+  });
 }
 
 // -------------------------------------------------------------

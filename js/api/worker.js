@@ -1018,6 +1018,16 @@ export async function clearAllPineconeVectors(target = "default") {
 }
 
 /**
+ * Deleta um vetor específico no Pinecone pelo ID/slug (restringindo por padrão ao banco de questões)
+ * @param {string} slug - ID do vetor no Pinecone (ex: sanitizarID(prova)--sanitizarID(questao))
+ * @param {string} target - Alvo do index ('default' = questões, 'filter', 'maia-memory')
+ * @returns {Promise<any>}
+ */
+export async function deletePineconeRecordWorker(slug, target = "default") {
+  return await callWorker("/delete-pinecone-record", { slug, target });
+}
+
+/**
  * Consulta Pinecone via Worker
  * @param {Array} vector - Vetor de consulta
  * @param {number} topK - Número de resultados
