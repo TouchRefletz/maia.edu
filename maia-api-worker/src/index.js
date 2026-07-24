@@ -3763,7 +3763,6 @@ FORMATO DE SAÍDA:
 		messages: openAIMessages,
 		stream: true,
 		max_completion_tokens: 16384,
-		max_tokens: 16384,
 	};
 
 	if (jsonMode && schema) {
@@ -4129,7 +4128,6 @@ FORMATO DE SAÍDA:
 		messages: openAIMessages,
 		stream: true,
 		max_completion_tokens: 16384,
-		max_tokens: 16384,
 	};
 
 	if (thinking === false) {
