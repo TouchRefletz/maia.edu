@@ -44,6 +44,29 @@ function cleanJsonString(str) {
   return cleaned.trim();
 }
 
+function isStructureEmpty(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  if (Array.isArray(obj.sections)) {
+    if (obj.sections.length === 0) return true;
+    let totalItems = 0;
+    for (const sec of obj.sections) {
+      if (Array.isArray(sec.blocks) && sec.blocks.length > 0) {
+        totalItems += sec.blocks.length;
+      }
+      if (sec.slots && typeof sec.slots === "object") {
+        for (const slotKey in sec.slots) {
+          const slotContent = sec.slots[slotKey];
+          if (Array.isArray(slotContent) && slotContent.length > 0) {
+            totalItems += slotContent.length;
+          }
+        }
+      }
+    }
+    return totalItems === 0;
+  }
+  return false;
+}
+
 function isTextMimeType(mimeType) {
   if (!mimeType) return false;
   const m = mimeType.toLowerCase();
@@ -641,6 +664,8 @@ export async function gerarConteudoEmJSONComImagemStream(
   let attempt = 0;
   let repetitionAttempts = 0;
   const MAX_REPETITION_RETRIES = 2;
+  let emptyStructureAttempts = 0;
+  const MAX_EMPTY_STRUCTURE_RETRIES = 3;
 
   // Prepare payload based on attachment type
   let payloadImages = [];
@@ -720,6 +745,18 @@ export async function gerarConteudoEmJSONComImagemStream(
       console.log(`[User Prompt / Text]:\n`, texto);
       console.log("================================================================");
 
+      const promptReinforcement = isRetry
+        ? `\n\n[INSTRUÇÃO CRÍTICA DE RE-TENTATIVA / RETRY]:\nA resposta anterior foi devolvida com estrutura vazia (content: [] ou slots vazios). Você É OBRIGADO a preencher os slots e blocos de conteúdo com o texto completo da resposta/resolução. NUNCA envie respostas ou arrays de conteúdo vazios.`
+        : "";
+
+      const effectiveSystemInstruction = options.systemInstruction
+        ? options.systemInstruction + promptReinforcement
+        : (promptReinforcement ? promptReinforcement.trim() : undefined);
+
+      const effectiveTexto = isRetry
+        ? `${texto}\n\n[INSTRUÇÃO CRÍTICA]: Forneça a resposta completa preenchendo todos os slots de conteúdo. NÃO envie respostas com slots vazios.`
+        : texto;
+
       const response = await fetch(`${WORKER_URL}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -731,7 +768,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           vertexProjectId: customVertexProjectId || undefined,
           vertexLocation: customVertexLocation || undefined,
           vertexCredentials: customVertexCredentials || undefined,
-          texto,
+          texto: effectiveTexto,
           schema: schema || undefined,
           jsonMode: !!schema,
           listaImagensBase64:
@@ -745,7 +782,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           generationConfig: options.generationConfig,
           chatMode: options.chatMode,
           history: options.history,
-          systemInstruction: options.systemInstruction,
+          systemInstruction: effectiveSystemInstruction,
           thinking: options.thinking !== undefined ? options.thinking : true,
         }),
       });
@@ -907,14 +944,28 @@ export async function gerarConteudoEmJSONComImagemStream(
       const cleanedAnswer = cleanJsonString(answerText);
 
       try {
-        return JSON.parse(cleanedAnswer);
+        const parsed = JSON.parse(cleanedAnswer);
+        if (isStructureEmpty(parsed)) {
+          console.warn(
+            "[Worker] Resposta retornou estrutura vazia (content: []). Forçando retry...",
+          );
+          throw new Error("EMPTY_STRUCTURE_ERROR");
+        }
+        return parsed;
       } catch (pe) {
+        if (pe.message === "EMPTY_STRUCTURE_ERROR") throw pe;
         if (schema) {
           console.warn(
             "[Worker] Resposta não é JSON perfeito. Tentando recuperar...",
           );
           const parsedRecovered = parseStreamedJSON(cleanedAnswer);
           if (parsedRecovered && typeof parsedRecovered === "object") {
+            if (isStructureEmpty(parsedRecovered)) {
+              console.warn(
+                "[Worker] JSON recuperado também retornou estrutura vazia. Forçando retry...",
+              );
+              throw new Error("EMPTY_STRUCTURE_ERROR");
+            }
             console.log(
               "[Worker] JSON recuperado com sucesso via best-effort!",
             );
@@ -932,6 +983,33 @@ export async function gerarConteudoEmJSONComImagemStream(
       if (error.name === "AbortError") throw error;
       if (error.message === "RECITATION_ERROR") throw error;
       if (error.message === "RATE_LIMIT_ERROR") throw error;
+
+      if (error.message === "EMPTY_STRUCTURE_ERROR") {
+        if (emptyStructureAttempts < MAX_EMPTY_STRUCTURE_RETRIES) {
+          emptyStructureAttempts++;
+          attempt--; // Mantém a tentativa principal para dar até 3 retries de estrutura vazia
+          console.warn(
+            `[Worker] Estrutura vazia detectada! Re-tentando (${emptyStructureAttempts}/${MAX_EMPTY_STRUCTURE_RETRIES}) com reforço de prompt...`,
+          );
+          if (handlers?.onReset) {
+            try {
+              handlers.onReset();
+            } catch (err) {
+              console.error("Error in onReset handler:", err);
+            }
+          }
+          handlers?.onStatus?.(
+            `Estrutura vazia detectada. Re-tentando (${emptyStructureAttempts}/${MAX_EMPTY_STRUCTURE_RETRIES})...`,
+          );
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        } else {
+          console.error(
+            `[Worker] Estrutura vazia persistiu após ${MAX_EMPTY_STRUCTURE_RETRIES} tentativas de retry.`,
+          );
+          throw new Error("EMPTY_STRUCTURE_LIMIT_EXCEEDED");
+        }
+      }
 
       if (error.message === "REPETITION_DEGENERATION_ERROR") {
         if (repetitionAttempts < MAX_REPETITION_RETRIES) {
@@ -964,6 +1042,7 @@ export async function gerarConteudoEmJSONComImagemStream(
       // Classifica se o erro é temporário/elegível para nova tentativa (incluindo falha de modelo e rede)
       const isRetryable =
         error.message === "EMPTY_RESPONSE_ERROR" ||
+        error.message === "EMPTY_STRUCTURE_ERROR" ||
         error.message === "INVALID_JSON_STRUCTURE" ||
         error.message.startsWith("WORKER_RUN_FAILED") ||
         (error.name === "TypeError" &&
