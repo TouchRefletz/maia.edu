@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // ============================================
 // PDF IMAGE RENDERER
@@ -81,7 +82,7 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
   const [renderState, setRenderState] = useState<RenderState>(() => {
     // Se temos URL e é Chrome/Edge, vai pro embed direto
     if (pdfUrl && isChromiumBased()) return 'embed';
-    
+
     // Se temos URL, mas não é Chrome, começa loading (para PDF.js)
     if (pdfUrl && !isChromiumBased()) return 'loading';
 
@@ -143,7 +144,7 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
     };
 
     window.addEventListener('pdfLocalFileLoaded', handleExternalFile);
-    
+
     return () => {
       window.removeEventListener('pdfLocalFileLoaded', handleExternalFile);
     };
@@ -159,20 +160,32 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
       await renderPdfjs(url);
       setRenderState('pdfjs');
     } catch (e) {
-      console.warn('[PdfImageRenderer] URL direta falhou (Provavel CORS). Tentando Puter fallback...', e);
-      
+      console.warn(
+        '[PdfImageRenderer] URL direta falhou (Provavel CORS). Tentando Puter fallback...',
+        e,
+      );
+
       let targetUrl = url;
-      if (url.includes("/proxy-pdf?url=")) {
+      if (url.includes('/proxy-pdf?url=')) {
         try {
-          const urlParams = new URLSearchParams(url.split("?")[1]);
-          targetUrl = urlParams.get("url") || url;
+          const urlParams = new URLSearchParams(url.split('?')[1]);
+          targetUrl = urlParams.get('url') || url;
         } catch (err) {}
       }
 
-      // @ts-ignore
-      if (targetUrl && targetUrl.startsWith("http") && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
+      // @ts-expect-error
+      if (
+        targetUrl &&
+        targetUrl.startsWith('http') &&
+        window.puter &&
+        window.puter.auth &&
+        typeof window.puter.auth.isSignedIn === 'function' &&
+        window.puter.auth.isSignedIn() &&
+        window.puter.net &&
+        window.puter.net.fetch
+      ) {
         try {
-          // @ts-ignore
+          // @ts-expect-error
           const res = await window.puter.net.fetch(targetUrl);
           if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();
@@ -185,7 +198,9 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
         }
       }
 
-      setErrorMessage('Acesso direto bloqueado pelo navegador. Por favor, baixe o PDF e selecione-o abaixo.');
+      setErrorMessage(
+        'Acesso direto bloqueado pelo navegador. Por favor, baixe o PDF e selecione-o abaixo.',
+      );
       setRenderState('upload');
     }
   };
@@ -291,10 +306,10 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
   const downloadLink = downloadUrl || pdfUrl || window.__pdfDownloadUrl || '';
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="pdf-image-renderer" 
-      style={{ 
+      className="pdf-image-renderer"
+      style={{
         overflow: 'hidden',
         width: pdfWidth,
         height: pdfHeight,
@@ -307,15 +322,17 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
     >
       {/* Estado: Loading */}
       {renderState === 'loading' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          height: '100%',
-          color: 'var(--color-text-secondary, #888)',
-          fontSize: '12px',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            color: 'var(--color-text-secondary, #888)',
+            fontSize: '12px',
+          }}
+        >
           <span>⏳ Carregando PDF...</span>
         </div>
       )}
@@ -336,17 +353,19 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
 
       {/* Estado: PDF.js Canvas */}
       {renderState === 'pdfjs' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          height: '100%',
-          overflow: 'hidden',
-        }}>
-          <canvas 
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          <canvas
             ref={canvasRef}
-            style={{ 
+            style={{
               border: 'none',
               maxWidth: '100%',
               maxHeight: '100%',
@@ -358,24 +377,28 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
 
       {/* Estado: Upload Manual */}
       {renderState === 'upload' && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          textAlign: 'center',
-          gap: '12px',
-          height: '100%',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            textAlign: 'center',
+            gap: '12px',
+            height: '100%',
+          }}
+        >
           <div style={{ fontSize: '24px' }}>📄</div>
-          
+
           {errorMessage && (
-            <p style={{ 
-              color: 'var(--color-warning, #FFA500)', 
-              fontSize: '11px',
-              margin: 0,
-            }}>
+            <p
+              style={{
+                color: 'var(--color-warning, #FFA500)',
+                fontSize: '11px',
+                margin: 0,
+              }}
+            >
               {errorMessage}
             </p>
           )}
@@ -383,11 +406,11 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
           {downloadLink && (
             <div style={{ fontSize: '11px', color: 'var(--color-text-secondary, #888)' }}>
               <p style={{ margin: '0 0 4px 0' }}>Baixe o PDF original:</p>
-              <a 
-                href={downloadLink} 
-                target="_blank" 
+              <a
+                href={downloadLink}
+                target="_blank"
                 rel="noopener noreferrer"
-                style={{ 
+                style={{
                   color: 'var(--color-primary, #667eea)',
                   wordBreak: 'break-all',
                   fontSize: '10px',
@@ -398,11 +421,13 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
             </div>
           )}
 
-          <div style={{ 
-            marginTop: '8px', 
-            fontSize: '11px', 
-            color: 'var(--color-text-secondary, #888)' 
-          }}>
+          <div
+            style={{
+              marginTop: '8px',
+              fontSize: '11px',
+              color: 'var(--color-text-secondary, #888)',
+            }}
+          >
             <p style={{ margin: '0 0 8px 0' }}>Selecione o arquivo da prova:</p>
             <input
               ref={fileInputRef}
@@ -421,28 +446,25 @@ export const PdfImageRenderer: React.FC<PdfImageRendererProps> = ({
 
       {/* Estado: Erro */}
       {renderState === 'error' && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '100%',
-          height: '100%',
-          color: 'var(--color-error, #ef4444)',
-          fontSize: '12px',
-          textAlign: 'center',
-          padding: '20px',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            color: 'var(--color-error, #ef4444)',
+            fontSize: '12px',
+            textAlign: 'center',
+            padding: '20px',
+          }}
+        >
           <span>❌ Erro ao renderizar imagem</span>
         </div>
       )}
 
       {/* Canvas oculto para pre-render quando não é o estado ativo */}
-      {renderState !== 'pdfjs' && (
-        <canvas 
-          ref={canvasRef}
-          style={{ display: 'none' }}
-        />
-      )}
+      {renderState !== 'pdfjs' && <canvas ref={canvasRef} style={{ display: 'none' }} />}
     </div>
   );
 };

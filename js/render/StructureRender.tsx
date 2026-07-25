@@ -25,24 +25,24 @@ declare global {
 export interface EstruturaBloco {
   tipo?: string;
   conteudo?: string | number;
-  
+
   // Sistema de Imagens via PDF Embed + PDF.js Fallback
-  pdf_url?: string | null;        // URL pública do PDF (do manifesto)
-  pdfUrl?: string | null;         // Alias camelCase
-  pdf_page?: number;              // Número da página
-  pdf_zoom?: number;              // Zoom para embed (100, 150, 200, etc)
-  pdf_left?: number;              // Coordenada X (pontos PDF)
-  pdf_top?: number;               // Coordenada Y (pontos PDF)
-  pdf_width?: string;             // Largura do container ("714px")
-  pdf_height?: string;            // Altura do container ("660px")
+  pdf_url?: string | null; // URL pública do PDF (do manifesto)
+  pdfUrl?: string | null; // Alias camelCase
+  pdf_page?: number; // Número da página
+  pdf_zoom?: number; // Zoom para embed (100, 150, 200, etc)
+  pdf_left?: number; // Coordenada X (pontos PDF)
+  pdf_top?: number; // Coordenada Y (pontos PDF)
+  pdf_width?: string; // Largura do container ("714px")
+  pdf_height?: string; // Altura do container ("660px")
   // Fallback PDF.js
-  pdfjs_source_w?: number;        // Largura do canvas fonte
-  pdfjs_source_h?: number;        // Altura do canvas fonte  
-  pdfjs_x?: number;               // X no canvas
-  pdfjs_y?: number;               // Y no canvas
-  pdfjs_crop_w?: number;          // Largura do crop
-  pdfjs_crop_h?: number;          // Altura do crop
-  
+  pdfjs_source_w?: number; // Largura do canvas fonte
+  pdfjs_source_h?: number; // Altura do canvas fonte
+  pdfjs_x?: number; // X no canvas
+  pdfjs_y?: number; // Y no canvas
+  pdfjs_crop_w?: number; // Largura do crop
+  pdfjs_crop_h?: number; // Altura do crop
+
   url?: string;
 }
 
@@ -69,10 +69,7 @@ import { safeMarkdown } from '../normalize/primitives.js';
 // --- HELPER DE SANITIZAÇÃO (Para manter compatibilidade com o regex original) ---
 // Mantemos sanitizeContent apenas para o atributo data-raw
 const sanitizeContent = (content: string) => {
-  return content
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return content.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 };
 
 // Helper para extrair URL da imagem mesmo se o bloco tiver sido desestruturado em chaves numéricas ("0", "1", ...)
@@ -120,12 +117,18 @@ const StructureTextBlock: React.FC<{
   );
 
   switch (tipo) {
-    case 'texto': return criarMarkdown('structure-text');
-    case 'citacao': return criarMarkdown('structure-citacao');
-    case 'destaque': return criarMarkdown('structure-destaque');
-    case 'titulo': return criarMarkdown('structure-titulo');
-    case 'subtitulo': return criarMarkdown('structure-subtitulo');
-    case 'fonte': return criarMarkdown('structure-fonte');
+    case 'texto':
+      return criarMarkdown('structure-text');
+    case 'citacao':
+      return criarMarkdown('structure-citacao');
+    case 'destaque':
+      return criarMarkdown('structure-destaque');
+    case 'titulo':
+      return criarMarkdown('structure-titulo');
+    case 'subtitulo':
+      return criarMarkdown('structure-subtitulo');
+    case 'fonte':
+      return criarMarkdown('structure-fonte');
     case 'tabela':
       // Renderiza Tabela usando Marked (já integrado no safeMarkdown se disponível, mas aqui tratamos explicitamente se precisar lógica custom)
       // Como safeMarkdown já usa marked, podemos simplificar ou manter lógica específica de tabela se necessário.
@@ -135,30 +138,42 @@ const StructureTextBlock: React.FC<{
     case 'lista': {
       // Converte cada linha em um <li> dentro de uma <ul>
       // O editor armazena itens separados por \n ("um item por linha")
-      const linhas = conteudoRaw.split(/\n/).filter(l => l.trim().length > 0);
-      const listaHtml = '<ul>' + linhas.map(l => {
-        // Renderiza markdown inline mas remove <p> wrapper que marked.parse() adiciona
-        let itemHtml = safeMarkdown(l.trim());
-        // Strip outer <p>...</p> tags para evitar espaçamento extra dentro de <li>
-        itemHtml = itemHtml.replace(/^\s*<p>([\s\S]*?)<\/p>\s*$/, '$1');
-        return `<li>${itemHtml}</li>`;
-      }).join('') + '</ul>';
+      const linhas = conteudoRaw.split(/\n/).filter((l) => l.trim().length > 0);
+      const listaHtml =
+        '<ul>' +
+        linhas
+          .map((l) => {
+            // Renderiza markdown inline mas remove <p> wrapper que marked.parse() adiciona
+            let itemHtml = safeMarkdown(l.trim());
+            // Strip outer <p>...</p> tags para evitar espaçamento extra dentro de <li>
+            itemHtml = itemHtml.replace(/^\s*<p>([\s\S]*?)<\/p>\s*$/, '$1');
+            return `<li>${itemHtml}</li>`;
+          })
+          .join('') +
+        '</ul>';
       return criarMarkdown('structure-lista', listaHtml);
     }
-    case 'equacao': 
+    case 'equacao': {
       // Equação explícita também precisa de render
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const eqRef = useMathRender([conteudoRaw]);
       return (
-        <div ref={eqRef} className={`structure-block structure-equacao ${className}`}>{`\\[${conteudoRaw}\\]`}</div>
+        <div
+          ref={eqRef}
+          className={`structure-block structure-equacao ${className}`}
+        >{`\\[${conteudoRaw}\\]`}</div>
       );
-    case 'codigo': return (
-      <pre className={`structure-block structure-codigo ${className}`}>
-        <code>{conteudoRaw}</code>
-      </pre>
-    );
-    case 'separador': return <hr className={`structure-block structure-separador ${className}`} />;
-    default: return null;
+    }
+    case 'codigo':
+      return (
+        <pre className={`structure-block structure-codigo ${className}`}>
+          <code>{conteudoRaw}</code>
+        </pre>
+      );
+    case 'separador':
+      return <hr className={`structure-block structure-separador ${className}`} />;
+    default:
+      return null;
   }
 };
 
@@ -182,20 +197,44 @@ const ImageBlock: React.FC<{
   descricaoState?: 'approved' | 'rejected' | null;
   onApprove?: (fieldId: string) => void;
   onReject?: (fieldId: string) => void;
-}> = ({ bloco, imgIndex, src, contexto, isReadOnly, conteudoRaw, conteudoSafe, disableInteraction, parentGroupId, isReviewMode, descricaoFieldId, descricaoState, onApprove, onReject }) => {
-
+}> = ({
+  bloco,
+  imgIndex,
+  src,
+  contexto,
+  isReadOnly,
+  conteudoRaw,
+  conteudoSafe,
+  disableInteraction,
+  parentGroupId,
+  isReviewMode,
+  descricaoFieldId,
+  descricaoState,
+  onApprove,
+  onReject,
+}) => {
   // Renderiza legenda se houver conteúdo
   const renderCaption = (prefixo = '') => {
     if (!conteudoRaw) return null;
-    
+
     // Em modo de revisão, a descrição tem seus próprios botões de aprovação
     if (isReviewMode && descricaoFieldId && onApprove && onReject) {
-      const stateClass = descricaoState === 'approved' ? 'block-approved' : descricaoState === 'rejected' ? 'block-rejected' : '';
-      
+      const stateClass =
+        descricaoState === 'approved'
+          ? 'block-approved'
+          : descricaoState === 'rejected'
+            ? 'block-rejected'
+            : '';
+
       return (
-        <div className={`reviewable-block reviewable-caption ${stateClass}`} style={{ marginTop: '8px', padding: '8px', borderRadius: '6px' }}>
+        <div
+          className={`reviewable-block reviewable-caption ${stateClass}`}
+          style={{ marginTop: '8px', padding: '8px', borderRadius: '6px' }}
+        >
           <div className="reviewable-block-header" style={{ marginBottom: '4px' }}>
-            <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>📝 Descrição da Imagem</span>
+            <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>
+              📝 Descrição da Imagem
+            </span>
             <div className="review-btn-group">
               <button
                 type="button"
@@ -223,7 +262,7 @@ const ImageBlock: React.FC<{
         </div>
       );
     }
-    
+
     return (
       <div
         className="structure-caption markdown-content"
@@ -235,102 +274,112 @@ const ImageBlock: React.FC<{
 
   // If in ReadOnly mode (Bank View) - usa PdfImageRenderer se tem dados de PDF
   if (isReadOnly) {
-      // Verifica se temos dados de PDF para renderizar via PdfImageRenderer
-      const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
-      const pdfUrl = bloco.pdf_url || null;
-      
-      if (hasPdfData || pdfUrl) {
-        // Renderiza via PDF Embed ou PDF.js Fallback (COM ScaleToFit)
-        return (
-          <div className="structure-block structure-image-wrapper">
-            <PdfEmbedRenderer
-              pdfUrl={pdfUrl}
-              // downloadUrl não é prop explicita do Embed, mas ele deduz do window se precisar
-              pdf_page={bloco.pdf_page}
-              pdf_zoom={bloco.pdf_zoom}
-              pdf_left={bloco.pdf_left}
-              pdf_top={bloco.pdf_top}
-              pdf_width={bloco.pdf_width}
-              pdf_height={bloco.pdf_height}
-              pdfjs_source_w={bloco.pdfjs_source_w}
-              pdfjs_source_h={bloco.pdfjs_source_h}
-              pdfjs_x={bloco.pdfjs_x}
-              pdfjs_y={bloco.pdfjs_y}
-              pdfjs_crop_w={bloco.pdfjs_crop_w}
-              pdfjs_crop_h={bloco.pdfjs_crop_h}
-              scaleToFit={true}
-            />
-            {renderCaption('')}
-          </div>
-        );
-      } else if (src) {
-        // Fallback legado: imagem direta (para dados antigos)
-        return (
-          <div className="structure-block structure-image-wrapper">
-            <img
-              src={src}
-              className="structure-img"
-              data-action="expand-image"
-              data-src={src}
-              title="Clique para ampliar"
-              style={{ cursor: 'zoom-in' }}
-              alt=""
-            />
-            {renderCaption('')}
-          </div>
-        );
-      } else {
-         return (
-            <div className="structure-block" style={{ padding: '10px', border: '1px dashed #ccc', color: 'gray', fontSize: '11px', textAlign: 'center' }}>
-              (Imagem não disponível)
-            </div>
-          );
-      }
+    // Verifica se temos dados de PDF para renderizar via PdfImageRenderer
+    const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
+    const pdfUrl = bloco.pdf_url || null;
+
+    if (hasPdfData || pdfUrl) {
+      // Renderiza via PDF Embed ou PDF.js Fallback (COM ScaleToFit)
+      return (
+        <div className="structure-block structure-image-wrapper">
+          <PdfEmbedRenderer
+            pdfUrl={pdfUrl}
+            // downloadUrl não é prop explicita do Embed, mas ele deduz do window se precisar
+            pdf_page={bloco.pdf_page}
+            pdf_zoom={bloco.pdf_zoom}
+            pdf_left={bloco.pdf_left}
+            pdf_top={bloco.pdf_top}
+            pdf_width={bloco.pdf_width}
+            pdf_height={bloco.pdf_height}
+            pdfjs_source_w={bloco.pdfjs_source_w}
+            pdfjs_source_h={bloco.pdfjs_source_h}
+            pdfjs_x={bloco.pdfjs_x}
+            pdfjs_y={bloco.pdfjs_y}
+            pdfjs_crop_w={bloco.pdfjs_crop_w}
+            pdfjs_crop_h={bloco.pdfjs_crop_h}
+            scaleToFit={true}
+          />
+          {renderCaption('')}
+        </div>
+      );
+    } else if (src) {
+      // Fallback legado: imagem direta (para dados antigos)
+      return (
+        <div className="structure-block structure-image-wrapper">
+          <img
+            src={src}
+            className="structure-img"
+            data-action="expand-image"
+            data-src={src}
+            title="Clique para ampliar"
+            style={{ cursor: 'zoom-in' }}
+            alt=""
+          />
+          {renderCaption('')}
+        </div>
+      );
+    } else {
+      return (
+        <div
+          className="structure-block"
+          style={{
+            padding: '10px',
+            border: '1px dashed #ccc',
+            color: 'gray',
+            fontSize: '11px',
+            textAlign: 'center',
+          }}
+        >
+          (Imagem não disponível)
+        </div>
+      );
+    }
   }
 
   // INTERACTIVE MODE (Creation/Editing)
   // We delegate everything to ImageSlotCard which handles Empty vs Filled vs Capturing internally.
   // Force column layout so caption is BELOW the card, and allow card to take full width.
   const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
-  
+
   const captionRef = useMathRender([conteudoSafe]);
 
   return (
-    <div className="structure-block" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-        <ImageSlotCard
-            slotId={String(imgIndex)}
-            label="Imagem"
-          currentData={
-            (src || hasPdfData)
-              ? {
-                  id: String(imgIndex),
-                  previewUrl: src,
-                  // Pass PDF props explicitly to ensure they are available for PdfEmbedRenderer
-                  pdf_url: bloco.pdf_url,
-                  pdf_page: bloco.pdf_page,
-                  pdf_zoom: bloco.pdf_zoom,
-                  pdf_left: bloco.pdf_left,
-                  pdf_top: bloco.pdf_top,
-                  pdf_width: bloco.pdf_width,
-                  pdf_height: bloco.pdf_height,
-                  pdfjs_source_w: bloco.pdfjs_source_w,
-                  pdfjs_source_h: bloco.pdfjs_source_h,
-                  pdfjs_x: bloco.pdfjs_x,
-                  pdfjs_y: bloco.pdfjs_y,
-                  pdfjs_crop_w: bloco.pdfjs_crop_w,
-                  pdfjs_crop_h: bloco.pdfjs_crop_h,
-                }
-              : null
-          }
-            readOnly={disableInteraction}
-            parentGroupId={parentGroupId}
-        />
-        {/* Caption is separate, or should it be inside card? 
+    <div
+      className="structure-block"
+      style={{ display: 'flex', flexDirection: 'column', width: '100%' }}
+    >
+      <ImageSlotCard
+        slotId={String(imgIndex)}
+        label="Imagem"
+        currentData={
+          src || hasPdfData
+            ? {
+                id: String(imgIndex),
+                previewUrl: src,
+                // Pass PDF props explicitly to ensure they are available for PdfEmbedRenderer
+                pdf_url: bloco.pdf_url,
+                pdf_page: bloco.pdf_page,
+                pdf_zoom: bloco.pdf_zoom,
+                pdf_left: bloco.pdf_left,
+                pdf_top: bloco.pdf_top,
+                pdf_width: bloco.pdf_width,
+                pdf_height: bloco.pdf_height,
+                pdfjs_source_w: bloco.pdfjs_source_w,
+                pdfjs_source_h: bloco.pdfjs_source_h,
+                pdfjs_x: bloco.pdfjs_x,
+                pdfjs_y: bloco.pdfjs_y,
+                pdfjs_crop_w: bloco.pdfjs_crop_w,
+                pdfjs_crop_h: bloco.pdfjs_crop_h,
+              }
+            : null
+        }
+        readOnly={disableInteraction}
+        parentGroupId={parentGroupId}
+      />
+      {/* Caption is separate, or should it be inside card? 
             The card has a header, but caption is usually below image. 
             Let's keep it below the card for now. */}
-        <div ref={captionRef}>
-           {renderCaption('IA: ')}
-        </div>
+      <div ref={captionRef}>{renderCaption('IA: ')}</div>
     </div>
   );
 };
@@ -349,8 +398,19 @@ export const MainStructure: React.FC<{
   onApprove?: (fieldId: string) => void;
   onReject?: (fieldId: string) => void;
   blockPrefix?: string;
-}> = ({ estrutura, imagensExternas, contexto, disableInteraction, isReadOnly, parentGroupId, isReviewMode, reviewState, onApprove, onReject, blockPrefix = 'bloco' }) => {
-
+}> = ({
+  estrutura,
+  imagensExternas,
+  contexto,
+  disableInteraction,
+  isReadOnly,
+  parentGroupId,
+  isReviewMode,
+  reviewState,
+  onApprove,
+  onReject,
+  blockPrefix = 'bloco',
+}) => {
   if (!estrutura || !Array.isArray(estrutura) || estrutura.length === 0) {
     return null;
   }
@@ -361,12 +421,12 @@ export const MainStructure: React.FC<{
   // Função para obter label do tipo de bloco
   const getTipoLabel = (tipo: string) => {
     const labels: Record<string, string> = {
-      'imagem': '🖼️ Imagem',
-      'texto': '📝 Texto',
-      'fonte': '📚 Fonte',
-      'lista': '📋 Lista',
-      'tabela': '📊 Tabela',
-      'equacao': '🔢 Equação',
+      imagem: '🖼️ Imagem',
+      texto: '📝 Texto',
+      fonte: '📚 Fonte',
+      lista: '📋 Lista',
+      tabela: '📊 Tabela',
+      equacao: '🔢 Equação',
     };
     return labels[tipo] || `📦 ${tipo}`;
   };
@@ -385,7 +445,7 @@ export const MainStructure: React.FC<{
         if (tipo === 'imagem' || !tipo) {
           const currentImgIndex = globalImgCounter++;
           const src = extractUrlFromBloco(bloco) || imagensExternas?.[currentImgIndex];
-          
+
           // ID específico para a descrição da imagem
           const descricaoFieldId = `${fieldId}_descricao`;
           const descricaoState = reviewState?.[descricaoFieldId] || null;
@@ -415,8 +475,9 @@ export const MainStructure: React.FC<{
 
         // Em modo review, envolve com botões
         if (isReviewMode && onApprove && onReject) {
-          const stateClass = state === 'approved' ? 'block-approved' : state === 'rejected' ? 'block-rejected' : '';
-          
+          const stateClass =
+            state === 'approved' ? 'block-approved' : state === 'rejected' ? 'block-rejected' : '';
+
           return (
             <div key={idx} className={`reviewable-block ${stateClass}`}>
               <div className="reviewable-block-header">
@@ -466,8 +527,21 @@ export const AlternativeImageBlock: React.FC<{
   descricaoState?: 'approved' | 'rejected' | null;
   onApprove?: (fieldId: string) => void;
   onReject?: (fieldId: string) => void;
-}> = ({ bloco, letra, imgIndex, src, isReadOnly, conteudo, conteudoRawAttr, temConteudo, isReviewMode, descricaoFieldId, descricaoState, onApprove, onReject }) => {
-
+}> = ({
+  bloco,
+  letra,
+  imgIndex,
+  src,
+  isReadOnly,
+  conteudo,
+  conteudoRawAttr,
+  temConteudo,
+  isReviewMode,
+  descricaoFieldId,
+  descricaoState,
+  onApprove,
+  onReject,
+}) => {
   const [isCapturing, setIsCapturing] = React.useState(false);
 
   React.useEffect(() => {
@@ -475,13 +549,13 @@ export const AlternativeImageBlock: React.FC<{
 
     const handleModeChange = (e: any) => {
       if (e.detail && e.detail.slotId === `alt_${letra}_${imgIndex}`) {
-        setIsCapturing(e.detail.mode === "capturing");
+        setIsCapturing(e.detail.mode === 'capturing');
       }
     };
 
-    window.addEventListener("image-slot-mode-change" as any, handleModeChange);
+    window.addEventListener('image-slot-mode-change' as any, handleModeChange);
     return () => {
-      window.removeEventListener("image-slot-mode-change" as any, handleModeChange);
+      window.removeEventListener('image-slot-mode-change' as any, handleModeChange);
     };
   }, [letra, imgIndex, isReadOnly]);
 
@@ -491,17 +565,30 @@ export const AlternativeImageBlock: React.FC<{
 
     // Em modo de revisão, a descrição tem seus próprios botões de aprovação
     if (isReviewMode && descricaoFieldId && onApprove && onReject) {
-      const stateClass = descricaoState === 'approved' ? 'block-approved' : descricaoState === 'rejected' ? 'block-rejected' : '';
-      
+      const stateClass =
+        descricaoState === 'approved'
+          ? 'block-approved'
+          : descricaoState === 'rejected'
+            ? 'block-rejected'
+            : '';
+
       return (
-        <div className={`reviewable-block reviewable-caption ${stateClass}`} style={{ marginTop: '8px', padding: '8px', borderRadius: '6px' }}>
+        <div
+          className={`reviewable-block reviewable-caption ${stateClass}`}
+          style={{ marginTop: '8px', padding: '8px', borderRadius: '6px' }}
+        >
           <div className="reviewable-block-header" style={{ marginBottom: '4px' }}>
-            <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>📝 Descrição da Imagem</span>
+            <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>
+              📝 Descrição da Imagem
+            </span>
             <div className="review-btn-group">
               <button
                 type="button"
                 className={`review-btn review-btn--approve review-btn--xs ${descricaoState === 'approved' ? 'active' : ''}`}
-                onClick={(e) => { e.stopPropagation(); onApprove(descricaoFieldId); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApprove(descricaoFieldId);
+                }}
                 title="Aprovar descrição"
               >
                 ✓
@@ -509,7 +596,10 @@ export const AlternativeImageBlock: React.FC<{
               <button
                 type="button"
                 className={`review-btn review-btn--reject review-btn--xs ${descricaoState === 'rejected' ? 'active' : ''}`}
-                onClick={(e) => { e.stopPropagation(); onReject(descricaoFieldId); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReject(descricaoFieldId);
+                }}
                 title="Rejeitar descrição"
               >
                 ✗
@@ -519,9 +609,10 @@ export const AlternativeImageBlock: React.FC<{
           <div
             className="structure-caption markdown-content"
             data-raw={conteudoRawAttr}
-            style={isReadOnly
-              ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
-              : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
+            style={
+              isReadOnly
+                ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
+                : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
             }
             dangerouslySetInnerHTML={{ __html: isReadOnly ? conteudo : `IA: ${conteudo}` }}
           />
@@ -533,9 +624,10 @@ export const AlternativeImageBlock: React.FC<{
       <div
         className="structure-caption markdown-content"
         data-raw={conteudoRawAttr}
-        style={isReadOnly
-          ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
-          : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
+        style={
+          isReadOnly
+            ? { fontSize: '0.9em', marginTop: '5px', color: '#555' }
+            : { fontSize: '11px', marginTop: '4px', color: 'var(--color-text-secondary)' }
         }
         dangerouslySetInnerHTML={{ __html: isReadOnly ? conteudo : `IA: ${conteudo}` }}
       />
@@ -544,22 +636,30 @@ export const AlternativeImageBlock: React.FC<{
 
   if (isCapturing) {
     return (
-      <div 
-        className="structure-block" 
+      <div
+        className="structure-block"
         style={{
-          border: '2px dashed var(--color-primary, #00BCD4)', 
-          padding: '12px', 
-          borderRadius: '8px', 
+          border: '2px dashed var(--color-primary, #00BCD4)',
+          padding: '12px',
+          borderRadius: '8px',
           background: 'rgba(0, 188, 212, 0.05)',
           marginTop: '8px',
           width: '100%',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '8px', color: 'var(--color-primary, #00BCD4)', fontWeight: 'bold', fontSize: '11px' }}>
+        <div
+          style={{
+            textAlign: 'center',
+            marginBottom: '8px',
+            color: 'var(--color-primary, #00BCD4)',
+            fontWeight: 'bold',
+            fontSize: '11px',
+          }}
+        >
           ✂️ Recortando Imagem para Alternativa {letra}
         </div>
-        
+
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <button
             type="button"
@@ -612,12 +712,23 @@ export const AlternativeImageBlock: React.FC<{
   }
 
   // Se tem dados de PDF para renderizar via PdfEmbedRenderer e a URL é válida
-  const globalPdfUrl = typeof window !== 'undefined'
-    ? ((window as any).__pdfOriginalUrl || (window as any).__pdfDownloadUrl || (window as any).__pdfSourceUrl)
-    : null;
+  const globalPdfUrl =
+    typeof window !== 'undefined'
+      ? (window as any).__pdfOriginalUrl ||
+        (window as any).__pdfDownloadUrl ||
+        (window as any).__pdfSourceUrl
+      : null;
 
-  const pdfUrl = bloco.pdf_url || bloco.pdfUrl || (bloco.url && String(bloco.url).includes('.pdf') ? String(bloco.url) : null) || globalPdfUrl;
-  const hasPdfData = !!(bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined);
+  const pdfUrl =
+    bloco.pdf_url ||
+    bloco.pdfUrl ||
+    (bloco.url && String(bloco.url).includes('.pdf') ? String(bloco.url) : null) ||
+    globalPdfUrl;
+  const hasPdfData = !!(
+    bloco.pdf_page ||
+    bloco.pdfjs_x !== undefined ||
+    bloco.pdf_left !== undefined
+  );
 
   if (hasPdfData || (pdfUrl && pdfUrl.trim().length > 0)) {
     return (
@@ -644,7 +755,7 @@ export const AlternativeImageBlock: React.FC<{
         {!isReadOnly && (
           <button
             className="btn-trocar-img"
-            data-action="edit-slot-alt" 
+            data-action="edit-slot-alt"
             data-slot-id={imgIndex}
             data-letter={letra}
           >
@@ -676,7 +787,7 @@ export const AlternativeImageBlock: React.FC<{
         {!isReadOnly && (
           <button
             className="btn-trocar-img"
-            data-action="edit-slot-alt" 
+            data-action="edit-slot-alt"
             data-slot-id={imgIndex}
             data-letter={letra}
           >
@@ -698,7 +809,14 @@ export const AlternativeImageBlock: React.FC<{
           <div
             className="markdown-content"
             data-raw={conteudoRawAttr}
-            style={{ fontSize: '10px', color: 'gray', marginTop: '4px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}
+            style={{
+              fontSize: '10px',
+              color: 'gray',
+              marginTop: '4px',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
             dangerouslySetInnerHTML={{ __html: `IA: ${conteudo}` }}
           />
         )}
@@ -707,17 +825,21 @@ export const AlternativeImageBlock: React.FC<{
     );
   } else if (temConteudo) {
     return (
-      <div className="alt-image-caption-only" style={{
-        padding: '8px 12px',
-        background: 'rgba(255, 255, 255, 0.04)',
-        borderRadius: '6px',
-        border: '1px dashed var(--color-border)',
-        margin: '6px 0',
-        fontSize: '0.85rem',
-        lineHeight: '1.45',
-        color: 'var(--color-text-secondary)'
-      }}>
-        🖼️ <strong style={{ color: 'var(--color-text)' }}>Descrição da Imagem:</strong> {safeMarkdown(conteudo)}
+      <div
+        className="alt-image-caption-only"
+        style={{
+          padding: '8px 12px',
+          background: 'rgba(255, 255, 255, 0.04)',
+          borderRadius: '6px',
+          border: '1px dashed var(--color-border)',
+          margin: '6px 0',
+          fontSize: '0.85rem',
+          lineHeight: '1.45',
+          color: 'var(--color-text-secondary)',
+        }}
+      >
+        🖼️ <strong style={{ color: 'var(--color-text)' }}>Descrição da Imagem:</strong>{' '}
+        {safeMarkdown(conteudo)}
       </div>
     );
   }
@@ -736,32 +858,43 @@ export const AlternativeStructure: React.FC<{
   onApprove?: (fieldId: string) => void;
   onReject?: (fieldId: string) => void;
   blockPrefix?: string;
-}> = ({ estrutura, letra, imagensExternas, contexto, isReviewMode, reviewState, onApprove, onReject, blockPrefix }) => {
+}> = ({
+  estrutura,
+  letra,
+  imagensExternas,
+  contexto,
+  isReviewMode,
+  reviewState,
+  onApprove,
+  onReject,
+  blockPrefix,
+}) => {
   if (!Array.isArray(estrutura) || estrutura.length === 0) return null;
 
   const isReadOnly = contexto !== 'editor' && !isReviewMode;
 
   // Lógica de Fallback de imagens
-  const imgsFallback = (imagensExternas && imagensExternas.length > 0)
-    ? imagensExternas
-    : (typeof window !== 'undefined'
-        ? (window.__imagensLimpas?.alternativas?.questao?.[letra] ||
-           window.__imagensLimpas?.questao_original ||
-           (window as any).__currentQuestionImages ||
-           [])
-        : []);
+  const imgsFallback =
+    imagensExternas && imagensExternas.length > 0
+      ? imagensExternas
+      : typeof window !== 'undefined'
+        ? window.__imagensLimpas?.alternativas?.questao?.[letra] ||
+          window.__imagensLimpas?.questao_original ||
+          (window as any).__currentQuestionImages ||
+          []
+        : [];
 
   let globalImgCounter = 0;
 
   // Função helper para labels (duplicada de MainStructure para isolamento)
   const getTipoLabel = (tipo: string) => {
     const labels: Record<string, string> = {
-      'imagem': '🖼️ Imagem',
-      'texto': '📝 Texto',
-      'fonte': '📚 Fonte',
-      'lista': '📋 Lista',
-      'tabela': '📊 Tabela',
-      'equacao': '🔢 Equação',
+      imagem: '🖼️ Imagem',
+      texto: '📝 Texto',
+      fonte: '📚 Fonte',
+      lista: '📋 Lista',
+      tabela: '📊 Tabela',
+      equacao: '🔢 Equação',
     };
     return labels[tipo] || `📦 ${tipo}`;
   };
@@ -771,7 +904,9 @@ export const AlternativeStructure: React.FC<{
       {estrutura.map((bloco, idx) => {
         const tipo = String(bloco?.tipo || 'texto').toLowerCase();
         // Não sanitizamos aqui para preservar LaTeX, o componente filho sanitiza se precisar
-        const conteudoRawAttr = bloco?.conteudo ? String(bloco.conteudo).replace(/"/g, '&quot;') : ''; 
+        const conteudoRawAttr = bloco?.conteudo
+          ? String(bloco.conteudo).replace(/"/g, '&quot;')
+          : '';
         const conteudo = bloco?.conteudo ? String(bloco.conteudo) : '';
 
         // ID único para revisão deste bloco específico
@@ -783,7 +918,7 @@ export const AlternativeStructure: React.FC<{
         if (tipo === 'imagem') {
           const currentImgIndex = globalImgCounter++;
           const src = extractUrlFromBloco(bloco) || imgsFallback?.[currentImgIndex];
-          
+
           // ID específico para a descrição da imagem
           const descricaoFieldId = `${fieldId}_descricao`;
           const descricaoState = reviewState?.[descricaoFieldId] || null;
@@ -813,17 +948,30 @@ export const AlternativeStructure: React.FC<{
 
         // Se estiver em modo review, envolve com a interface de botões
         if (isReviewMode && onApprove && onReject) {
-          const stateClass = state === 'approved' ? 'block-approved' : state === 'rejected' ? 'block-rejected' : '';
+          const stateClass =
+            state === 'approved' ? 'block-approved' : state === 'rejected' ? 'block-rejected' : '';
 
           return (
-            <div key={idx} className={`reviewable-block ${stateClass}`} style={{ margin: '4px 0', padding: '8px' }}>
-              <div className="reviewable-block-header" style={{ marginBottom: '4px', paddingBottom: '4px' }}>
-                <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>{getTipoLabel(tipo)}</span>
+            <div
+              key={idx}
+              className={`reviewable-block ${stateClass}`}
+              style={{ margin: '4px 0', padding: '8px' }}
+            >
+              <div
+                className="reviewable-block-header"
+                style={{ marginBottom: '4px', paddingBottom: '4px' }}
+              >
+                <span className="reviewable-block-tipo" style={{ fontSize: '10px' }}>
+                  {getTipoLabel(tipo)}
+                </span>
                 <div className="review-btn-group">
                   <button
                     type="button"
                     className={`review-btn review-btn--approve review-btn--xs ${state === 'approved' ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); onApprove(fieldId); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApprove(fieldId);
+                    }}
                     title="Aprovar bloco"
                   >
                     ✓
@@ -831,7 +979,10 @@ export const AlternativeStructure: React.FC<{
                   <button
                     type="button"
                     className={`review-btn review-btn--reject review-btn--xs ${state === 'rejected' ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); onReject(fieldId); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReject(fieldId);
+                    }}
                     title="Rejeitar bloco"
                   >
                     ✗
@@ -856,7 +1007,7 @@ export const generateHtmlString = (
   estrutura: EstruturaBloco[],
   imagensExternas: string[],
   contexto: string,
-  isReadOnly: boolean = false
+  isReadOnly: boolean = false,
 ): string => {
   return ReactDOMServer.renderToStaticMarkup(
     <MainStructure
@@ -864,7 +1015,7 @@ export const generateHtmlString = (
       imagensExternas={imagensExternas}
       contexto={contexto}
       isReadOnly={isReadOnly}
-    />
+    />,
   );
 };
 
@@ -872,7 +1023,7 @@ export const generateAlternativeHtmlString = (
   estrutura: EstruturaBloco[],
   letra: string,
   imagensExternas: string[],
-  contexto: string
+  contexto: string,
 ): string => {
   return ReactDOMServer.renderToStaticMarkup(
     <AlternativeStructure
@@ -880,7 +1031,7 @@ export const generateAlternativeHtmlString = (
       letra={letra}
       imagensExternas={imagensExternas}
       contexto={contexto}
-    />
+    />,
   );
 };
 
@@ -888,13 +1039,25 @@ export const normalizeStructureBlock = (bloco: any) => {
   const rawTipo = bloco?.tipo ?? 'imagem';
   let tipo = String(rawTipo).toLowerCase().trim();
 
-  // Importante: TIPOS_ESTRUTURA_VALIDOS deve ser verificado fora ou passado, 
+  // Importante: TIPOS_ESTRUTURA_VALIDOS deve ser verificado fora ou passado,
   // mas aqui seguimos a lógica de fallback 'imagem' se desconhecido.
   // Como não temos acesso direto à constante do main.js aqui, assumimos a lógica local.
   // Se quiser importar, precisaria mover a constante para um arquivo de tipos compartilhado.
   // Vou assumir a lógica padrão: se não for texto/lista/etc conhecido, é imagem.
 
-  const knownTypes = new Set(['texto', 'citacao', 'destaque', 'titulo', 'subtitulo', 'fonte', 'lista', 'equacao', 'codigo', 'separador', 'tabela']);
+  const knownTypes = new Set([
+    'texto',
+    'citacao',
+    'destaque',
+    'titulo',
+    'subtitulo',
+    'fonte',
+    'lista',
+    'equacao',
+    'codigo',
+    'separador',
+    'tabela',
+  ]);
   if (!knownTypes.has(tipo) && tipo !== 'imagem') {
     tipo = 'imagem';
   }

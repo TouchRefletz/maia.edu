@@ -1,13 +1,17 @@
-﻿# PDF Viewer Styles
+# Estilos do Visualizador de PDF (`css/pdf-viewer.md`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+PDF+Viewer+Styles&labels=docs)
+O `css/pdf-viewer.css` estiliza a viewport de renderização das páginas PDF, camadas de texto selecionável e overlay de coordenadas do Cropper.
 
-## Visao Geral
-Pagina de documentacao para `css/pdf-viewer.css`.
+---
 
-## Arquivo: `css/pdf-viewer.css`
+## 🎨 Camadas de Renderização (Layers)
 
-## Referencias Cruzadas
-- [PDF Core](/pdf/core)
-- [Arquitetura](/guia/arquitetura)
+1. **`canvas` (Bitmap Layer)**: Renderizado em resolução nítida com suporte a Hi-DPI.
+2. **`.textLayer` (Text Selection Layer)**: Camada de texto transparente posicionada exatamente sobre o canvas para permitir seleção de texto e cópia nativa.
+3. **`.cropOverlay`**: Camada interativa SVG/Canvas onde são desenhados os retângulos de corte com alças de redimensionamento nos vértices.
 
+---
+
+## 🔗 Referências Cruzadas
+- [Core do PDF Viewer](/pdf/core)
+- [Zoom e Escala](/pdf/zoom)

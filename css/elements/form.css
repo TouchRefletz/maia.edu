@@ -40,11 +40,11 @@ select.form-control {
 }
 
 /* Also handle data-color-scheme */
-[data-color-scheme='dark'] select.form-control {
+[data-color-scheme="dark"] select.form-control {
   background-image: var(--select-caret-dark);
 }
 
-[data-color-scheme='light'] select.form-control {
+[data-color-scheme="light"] select.form-control {
   background-image: var(--select-caret-light);
 }
 

@@ -51,64 +51,64 @@ Você deve retornar estritamente um objeto JSON válido, sem texto adicional, co
 export const TRIAGEM_RUBRIC = ``;
 
 export const TRIAGEM_RESPONSE_SCHEMA = {
-  type: "object",
+  type: 'object',
   properties: {
     criterios: {
-      type: "object",
+      type: 'object',
       properties: {
         complexidade_enunciado: {
-          type: "object",
+          type: 'object',
           properties: {
-            nota: { type: "integer" },
-            justificativa: { type: "string" }
+            nota: { type: 'integer' },
+            justificativa: { type: 'string' },
           },
-          required: ["nota", "justificativa"]
+          required: ['nota', 'justificativa'],
         },
         elementos_visuais: {
-          type: "object",
+          type: 'object',
           properties: {
-            nota: { type: "integer" },
-            justificativa: { type: "string" }
+            nota: { type: 'integer' },
+            justificativa: { type: 'string' },
           },
-          required: ["nota", "justificativa"]
+          required: ['nota', 'justificativa'],
         },
         especificidade_dominio: {
-          type: "object",
+          type: 'object',
           properties: {
-            nota: { type: "integer" },
-            justificativa: { type: "string" }
+            nota: { type: 'integer' },
+            justificativa: { type: 'string' },
           },
-          required: ["nota", "justificativa"]
+          required: ['nota', 'justificativa'],
         },
         raciocinio_complexo: {
-          type: "object",
+          type: 'object',
           properties: {
-            nota: { type: "integer" },
-            justificativa: { type: "string" }
+            nota: { type: 'integer' },
+            justificativa: { type: 'string' },
           },
-          required: ["nota", "justificativa"]
+          required: ['nota', 'justificativa'],
         },
         resposta_complexa: {
-          type: "object",
+          type: 'object',
           properties: {
-            nota: { type: "integer" },
-            justificativa: { type: "string" }
+            nota: { type: 'integer' },
+            justificativa: { type: 'string' },
           },
-          required: ["nota", "justificativa"]
-        }
+          required: ['nota', 'justificativa'],
+        },
       },
       required: [
-        "complexidade_enunciado",
-        "elementos_visuais",
-        "especificidade_dominio",
-        "raciocinio_complexo",
-        "resposta_complexa"
-      ]
+        'complexidade_enunciado',
+        'elementos_visuais',
+        'especificidade_dominio',
+        'raciocinio_complexo',
+        'resposta_complexa',
+      ],
     },
-    pontuacao_final_complexidade: { type: "integer" },
-    classificacao_dificuldade: { type: "string" }
+    pontuacao_final_complexidade: { type: 'integer' },
+    classificacao_dificuldade: { type: 'string' },
   },
-  required: ["criterios", "pontuacao_final_complexidade", "classificacao_dificuldade"]
+  required: ['criterios', 'pontuacao_final_complexidade', 'classificacao_dificuldade'],
 };
 
 export function buildTriagemPrompt(enunciado, gabarito) {

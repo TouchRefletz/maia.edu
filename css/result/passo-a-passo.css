@@ -63,7 +63,7 @@
 }
 
 .q-step-details summary::before {
-  content: 'ℹ️ ';
+  content: "ℹ️ ";
   font-size: 10px;
 }
 

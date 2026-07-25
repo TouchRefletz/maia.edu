@@ -9,34 +9,31 @@ export {
   complexityToMode,
   getGenerationParams,
   getModeConfig,
-} from "./config.js";
-
-// Router
-export {
-  clearRoutingCache,
-  determineFinalMode,
-  getLastRoutingResult,
-  routeMessage,
-} from "./router.js";
-
+} from './config.js';
 // Pipelines
 export {
+  generatePersonaSimulation,
+  generateSilentScaffoldingStep,
   runChatPipeline,
   runRaciocinioPipeline,
   runRapidoPipeline,
-  generateSilentScaffoldingStep,
-  generatePersonaSimulation,
-} from "./pipelines.js";
+} from './pipelines.js';
+export {
+  getSystemPromptBase,
+  getSystemPromptRaciocinio,
+  getSystemPromptRapido,
+} from './prompts/chat-system-prompt.js';
 
 // Prompts
 export {
   buildRouterPrompt,
   ROUTER_RESPONSE_SCHEMA,
   ROUTER_SYSTEM_PROMPT,
-} from "./prompts/router-prompt.js";
-
+} from './prompts/router-prompt.js';
+// Router
 export {
-  getSystemPromptBase,
-  getSystemPromptRaciocinio,
-  getSystemPromptRapido,
-} from "./prompts/chat-system-prompt.js";
+  clearRoutingCache,
+  determineFinalMode,
+  getLastRoutingResult,
+  routeMessage,
+} from './router.js';

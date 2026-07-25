@@ -3,8 +3,8 @@
  * Utiliza as bibliotecas validadas simple-statistics e @stdlib/stats-wilcoxon
  */
 
-import wilcoxon from "@stdlib/stats-wilcoxon";
-import { sampleRankCorrelation } from "simple-statistics";
+import wilcoxon from '@stdlib/stats-wilcoxon';
+import { sampleRankCorrelation } from 'simple-statistics';
 
 /**
  * Executa o Teste de Wilcoxon pareado para duas amostras
@@ -14,9 +14,9 @@ import { sampleRankCorrelation } from "simple-statistics";
  */
 export function calcularWilcoxonPareado(x, y) {
   if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length) {
-    throw new Error("As amostras x e y devem ser arrays de mesmo tamanho para teste pareado.");
+    throw new Error('As amostras x e y devem ser arrays de mesmo tamanho para teste pareado.');
   }
-  
+
   // O teste wilcoxon do @stdlib calcula o teste pareado se passarmos x e y diretamente
   try {
     const res = wilcoxon(x, y);
@@ -25,14 +25,14 @@ export function calcularWilcoxonPareado(x, y) {
       statistic: res.statistic,
       rejected: res.rejected,
       method: res.method,
-      alpha: res.alpha
+      alpha: res.alpha,
     };
   } catch (err) {
-    console.error("Erro ao rodar Teste de Wilcoxon:", err);
+    console.error('Erro ao rodar Teste de Wilcoxon:', err);
     return {
       error: err.message,
       pValue: null,
-      statistic: null
+      statistic: null,
     };
   }
 }
@@ -45,13 +45,13 @@ export function calcularWilcoxonPareado(x, y) {
  */
 export function calcularSpearman(x, y) {
   if (!Array.isArray(x) || !Array.isArray(y) || x.length !== y.length) {
-    throw new Error("As amostras x e y devem ser arrays de mesmo tamanho para correlação.");
+    throw new Error('As amostras x e y devem ser arrays de mesmo tamanho para correlação.');
   }
-  
+
   try {
     return sampleRankCorrelation(x, y);
   } catch (err) {
-    console.error("Erro ao calcular Spearman:", err);
+    console.error('Erro ao calcular Spearman:', err);
     return null;
   }
 }

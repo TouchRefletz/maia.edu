@@ -1,4 +1,4 @@
-import { gerarConteudoEmJSONComImagemStream, sanitizeJsonForPrompt } from "../api/worker.js";
+import { gerarConteudoEmJSONComImagemStream, sanitizeJsonForPrompt } from '../api/worker.js';
 
 export interface AuditItem {
   id: string;
@@ -37,7 +37,13 @@ function isCleanTextString(val: any): boolean {
   if (typeof val !== 'string') return false;
   const trimmed = val.trim();
   if (trimmed.length < 2) return false;
-  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) return false;
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://')
+  )
+    return false;
   if (trimmed.length > 80 && !trimmed.includes(' ')) return false;
   if (trimmed.length > 3000) return false; // descarta grandes blocos de dados
   return true;
@@ -51,17 +57,31 @@ function cleanObjectForAudit(obj: any): any {
     return isCleanTextString(obj) ? obj : '[REMOVED_NON_TEXT_DATA]';
   }
   if (Array.isArray(obj)) {
-    return obj.map(cleanObjectForAudit).filter(item => item !== '[REMOVED_NON_TEXT_DATA]');
+    return obj.map(cleanObjectForAudit).filter((item) => item !== '[REMOVED_NON_TEXT_DATA]');
   }
   if (typeof obj === 'object' && obj !== null) {
     const cleaned: Record<string, any> = {};
     const keysToIgnore = [
-      'fotos_originais', 'foto_original', 'imagens', 'base64', 'cropped_base64', 'imagem_base64',
-      'pdfjs_x', 'pdfjs_y', 'pdfjs_crop_w', 'pdfjs_crop_h', 'pdfjs_source_w', 'pdfjs_source_h', 'src'
+      'fotos_originais',
+      'foto_original',
+      'imagens',
+      'base64',
+      'cropped_base64',
+      'imagem_base64',
+      'pdfjs_x',
+      'pdfjs_y',
+      'pdfjs_crop_w',
+      'pdfjs_crop_h',
+      'pdfjs_source_w',
+      'pdfjs_source_h',
+      'src',
     ];
 
     for (const [key, value] of Object.entries(obj)) {
-      if (keysToIgnore.includes(key) || /base64|foto_original|fotos_originais|cropped|image_data|svg/i.test(key)) {
+      if (
+        keysToIgnore.includes(key) ||
+        /base64|foto_original|fotos_originais|cropped|image_data|svg/i.test(key)
+      ) {
         continue;
       }
       const cleanedValue = cleanObjectForAudit(value);
@@ -80,7 +100,7 @@ function cleanObjectForAudit(obj: any): any {
 function extractTextFields(
   q: any,
   g: any,
-  extra: { identificacao?: string; chaveProva?: string; meta?: any } = {}
+  extra: { identificacao?: string; chaveProva?: string; meta?: any } = {},
 ): Array<{ path: string; target: 'questao' | 'gabarito'; text: string }> {
   const fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }> = [];
 
@@ -156,7 +176,9 @@ function fixUtf8Corruption(str: string): string {
 /**
  * Executa detecção rápida de caracteres estranhos, ideogramas e UTF-8 corrompidos
  */
-function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }>): AuditItem[] {
+function runHeuristicCheck(
+  fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }>,
+): AuditItem[] {
   const items: AuditItem[] = [];
 
   fields.forEach(({ path, target, text }) => {
@@ -164,12 +186,15 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
     const cjkMatches = Array.from(text.matchAll(CJK_REGEX_GLOBAL));
     const seenCjk = new Set<string>();
 
-    cjkMatches.forEach(m => {
+    cjkMatches.forEach((m) => {
       const badSnippet = m[0];
       if (!badSnippet || seenCjk.has(badSnippet)) return;
       seenCjk.add(badSnippet);
 
-      const cleanedText = text.replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').replace(/\s+/g, ' ').trim();
+      const cleanedText = text
+        .replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '')
+        .replace(/\s+/g, ' ')
+        .trim();
       items.push({
         id: `heur_cjk_${Math.random().toString(36).substring(2, 9)}`,
         fieldPath: path,
@@ -178,7 +203,7 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
         suggestedText: cleanedText,
         reason: `Alucinação do modelo: Inclusão indevida de ideogramas orientais ("${badSnippet}")`,
         source: 'heuristica',
-        status: 'pending'
+        status: 'pending',
       });
     });
 
@@ -186,12 +211,14 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
     const brokenMatches = Array.from(text.matchAll(BROKEN_SYMBOL_REGEX_GLOBAL));
     const seenBroken = new Set<string>();
 
-    brokenMatches.forEach(m => {
+    brokenMatches.forEach((m) => {
       const badSnippet = m[0];
       if (!badSnippet || seenBroken.has(badSnippet)) return;
       seenBroken.add(badSnippet);
 
-      const cleanedText = text.replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '').trim();
+      const cleanedText = text
+        .replace(new RegExp(badSnippet.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '')
+        .trim();
       items.push({
         id: `heur_symbol_${Math.random().toString(36).substring(2, 9)}`,
         fieldPath: path,
@@ -200,7 +227,7 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
         suggestedText: cleanedText,
         reason: `Caractere UTF-8 corrompido ou símbolo inválido ("${badSnippet}")`,
         source: 'heuristica',
-        status: 'pending'
+        status: 'pending',
       });
     });
 
@@ -216,7 +243,7 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
           suggestedText: fixedText,
           reason: `Corrupção de codificação UTF-8 (ex: QUESTÃ££Ã££O -> QUESTÃO)`,
           source: 'heuristica',
-          status: 'pending'
+          status: 'pending',
         });
       }
     }
@@ -231,7 +258,7 @@ function runHeuristicCheck(fields: Array<{ path: string; target: 'questao' | 'ga
 async function checkWithLanguageTool(
   fields: Array<{ path: string; target: 'questao' | 'gabarito'; text: string }>,
   onStatusUpdate?: (status: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<AuditItem[]> {
   const items: AuditItem[] = [];
   const fieldsToScan = fields.slice(0, 8);
@@ -266,7 +293,7 @@ async function checkWithLanguageTool(
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: formData.toString(),
-          signal: controller.signal
+          signal: controller.signal,
         });
       } finally {
         clearTimeout(timeoutId);
@@ -290,7 +317,10 @@ async function checkWithLanguageTool(
 
         if (!badSnippet || badSnippet === replacement || /^\d+$/.test(badSnippet)) return;
 
-        const fixedText = text.substring(0, match.offset) + replacement + text.substring(match.offset + match.length);
+        const fixedText =
+          text.substring(0, match.offset) +
+          replacement +
+          text.substring(match.offset + match.length);
 
         items.push({
           id: `lt_${Math.random().toString(36).substring(2, 9)}`,
@@ -300,7 +330,7 @@ async function checkWithLanguageTool(
           suggestedText: fixedText,
           reason: `LanguageTool: ${match.message || match.rule?.description || 'Correção ortográfica'}`,
           source: 'languagetool',
-          status: 'pending'
+          status: 'pending',
         });
       });
     } catch (err: any) {
@@ -316,53 +346,52 @@ async function checkWithLanguageTool(
  * Esquema estruturado para resposta da IA (Structured Output Schema)
  */
 const auditResponseSchema = {
-  type: "object",
+  type: 'object',
   additionalProperties: false,
   properties: {
     issues: {
-      type: "array",
-      description: "Lista de problemas, alucinações e incoerências de texto encontrados na questão e no gabarito.",
+      type: 'array',
+      description:
+        'Lista de problemas, alucinações e incoerências de texto encontrados na questão e no gabarito.',
       items: {
-        type: "object",
+        type: 'object',
         additionalProperties: false,
         properties: {
           fieldPath: {
-            type: "string",
-            description: "Caminho do campo no JSON (ex: identificacao, dados_questao.enunciado, dados_questao.alternativas.A, dados_gabarito.explicacao)"
+            type: 'string',
+            description:
+              'Caminho do campo no JSON (ex: identificacao, dados_questao.enunciado, dados_questao.alternativas.A, dados_gabarito.explicacao)',
           },
           targetObject: {
-            type: "string",
-            enum: ["questao", "gabarito"],
-            description: "Objeto afetado ('questao' ou 'gabarito')"
+            type: 'string',
+            enum: ['questao', 'gabarito'],
+            description: "Objeto afetado ('questao' ou 'gabarito')",
           },
           originalText: {
-            type: "string",
-            description: "Trecho exato do texto original cadastrado com a falha"
+            type: 'string',
+            description: 'Trecho exato do texto original cadastrado com a falha',
           },
           suggestedText: {
-            type: "string",
-            description: "Trecho de substituição sugerido com a correção"
+            type: 'string',
+            description: 'Trecho de substituição sugerido com a correção',
           },
           reason: {
-            type: "string",
-            description: "Motivo explicativo curto sobre a correção realizada (ortografia, digitação, ou incoerência com a foto)"
-          }
+            type: 'string',
+            description:
+              'Motivo explicativo curto sobre a correção realizada (ortografia, digitação, ou incoerência com a foto)',
+          },
         },
-        required: ["fieldPath", "targetObject", "originalText", "suggestedText", "reason"]
-      }
-    }
+        required: ['fieldPath', 'targetObject', 'originalText', 'suggestedText', 'reason'],
+      },
+    },
   },
-  required: ["issues"]
+  required: ['issues'],
 };
 
 /**
  * Executa auditoria via IA utilizando Saída Estruturada com suporte a Imagem da Prova Original
  */
-async function checkWithAI(
-  q: any,
-  g: any,
-  options: AuditOptions = {}
-): Promise<AuditItem[]> {
+async function checkWithAI(q: any, g: any, options: AuditOptions = {}): Promise<AuditItem[]> {
   const {
     chaveProva = '',
     idQuestao = '',
@@ -373,17 +402,22 @@ async function checkWithAI(
     imageMimeType = 'image/jpeg',
     checkInconsistencies = true,
     onStatusUpdate,
-    signal
+    signal,
   } = options;
 
   if (signal?.aborted) return [];
-  onStatusUpdate?.(imageBase64 ? 'IA: Analisando foto da prova e verificando todo o JSON da questão...' : 'IA: Enviando JSON completo da questão para auditoria de texto e lógica...');
+  onStatusUpdate?.(
+    imageBase64
+      ? 'IA: Analisando foto da prova e verificando todo o JSON da questão...'
+      : 'IA: Enviando JSON completo da questão para auditoria de texto e lógica...',
+  );
 
   const cleanQ = cleanObjectForAudit(q || {});
   const cleanG = cleanObjectForAudit(g || {});
   const cleanMeta = cleanObjectForAudit(meta || q?.meta || g?.meta || {});
 
-  const finalIdent = identificacao || idQuestao || q?.identificacao || g?.identificacao || q?.id || '';
+  const finalIdent =
+    identificacao || idQuestao || q?.identificacao || g?.identificacao || q?.id || '';
   const finalProva = chaveProva || q?.chaveProva || g?.chaveProva || '';
 
   const payloadToScan = {
@@ -392,12 +426,12 @@ async function checkWithAI(
     chaveProva: finalProva,
     meta: cleanMeta,
     dados_questao: cleanQ,
-    dados_gabarito: cleanG
+    dados_gabarito: cleanG,
   };
 
   const jsonText = JSON.stringify(payloadToScan, null, 2);
 
-  let prompt = `Você é um Auditor Especialista e Revisor Pedagógico para questões escolares e acadêmicas em Português (pt-BR).
+  const prompt = `Você é um Auditor Especialista e Revisor Pedagógico para questões escolares e acadêmicas em Português (pt-BR).
 
 Examine o JSON COMPLETO fornecido (incluindo identificacao, meta, dados_questao e dados_gabarito) ${imageBase64 ? 'e COMPARE rigorosamente com a foto da prova original anexa' : ''}.
 
@@ -427,7 +461,7 @@ ${jsonText}`;
         attachments,
         imageMimeType,
         {},
-        { model: modelId, signal }
+        { model: modelId, signal },
       );
     }
 
@@ -440,12 +474,14 @@ ${jsonText}`;
     return resultJson.issues.map((issue: any) => ({
       id: `ia_${Math.random().toString(36).substring(2, 9)}`,
       fieldPath: issue.fieldPath || 'dados_questao.enunciado',
-      targetObject: (issue.targetObject === 'gabarito' ? 'gabarito' : 'questao') as 'questao' | 'gabarito',
+      targetObject: (issue.targetObject === 'gabarito' ? 'gabarito' : 'questao') as
+        | 'questao'
+        | 'gabarito',
       originalText: issue.originalText || '',
       suggestedText: issue.suggestedText || '',
       reason: issue.reason || 'Correção sugerida por auditoria de IA',
       source: 'ia' as const,
-      status: 'pending' as const
+      status: 'pending' as const,
     }));
   } catch (err) {
     console.error('[AI Audit Error]', err);
@@ -459,7 +495,7 @@ ${jsonText}`;
 export async function runFullTextAudit(
   q: any,
   g: any,
-  options: AuditOptions = {}
+  options: AuditOptions = {},
 ): Promise<AuditItem[]> {
   const {
     chaveProva = '',
@@ -473,14 +509,14 @@ export async function runFullTextAudit(
     imageMimeType = 'image/jpeg',
     checkInconsistencies = true,
     onStatusUpdate,
-    signal
+    signal,
   } = options;
 
   const allItems: AuditItem[] = [];
   const fields = extractTextFields(q, g, {
     identificacao: identificacao || idQuestao || q?.identificacao,
     chaveProva: chaveProva || q?.chaveProva,
-    meta: meta || q?.meta
+    meta: meta || q?.meta,
   });
 
   // 1. Executa Heurísticas locais para ideogramas e UTF-8 corrompido (Instantâneo, 0ms)
@@ -510,7 +546,7 @@ export async function runFullTextAudit(
 
   // Deduplica itens por campo e texto original idênticos
   const uniqueItemsMap = new Map<string, AuditItem>();
-  allItems.forEach(item => {
+  allItems.forEach((item) => {
     const key = `${item.fieldPath}_${item.originalText}_${item.suggestedText}`;
     if (!uniqueItemsMap.has(key)) {
       uniqueItemsMap.set(key, item);
@@ -544,7 +580,12 @@ export function applyAuditFix(q: any, g: any, item: AuditItem): { updatedQ: any;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const k = keys[i];
-    if (current === undefined || current === null || current[k] === undefined || current[k] === null) {
+    if (
+      current === undefined ||
+      current === null ||
+      current[k] === undefined ||
+      current[k] === null
+    ) {
       return { updatedQ, updatedG };
     }
     current = current[k];
@@ -585,10 +626,9 @@ export function applyAuditFix(q: any, g: any, item: AuditItem): { updatedQ: any;
     // 3. Caso o original corresponda quase totalmente ao valor do campo inteiro
     const valTrim = val.trim();
     const origTrim = orig.trim();
-    const isFullFieldMatch = origTrim.length > 0 && (
-      valTrim === origTrim ||
-      (valTrim.length > 0 && origTrim.length / valTrim.length >= 0.75)
-    );
+    const isFullFieldMatch =
+      origTrim.length > 0 &&
+      (valTrim === origTrim || (valTrim.length > 0 && origTrim.length / valTrim.length >= 0.75));
 
     if (isFullFieldMatch) {
       current[lastKey] = sugg;
@@ -598,7 +638,9 @@ export function applyAuditFix(q: any, g: any, item: AuditItem): { updatedQ: any;
     // 4. PREVENÇÃO DE DESTRUIÇÃO: Se o trecho sugerido for pequeno em relação ao campo,
     // NÃO substitui o campo inteiro para evitar apagar o texto!
     if (sugg.trim().length < valTrim.length * 0.7) {
-      console.warn(`[applyAuditFix] Trecho original ("${orig}") não encontrado com segurança no campo ${pathStr}. Substituição total abortada para evitar perda de dados.`);
+      console.warn(
+        `[applyAuditFix] Trecho original ("${orig}") não encontrado com segurança no campo ${pathStr}. Substituição total abortada para evitar perda de dados.`,
+      );
     } else {
       // Se a sugestão for um texto completo fornecido pela IA para o campo inteiro
       current[lastKey] = sugg;

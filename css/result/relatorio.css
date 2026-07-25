@@ -1,74 +1,74 @@
 /* Relatório Técnico de Pesquisa (Markdown Renderizado) */
 .relatorio-content {
-    font-family: var(--font-family-base);
-    color: var(--color-text);
-    line-height: 1.6;
-    font-size: 0.95rem;
+  font-family: var(--font-family-base);
+  color: var(--color-text);
+  line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .relatorio-content h1 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    margin-top: 15px;
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: 4px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-top: 15px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 4px;
 }
 
 .relatorio-content h2 {
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-top: 12px;
-    margin-bottom: 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-top: 12px;
+  margin-bottom: 6px;
 }
 
 .relatorio-content h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    margin-top: 10px;
-    margin-bottom: 5px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-top: 10px;
+  margin-bottom: 5px;
 }
 
 .relatorio-content p {
-    margin-bottom: 10px;
-    color: var(--color-text-secondary);
+  margin-bottom: 10px;
+  color: var(--color-text-secondary);
 }
 
 .relatorio-content ul,
 .relatorio-content ol {
-    padding-left: 20px;
-    margin-bottom: 10px;
+  padding-left: 20px;
+  margin-bottom: 10px;
 }
 
 .relatorio-content li {
-    margin-bottom: 4px;
-    color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  color: var(--color-text-secondary);
 }
 
 .relatorio-content strong {
-    font-weight: 700;
-    color: var(--color-text);
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .relatorio-content blockquote {
-    border-left: 3px solid var(--color-primary);
-    padding-left: 12px;
-    margin-left: 0;
-    color: var(--color-text-secondary);
-    font-style: italic;
-    background: rgba(var(--color-primary-rgb), 0.05);
-    padding: 8px 12px;
-    border-radius: 0 4px 4px 0;
+  border-left: 3px solid var(--color-primary);
+  padding-left: 12px;
+  margin-left: 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  background: rgba(var(--color-primary-rgb), 0.05);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
 }
 
 .relatorio-content code {
-    background: var(--color-bg-2);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-family: var(--font-family-mono);
-    font-size: 0.85em;
-    color: var(--color-warning);
+  background: var(--color-bg-2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: var(--font-family-mono);
+  font-size: 0.85em;
+  color: var(--color-warning);
 }

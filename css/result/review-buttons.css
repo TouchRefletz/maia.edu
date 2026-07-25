@@ -352,14 +352,14 @@
 /* Tag aprovada - borda verde sutil */
 .tag-approved .tag-subject,
 .tag-approved .tag-keyword,
-.tag-approved>span {
+.tag-approved > span {
   box-shadow: 0 0 0 2px #22c55e !important;
 }
 
 /* Tag rejeitada - borda vermelha sutil */
 .tag-rejected .tag-subject,
 .tag-rejected .tag-keyword,
-.tag-rejected>span {
+.tag-rejected > span {
   box-shadow: 0 0 0 2px #ef4444 !important;
   opacity: 0.6;
 }

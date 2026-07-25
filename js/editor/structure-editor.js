@@ -1,88 +1,88 @@
-import { showUndoToast } from "../ui/GlobalAlertsLogic.tsx";
+import { showUndoToast } from '../ui/GlobalAlertsLogic.tsx';
 
 export function criarHtmlBlocoEditor(tipo, conteudo) {
-  const safeContent = String(conteudo ?? "").replace(/"/g, "&quot;");
-  const t = String(tipo ?? "texto")
+  const safeContent = String(conteudo ?? '').replace(/"/g, '&quot;');
+  const t = String(tipo ?? 'texto')
     .toLowerCase()
     .trim();
 
   const CFG = {
     texto: {
-      label: "TEXTO",
-      kind: "textarea",
+      label: 'TEXTO',
+      kind: 'textarea',
       rows: 4,
-      placeholder: "Parágrafo de texto...",
+      placeholder: 'Parágrafo de texto...',
     },
     titulo: {
-      label: "TÍTULO",
-      kind: "input",
-      placeholder: "Título (curto)...",
+      label: 'TÍTULO',
+      kind: 'input',
+      placeholder: 'Título (curto)...',
     },
     subtitulo: {
-      label: "SUBTÍTULO",
-      kind: "input",
-      placeholder: "Subtítulo...",
+      label: 'SUBTÍTULO',
+      kind: 'input',
+      placeholder: 'Subtítulo...',
     },
     citacao: {
-      label: "CITAÇÃO",
-      kind: "textarea",
+      label: 'CITAÇÃO',
+      kind: 'textarea',
       rows: 3,
-      placeholder: "Texto da citação...",
+      placeholder: 'Texto da citação...',
     },
     lista: {
-      label: "LISTA",
-      kind: "textarea",
+      label: 'LISTA',
+      kind: 'textarea',
       rows: 4,
-      placeholder: "Um item por linha...",
+      placeholder: 'Um item por linha...',
     },
     equacao: {
-      label: "EQUAÇÃO",
-      kind: "textarea",
+      label: 'EQUAÇÃO',
+      kind: 'textarea',
       rows: 2,
-      placeholder: "LaTeX (ex: \\frac{a}{b})",
+      placeholder: 'LaTeX (ex: \\frac{a}{b})',
     },
     codigo: {
-      label: "CÓDIGO",
-      kind: "textarea",
+      label: 'CÓDIGO',
+      kind: 'textarea',
       rows: 6,
-      placeholder: "Cole o código aqui...",
+      placeholder: 'Cole o código aqui...',
     },
     destaque: {
-      label: "DESTAQUE",
-      kind: "textarea",
+      label: 'DESTAQUE',
+      kind: 'textarea',
       rows: 3,
-      placeholder: "Trecho para destacar...",
+      placeholder: 'Trecho para destacar...',
     },
     fonte: {
-      label: "FONTE",
-      kind: "textarea",
+      label: 'FONTE',
+      kind: 'textarea',
       rows: 2,
-      placeholder: "Créditos / referência (ex: Fonte: ..., Adaptado de ...)",
+      placeholder: 'Créditos / referência (ex: Fonte: ..., Adaptado de ...)',
     },
     imagem: {
-      label: "IMAGEM",
-      kind: "input",
-      placeholder: "Legenda/Alt-text (ex: Mapa, gráfico...)",
+      label: 'IMAGEM',
+      kind: 'input',
+      placeholder: 'Legenda/Alt-text (ex: Mapa, gráfico...)',
     },
-    separador: { label: "SEPARADOR", kind: "separador" },
+    separador: { label: 'SEPARADOR', kind: 'separador' },
     tabela: {
-      label: "TABELA (MARKDOWN)",
-      kind: "textarea",
+      label: 'TABELA (MARKDOWN)',
+      kind: 'textarea',
       rows: 6,
-      placeholder: "| Coluna 1 | Coluna 2 |\n|---|---|\n| Dado A | Dado B |",
+      placeholder: '| Coluna 1 | Coluna 2 |\n|---|---|\n| Dado A | Dado B |',
     },
   };
 
   const cfg = CFG[t] ?? CFG.texto;
 
-  const uniqueId = "struct_field_" + Math.random().toString(36).substr(2, 9);
+  const uniqueId = 'struct_field_' + Math.random().toString(36).substr(2, 9);
 
-  let inputHtml = "";
-  if (cfg.kind === "input") {
+  let inputHtml = '';
+  if (cfg.kind === 'input') {
     inputHtml = `<input type="text" id="${uniqueId}" class="form-control item-content" value="${safeContent}" placeholder="${cfg.placeholder}">`;
-  } else if (cfg.kind === "textarea") {
+  } else if (cfg.kind === 'textarea') {
     inputHtml = `<textarea id="${uniqueId}" class="item-content form-control structure-textarea-auto" rows="${cfg.rows}" placeholder="${cfg.placeholder}" style="overflow:hidden; resize:none;">${safeContent}</textarea>`;
-  } else if (cfg.kind === "separador") {
+  } else if (cfg.kind === 'separador') {
     // mantÃ©m item-content para o salvamento ser consistente
     inputHtml = `
       <input type="hidden" class="item-content" value="">
@@ -94,9 +94,9 @@ export function criarHtmlBlocoEditor(tipo, conteudo) {
 
   const label = cfg.label;
   const ocrButton =
-    cfg.kind !== "separador" && cfg.kind !== "imagem"
+    cfg.kind !== 'separador' && cfg.kind !== 'imagem'
       ? `<button type="button" class="btn-ocr-invoke" style="background:none; border:none; cursor:pointer; font-size:14px; margin-right:5px; color:#666;" onclick="window.iniciar_ocr_campo('${uniqueId}')" title="Usar OCR">🔍</button>`
-      : "";
+      : '';
 
   return `
     <div class="structure-item" draggable="true" data-type="${t}">
@@ -116,11 +116,11 @@ export function criarHtmlBlocoEditor(tipo, conteudo) {
 }
 
 export function ensureDeleteConfirmModal() {
-  if (document.getElementById("deleteConfirmModal")) return;
+  if (document.getElementById('deleteConfirmModal')) return;
 
-  const overlay = document.createElement("div");
-  overlay.id = "deleteConfirmModal";
-  overlay.className = "modal-overlay hidden";
+  const overlay = document.createElement('div');
+  overlay.id = 'deleteConfirmModal';
+  overlay.className = 'modal-overlay hidden';
   overlay.innerHTML = `
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="delTitle">
       <div class="modal-header">
@@ -141,19 +141,19 @@ export function ensureDeleteConfirmModal() {
   document.body.appendChild(overlay);
 
   // Fecha ao clicar fora
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) overlay.classList.add("hidden");
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.add('hidden');
   });
 }
 
 export function openDeleteConfirmModal(onConfirm) {
   ensureDeleteConfirmModal();
 
-  const overlay = document.getElementById("deleteConfirmModal");
-  const btnCancel = document.getElementById("delCancelBtn");
-  const btnOk = document.getElementById("delOkBtn");
+  const overlay = document.getElementById('deleteConfirmModal');
+  const btnCancel = document.getElementById('delCancelBtn');
+  const btnOk = document.getElementById('delOkBtn');
 
-  const close = () => overlay.classList.add("hidden");
+  const close = () => overlay.classList.add('hidden');
 
   btnCancel.onclick = close;
   btnOk.onclick = () => {
@@ -161,7 +161,7 @@ export function openDeleteConfirmModal(onConfirm) {
     onConfirm?.();
   };
 
-  overlay.classList.remove("hidden");
+  overlay.classList.remove('hidden');
 }
 
 /**
@@ -170,8 +170,7 @@ export function openDeleteConfirmModal(onConfirm) {
  */
 export function iniciarEditorEstrutura(targetContainer) {
   // 1. DEFINE O ALVO
-  const container =
-    targetContainer || document.getElementById("editor-drag-container");
+  const container = targetContainer || document.getElementById('editor-drag-container');
 
   // Se não achou nenhum container, para por aqui.
   if (!container) return;
@@ -188,10 +187,10 @@ export function iniciarEditorEstrutura(targetContainer) {
  */
 export function configurarDelecao(container) {
   const deleteHandler = (e) => {
-    const btn = e.target.closest(".btn-delete-block");
+    const btn = e.target.closest('.btn-delete-block');
     if (!btn) return;
 
-    const item = btn.closest(".structure-item");
+    const item = btn.closest('.structure-item');
     if (!item) return;
 
     // Chama seu modal global de confirmação
@@ -202,7 +201,7 @@ export function configurarDelecao(container) {
       item.remove();
 
       // Mostra o toast para desfazer a ação
-      showUndoToast("Bloco removido.", () => {
+      showUndoToast('Bloco removido.', () => {
         if (next && next.parentNode === parent) {
           parent.insertBefore(item, next);
         } else {
@@ -213,9 +212,9 @@ export function configurarDelecao(container) {
   };
 
   // TRUQUE IMPORTANTE: Remove o listener anterior antes de adicionar um novo.
-  container.removeEventListener("click", container._deleteHandlerRef);
+  container.removeEventListener('click', container._deleteHandlerRef);
   container._deleteHandlerRef = deleteHandler; // Salva a referência no próprio elemento DOM
-  container.addEventListener("click", container._deleteHandlerRef);
+  container.addEventListener('click', container._deleteHandlerRef);
 }
 
 /**
@@ -227,10 +226,10 @@ export function configurarDragAndDrop(container) {
 
   // Quando começa a arrastar
   const dragStartHandler = (e) => {
-    if (!e.target.classList.contains("structure-item")) return;
+    if (!e.target.classList.contains('structure-item')) return;
     draggedItem = e.target;
-    e.target.classList.add("dragging");
-    e.dataTransfer.effectAllowed = "move";
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
 
     if (e.dataTransfer.setDragImage) {
       // Opcional: ajustar imagem de drag se quiser
@@ -239,8 +238,8 @@ export function configurarDragAndDrop(container) {
 
   // Quando termina de arrastar
   const dragEndHandler = (e) => {
-    if (!e.target.classList.contains("structure-item")) return;
-    e.target.classList.remove("dragging");
+    if (!e.target.classList.contains('structure-item')) return;
+    e.target.classList.remove('dragging');
     draggedItem = null;
   };
 
@@ -259,18 +258,18 @@ export function configurarDragAndDrop(container) {
   };
 
   // Remove listeners antigos de Drag (para evitar duplicação)
-  container.removeEventListener("dragstart", container._dragStartRef);
-  container.removeEventListener("dragend", container._dragEndRef);
-  container.removeEventListener("dragover", container._dragOverRef);
+  container.removeEventListener('dragstart', container._dragStartRef);
+  container.removeEventListener('dragend', container._dragEndRef);
+  container.removeEventListener('dragover', container._dragOverRef);
 
   // Salva referências e adiciona novos
   container._dragStartRef = dragStartHandler;
   container._dragEndRef = dragEndHandler;
   container._dragOverRef = dragOverHandler;
 
-  container.addEventListener("dragstart", container._dragStartRef);
-  container.addEventListener("dragend", container._dragEndRef);
-  container.addEventListener("dragover", container._dragOverRef);
+  container.addEventListener('dragstart', container._dragStartRef);
+  container.addEventListener('dragend', container._dragEndRef);
+  container.addEventListener('dragover', container._dragOverRef);
 }
 
 /**
@@ -279,36 +278,33 @@ export function configurarDragAndDrop(container) {
  */
 export function configurarBotoesAdicionar(container, targetContainer) {
   // A lógica original verifica se NÃO passamos container específico ou se é o principal
-  if (!targetContainer || container.id === "editor-drag-container") {
-    const addBtnContainer = document.getElementById("editor-add-buttons");
+  if (!targetContainer || container.id === 'editor-drag-container') {
+    const addBtnContainer = document.getElementById('editor-add-buttons');
 
     if (addBtnContainer) {
       // Limpa eventos antigos para não duplicar se renderizar a tela de novo
       const novoContainerBtn = addBtnContainer.cloneNode(true);
-      addBtnContainer.parentNode.replaceChild(
-        novoContainerBtn,
-        addBtnContainer
-      );
+      addBtnContainer.parentNode.replaceChild(novoContainerBtn, addBtnContainer);
 
       // Re-seleciona o elemento novo limpo
-      const toolbar = document.getElementById("editor-add-buttons");
-      const menu = toolbar.querySelector("#editorAddMenu");
-      const toggleBtn = toolbar.querySelector("#btnToggleAddMenu");
+      const toolbar = document.getElementById('editor-add-buttons');
+      const menu = toolbar.querySelector('#editorAddMenu');
+      const toggleBtn = toolbar.querySelector('#btnToggleAddMenu');
 
       // Configura cliques dos botões de adicionar bloco
-      toolbar.querySelectorAll(".btn-add-block").forEach((btn) => {
+      toolbar.querySelectorAll('.btn-add-block').forEach((btn) => {
         btn.onclick = () => {
           const tipo = btn.dataset.addType;
-          const html = criarHtmlBlocoEditor(tipo, "");
+          const html = criarHtmlBlocoEditor(tipo, '');
 
-          const tempDiv = document.createElement("div");
+          const tempDiv = document.createElement('div');
           tempDiv.innerHTML = html.trim();
           const novoEl = tempDiv.firstChild;
 
           container.appendChild(novoEl);
-          novoEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          novoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          if (menu) menu.classList.add("hidden");
+          if (menu) menu.classList.add('hidden');
         };
       });
 
@@ -316,12 +312,12 @@ export function configurarBotoesAdicionar(container, targetContainer) {
       if (toggleBtn && menu) {
         toggleBtn.onclick = (e) => {
           e.preventDefault();
-          menu.classList.toggle("hidden");
+          menu.classList.toggle('hidden');
         };
 
         // Fecha ao clicar fora
-        document.addEventListener("click", (e) => {
-          if (!toolbar.contains(e.target)) menu.classList.add("hidden");
+        document.addEventListener('click', (e) => {
+          if (!toolbar.contains(e.target)) menu.classList.add('hidden');
         });
       }
     }
@@ -333,9 +329,7 @@ export function configurarBotoesAdicionar(container, targetContainer) {
  * Usado pela função de Drag & Drop.
  */
 export function getDragAfterElement(container, y) {
-  const draggableElements = [
-    ...container.querySelectorAll(".structure-item:not(.dragging)"),
-  ];
+  const draggableElements = [...container.querySelectorAll('.structure-item:not(.dragging)')];
 
   return draggableElements.reduce(
     (closest, child) => {
@@ -349,6 +343,6 @@ export function getDragAfterElement(container, y) {
         return closest;
       }
     },
-    { offset: Number.NEGATIVE_INFINITY }
+    { offset: Number.NEGATIVE_INFINITY },
   ).element;
 }

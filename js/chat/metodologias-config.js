@@ -15,19 +15,19 @@
 export function getMetodologiaCategories() {
   return [
     {
-      id: "cognitivas",
-      label: "Cognitivas",
-      icon: "🧠",
+      id: 'cognitivas',
+      label: 'Cognitivas',
+      icon: '🧠',
     },
     {
-      id: "pratica",
-      label: "Prática",
-      icon: "📝",
+      id: 'pratica',
+      label: 'Prática',
+      icon: '📝',
     },
     {
-      id: "criativas",
-      label: "Criativas",
-      icon: "🎨",
+      id: 'criativas',
+      label: 'Criativas',
+      icon: '🎨',
     },
   ];
 }
@@ -36,11 +36,11 @@ export function getMetodologiasData() {
   return [
     // === COGNITIVAS ===
     {
-      id: "socratico",
-      label: "Socrático",
-      description: "Aprendizado por perguntas reflexivas",
-      icon: "🏛️",
-      category: "cognitivas",
+      id: 'socratico',
+      label: 'Socrático',
+      description: 'Aprendizado por perguntas reflexivas',
+      icon: '🏛️',
+      category: 'cognitivas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: SOCRÁTICO (Maiêutica)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -52,11 +52,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Termine cada seção com uma pergunta provocativa que force o aluno a pensar.`,
     },
     {
-      id: "feynman",
-      label: "Feynman",
-      description: "Explicar como se fosse para uma criança",
-      icon: "🔬",
-      category: "cognitivas",
+      id: 'feynman',
+      label: 'Feynman',
+      description: 'Explicar como se fosse para uma criança',
+      icon: '🔬',
+      category: 'cognitivas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: TÉCNICA DE FEYNMAN]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -68,11 +68,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Use blocos "destaque" para as analogias mais poderosas.`,
     },
     {
-      id: "dual-coding",
-      label: "Dual Coding",
-      description: "Texto + diagramas visuais Mermaid",
-      icon: "🎨",
-      category: "cognitivas",
+      id: 'dual-coding',
+      label: 'Dual Coding',
+      description: 'Texto + diagramas visuais Mermaid',
+      icon: '🎨',
+      category: 'cognitivas',
       requiresMermaid: true,
       systemPromptInjection: `[METODOLOGIA ATIVA: DUAL CODING (Paivio, 1971)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -85,11 +85,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Exemplo de bloco Mermaid: { "tipo": "codigo", "conteudo": "graph TD\\n  A[Conceito] --> B[Sub-conceito]", "props": { "language": "mermaid" } }`,
     },
     {
-      id: "elaboracao",
-      label: "Elaboração",
-      description: "Ancoragem em conhecimento prévio",
-      icon: "🔗",
-      category: "cognitivas",
+      id: 'elaboracao',
+      label: 'Elaboração',
+      description: 'Ancoragem em conhecimento prévio',
+      icon: '🔗',
+      category: 'cognitivas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: ELABORAÇÃO INTEGRADA]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -101,11 +101,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Na conclusão, faça um mapa de conexões entre TODOS os conceitos abordados.`,
     },
     {
-      id: "metacognicao",
-      label: "Metacognição",
-      description: "Ensinar a pensar sobre o pensamento",
-      icon: "🪞",
-      category: "cognitivas",
+      id: 'metacognicao',
+      label: 'Metacognição',
+      description: 'Ensinar a pensar sobre o pensamento',
+      icon: '🪞',
+      category: 'cognitivas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: CONSCIÊNCIA METACOGNITIVA]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -119,11 +119,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 
     // === PRÁTICA ===
     {
-      id: "pratica-distribuida",
-      label: "Prática Espaçada",
-      description: "Revisão intercalada contra esquecimento",
-      icon: "📅",
-      category: "pratica",
+      id: 'pratica-distribuida',
+      label: 'Prática Espaçada',
+      description: 'Revisão intercalada contra esquecimento',
+      icon: '📅',
+      category: 'pratica',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: PRÁTICA ESPAÇADA (Ebbinghaus)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -134,11 +134,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - O objetivo é furar a Curva do Esquecimento forçando recall ativo.`,
     },
     {
-      id: "intercalacao",
-      label: "Intercalação",
-      description: "Misturar tópicos para raciocínio heurístico",
-      icon: "🔀",
-      category: "pratica",
+      id: 'intercalacao',
+      label: 'Intercalação',
+      description: 'Misturar tópicos para raciocínio heurístico',
+      icon: '🔀',
+      category: 'pratica',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: MÉTODO DE INTERCALAÇÃO]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -149,11 +149,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Use blocos "destaque" para sinalizar as transições de domínio.`,
     },
     {
-      id: "teste-memoria",
-      label: "Active Recall",
-      description: "Teste direto de retenção de memória",
-      icon: "🧪",
-      category: "pratica",
+      id: 'teste-memoria',
+      label: 'Active Recall',
+      description: 'Teste direto de retenção de memória',
+      icon: '🧪',
+      category: 'pratica',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: ACTIVE RECALL (Teste de Retenção)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -166,11 +166,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 
     // === CRIATIVAS ===
     {
-      id: "analogias",
-      label: "Analogias Profundas",
-      description: "Equiparação de sistemas completos",
-      icon: "🔄",
-      category: "criativas",
+      id: 'analogias',
+      label: 'Analogias Profundas',
+      description: 'Equiparação de sistemas completos',
+      icon: '🔄',
+      category: 'criativas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: ANALOGIAS PROFUNDAS EXTENSAS]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -181,11 +181,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Use blocos "destaque" para mapear: "No nosso aquário, X equivale a Y no tema real".`,
     },
     {
-      id: "mapas-mentais",
-      label: "Mapas Mentais",
-      description: "Topologia radial visual com Mermaid",
-      icon: "🗺️",
-      category: "criativas",
+      id: 'mapas-mentais',
+      label: 'Mapas Mentais',
+      description: 'Topologia radial visual com Mermaid',
+      icon: '🗺️',
+      category: 'criativas',
       requiresMermaid: true,
       systemPromptInjection: `[METODOLOGIA ATIVA: TOPOLOGIA RADIAL (Tony Buzan)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -197,11 +197,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Exemplo: { "tipo": "codigo", "conteudo": "mindmap\\n  root((Tema Central))\\n    Subtema A\\n      Detalhe 1\\n    Subtema B", "props": { "language": "mermaid" } }`,
     },
     {
-      id: "gamificacao",
-      label: "Gamificação",
-      description: "Engajamento lúdico com progressão",
-      icon: "🎮",
-      category: "criativas",
+      id: 'gamificacao',
+      label: 'Gamificação',
+      description: 'Engajamento lúdico com progressão',
+      icon: '🎮',
+      category: 'criativas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: ENGAJAMENTO LÚDICO (Gamificação)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -213,11 +213,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - No final, dê um "XP Report" resumindo o que foi conquistado.`,
     },
     {
-      id: "pbl",
-      label: "PBL",
-      description: "Aprendizagem via problemas reais",
-      icon: "🏢",
-      category: "criativas",
+      id: 'pbl',
+      label: 'PBL',
+      description: 'Aprendizagem via problemas reais',
+      icon: '🏢',
+      category: 'criativas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: APRENDIZAGEM VIA PROBLEMAS (PBL)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -228,11 +228,11 @@ DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
 - Use blocos "destaque" para os momentos "Eureka" onde a teoria emerge.`,
     },
     {
-      id: "storytelling",
-      label: "Storytelling",
-      description: "Trilha narrativa em primeira pessoa",
-      icon: "📖",
-      category: "criativas",
+      id: 'storytelling',
+      label: 'Storytelling',
+      description: 'Trilha narrativa em primeira pessoa',
+      icon: '📖',
+      category: 'criativas',
       requiresMermaid: false,
       systemPromptInjection: `[METODOLOGIA ATIVA: TRILHA NARRATIVA (Joseph Campbell)]
 DIRETRIZ PEDAGÓGICA OBRIGATÓRIA — Aplique esta lente em 100% da resposta:
@@ -266,7 +266,7 @@ export function getMetodologia(id) {
 export function getMetodologiasByCategory() {
   const categories = getMetodologiaCategories();
   const data = getMetodologiasData();
-  
+
   return categories.map((cat) => ({
     category: cat,
     items: data.filter((m) => m.category === cat.id),

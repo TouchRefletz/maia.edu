@@ -1,12 +1,12 @@
 /**
  * Remove campos gigantescos e irrelevantes do JSON da questão (como fotos_originais, fontes_externas)
  * para evitar estourar o limite de tokens da API dos modelos (especialmente Groq).
- * 
+ *
  * @param {Object} fullData Objeto original da questão
  * @returns {Object} Um novo objeto limpo e clonado
  */
 export function cleanQuestionDataForAI(fullData) {
-  if (!fullData || typeof fullData !== "object") return fullData;
+  if (!fullData || typeof fullData !== 'object') return fullData;
 
   // Clone para evitar mutar o cache em memória
   let cleaned;

@@ -1,17 +1,17 @@
-import { LogTranslator } from "./log-translator.js";
+import { LogTranslator } from './log-translator.js';
 
 export class TerminalUI {
   constructor(containerIdOrElement, options = {}) {
     // State Enums (Define FIRST to prevent partial initialization errors)
     this.MODES = {
-      BOOT: "BOOT", // 0-10%
-      EXEC: "EXEC", // 10-90%
-      VERIFY: "VERIFY", // 90-99%
-      DONE: "DONE", // 100%
+      BOOT: 'BOOT', // 0-10%
+      EXEC: 'EXEC', // 10-90%
+      VERIFY: 'VERIFY', // 90-99%
+      DONE: 'DONE', // 100%
     };
 
     // Resolve Container
-    if (typeof containerIdOrElement === "string") {
+    if (typeof containerIdOrElement === 'string') {
       this.container = document.getElementById(containerIdOrElement);
     } else {
       this.container = containerIdOrElement;
@@ -29,7 +29,7 @@ export class TerminalUI {
     // Options
     this.options = Object.assign(
       {
-        mode: "full", // 'full' | 'simple'
+        mode: 'full', // 'full' | 'simple'
         initialDuration: 480,
       },
       options,
@@ -38,8 +38,8 @@ export class TerminalUI {
     // Sound Config
     this.config = {
       sounds: {
-        success: "/sounds/success.mp3",
-        error: "/sounds/error.mp3",
+        success: '/sounds/success.mp3',
+        error: '/sounds/error.mp3',
       },
     };
     this.notifyEnabled = false;
@@ -90,8 +90,8 @@ export class TerminalUI {
   renderInitialStructure() {
     // Conditional Task Block
     const tasksBlock =
-      this.options.mode === "simple"
-        ? ""
+      this.options.mode === 'simple'
+        ? ''
         : `
       <div class="term-tasks-body">
          <div class="term-floating-header" id="term-floating-header">
@@ -110,18 +110,17 @@ export class TerminalUI {
     `;
 
     // Adjust height for simple mode if needed via CSS class or inline
-    const simpleClass =
-      this.options.mode === "simple" ? "term-mode-simple" : "";
+    const simpleClass = this.options.mode === 'simple' ? 'term-mode-simple' : '';
 
     this.container.innerHTML = `
       <div class="term-header ${simpleClass}">
         <div class="term-title">
-          <span>>_</span> ${this.options.mode === "simple" ? "SISTEMA_LIMPEZA" : "PESQUISA_AVANÇADA"}
+          <span>>_</span> ${this.options.mode === 'simple' ? 'SISTEMA_LIMPEZA' : 'PESQUISA_AVANÇADA'}
         </div>
         <div class="term-status-group">
             <div class="term-status active">INICIANDO_SISTEMA...</div>
             <span class="term-timer" style="font-family: var(--font-family-mono); font-weight: bold; color: var(--term-accent);">
-                ${this.options.mode === "simple" ? "00:15" : "08:00"}
+                ${this.options.mode === 'simple' ? '00:15' : '08:00'}
             </span>
              <button id="term-btn-notify" class="term-btn-notify inactive" title="Notificar ao concluir">
                 <span class="icon">🔕</span>
@@ -167,95 +166,91 @@ export class TerminalUI {
       </div>
     `;
 
-    this.el.fill = this.container.querySelector(".term-bar-fill");
-    this.el.eta = this.container.querySelector(".term-timer");
-    this.el.status = this.container.querySelector(".term-status");
+    this.el.fill = this.container.querySelector('.term-bar-fill');
+    this.el.eta = this.container.querySelector('.term-timer');
+    this.el.status = this.container.querySelector('.term-status');
     // this.el.stepText is deprecated/removed in new layout
-    this.el.objectivesHeader = this.container.querySelector(
-      ".term-objectives-header",
-    );
-    this.el.tasksBody = this.container.querySelector(".term-tasks-body");
-    this.el.floatingHeader = this.container.querySelector(
-      "#term-floating-header",
-    );
-    this.el.chainStream = this.container.querySelector("#term-chain-stream");
+    this.el.objectivesHeader = this.container.querySelector('.term-objectives-header');
+    this.el.tasksBody = this.container.querySelector('.term-tasks-body');
+    this.el.floatingHeader = this.container.querySelector('#term-floating-header');
+    this.el.chainStream = this.container.querySelector('#term-chain-stream');
 
     // Old ref for safety if needed, though we use new ones now
     this.el.taskList = this.el.tasksBody;
-    this.el.logStream = this.container.querySelector("#term-logs-stream");
-    this.el.logBtn = this.container.querySelector("#term-btn-logs");
-    this.el.cancelBtn = this.container.querySelector("#term-btn-cancel");
-    this.el.retryBtn = this.container.querySelector("#term-btn-retry");
+    this.el.logStream = this.container.querySelector('#term-logs-stream');
+    this.el.logBtn = this.container.querySelector('#term-btn-logs');
+    this.el.cancelBtn = this.container.querySelector('#term-btn-cancel');
+    this.el.retryBtn = this.container.querySelector('#term-btn-retry');
 
     // Bind Cancel Button
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.addEventListener("click", () => this.cancelJob());
+      this.el.cancelBtn.addEventListener('click', () => this.cancelJob());
     }
 
     // Bind Float Minimize Button
-    const minBtn = this.container.querySelector("#term-btn-float-minimize");
+    const minBtn = this.container.querySelector('#term-btn-float-minimize');
     if (minBtn) {
-      minBtn.addEventListener("click", (e) => {
+      minBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Don't trigger expand
-        this.container.classList.add("term-minimized");
+        this.container.classList.add('term-minimized');
       });
     }
 
     // Global Click Outside Listener
     // We bind this once. It checks if click is outside AND we are floating/expanded.
-    document.addEventListener("click", (e) => {
+    document.addEventListener('click', (e) => {
       if (!this.container) return;
       if (!document.body.contains(this.container)) return; // Detached
 
-      const isFloating = this.container.classList.contains("term-floating");
-      const isMinimized = this.container.classList.contains("term-minimized");
+      const isFloating = this.container.classList.contains('term-floating');
+      const isMinimized = this.container.classList.contains('term-minimized');
 
       // Only intervene if floating AND expanded
       if (isFloating && !isMinimized) {
         // Check if click origin is outside container
         if (!this.container.contains(e.target)) {
-          this.container.classList.add("term-minimized");
+          this.container.classList.add('term-minimized');
         }
       }
     });
 
     // Bind Retry Button
     if (this.el.retryBtn) {
-      this.el.retryBtn.addEventListener("click", () => {
-        if (this.onRetry) this.onRetry("retry");
+      this.el.retryBtn.addEventListener('click', () => {
+        if (this.onRetry) this.onRetry('retry');
       });
     }
 
-    this.el.addMoreBtn = this.container.querySelector("#term-btn-add-more");
+    this.el.addMoreBtn = this.container.querySelector('#term-btn-add-more');
     if (this.el.addMoreBtn) {
-      this.el.addMoreBtn.addEventListener("click", () => {
+      this.el.addMoreBtn.addEventListener('click', () => {
         // Reuse retry logic as it triggers the same search flow
-        if (this.onRetry) this.onRetry("add_more");
+        if (this.onRetry) this.onRetry('add_more');
       });
     }
 
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.innerText = "Cancelar";
+      this.el.cancelBtn.innerText = 'Cancelar';
     }
 
     // Bind Notification Toggle
-    this.el.notifyBtn = this.container.querySelector("#term-btn-notify");
+    this.el.notifyBtn = this.container.querySelector('#term-btn-notify');
     if (this.el.notifyBtn) {
-      this.el.notifyBtn.addEventListener("click", (e) => {
+      this.el.notifyBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent float expansion when clicking notify
         this.toggleNotification();
       });
     }
 
     // Float Mode Expansion Click (Toggle Minimized)
-    this.container.addEventListener("click", (e) => {
-      if (this.container.classList.contains("term-floating")) {
+    this.container.addEventListener('click', (e) => {
+      if (this.container.classList.contains('term-floating')) {
         // Logic: If minimized, expand.
         // If expanded, do nothing (click events bubble unless stopped, handled by controls)
 
-        const isMinimized = this.container.classList.contains("term-minimized");
+        const isMinimized = this.container.classList.contains('term-minimized');
         if (isMinimized) {
-          this.container.classList.remove("term-minimized");
+          this.container.classList.remove('term-minimized');
         }
       }
     });
@@ -263,12 +258,12 @@ export class TerminalUI {
 
   setFloatMode(isFloating) {
     if (isFloating) {
-      this.container.classList.add("term-floating");
+      this.container.classList.add('term-floating');
       // Default to minimized when floating starts
-      this.container.classList.add("term-minimized");
+      this.container.classList.add('term-minimized');
     } else {
-      this.container.classList.remove("term-floating");
-      this.container.classList.remove("term-minimized");
+      this.container.classList.remove('term-floating');
+      this.container.classList.remove('term-minimized');
     }
   }
 
@@ -295,15 +290,15 @@ export class TerminalUI {
     if (!btn) return;
 
     if (this.notifyEnabled) {
-      btn.classList.remove("inactive");
-      btn.classList.add("active");
+      btn.classList.remove('inactive');
+      btn.classList.add('active');
       btn.innerHTML = `<span class="icon">🔔</span>`;
-      btn.title = "Notificações Ativas";
+      btn.title = 'Notificações Ativas';
     } else {
-      btn.classList.remove("active");
-      btn.classList.add("inactive");
+      btn.classList.remove('active');
+      btn.classList.add('inactive');
       btn.innerHTML = `<span class="icon">🔕</span>`;
-      btn.title = "Notificar ao concluir";
+      btn.title = 'Notificar ao concluir';
     }
   }
 
@@ -352,8 +347,7 @@ export class TerminalUI {
     // 2. Determine State based on Error
     // "ahead" means Estimated < Target (e.g. 7m vs 7m10s).
     // "behind" means Estimated > Target (e.g. 7m20s vs 7m10s).
-    const isAheadOrAtTarget =
-      this.estimatedRemainingTime <= targetRemaining + 2; // 2s buffer
+    const isAheadOrAtTarget = this.estimatedRemainingTime <= targetRemaining + 2; // 2s buffer
 
     let change = 0;
 
@@ -387,10 +381,7 @@ export class TerminalUI {
 
     // Apply
     this.estimatedRemainingTime += change;
-    this.estimatedRemainingTime = Math.max(
-      0,
-      Math.min(9999, this.estimatedRemainingTime),
-    );
+    this.estimatedRemainingTime = Math.max(0, Math.min(9999, this.estimatedRemainingTime));
 
     this.updateETADisplay();
   }
@@ -401,7 +392,7 @@ export class TerminalUI {
     const remaining = Math.max(0, Math.floor(this.estimatedRemainingTime));
     const mins = Math.floor(remaining / 60);
     const secs = Math.floor(remaining % 60);
-    this.el.eta.innerText = `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    this.el.eta.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
   updateStepText(text) {
@@ -411,7 +402,7 @@ export class TerminalUI {
     // If not found, default to 'info'
     const translation = LogTranslator.translate(text) || {
       text: text,
-      type: "info",
+      type: 'info',
     };
 
     // 2. Append to Chain (New System)
@@ -419,8 +410,7 @@ export class TerminalUI {
 
     // 3. Update Active Card Notes (Keep for context)
     // Find the currently active task
-    const activeTask =
-      this.tasks.find((t) => t.status === "in_progress") || this.tasks[0];
+    const activeTask = this.tasks.find((t) => t.status === 'in_progress') || this.tasks[0];
 
     if (activeTask && this.el.tasksBody) {
       // Append text to the notes of the active card in DOM directly for real-time feel
@@ -428,11 +418,9 @@ export class TerminalUI {
       // Let's find the card element by some ID we will generate (or index).
 
       // Strategy: Find the active card DOM element
-      const activeCard = this.el.tasksBody.querySelector(
-        ".term-task-card.active",
-      );
+      const activeCard = this.el.tasksBody.querySelector('.term-task-card.active');
       if (activeCard) {
-        const noteEl = activeCard.querySelector(".term-task-notes");
+        const noteEl = activeCard.querySelector('.term-task-notes');
         if (noteEl) {
           // Append new line if not duplicate
           if (!noteEl.innerText.includes(text)) {
@@ -451,10 +439,7 @@ export class TerminalUI {
   updateTaskFromEvent(tasks) {
     if (Array.isArray(tasks)) {
       this.updatePlan(tasks);
-      this.queueLog(
-        `[SYSTEM] Lista de tarefas sincronizada (${tasks.length} itens)`,
-        "success",
-      );
+      this.queueLog(`[SYSTEM] Lista de tarefas sincronizada (${tasks.length} itens)`, 'success');
     }
   }
 
@@ -481,12 +466,12 @@ export class TerminalUI {
     }
   }
 
-  processLogLine(text, type = "info") {
+  processLogLine(text, type = 'info') {
     if (!text) return;
 
     // 0. Split Multi-line Logs (CRITICAL FIX: Handle multiple events in one chunk)
-    if (text.includes("\n")) {
-      const lines = text.split("\n");
+    if (text.includes('\n')) {
+      const lines = text.split('\n');
       lines.forEach((line) => {
         if (line.trim()) this.processLogLine(line, type);
       });
@@ -497,18 +482,18 @@ export class TerminalUI {
     this.queueLog(text, type);
 
     // --- TRIGGERS FOR ADVANCED SEARCH AGENT ---
-    if (text.includes("Verificando banco de dados por resultados existentes")) {
-      if (this.el.status) this.el.status.innerText = "VERIFICANDO_CACHE...";
+    if (text.includes('Verificando banco de dados por resultados existentes')) {
+      if (this.el.status) this.el.status.innerText = 'VERIFICANDO_CACHE...';
     }
-    if (text.includes("Slug Canônico Gerado:")) {
+    if (text.includes('Slug Canônico Gerado:')) {
       // Optional: Update status or just let the log show
     }
-    if (text.includes("Conectando ao canal:")) {
+    if (text.includes('Conectando ao canal:')) {
       if (this.el.status) {
-        this.el.status.innerText = "AGENTE_PESQUISA_ATIVO";
-        this.el.status.classList.add("active");
+        this.el.status.innerText = 'AGENTE_PESQUISA_ATIVO';
+        this.el.status.classList.add('active');
       }
-      this.queueLog(">> INICIANDO AGENTE DE PESQUISA AVANÇADA...", "system");
+      this.queueLog('>> INICIANDO AGENTE DE PESQUISA AVANÇADA...', 'system');
     }
 
     // 2. Translate to Chain of Thought
@@ -531,12 +516,10 @@ export class TerminalUI {
     let foundTask = false;
 
     // Cleaning: Remove common prefixes like "> ", "- ", "* "
-    const cleanLine = text.trim().replace(/^[\-\*\>]\s+/, "");
+    const cleanLine = text.trim().replace(/^[-*>]\s+/, '');
 
     // Regex A: [x] Title | Notes: ...
-    const matchA = cleanLine.match(
-      /^\[([ xX/])\]\s+([^|]+)(?:\|\s*Notes:\s*(.*))?/i,
-    );
+    const matchA = cleanLine.match(/^\[([ xX/])\]\s+([^|]+)(?:\|\s*Notes:\s*(.*))?/i);
     // Regex B: 1. ⏳ Title
     const matchB = cleanLine.match(/^\d+\.\s+(?:([^\w\s]+)\s+)?(.*)/);
 
@@ -544,27 +527,25 @@ export class TerminalUI {
       foundTask = true;
       const statusChar = matchA[1].toLowerCase();
       const taskTitle = matchA[2].trim();
-      const notes = matchA[3] ? matchA[3].trim() : "";
+      const notes = matchA[3] ? matchA[3].trim() : '';
 
-      let status = "todo";
-      if (statusChar === "x") status = "completed";
-      if (statusChar === "/") status = "in_progress";
+      let status = 'todo';
+      if (statusChar === 'x') status = 'completed';
+      if (statusChar === '/') status = 'in_progress';
 
       this.updateTaskStateByName(taskTitle, status, notes);
     } else if (matchB) {
       foundTask = true;
-      const icon = matchB[1] || "";
+      const icon = matchB[1] || '';
       const taskTitle = matchB[2].trim();
 
-      let status = "todo";
+      let status = 'todo';
       if (icon) {
-        if (["✅", "✔", "☑", "☑️"].some((c) => icon.includes(c)))
-          status = "completed";
-        else if (["⏳"].some((c) => icon.includes(c)))
-          status = "todo"; // User requested override
-        else if (["▶", "🏃", "🚧"].some((c) => icon.includes(c)))
-          status = "in_progress";
-        else if (["❌", "🚫"].some((c) => icon.includes(c))) status = "failed";
+        if (['✅', '✔', '☑', '☑️'].some((c) => icon.includes(c))) status = 'completed';
+        else if (['⏳'].some((c) => icon.includes(c)))
+          status = 'todo'; // User requested override
+        else if (['▶', '🏃', '🚧'].some((c) => icon.includes(c))) status = 'in_progress';
+        else if (['❌', '🚫'].some((c) => icon.includes(c))) status = 'failed';
       }
 
       this.updateTaskStateByName(taskTitle, status);
@@ -572,7 +553,7 @@ export class TerminalUI {
 
     // Explicit Backend "Thought" override (if we want to force a node from backend without translator)
     if (text.match(/^\d+\.\s+⚡/)) {
-      this.appendChainThought(text.replace(/^\d+\.\s+/, ""), "in_progress");
+      this.appendChainThought(text.replace(/^\d+\.\s+/, ''), 'in_progress');
     }
 
     // 0. STRICT ERROR DETECTION
@@ -580,28 +561,27 @@ export class TerminalUI {
 
     // Git / Network Specific Failures that should HALT the flow
     if (
-      text.includes("RPC failed; HTTP 503") ||
-      text.includes("the remote end hung up unexpectedly") ||
-      (text.includes("git push") && text.includes("error:"))
+      text.includes('RPC failed; HTTP 503') ||
+      text.includes('the remote end hung up unexpectedly') ||
+      (text.includes('git push') && text.includes('error:'))
     ) {
       this.fail(`Falha de Conexão Git: ${text}`);
       return;
     }
 
     if (
-      upperText.includes("FALHA FATAL") ||
-      upperText.includes("ERRO CRÍTICO") ||
-      upperText.includes("FATAL ERROR") ||
-      (upperText.includes("CRITICAL ERROR") &&
-        !upperText.includes("NON-CRITICAL"))
+      upperText.includes('FALHA FATAL') ||
+      upperText.includes('ERRO CRÍTICO') ||
+      upperText.includes('FATAL ERROR') ||
+      (upperText.includes('CRITICAL ERROR') && !upperText.includes('NON-CRITICAL'))
     ) {
       this.fail(text);
       return;
     }
 
     // 2. Check for Job URL
-    if (text.includes("[SYSTEM_INFO] JOB_URL=")) {
-      const urlPart = text.split("JOB_URL=")[1];
+    if (text.includes('[SYSTEM_INFO] JOB_URL=')) {
+      const urlPart = text.split('JOB_URL=')[1];
       const url = urlPart ? urlPart.split(/\s/)[0] : null;
 
       if (url) {
@@ -610,21 +590,21 @@ export class TerminalUI {
           if (matchId && matchId[1]) {
             this.runId = matchId[1];
             if (this.el.cancelBtn && this.state !== this.MODES.DONE) {
-              this.el.cancelBtn.classList.remove("disabled");
+              this.el.cancelBtn.classList.remove('disabled');
               this.el.cancelBtn.disabled = false;
-              this.el.cancelBtn.innerText = "Cancelar";
+              this.el.cancelBtn.innerText = 'Cancelar';
             }
           }
         } catch (e) {
-          console.warn("Error parsing Run ID from URL:", url, e);
+          console.warn('Error parsing Run ID from URL:', url, e);
         }
 
         if (this.el.logBtn) {
           this.el.logBtn.href = url;
-          this.el.logBtn.classList.remove("disabled");
-          this.el.logBtn.style.color = "var(--color-primary)";
-          this.el.logBtn.style.borderColor = "var(--color-primary)";
-          this.el.logBtn.style.pointerEvents = "auto";
+          this.el.logBtn.classList.remove('disabled');
+          this.el.logBtn.style.color = 'var(--color-primary)';
+          this.el.logBtn.style.borderColor = 'var(--color-primary)';
+          this.el.logBtn.style.pointerEvents = 'auto';
         }
       }
     }
@@ -632,7 +612,7 @@ export class TerminalUI {
     // 3. Prepare Display Text
     let displayText = text; // For backwards compat, though mostly we use queueLog(raw) + ChainStream(translated)
     if (foundTask) {
-      displayText = "[PLAN UPDATE RECEIVED]";
+      displayText = '[PLAN UPDATE RECEIVED]';
     }
 
     // 4. Update Activity
@@ -678,32 +658,28 @@ export class TerminalUI {
 
   checkStateTransitions(text) {
     try {
-      if (text.includes("AgentAction") || text.includes("Observation")) {
+      if (text.includes('AgentAction') || text.includes('Observation')) {
         this.forceExecStart();
       } else if (
-        text.includes("AgentFinishAction") ||
-        text.includes("COMPLETED") ||
-        text.includes("Fluxo de Trabalho Concluído") ||
-        (text.includes("Job") &&
-          (text.includes("succeeded") ||
-            text.includes("finished") ||
-            text.includes("completed")))
+        text.includes('AgentFinishAction') ||
+        text.includes('COMPLETED') ||
+        text.includes('Fluxo de Trabalho Concluído') ||
+        (text.includes('Job') &&
+          (text.includes('succeeded') || text.includes('finished') || text.includes('completed')))
       ) {
         // CHANGED: Do NOT finish yet. The Agent finished, but we wait for file validation.
         this.lockForValidation();
-      } else if (
-        text.includes("[SISTEMA] Todos os arquivos validados com sucesso")
-      ) {
+      } else if (text.includes('[SISTEMA] Todos os arquivos validados com sucesso')) {
         // STRICT FINISH TRIGGER
         this.finish(true);
-      } else if (text.includes("CANCELLED")) {
+      } else if (text.includes('CANCELLED')) {
         this.cancelFinished();
-      } else if (text.includes("Job failed") || text.includes("FAILED")) {
-        this.fail("Job marcado como falho nos logs.");
+      } else if (text.includes('Job failed') || text.includes('FAILED')) {
+        this.fail('Job marcado como falho nos logs.');
       } else if (
-        text.includes("Copying artifacts from container to host") ||
-        text.includes("Starting upload to Hugging Face") ||
-        text.includes("Updating Semantic Cache")
+        text.includes('Copying artifacts from container to host') ||
+        text.includes('Starting upload to Hugging Face') ||
+        text.includes('Updating Semantic Cache')
       ) {
         this.lockForSaving();
       }
@@ -715,21 +691,21 @@ export class TerminalUI {
   parseTaskPlan(jsonStr) {
     // 1. Python constants to JS
     // Replace Python-specific constants or None with JS equivalents
-    let cleanStr = jsonStr
-      .replace(/None/g, "null")
-      .replace(/True/g, "true")
-      .replace(/False/g, "false");
+    const cleanStr = jsonStr
+      .replace(/None/g, 'null')
+      .replace(/True/g, 'true')
+      .replace(/False/g, 'false');
 
     // 2. JS Eval (Function constructor) handles single quotes validly
     // This parses [{ 'id': '1', ... }] which JSON.parse fails on.
     try {
       // eslint-disable-next-line
-      const plan = new Function("return " + cleanStr)();
+      const plan = new Function('return ' + cleanStr)();
       if (Array.isArray(plan)) {
         this.updatePlan(plan);
       }
     } catch (e) {
-      console.error("Failed to parse task plan:", e, jsonStr);
+      console.error('Failed to parse task plan:', e, jsonStr);
     }
   }
 
@@ -742,9 +718,9 @@ export class TerminalUI {
       this.currentVirtualProgress = 10;
       this.updateProgressBar();
 
-      if (this.el.status) this.el.status.innerText = "EXECUTANDO_PLANO";
-      this.el.objectivesHeader.innerHTML = "";
-      this.el.tasksBody.innerHTML = "";
+      if (this.el.status) this.el.status.innerText = 'EXECUTANDO_PLANO';
+      this.el.objectivesHeader.innerHTML = '';
+      this.el.tasksBody.innerHTML = '';
     }
 
     this.tasks = newTasks;
@@ -752,7 +728,7 @@ export class TerminalUI {
 
     // Calculate completed count
     const completedCount = this.tasks.filter(
-      (t) => t.status === "done" || t.status === "completed",
+      (t) => t.status === 'done' || t.status === 'completed',
     ).length;
 
     // Did we finish a task?
@@ -768,15 +744,14 @@ export class TerminalUI {
 
       this.queueLog(
         `[SISTEMA] Sincronizando progresso: ${newCalculatedBaseline.toFixed(1)}%`,
-        "success",
+        'success',
       );
     }
 
     // --- MILESTONE SYNC FOR TIME ---
     // Not strictly needed with P-Controller but good for immediate snap
     const remainingFraction = 1 - this.currentVirtualProgress / 100;
-    this.estimatedRemainingTime =
-      this.initialEstimatedDuration * remainingFraction;
+    this.estimatedRemainingTime = this.initialEstimatedDuration * remainingFraction;
     this.updateETADisplay();
 
     this.completedTasks = completedCount;
@@ -789,36 +764,36 @@ export class TerminalUI {
       this.state = this.MODES.EXEC;
       this.currentVirtualProgress = 10;
       this.updateProgressBar();
-      if (this.el.status) this.el.status.innerText = "EXECUTANDO_PLANO";
+      if (this.el.status) this.el.status.innerText = 'EXECUTANDO_PLANO';
     }
   }
 
   renderTaskList() {
     if (!this.el.floatingHeader) return;
 
-    let headerHtml = "";
+    let headerHtml = '';
 
     this.tasks.forEach((t, index) => {
-      const isDone = t.status === "done" || t.status === "completed";
-      const isProgress = t.status === "in_progress";
+      const isDone = t.status === 'done' || t.status === 'completed';
+      const isProgress = t.status === 'in_progress';
 
       // Card Logic (Horizontal)
-      let cardClass = "term-task-card"; // Reusing styles if they fit, or new
+      const cardClass = 'term-task-card'; // Reusing styles if they fit, or new
       // Actually we are aiming for just ICONS in the header per plan
 
-      let iconHtml = "";
-      let statusColor = "var(--color-text-secondary)";
-      let borderColor = "transparent";
-      let bg = "rgba(255,255,255,0.05)";
+      let iconHtml = '';
+      let statusColor = 'var(--color-text-secondary)';
+      let borderColor = 'transparent';
+      let bg = 'rgba(255,255,255,0.05)';
 
       if (isProgress) {
         iconHtml = `<img src="/logo.png" class="term-obj-img spinning" alt="Active" style="width:20px; height:20px;">`;
-        statusColor = "var(--color-primary)";
-        borderColor = "var(--color-primary)";
-        bg = "rgba(0, 210, 255, 0.1)";
+        statusColor = 'var(--color-primary)';
+        borderColor = 'var(--color-primary)';
+        bg = 'rgba(0, 210, 255, 0.1)';
       } else if (isDone) {
         iconHtml = `<div class="term-obj-check" style="color:var(--color-success)">✔</div>`;
-        statusColor = "var(--color-success)";
+        statusColor = 'var(--color-success)';
       } else {
         iconHtml = `<span style="font-size:1.2rem; opacity:0.5;">○</span>`;
       }
@@ -846,16 +821,16 @@ export class TerminalUI {
     this.el.floatingHeader.innerHTML = headerHtml;
   }
 
-  appendChainThought(text, type = "info") {
+  appendChainThought(text, type = 'info') {
     if (!this.el.chainStream) return;
 
     // Dedup: Check last node
     const lastNode = this.el.chainStream.lastElementChild;
     if (lastNode) {
-      const lastContent = lastNode.querySelector(".node-content");
+      const lastContent = lastNode.querySelector('.node-content');
       if (lastContent) {
         // Robust comparison: Strip HTML from input 'text' just in case, and compare with innerText
-        const cleanInput = text.replace(/<[^>]*>/g, "").trim();
+        const cleanInput = text.replace(/<[^>]*>/g, '').trim();
         const cleanExisting = lastContent.innerText.trim();
 
         if (cleanExisting === cleanInput) {
@@ -866,22 +841,22 @@ export class TerminalUI {
       }
     }
 
-    const node = document.createElement("div");
+    const node = document.createElement('div');
     node.className = `term-chain-node ${type}`;
 
     // Logo Image
-    const img = document.createElement("img");
-    img.src = "/logo.png"; // public/logo.png
-    img.className = "node-logo";
-    img.alt = "Agent";
+    const img = document.createElement('img');
+    img.src = '/logo.png'; // public/logo.png
+    img.className = 'node-logo';
+    img.alt = 'Agent';
 
     // Text container
-    const content = document.createElement("div");
-    content.className = "node-content";
+    const content = document.createElement('div');
+    content.className = 'node-content';
 
     // Ensure bold title logic if not present
     let htmlContent = text;
-    if (!text.includes("<strong>")) {
+    if (!text.includes('<strong>')) {
       htmlContent = `<strong>${text}</strong>`;
     }
     content.innerHTML = htmlContent;
@@ -902,9 +877,7 @@ export class TerminalUI {
 
   queueLog(text, type) {
     // Clean text once
-    const cleanText = text
-      .replace(/\x1B\[[0-9;]*[mK]/g, "")
-      .replace(/\[[0-9;]*m/g, "");
+    const cleanText = text.replace(/\x1B\[[0-9;]*[mK]/g, '').replace(/\[[0-9;]*m/g, '');
 
     this.logQueue.push({ text: cleanText, type });
   }
@@ -923,7 +896,7 @@ export class TerminalUI {
 
         for (let i = 0; i < batchSize; i++) {
           const item = this.logQueue.shift();
-          const line = document.createElement("div");
+          const line = document.createElement('div');
           line.className = `term-log-line ${item.type}`;
           line.innerText = `> ${item.text}`;
           fragment.appendChild(line);
@@ -945,23 +918,21 @@ export class TerminalUI {
   // NOTE: removed direct 'appendLog' in favor of queueLog used internally
 
   toggleNotification() {
-    if (!("Notification" in window)) {
-      customAlert(
-        "Este navegador não suporta notificações de área de trabalho.",
-      );
+    if (!('Notification' in window)) {
+      customAlert('Este navegador não suporta notificações de área de trabalho.');
       return;
     }
 
-    if (Notification.permission === "granted") {
+    if (Notification.permission === 'granted') {
       this.notifyEnabled = !this.notifyEnabled;
       this.updateNotifyUI();
-    } else if (Notification.permission !== "denied") {
+    } else if (Notification.permission !== 'denied') {
       Notification.requestPermission().then((permission) => {
-        if (permission === "granted") {
+        if (permission === 'granted') {
           this.notifyEnabled = true;
           this.updateNotifyUI();
-          new Notification("Notificações Ativadas", {
-            body: "Você será avisado quando a tarefa terminar.",
+          new Notification('Notificações Ativadas', {
+            body: 'Você será avisado quando a tarefa terminar.',
           });
         }
       });
@@ -971,10 +942,10 @@ export class TerminalUI {
   updateNotifyUI() {
     if (!this.el.notifyBtn) return;
     if (this.notifyEnabled) {
-      this.el.notifyBtn.className = "term-btn-notify active";
+      this.el.notifyBtn.className = 'term-btn-notify active';
       this.el.notifyBtn.innerHTML = '<span class="icon">🔔</span>';
     } else {
-      this.el.notifyBtn.className = "term-btn-notify inactive";
+      this.el.notifyBtn.className = 'term-btn-notify inactive';
       this.el.notifyBtn.innerHTML = '<span class="icon">🔕</span>';
     }
   }
@@ -982,22 +953,18 @@ export class TerminalUI {
   triggerNotification(title, body, isError = false) {
     if (!this.notifyEnabled) return;
 
-    if (Notification.permission === "granted") {
+    if (Notification.permission === 'granted') {
       try {
         new Notification(title, {
           body: body,
           // icon: isError ? "/error.png" : "/success.png" // Optional path
         });
 
-        const soundUrl = isError
-          ? this.config.sounds.error
-          : this.config.sounds.success;
+        const soundUrl = isError ? this.config.sounds.error : this.config.sounds.success;
         const audio = new Audio(soundUrl);
-        audio
-          .play()
-          .catch((e) => console.error("Error playing notification sound:", e));
+        audio.play().catch((e) => console.error('Error playing notification sound:', e));
       } catch (e) {
-        console.warn("Notification failed:", e);
+        console.warn('Notification failed:', e);
       }
     }
   }
@@ -1025,7 +992,7 @@ export class TerminalUI {
     this.renderInitialStructure();
 
     // Clear Container Classes (remove success/error states)
-    this.container.classList.remove("term-status-success", "term-status-error");
+    this.container.classList.remove('term-status-success', 'term-status-error');
 
     // Ensure ticker is running
     this.tickerInterval = setInterval(() => this.tick(), 1000);
@@ -1039,138 +1006,132 @@ export class TerminalUI {
 
     if (isSuccess) {
       if (this.el.status) {
-        this.el.status.innerText = "CONCLUÍDO";
-        this.el.status.classList.add("success");
-        this.el.status.classList.remove("active");
+        this.el.status.innerText = 'CONCLUÍDO';
+        this.el.status.classList.add('success');
+        this.el.status.classList.remove('active');
       }
 
       // Update Minimized Status
-      this.container.classList.remove("term-status-error");
-      this.container.classList.add("term-status-success");
+      this.container.classList.remove('term-status-error');
+      this.container.classList.add('term-status-success');
 
-      if (this.el.eta) this.el.eta.style.display = "none";
-      this.updateStepText(
-        "Todos os processos do agente finalizados com sucesso.",
-      );
+      if (this.el.eta) this.el.eta.style.display = 'none';
+      this.updateStepText('Todos os processos do agente finalizados com sucesso.');
 
       if (this.config.sounds.success) {
         new Audio(this.config.sounds.success).play().catch(() => {});
       }
 
       if (this.notifyEnabled) {
-        new Notification("Processo Concluído", {
-          body: "A busca e verificação foram finalizadas com sucesso.",
+        new Notification('Processo Concluído', {
+          body: 'A busca e verificação foram finalizadas com sucesso.',
         });
       }
     } else {
       // Fallback for non-success finish if needed (e.g. cancelled)
       if (this.el.status) {
-        this.el.status.innerText = "FINALIZADO";
-        this.el.status.classList.remove("active");
+        this.el.status.innerText = 'FINALIZADO';
+        this.el.status.classList.remove('active');
       }
     }
 
     // Button Logic Support (Restored)
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.classList.add('disabled');
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.style.display = "none";
+      this.el.cancelBtn.style.display = 'none';
     }
 
     if (this.el.retryBtn) {
       // Logic: Retry only on failure.
       if (!isSuccess && showRetry) {
-        this.el.retryBtn.style.display = "flex";
-        this.el.retryBtn.style.alignItems = "center";
-        this.el.retryBtn.style.height = "22px";
+        this.el.retryBtn.style.display = 'flex';
+        this.el.retryBtn.style.alignItems = 'center';
+        this.el.retryBtn.style.height = '22px';
       } else {
-        this.el.retryBtn.style.display = "none";
+        this.el.retryBtn.style.display = 'none';
       }
     }
 
     if (this.el.addMoreBtn) {
       // Logic: Add More only on success.
       if (isSuccess && showRetry) {
-        this.el.addMoreBtn.style.display = "flex";
-        this.el.addMoreBtn.style.alignItems = "center";
-        this.el.addMoreBtn.style.height = "22px";
+        this.el.addMoreBtn.style.display = 'flex';
+        this.el.addMoreBtn.style.alignItems = 'center';
+        this.el.addMoreBtn.style.height = '22px';
       } else {
-        this.el.addMoreBtn.style.display = "none";
+        this.el.addMoreBtn.style.display = 'none';
       }
     }
   }
 
-  fail(reason = "Erro desconhecido") {
+  fail(reason = 'Erro desconhecido') {
     this.state = this.MODES.DONE;
     // Don't force progress to 100 on fail, leave it where it died? Or red bar?
     // Let's make it red.
-    if (this.el.fill) this.el.fill.style.backgroundColor = "var(--color-error)";
+    if (this.el.fill) this.el.fill.style.backgroundColor = 'var(--color-error)';
 
     clearInterval(this.tickerInterval);
 
     if (this.el.status) {
-      this.el.status.innerText = "FALHA_NA_EXECUÇÃO";
-      this.el.status.classList.remove("active");
-      this.el.status.style.color = "var(--color-error)";
+      this.el.status.innerText = 'FALHA_NA_EXECUÇÃO';
+      this.el.status.classList.remove('active');
+      this.el.status.style.color = 'var(--color-error)';
     }
 
     // Update Container Status for CSS hooks (e.g. stop animation)
-    this.container.classList.remove("term-status-success");
-    this.container.classList.add("term-status-error");
+    this.container.classList.remove('term-status-success');
+    this.container.classList.add('term-status-error');
 
     // Hide timer on error
-    if (this.el.eta) this.el.eta.style.display = "none";
+    if (this.el.eta) this.el.eta.style.display = 'none';
 
     // Show error in Chain of Thought instead of legacy step text
-    this.appendChainThought(`Processo falhou: ${reason}`, "error");
+    this.appendChainThought(`Processo falhou: ${reason}`, 'error');
 
-    this.queueLog(`[ERRO CRÍTICO] ${reason}`, "error");
+    this.queueLog(`[ERRO CRÍTICO] ${reason}`, 'error');
 
-    this.triggerNotification(
-      "Falha na Tarefa",
-      `O processo falhou: ${reason}`,
-      true,
-    );
+    this.triggerNotification('Falha na Tarefa', `O processo falhou: ${reason}`, true);
 
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.classList.add('disabled');
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.style.display = "none";
+      this.el.cancelBtn.style.display = 'none';
     }
 
     if (this.el.retryBtn) {
-      this.el.retryBtn.style.display = "flex";
-      this.el.retryBtn.style.alignItems = "center";
-      this.el.retryBtn.style.height = "22px";
+      this.el.retryBtn.style.display = 'flex';
+      this.el.retryBtn.style.alignItems = 'center';
+      this.el.retryBtn.style.height = '22px';
     }
 
     // Ensure Add More is hidden on failure
     if (this.el.addMoreBtn) {
-      this.el.addMoreBtn.style.display = "none";
+      this.el.addMoreBtn.style.display = 'none';
     }
   }
 
   cancelFinished() {
     // Treat cancellation as a FAILURE per user request
-    this.fail("Operação cancelada manualmente pelo usuário.");
+    this.fail('Operação cancelada manualmente pelo usuário.');
 
     // Override status text specifically for clarity
     if (this.el.status) {
-      this.el.status.innerText = "CANCELADO";
-      this.el.status.style.color = "var(--color-error)"; // Reuse error red
+      this.el.status.innerText = 'CANCELADO';
+      this.el.status.style.color = 'var(--color-error)'; // Reuse error red
     }
 
     // Timer was already hidden by fail(), no need to access el.eta
 
     // Ensure minimized button is RED (fail does this, but being explicit doesn't hurt)
-    this.container.classList.remove("term-status-success");
-    this.container.classList.add("term-status-error");
+    this.container.classList.remove('term-status-success');
+    this.container.classList.add('term-status-error');
 
     // Additional UI Cleanup specific to toggle
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.classList.add('disabled');
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.innerText = "Cancelado";
+      this.el.cancelBtn.innerText = 'Cancelado';
     }
   }
 
@@ -1179,16 +1140,15 @@ export class TerminalUI {
 
     // Visual feedback
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.classList.add('disabled');
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.style.cursor = "not-allowed";
-      this.el.cancelBtn.title =
-        "Não é possível cancelar durante o salvamento de dados";
+      this.el.cancelBtn.style.cursor = 'not-allowed';
+      this.el.cancelBtn.title = 'Não é possível cancelar durante o salvamento de dados';
     }
 
     this.queueLog(
-      "[SISTEMA] Iniciando preservação de dados. Cancelamento desativado.",
-      "system", // Using 'system' or 'info' depending on CSS. Let's stick to info or just standard queueLog default.
+      '[SISTEMA] Iniciando preservação de dados. Cancelamento desativado.',
+      'system', // Using 'system' or 'info' depending on CSS. Let's stick to info or just standard queueLog default.
     );
 
     // Create 'system' class if not exists, or just use info.
@@ -1201,70 +1161,69 @@ export class TerminalUI {
 
     // Disable Cancel Button
     if (this.el.cancelBtn) {
-      this.el.cancelBtn.classList.add("disabled");
+      this.el.cancelBtn.classList.add('disabled');
       this.el.cancelBtn.disabled = true;
-      this.el.cancelBtn.style.cursor = "not-allowed";
-      this.el.cancelBtn.title = "Aguardando validação final dos arquivos";
+      this.el.cancelBtn.style.cursor = 'not-allowed';
+      this.el.cancelBtn.title = 'Aguardando validação final dos arquivos';
     }
 
     // Update Status if exists
     if (this.el.status) {
-      this.el.status.innerText = "PROCESSANDO_ARQUIVOS...";
-      this.el.status.classList.add("active"); // keep pulsing or active
+      this.el.status.innerText = 'PROCESSANDO_ARQUIVOS...';
+      this.el.status.classList.add('active'); // keep pulsing or active
     }
 
     this.queueLog(
-      "[SISTEMA] Agente finalizou. Iniciando validação e processamento de arquivos...",
-      "system",
+      '[SISTEMA] Agente finalizou. Iniciando validação e processamento de arquivos...',
+      'system',
     );
   }
 
   showCustomConfirm() {
     return new Promise((resolve) => {
       // Create Modal UI dynamically
-      const modalId = "cancel-confirmation-modal";
+      const modalId = 'cancel-confirmation-modal';
       let modal = document.getElementById(modalId);
       if (modal) modal.remove();
 
-      modal = document.createElement("div");
+      modal = document.createElement('div');
       modal.id = modalId;
       Object.assign(modal.style, {
-        position: "fixed",
+        position: 'fixed',
         top: 0,
         left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0,0,0,0.8)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         zIndex: 10000,
-        backdropFilter: "blur(4px)",
+        backdropFilter: 'blur(4px)',
       });
 
-      const content = document.createElement("div");
+      const content = document.createElement('div');
       Object.assign(content.style, {
-        backgroundColor: "var(--color-surface)",
-        padding: "32px",
-        borderRadius: "var(--radius-xl)",
-        maxWidth: "500px",
-        width: "90%",
-        border: "1px solid var(--color-border)",
-        boxShadow: "var(--shadow-2xl)",
-        textAlign: "center",
+        backgroundColor: 'var(--color-surface)',
+        padding: '32px',
+        borderRadius: 'var(--radius-xl)',
+        maxWidth: '500px',
+        width: '90%',
+        border: '1px solid var(--color-border)',
+        boxShadow: 'var(--shadow-2xl)',
+        textAlign: 'center',
       });
 
       // Warning / Destructive theme
-      const iconHtml =
-        '<div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>';
-      const titleText = "Cancelar Pesquisa?";
+      const iconHtml = '<div style="font-size: 3rem; margin-bottom: 16px;">⚠️</div>';
+      const titleText = 'Cancelar Pesquisa?';
       const bodyText = `
         Tem certeza que deseja imterromper o processo atual?<br>
         <br>
         Todo o progresso não salvo será perdido e o agente será desconectado.
       `;
-      const confirmBtnText = "Sim, Cancelar";
-      const confirmBtnColor = "var(--color-error)"; // Red for destructive action
+      const confirmBtnText = 'Sim, Cancelar';
+      const confirmBtnColor = 'var(--color-error)'; // Red for destructive action
 
       content.innerHTML = `
           ${iconHtml}
@@ -1294,12 +1253,12 @@ export class TerminalUI {
         modal.remove();
       };
 
-      document.getElementById("btn-cancel-modal-dismiss").onclick = () => {
+      document.getElementById('btn-cancel-modal-dismiss').onclick = () => {
         cleanup();
         resolve(false);
       };
 
-      document.getElementById("btn-cancel-modal-confirm").onclick = () => {
+      document.getElementById('btn-cancel-modal-confirm').onclick = () => {
         cleanup();
         resolve(true);
       };
@@ -1314,41 +1273,36 @@ export class TerminalUI {
     if (!confirmed) return;
 
     this.isCancelling = true;
-    this.el.cancelBtn.innerText = "Cancelando...";
+    this.el.cancelBtn.innerText = 'Cancelando...';
     this.el.cancelBtn.disabled = true;
-    this.el.cancelBtn.style.opacity = "0.7";
+    this.el.cancelBtn.style.opacity = '0.7';
 
-    this.queueLog("Solicitando cancelamento do job...", "warning");
+    this.queueLog('Solicitando cancelamento do job...', 'warning');
 
     try {
       const workerUrl =
-        import.meta.env.VITE_WORKER_URL ||
-        "https://maia-api-worker.touchreflexo.workers.dev"; // Fallback safe
+        import.meta.env.VITE_WORKER_URL || 'https://maia-api-worker.touchreflexo.workers.dev'; // Fallback safe
 
       const response = await fetch(`${workerUrl}/cancel-deep-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ runId: this.runId }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        this.queueLog(
-          "Cancelamento enviado com sucesso. Aguardando finalização...",
-          "success",
-        );
-        if (this.el.status)
-          this.el.status.innerText = "CANCELAMENTO_SOLICITADO";
+        this.queueLog('Cancelamento enviado com sucesso. Aguardando finalização...', 'success');
+        if (this.el.status) this.el.status.innerText = 'CANCELAMENTO_SOLICITADO';
       } else {
-        throw new Error(result.error || "Falha ao solicitar cancelamento");
+        throw new Error(result.error || 'Falha ao solicitar cancelamento');
       }
     } catch (e) {
-      this.queueLog(`Erro ao cancelar: ${e.message}`, "error");
+      this.queueLog(`Erro ao cancelar: ${e.message}`, 'error');
       this.isCancelling = false;
-      this.el.cancelBtn.innerText = "Cancelar";
+      this.el.cancelBtn.innerText = 'Cancelar';
       this.el.cancelBtn.disabled = false;
-      this.el.cancelBtn.style.opacity = "1";
+      this.el.cancelBtn.style.opacity = '1';
     }
   }
 }

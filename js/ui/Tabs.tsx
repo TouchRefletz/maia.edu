@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 
 interface TabsManagerProps {
   container: HTMLElement;
@@ -43,12 +44,12 @@ export const TabsManager: React.FC<TabsManagerProps> = ({ container, hasGabarito
     // 2. Definição dos Event Listeners (Controller)
     // Criamos as funções de handler que atualizam o estado do React
     const handleQClick = (e: Event) => {
-        e.preventDefault(); 
-        setActiveTab('questao');
+      e.preventDefault();
+      setActiveTab('questao');
     };
-    const handleGClick = (e: Event) => { 
-        e.preventDefault();
-        setActiveTab('gabarito');
+    const handleGClick = (e: Event) => {
+      e.preventDefault();
+      setActiveTab('gabarito');
     };
 
     // Adiciona os eventos
@@ -60,7 +61,6 @@ export const TabsManager: React.FC<TabsManagerProps> = ({ container, hasGabarito
       if (btnQ) btnQ.removeEventListener('click', handleQClick);
       if (btnG) btnG.removeEventListener('click', handleGClick);
     };
-
   }, [container, hasGabarito, activeTab]); // Re-executa se o estado mudar para atualizar as classes
 
   // Este componente não renderiza HTML novo, ele apenas gerencia o existente.

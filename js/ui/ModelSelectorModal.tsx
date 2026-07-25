@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { mountApiKeyModal } from './ApiKeyModal';
 
@@ -22,7 +23,14 @@ interface IAModel {
 
 // SVGs das Logos
 const GEMINI_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="url(#geminiGradientModal)" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="url(#geminiGradientModal)"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ marginRight: '8px', flexShrink: 0 }}
+  >
     <defs>
       <linearGradient id="geminiGradientModal" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#4e82ee" />
@@ -35,13 +43,27 @@ const GEMINI_LOGO = (
 );
 
 const OPENAI_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ color: '#10a37f', marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ color: '#10a37f', marginRight: '8px', flexShrink: 0 }}
+  >
     <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" />
   </svg>
 );
 
 const GROQ_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="url(#groqGradientModal)" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="url(#groqGradientModal)"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ marginRight: '8px', flexShrink: 0 }}
+  >
     <defs>
       <linearGradient id="groqGradientModal" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#f97316" />
@@ -53,19 +75,43 @@ const GROQ_LOGO = (
 );
 
 const VERTEX_MAAS_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="url(#vertexMaasGradient)" xmlns="http://www.w3.org/2000/svg" style={{ marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="url(#vertexMaasGradient)"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ marginRight: '8px', flexShrink: 0 }}
+  >
     <defs>
       <linearGradient id="vertexMaasGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#4285F4" />
         <stop offset="100%" stopColor="#34A853" />
       </linearGradient>
     </defs>
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#vertexMaasGradient)" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path
+      d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+      stroke="url(#vertexMaasGradient)"
+      fill="none"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 const PUTER_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#3b82f6', marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ color: '#3b82f6', marginRight: '8px', flexShrink: 0 }}
+  >
     <path d="m5 16 1.86-1.86a6.08 6.08 0 0 1 8.28 0L17 16" />
     <path d="M9 11h.01" />
     <path d="M15 11h.01" />
@@ -75,26 +121,76 @@ const PUTER_LOGO = (
 );
 
 const CLAUDE_LOGO = (
-  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Claude_AI_symbol.svg/3840px-Claude_AI_symbol.svg.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Claude" />
+  <img
+    src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Claude_AI_symbol.svg/3840px-Claude_AI_symbol.svg.png"
+    style={{
+      width: '22px',
+      height: '22px',
+      marginRight: '8px',
+      flexShrink: 0,
+      objectFit: 'contain',
+    }}
+    alt="Claude"
+  />
 );
 
 const MISTRAL_LOGO = (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#ff6600', marginRight: '8px', flexShrink: 0 }}>
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ color: '#ff6600', marginRight: '8px', flexShrink: 0 }}
+  >
     <path d="M3 3h18v18H3z" />
     <path d="M12 9v6M9 12h6" />
   </svg>
 );
 
 const ALIBABA_LOGO = (
-  <img src="https://static.vecteezy.com/system/resources/thumbnails/074/690/621/small/alibaba-icon-orange-and-black-color-symbol-mark-illustration-free-png.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Alibaba" />
+  <img
+    src="https://static.vecteezy.com/system/resources/thumbnails/074/690/621/small/alibaba-icon-orange-and-black-color-symbol-mark-illustration-free-png.png"
+    style={{
+      width: '22px',
+      height: '22px',
+      marginRight: '8px',
+      flexShrink: 0,
+      objectFit: 'contain',
+    }}
+    alt="Alibaba"
+  />
 );
 
 const MOONSHOT_LOGO = (
-  <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light/moonshot.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="Moonshot" />
+  <img
+    src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-png/light/moonshot.png"
+    style={{
+      width: '22px',
+      height: '22px',
+      marginRight: '8px',
+      flexShrink: 0,
+      objectFit: 'contain',
+    }}
+    alt="Moonshot"
+  />
 );
 
 const OPENROUTER_LOGO = (
-  <img src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/openrouter-icon.png" style={{ width: '22px', height: '22px', marginRight: '8px', flexShrink: 0, objectFit: 'contain' }} alt="OpenRouter" />
+  <img
+    src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/openrouter-icon.png"
+    style={{
+      width: '22px',
+      height: '22px',
+      marginRight: '8px',
+      flexShrink: 0,
+      objectFit: 'contain',
+    }}
+    alt="OpenRouter"
+  />
 );
 
 const getProviderLogo = (provider: string) => {
@@ -110,7 +206,14 @@ const getProviderLogo = (provider: string) => {
   if (p.includes('openrouter')) return OPENROUTER_LOGO;
   if (p.includes('grok') || p.includes('xai')) {
     return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style={{ color: '#ffffff', marginRight: '8px', flexShrink: 0 }}>
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ color: '#ffffff', marginRight: '8px', flexShrink: 0 }}
+      >
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
     );
@@ -119,13 +222,13 @@ const getProviderLogo = (provider: string) => {
 };
 
 const formatPuterCost = (cost: any) => {
-  if (!cost) return "Cortesia (Puter)";
+  if (!cost) return 'Cortesia (Puter)';
   const input = cost.input ?? 0;
   const output = cost.output ?? 0;
-  if (input === 0 && output === 0) return "Cortesia (Puter)";
+  if (input === 0 && output === 0) return 'Cortesia (Puter)';
 
   const formatVal = (val: number) => {
-    if (val === 0) return "0.00";
+    if (val === 0) return '0.00';
     if (val < 0.01) return val.toFixed(4);
     return val.toFixed(2);
   };
@@ -134,7 +237,7 @@ const formatPuterCost = (cost: any) => {
 };
 
 const formatPuterContext = (contextLimit: any) => {
-  if (!contextLimit) return "N/A";
+  if (!contextLimit) return 'N/A';
   const limitNum = Number(contextLimit);
   if (isNaN(limitNum)) return String(contextLimit);
   if (limitNum >= 1000000) return `${(limitNum / 1000000).toFixed(1)}M`;
@@ -144,13 +247,25 @@ const formatPuterContext = (contextLimit: any) => {
 
 // SVGs para Avaliação
 const BULB_SVG = (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="currentColor"
+    style={{ display: 'inline-block' }}
+  >
     <path d="M12 2C7.58 2 4 5.58 4 10c0 2.58 1.22 4.88 3.1 6.36.42.32.9.72.9 1.64V20c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2c0-.92.48-1.32.9-1.64C18.78 14.88 20 12.58 20 10c0-4.42-3.58-8-8-8z" />
   </svg>
 );
 
 const BOLT_SVG = (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style={{ display: 'inline-block' }}>
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="currentColor"
+    style={{ display: 'inline-block' }}
+  >
     <path d="M11 21h-1l1.5-6.5h-5.5l7-11.5h1l-1.5 6.5h5.5z" />
   </svg>
 );
@@ -159,294 +274,307 @@ const BOLT_SVG = (
 export const IA_MODELS: IAModel[] = [
   // Google Gemini
   {
-    id: "models/gemini-3.5-flash",
-    title: "Gemini 3.5 Flash",
-    desc: "Equilíbrio perfeito de velocidade e inteligência para tarefas diárias",
-    category: "Google Gemini",
+    id: 'models/gemini-3.5-flash',
+    title: 'Gemini 3.5 Flash',
+    desc: 'Equilíbrio perfeito de velocidade e inteligência para tarefas diárias',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 4,
     speed: 5,
-    reasoningText: "Muito Alto",
-    speedText: "Muito Rápido"
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
   },
   {
-    id: "models/gemini-3-flash-preview",
-    title: "Gemini 3 Flash (Preview)",
-    desc: "Modelo ágil para prototipagem rápida e experimentação",
-    category: "Google Gemini",
+    id: 'models/gemini-3-flash-preview',
+    title: 'Gemini 3 Flash (Preview)',
+    desc: 'Modelo ágil para prototipagem rápida e experimentação',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 3,
     speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido"
+    reasoningText: 'Médio',
+    speedText: 'Rápido',
   },
   {
-    id: "models/gemini-3.1-flash-lite",
-    title: "Gemini 3.1 Flash Lite",
-    desc: "Excelente eficiência e velocidade extrema para respostas curtas",
-    category: "Google Gemini",
+    id: 'models/gemini-3.1-flash-lite',
+    title: 'Gemini 3.1 Flash Lite',
+    desc: 'Excelente eficiência e velocidade extrema para respostas curtas',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 2,
     speed: 5,
-    reasoningText: "Básico",
-    speedText: "Muito Rápido"
+    reasoningText: 'Básico',
+    speedText: 'Muito Rápido',
   },
   {
-    id: "models/gemini-2.5-flash",
-    title: "Gemini 2.5 Flash",
-    desc: "Modelo estável de uso geral",
-    category: "Google Gemini",
+    id: 'models/gemini-2.5-flash',
+    title: 'Gemini 2.5 Flash',
+    desc: 'Modelo estável de uso geral',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 3,
     speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido"
+    reasoningText: 'Médio',
+    speedText: 'Rápido',
   },
   {
-    id: "models/gemini-2.5-flash-lite",
-    title: "Gemini 2.5 Flash Lite",
-    desc: "Leve, dinâmico e otimizado para tarefas simples",
-    category: "Google Gemini",
+    id: 'models/gemini-2.5-flash-lite',
+    title: 'Gemini 2.5 Flash Lite',
+    desc: 'Leve, dinâmico e otimizado para tarefas simples',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 2,
     speed: 5,
-    reasoningText: "Básico",
-    speedText: "Muito Rápido"
+    reasoningText: 'Básico',
+    speedText: 'Muito Rápido',
   },
   {
-    id: "models/gemma-4-31b-it",
-    title: "Gemma 4 31B IT",
-    desc: "Modelo aberto de grande porte para raciocínio lógico e preciso",
-    category: "Google Gemini",
+    id: 'models/gemma-4-31b-it',
+    title: 'Gemma 4 31B IT',
+    desc: 'Modelo aberto de grande porte para raciocínio lógico e preciso',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 4,
     speed: 3,
-    reasoningText: "Alto",
-    speedText: "Médio"
+    reasoningText: 'Alto',
+    speedText: 'Médio',
   },
   {
-    id: "models/gemma-4-26b-a4b-it",
-    title: "Gemma 4 26B a4b IT",
-    desc: "Arquitetura otimizada para processamento rápido e conversas fluídas",
-    category: "Google Gemini",
+    id: 'models/gemma-4-26b-a4b-it',
+    title: 'Gemma 4 26B a4b IT',
+    desc: 'Arquitetura otimizada para processamento rápido e conversas fluídas',
+    category: 'Google Gemini',
     logo: GEMINI_LOGO,
     reasoning: 3,
     speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido"
+    reasoningText: 'Médio',
+    speedText: 'Rápido',
   },
   // Google Vertex AI
   {
-    id: "vertex/gemini-3.5-flash",
-    title: "Gemini 3.5 Flash (Vertex)",
-    desc: "Equilíbrio perfeito de velocidade e inteligência via Vertex AI",
-    category: "Google Vertex AI",
+    id: 'vertex/gemini-3.5-flash',
+    title: 'Gemini 3.5 Flash (Vertex)',
+    desc: 'Equilíbrio perfeito de velocidade e inteligência via Vertex AI',
+    category: 'Google Vertex AI',
     logo: GEMINI_LOGO,
     reasoning: 4,
     speed: 5,
-    reasoningText: "Muito Alto",
-    speedText: "Muito Rápido",
-    vertexModelId: "publishers/google/models/gemini-3.5-flash"
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gemini-3.5-flash',
   },
   {
-    id: "vertex/gemini-3-flash-preview",
-    title: "Gemini 3 Flash (Preview) (Vertex)",
-    desc: "Modelo ágil para prototipagem rápida via Vertex AI",
-    category: "Google Vertex AI",
+    id: 'vertex/gemini-3-flash-preview',
+    title: 'Gemini 3 Flash (Preview) (Vertex)',
+    desc: 'Modelo ágil para prototipagem rápida via Vertex AI',
+    category: 'Google Vertex AI',
     logo: GEMINI_LOGO,
     reasoning: 3,
     speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido",
-    vertexModelId: "publishers/google/models/gemini-3-flash-preview"
+    reasoningText: 'Médio',
+    speedText: 'Rápido',
+    vertexModelId: 'publishers/google/models/gemini-3-flash-preview',
   },
   {
-    id: "vertex/gemini-3.1-flash-lite",
-    title: "Gemini 3.1 Flash Lite (Vertex)",
-    desc: "Excelente eficiência e velocidade extrema via Vertex AI",
-    category: "Google Vertex AI",
+    id: 'vertex/gemini-3.1-flash-lite',
+    title: 'Gemini 3.1 Flash Lite (Vertex)',
+    desc: 'Excelente eficiência e velocidade extrema via Vertex AI',
+    category: 'Google Vertex AI',
     logo: GEMINI_LOGO,
     reasoning: 2,
     speed: 5,
-    reasoningText: "Básico",
-    speedText: "Muito Rápido",
-    vertexModelId: "publishers/google/models/gemini-3.1-flash-lite"
+    reasoningText: 'Básico',
+    speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gemini-3.1-flash-lite',
   },
   {
-    id: "vertex/gemini-2.5-flash",
-    title: "Gemini 2.5 Flash (Vertex)",
-    desc: "Modelo estável de uso geral via Vertex AI",
-    category: "Google Vertex AI",
+    id: 'vertex/gemini-2.5-flash',
+    title: 'Gemini 2.5 Flash (Vertex)',
+    desc: 'Modelo estável de uso geral via Vertex AI',
+    category: 'Google Vertex AI',
     logo: GEMINI_LOGO,
     reasoning: 3,
     speed: 4,
-    reasoningText: "Médio",
-    speedText: "Rápido",
-    vertexModelId: "publishers/google/models/gemini-2.5-flash"
+    reasoningText: 'Médio',
+    speedText: 'Rápido',
+    vertexModelId: 'publishers/google/models/gemini-2.5-flash',
   },
   {
-    id: "vertex/gemini-2.5-flash-lite",
-    title: "Gemini 2.5 Flash Lite (Vertex)",
-    desc: "Leve, dinâmico e otimizado via Vertex AI",
-    category: "Google Vertex AI",
+    id: 'vertex/gemini-2.5-flash-lite',
+    title: 'Gemini 2.5 Flash Lite (Vertex)',
+    desc: 'Leve, dinâmico e otimizado via Vertex AI',
+    category: 'Google Vertex AI',
     logo: GEMINI_LOGO,
     reasoning: 2,
     speed: 5,
-    reasoningText: "Básico",
-    speedText: "Muito Rápido",
-    vertexModelId: "publishers/google/models/gemini-2.5-flash-lite"
+    reasoningText: 'Básico',
+    speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gemini-2.5-flash-lite',
   },
   // OpenAI (GitHub Models)
   {
-    id: "github/gpt-5",
-    title: "OpenAI GPT-5",
-    desc: "Modelo topo de linha da OpenAI com máxima capacidade cognitiva",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-5',
+    title: 'OpenAI GPT-5',
+    desc: 'Modelo topo de linha da OpenAI com máxima capacidade cognitiva',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 5,
     speed: 3,
-    reasoningText: "Muito Alto",
-    speedText: "Médio"
+    reasoningText: 'Muito Alto',
+    speedText: 'Médio',
   },
   {
-    id: "github/gpt-5-chat",
-    title: "OpenAI GPT-5 Chat (Preview)",
-    desc: "Modelo otimizado para interações em chat com alta inteligência",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-5-chat',
+    title: 'OpenAI GPT-5 Chat (Preview)',
+    desc: 'Modelo otimizado para interações em chat com alta inteligência',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 5,
     speed: 3,
-    reasoningText: "Muito Alto",
-    speedText: "Médio"
+    reasoningText: 'Muito Alto',
+    speedText: 'Médio',
   },
   {
-    id: "github/gpt-5-mini",
-    title: "OpenAI GPT-5-mini",
-    desc: "Modelo otimizado que une velocidade e alta capacidade analítica",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-5-mini',
+    title: 'OpenAI GPT-5-mini',
+    desc: 'Modelo otimizado que une velocidade e alta capacidade analítica',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 4,
     speed: 4,
-    reasoningText: "Alto",
-    speedText: "Rápido"
+    reasoningText: 'Alto',
+    speedText: 'Rápido',
   },
   {
-    id: "github/gpt-4.1",
-    title: "OpenAI GPT-4.1",
-    desc: "Evolução direta da linha GPT-4 em raciocínio, visão e precisão",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-4.1',
+    title: 'OpenAI GPT-4.1',
+    desc: 'Evolução direta da linha GPT-4 em raciocínio, visão e precisão',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 4,
     speed: 4,
-    reasoningText: "Alto",
-    speedText: "Rápido"
+    reasoningText: 'Alto',
+    speedText: 'Rápido',
   },
   {
-    id: "github/gpt-4.1-mini",
-    title: "OpenAI GPT-4.1-mini",
-    desc: "Modelo ágil e inteligente de excelente custo-benefício",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-4.1-mini',
+    title: 'OpenAI GPT-4.1-mini',
+    desc: 'Modelo ágil e inteligente de excelente custo-benefício',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 3,
     speed: 5,
-    reasoningText: "Médio",
-    speedText: "Muito Rápido"
+    reasoningText: 'Médio',
+    speedText: 'Muito Rápido',
   },
   {
-    id: "github/gpt-4o",
-    title: "OpenAI GPT-4o",
-    desc: "Modelo inteligente multimodal de uso geral e alta precisão",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-4o',
+    title: 'OpenAI GPT-4o',
+    desc: 'Modelo inteligente multimodal de uso geral e alta precisão',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 4,
     speed: 4,
-    reasoningText: "Alto",
-    speedText: "Rápido"
+    reasoningText: 'Alto',
+    speedText: 'Rápido',
   },
   {
-    id: "github/gpt-4o-mini",
-    title: "OpenAI GPT-4o-mini",
-    desc: "Altamente veloz e eficiente para tarefas cotidianas",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/gpt-4o-mini',
+    title: 'OpenAI GPT-4o-mini',
+    desc: 'Altamente veloz e eficiente para tarefas cotidianas',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 3,
     speed: 5,
-    reasoningText: "Médio",
-    speedText: "Muito Rápido"
+    reasoningText: 'Médio',
+    speedText: 'Muito Rápido',
   },
   {
-    id: "github/o1",
-    title: "OpenAI o1",
-    desc: "Raciocínio lógico e matemático profundo para problemas complexos",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/o1',
+    title: 'OpenAI o1',
+    desc: 'Raciocínio lógico e matemático profundo para problemas complexos',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 5,
     speed: 2,
-    reasoningText: "Muito Alto",
-    speedText: "Lento"
+    reasoningText: 'Muito Alto',
+    speedText: 'Lento',
   },
   {
-    id: "github/o3",
-    title: "OpenAI o3",
-    desc: "Referência em raciocínio analítico profundo de nova geração",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/o3',
+    title: 'OpenAI o3',
+    desc: 'Referência em raciocínio analítico profundo de nova geração',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 5,
     speed: 3,
-    reasoningText: "Muito Alto",
-    speedText: "Médio"
+    reasoningText: 'Muito Alto',
+    speedText: 'Médio',
   },
   {
-    id: "github/o3-mini",
-    title: "OpenAI o3-mini",
-    desc: "Raciocínio analítico avançado em formato ágil e otimizado",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/o3-mini',
+    title: 'OpenAI o3-mini',
+    desc: 'Raciocínio analítico avançado em formato ágil e otimizado',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 4,
     speed: 4,
-    reasoningText: "Alto",
-    speedText: "Rápido"
+    reasoningText: 'Alto',
+    speedText: 'Rápido',
   },
   {
-    id: "github/o4-mini",
-    title: "OpenAI o4-mini",
-    desc: "Modelo compacto especializado em raciocínio analítico rápido",
-    category: "OpenAI (GitHub Models)",
+    id: 'github/o4-mini',
+    title: 'OpenAI o4-mini',
+    desc: 'Modelo compacto especializado em raciocínio analítico rápido',
+    category: 'OpenAI (GitHub Models)',
     logo: OPENAI_LOGO,
     reasoning: 4,
     speed: 5,
-    reasoningText: "Alto",
-    speedText: "Muito Rápido"
+    reasoningText: 'Alto',
+    speedText: 'Muito Rápido',
   },
   // Groq Models
   {
-    id: "groq/gpt-oss-120b",
-    title: "GPT-OSS 120B",
-    desc: "Modelo de raciocínio de alta performance em Groq LPU",
-    category: "Groq",
+    id: 'groq/gpt-oss-120b',
+    title: 'GPT-OSS 120B',
+    desc: 'Modelo de raciocínio de alta performance em Groq LPU',
+    category: 'Groq',
     logo: GROQ_LOGO,
     reasoning: 5,
     speed: 5,
-    reasoningText: "Muito Alto",
-    speedText: "Muito Rápido"
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
   },
   // Vertex AI MaaS Models
   {
-    id: "vertex-maas/gpt-oss-120b",
-    title: "GPT-OSS 120B (Vertex)",
-    desc: "Modelo de raciocínio MoE via Vertex AI Model Garden",
-    category: "Vertex AI (MaaS)",
+    id: 'vertex-maas/gpt-oss-120b',
+    title: 'GPT-OSS 120B (Vertex)',
+    desc: 'Modelo de raciocínio MoE via Vertex AI Model Garden',
+    category: 'Vertex AI (MaaS)',
     logo: VERTEX_MAAS_LOGO,
     reasoning: 5,
     speed: 5,
-    reasoningText: "Muito Alto",
-    speedText: "Muito Rápido"
-  }
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
+  },
 ];
 
-type TabId = 'chat' | 'router' | 'memory' | 'search' | 'corrector' | 'scaffolding' | 'title' |
-  'scanner_detect' | 'scanner_audit' | 'scanner_correct' |
-  'extractor_ocr' | 'extractor_search' | 'extractor_gabarito' | 'extractor_image_detect' | 'image_descriptor';
+type TabId =
+  | 'chat'
+  | 'router'
+  | 'memory'
+  | 'search'
+  | 'corrector'
+  | 'scaffolding'
+  | 'title'
+  | 'scanner_detect'
+  | 'scanner_audit'
+  | 'scanner_correct'
+  | 'extractor_ocr'
+  | 'extractor_search'
+  | 'extractor_gabarito'
+  | 'extractor_image_detect'
+  | 'image_descriptor';
 
 interface TabConfig {
   id: TabId;
@@ -462,50 +590,50 @@ const STAGES_CONFIG: TabConfig[] = [
     label: 'Resposta no Chat',
     icon: '💬',
     title: '💬 Resposta no Chat',
-    desc: 'Configure o modelo principal que escreve a resposta final para o usuário.'
+    desc: 'Configure o modelo principal que escreve a resposta final para o usuário.',
   },
   {
     id: 'router',
     label: 'Roteamento (Router)',
     icon: '🎯',
     title: '🎯 Classificação e Roteamento',
-    desc: 'Define qual cérebro será responsável por classificar a complexidade da pergunta e selecionar a metodologia pedagógica.'
+    desc: 'Define qual cérebro será responsável por classificar a complexidade da pergunta e selecionar a metodologia pedagógica.',
   },
   {
     id: 'memory',
     label: 'Memórias da IA',
     icon: '🧠',
     title: '🧠 Memória Contextual',
-    desc: 'Modelo encarregado de resumir as interações recentes, extrair fatos importantes e consolidar o histórico de aprendizado.'
+    desc: 'Modelo encarregado de resumir as interações recentes, extrair fatos importantes e consolidar o histórico de aprendizado.',
   },
   {
     id: 'search',
     label: 'Pesquisa profunda',
     icon: '🔍',
     title: '🔍 Pesquisa e Grounding',
-    desc: 'Modelo auxiliar para formatar e estruturar fontes e resoluções externas validadas na Web.'
+    desc: 'Modelo auxiliar para formatar e estruturar fontes e resoluções externas validadas na Web.',
   },
   {
     id: 'corrector',
     label: 'Corretor de Atividades',
     icon: '📝',
     title: '📝 Correção de Atividades',
-    desc: 'Modelo utilizado para analisar detalhadamente as respostas das atividades enviadas pelos alunos e gerar feedbacks didáticos e notas.'
+    desc: 'Modelo utilizado para analisar detalhadamente as respostas das atividades enviadas pelos alunos e gerar feedbacks didáticos e notas.',
   },
   {
     id: 'scaffolding',
     label: 'Scaffolding (Passos)',
     icon: '🧩',
     title: '🧩 Geração de Passos (Scaffolding)',
-    desc: 'Modelo responsável por gerar os passos pedagógicos do Scaffolding (Verdadeiro ou Falso) além do primeiro, guiando o aluno progressivamente.'
+    desc: 'Modelo responsável por gerar os passos pedagógicos do Scaffolding (Verdadeiro ou Falso) além do primeiro, guiando o aluno progressivamente.',
   },
   {
     id: 'title',
     label: 'Título da Aba',
     icon: '🏷️',
     title: '🏷️ Gerador de Título',
-    desc: 'Modelo responsável por analisar as primeiras mensagens e gerar um título curto e descritivo para a aba do chat.'
-  }
+    desc: 'Modelo responsável por analisar as primeiras mensagens e gerar um título curto e descritivo para a aba do chat.',
+  },
 ];
 
 const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
@@ -514,50 +642,50 @@ const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
     label: '1. Detecção (Scan)',
     icon: '🔍',
     title: '🔍 Detecção de Caixas (Scanner)',
-    desc: 'Modelo de visão computacional para identificar e mapear as coordenadas das questões na página inteira.'
+    desc: 'Modelo de visão computacional para identificar e mapear as coordenadas das questões na página inteira.',
   },
   {
     id: 'scanner_audit',
     label: '2. Auditoria (Audit)',
     icon: '🛡️',
     title: '🛡️ Auditoria de Caixas (Auditor)',
-    desc: 'Modelo rigoroso encarregado de verificar se as caixas encontradas estão cortadas, incompletas ou perfeitas.'
+    desc: 'Modelo rigoroso encarregado de verificar se as caixas encontradas estão cortadas, incompletas ou perfeitas.',
   },
   {
     id: 'scanner_correct',
     label: '3. Correção (Correct)',
     icon: '⚙️',
     title: '⚙️ Correção de Caixas (Corretor)',
-    desc: 'Modelo que ajusta e corrige as coordenadas das caixas que foram reprovadas pelo auditor.'
+    desc: 'Modelo que ajusta e corrige as coordenadas das caixas que foram reprovadas pelo auditor.',
   },
   {
     id: 'extractor_ocr',
     label: '4. Estrutura (OCR)',
     icon: '📝',
     title: '📝 Estruturação e OCR da Questão',
-    desc: 'Modelo que transcreve e organiza o texto, fórmulas em LaTeX, tabelas e descreve imagens do recorte da questão.'
+    desc: 'Modelo que transcreve e organiza o texto, fórmulas em LaTeX, tabelas e descreve imagens do recorte da questão.',
   },
   {
     id: 'extractor_search',
     label: '5. Pesquisador (Gabarito)',
     icon: '🌐',
     title: '🌐 Pesquisa Web (Gemini / Gemma 4)',
-    desc: 'Modelo encarregado de realizar buscas na Web para encontrar gabaritos e resoluções originais.'
+    desc: 'Modelo encarregado de realizar buscas na Web para encontrar gabaritos e resoluções originais.',
   },
   {
     id: 'extractor_gabarito',
     label: '6. Resolução (Gabarito)',
     icon: '✍️',
     title: '✍️ Geração de Gabarito e Resolução',
-    desc: 'Modelo que escreve a explicação detalhada passo a passo, define a alternativa correta e checa coerência.'
+    desc: 'Modelo que escreve a explicação detalhada passo a passo, define a alternativa correta e checa coerência.',
   },
   {
     id: 'extractor_image_detect',
     label: '7. Sub-imagens (Crop)',
     icon: '📸',
     title: '📸 Detecção de Imagens no Crop',
-    desc: 'Modelo especializado em detectar imagens e figuras isoladas dentro do recorte da questão.'
-  }
+    desc: 'Modelo especializado em detectar imagens e figuras isoladas dentro do recorte da questão.',
+  },
 ];
 
 const DEFAULT_MODELS: Record<TabId, string> = {
@@ -575,7 +703,7 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   extractor_search: 'models/gemini-3.5-flash',
   extractor_gabarito: 'models/gemini-3.5-flash',
   extractor_image_detect: 'models/gemini-3.5-flash',
-  image_descriptor: 'models/gemma-4-31b-it'
+  image_descriptor: 'models/gemma-4-31b-it',
 };
 
 export function modelSupportsVision(modelId: string): boolean {
@@ -584,10 +712,23 @@ export function modelSupportsVision(modelId: string): boolean {
   if (id.startsWith('puter/')) {
     const puterId = id.replace('puter/', '');
     const visionPatterns = [
-      "vision", "gpt-4o", "gpt-4.1", "gpt-5", "gemini", "claude-3", "claude-3.5",
-      "pixtral", "llava", "molmo", "qwen-vl", "internvl", "o1", "o3", "o4"
+      'vision',
+      'gpt-4o',
+      'gpt-4.1',
+      'gpt-5',
+      'gemini',
+      'claude-3',
+      'claude-3.5',
+      'pixtral',
+      'llava',
+      'molmo',
+      'qwen-vl',
+      'internvl',
+      'o1',
+      'o3',
+      'o4',
     ];
-    return visionPatterns.some(pattern => puterId.includes(pattern));
+    return visionPatterns.some((pattern) => puterId.includes(pattern));
   }
 
   if (id.includes('gpt-oss-120b')) {
@@ -604,23 +745,46 @@ interface ModelSelectorProps {
   mode?: 'chat' | 'extractor' | 'corrector';
 }
 
-const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, currentSelected, onSelect, mode = 'chat' }) => {
+const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
+  onClose,
+  currentSelected,
+  onSelect,
+  mode = 'chat',
+}) => {
   const [activeTab, setActiveTab] = useState<TabId>(
-    mode === 'extractor' ? 'scanner_detect' : (mode === 'corrector' ? 'corrector' : 'chat')
+    mode === 'extractor' ? 'scanner_detect' : mode === 'corrector' ? 'corrector' : 'chat',
   );
-  const isMaiaActive = typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
+  const isMaiaActive =
+    typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
 
   // Model states
   const [selections, setSelections] = useState<Record<TabId, string>>({
-    chat: '', router: '', memory: '', search: '', corrector: '', scaffolding: '', title: '',
-    scanner_detect: '', scanner_audit: '', scanner_correct: '',
-    extractor_ocr: '', extractor_search: '', extractor_gabarito: '',
-    extractor_image_detect: '', image_descriptor: ''
+    chat: '',
+    router: '',
+    memory: '',
+    search: '',
+    corrector: '',
+    scaffolding: '',
+    title: '',
+    scanner_detect: '',
+    scanner_audit: '',
+    scanner_correct: '',
+    extractor_ocr: '',
+    extractor_search: '',
+    extractor_gabarito: '',
+    extractor_image_detect: '',
+    image_descriptor: '',
   });
 
   useEffect(() => {
-    const isGptOss = selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
-    if (mode === 'chat' && !isMaiaActive && activeTab !== 'chat' && !(isGptOss && activeTab === 'image_descriptor')) {
+    const isGptOss =
+      selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
+    if (
+      mode === 'chat' &&
+      !isMaiaActive &&
+      activeTab !== 'chat' &&
+      !(isGptOss && activeTab === 'image_descriptor')
+    ) {
       setActiveTab('chat');
     }
   }, [isMaiaActive, activeTab, mode, selections.chat]);
@@ -639,12 +803,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     { id: 'openai', label: 'OpenAI' },
     { id: 'groq', label: 'Groq' },
     { id: 'vertex-maas', label: 'Vertex AI (MaaS)' },
-    { id: 'puter', label: 'Puter' }
+    { id: 'puter', label: 'Puter' },
   ];
 
   const selectedModelId = selections[activeTab];
-  const isPuterSelected = selectedModelId?.startsWith("puter/");
-  const hasPuterKey = typeof sessionStorage !== "undefined" && !!sessionStorage.getItem("PUTER_API_KEY");
+  const isPuterSelected = selectedModelId?.startsWith('puter/');
+  const hasPuterKey =
+    typeof sessionStorage !== 'undefined' && !!sessionStorage.getItem('PUTER_API_KEY');
 
   // Initial load
   useEffect(() => {
@@ -669,9 +834,15 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       scanner_correct: getVal('selectedModelScannerCorrect', DEFAULT_MODELS.scanner_correct),
       extractor_ocr: getVal('selectedModelExtractorOcr', DEFAULT_MODELS.extractor_ocr),
       extractor_search: getVal('selectedModelExtractorSearch', DEFAULT_MODELS.extractor_search),
-      extractor_gabarito: getVal('selectedModelExtractorGabarito', DEFAULT_MODELS.extractor_gabarito),
-      extractor_image_detect: getVal('selectedModelExtractorImageDetect', DEFAULT_MODELS.extractor_image_detect),
-      image_descriptor: getVal('selectedModelImageDescriptor', DEFAULT_MODELS.image_descriptor)
+      extractor_gabarito: getVal(
+        'selectedModelExtractorGabarito',
+        DEFAULT_MODELS.extractor_gabarito,
+      ),
+      extractor_image_detect: getVal(
+        'selectedModelExtractorImageDetect',
+        DEFAULT_MODELS.extractor_image_detect,
+      ),
+      image_descriptor: getVal('selectedModelImageDescriptor', DEFAULT_MODELS.image_descriptor),
     });
 
     const initPuter = async () => {
@@ -703,13 +874,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
           isPuterModel: true,
           reasoning: 0,
           speed: 0,
-          reasoningText: "",
-          speedText: ""
+          reasoningText: '',
+          speedText: '',
         }));
         setPuterModels(formatted);
       } catch (err: any) {
-        console.error("Erro ao carregar modelos do Puter:", err);
-        setPuterError(err.message || "Erro desconhecido");
+        console.error('Erro ao carregar modelos do Puter:', err);
+        setPuterError(err.message || 'Erro desconhecido');
       } finally {
         setIsLoadingPuter(false);
       }
@@ -729,24 +900,26 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       await puter.auth.signIn();
       setIsPuterSignedIn(puter.auth.isSignedIn());
     } catch (err) {
-      console.error("Erro ao autenticar com Puter:", err);
+      console.error('Erro ao autenticar com Puter:', err);
     }
   };
 
   const handleSelectModel = (modelId: string) => {
-    if (modelId.startsWith("puter/") && !isPuterSignedIn) {
-      alert("Você precisa estar autenticado no Puter para selecionar este modelo. Por favor, conecte-se no cabeçalho do modal.");
+    if (modelId.startsWith('puter/') && !isPuterSignedIn) {
+      alert(
+        'Você precisa estar autenticado no Puter para selecionar este modelo. Por favor, conecte-se no cabeçalho do modal.',
+      );
       return;
     }
-    setSelections(prev => ({
+    setSelections((prev) => ({
       ...prev,
-      [activeTab]: modelId
+      [activeTab]: modelId,
     }));
   };
 
   const handleResetAll = () => {
     if (mode === 'extractor') {
-      setSelections(prev => ({
+      setSelections((prev) => ({
         ...prev,
         scanner_detect: DEFAULT_MODELS.scanner_detect,
         scanner_audit: DEFAULT_MODELS.scanner_audit,
@@ -754,10 +927,10 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         extractor_ocr: DEFAULT_MODELS.extractor_ocr,
         extractor_search: DEFAULT_MODELS.extractor_search,
         extractor_gabarito: DEFAULT_MODELS.extractor_gabarito,
-        extractor_image_detect: DEFAULT_MODELS.extractor_image_detect
+        extractor_image_detect: DEFAULT_MODELS.extractor_image_detect,
       }));
     } else {
-      setSelections(prev => ({
+      setSelections((prev) => ({
         ...prev,
         chat: DEFAULT_MODELS.chat,
         router: DEFAULT_MODELS.router,
@@ -766,7 +939,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         corrector: DEFAULT_MODELS.corrector,
         scaffolding: DEFAULT_MODELS.scaffolding,
         title: DEFAULT_MODELS.title,
-        image_descriptor: DEFAULT_MODELS.image_descriptor
+        image_descriptor: DEFAULT_MODELS.image_descriptor,
       }));
     }
   };
@@ -820,9 +993,12 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
   const isSearchActiveTab = activeTab === 'search' || activeTab === 'extractor_search';
   const allModels = [...IA_MODELS, ...puterModels];
 
-  const filteredModels = allModels.filter(model => {
+  const filteredModels = allModels.filter((model) => {
     // Excluir o próprio gpt-oss-120b do descritor de imagens
-    if (activeTab === 'image_descriptor' && (model.id === 'groq/gpt-oss-120b' || model.id === 'vertex-maas/gpt-oss-120b')) {
+    if (
+      activeTab === 'image_descriptor' &&
+      (model.id === 'groq/gpt-oss-120b' || model.id === 'vertex-maas/gpt-oss-120b')
+    ) {
       return false;
     }
 
@@ -848,7 +1024,11 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       if (activeCategory === 'vertex-maas' && model.category !== 'Vertex AI (MaaS)') {
         return false;
       }
-      if (activeCategory === 'puter' && !model.category.startsWith('Puter') && !model.isPuterModel) {
+      if (
+        activeCategory === 'puter' &&
+        !model.category.startsWith('Puter') &&
+        !model.isPuterModel
+      ) {
         return false;
       }
     }
@@ -859,23 +1039,23 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
       const categoryLower = model.category.toLowerCase();
 
       // Regra 1: Permitir apenas os modelos Google do site (models/gemini... ou models/gemma... ou vertex/...)
-      const isGoogle = idLower.startsWith('models/gemini') ||
+      const isGoogle =
+        idLower.startsWith('models/gemini') ||
         idLower.startsWith('models/gemma') ||
         idLower.startsWith('vertex/') ||
         categoryLower.includes('google') ||
         categoryLower.includes('vertex');
 
       // Regra 2: Permitir modelos GPT/Azure/OpenAI do Puter...
-      const isPuterAllowedGPT = idLower.startsWith('puter/') &&
+      const isPuterAllowedGPT =
+        idLower.startsWith('puter/') &&
         !idLower.includes('openrouter') &&
         !categoryLower.includes('openrouter') &&
-        (
-          idLower.includes('gpt') ||
+        (idLower.includes('gpt') ||
           idLower.includes('azure') ||
           idLower.includes('openai') ||
           idLower.includes('completion') ||
-          idLower.includes('responses')
-        );
+          idLower.includes('responses'));
 
       if (!isGoogle && !isPuterAllowedGPT) {
         return false;
@@ -914,7 +1094,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             color: isActive ? activeColor : 'rgba(255, 255, 255, 0.12)',
             marginRight: '2px',
             display: 'inline-flex',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
           {svgIcon}
@@ -923,30 +1103,44 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
     });
   };
 
-  const isGptOssSelected = selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
-  const isShowSidebar = mode !== 'corrector' && (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
-  const baseStages = mode === 'extractor'
-    ? EXTRACTOR_STAGES_CONFIG
-    : (mode === 'corrector'
-      ? STAGES_CONFIG.filter(s => s.id === 'corrector')
-      : (isMaiaActive ? STAGES_CONFIG : STAGES_CONFIG.filter(s => s.id === 'chat')));
+  const isGptOssSelected =
+    selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
+  const isShowSidebar =
+    mode !== 'corrector' &&
+    (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
+  const baseStages =
+    mode === 'extractor'
+      ? EXTRACTOR_STAGES_CONFIG
+      : mode === 'corrector'
+        ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
+        : isMaiaActive
+          ? STAGES_CONFIG
+          : STAGES_CONFIG.filter((s) => s.id === 'chat');
 
   const filteredStages = [...baseStages];
-  if (isGptOssSelected && mode === 'chat' && !filteredStages.some(s => s.id === 'image_descriptor')) {
+  if (
+    isGptOssSelected &&
+    mode === 'chat' &&
+    !filteredStages.some((s) => s.id === 'image_descriptor')
+  ) {
     filteredStages.push({
       id: 'image_descriptor' as any,
       label: 'Descritor de Imagem',
       icon: '🖼️',
       title: '🖼️ Descritor de Imagem (para GPT-OSS 120B)',
-      desc: 'Selecione o modelo que analisará e descreverá as imagens para o GPT-OSS 120B.'
+      desc: 'Selecione o modelo que analisará e descreverá as imagens para o GPT-OSS 120B.',
     });
   }
 
-  const currentActiveStage = filteredStages.find(s => s.id === activeTab);
+  const currentActiveStage = filteredStages.find((s) => s.id === activeTab);
   const currentSelectedId = getSelectedIdForTab(activeTab);
 
   return (
-    <div id="modelSelectorModal" className="modal-overlay" style={{ display: 'flex', animation: 'fadeIn 0.2s ease', zIndex: 9999 }}>
+    <div
+      id="modelSelectorModal"
+      className="modal-overlay"
+      style={{ display: 'flex', animation: 'fadeIn 0.2s ease', zIndex: 9999 }}
+    >
       {/* CSS Injetado diretamente para estilos premium das tabs */}
       <style>{`
         .premium-model-modal {
@@ -1025,29 +1219,78 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
         }
       `}</style>
 
-      <div className="modal-content" style={{ width: '92%', maxWidth: '1000px', padding: '24px', borderRadius: '20px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-
+      <div
+        className="modal-content"
+        style={{
+          width: '92%',
+          maxWidth: '1000px',
+          padding: '24px',
+          borderRadius: '20px',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '90vh',
+        }}
+      >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--color-border)', paddingBottom: '16px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+            borderBottom: '1px solid var(--color-border)',
+            paddingBottom: '16px',
+          }}
+        >
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {mode === 'extractor' ? "🤖 Configuração de Modelos do Extrator de Questões" : (mode === 'corrector' ? "🤖 Modelo de Correção Dissertativa" : (isMaiaActive ? "🤖 Configuração Granular de Modelos de IA" : "🤖 Seleção de Modelo de IA"))}
-            </h2>
-            <p style={{ margin: '4px 0 0', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '1.4rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
               {mode === 'extractor'
-                ? "Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração."
-                : (mode === 'corrector'
-                  ? "Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas."
-                  : (isMaiaActive
-                    ? "Configure individualmente os modelos para cada etapa vital da inteligência."
-                    : "Selecione o modelo de IA padrão para responder suas perguntas."))}
+                ? '🤖 Configuração de Modelos do Extrator de Questões'
+                : mode === 'corrector'
+                  ? '🤖 Modelo de Correção Dissertativa'
+                  : isMaiaActive
+                    ? '🤖 Configuração Granular de Modelos de IA'
+                    : '🤖 Seleção de Modelo de IA'}
+            </h2>
+            <p
+              style={{
+                margin: '4px 0 0',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.85rem',
+              }}
+            >
+              {mode === 'extractor'
+                ? 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
+                : mode === 'corrector'
+                  ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
+                  : isMaiaActive
+                    ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
+                    : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* Puter connection status */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: isPuterSignedIn ? '#10b981' : '#f59e0b', fontWeight: 500 }}>
-                {isPuterSignedIn ? "● Puter Conectado" : "● Puter Desconectado"}
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  color: isPuterSignedIn ? '#10b981' : '#f59e0b',
+                  fontWeight: 500,
+                }}
+              >
+                {isPuterSignedIn ? '● Puter Conectado' : '● Puter Desconectado'}
               </span>
               {!isPuterSignedIn ? (
                 <button
@@ -1061,7 +1304,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                     padding: '4px 10px',
                     fontSize: '0.75rem',
                     cursor: 'pointer',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                 >
                   Conectar
@@ -1084,7 +1327,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                     padding: '4px 10px',
                     fontSize: '0.75rem',
                     cursor: 'pointer',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                 >
                   Sair
@@ -1104,7 +1347,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                   fontSize: '0.8rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease'
+                  transition: 'all 0.15s ease',
                 }}
                 className="restore-default-btn"
               >
@@ -1113,7 +1356,15 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             )}
             <button
               onClick={onClose}
-              style={{ background: 'none', border: 'none', color: 'var(--color-text-secondary)', fontSize: '1.5rem', cursor: 'pointer', padding: '4px', lineHeight: 1 }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-secondary)',
+                fontSize: '1.5rem',
+                cursor: 'pointer',
+                padding: '4px',
+                lineHeight: 1,
+              }}
               title="Fechar"
             >
               &times;
@@ -1123,7 +1374,6 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
         {/* Tabbed Layout Container */}
         <div className="premium-model-modal">
-
           {/* Sidebar Tabs */}
           {isShowSidebar && (
             <div className="modal-sidebar">
@@ -1131,7 +1381,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                 const isActive = activeTab === stage.id;
                 // Pegar o label curto do modelo selecionado para mostrar abaixo do nome da tab
                 const selectedModelId = getSelectedIdForTab(stage.id);
-                const selectedModel = allModels.find(m => m.id === selectedModelId);
+                const selectedModel = allModels.find((m) => m.id === selectedModelId);
                 const selectedModelName = selectedModel ? selectedModel.title : 'Não definido';
 
                 return (
@@ -1143,7 +1393,16 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                     <span style={{ fontSize: '1.2rem' }}>{stage.icon}</span>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span>{stage.label}</span>
-                      <span style={{ fontSize: '0.68rem', color: isActive ? 'var(--color-primary-light)' : 'var(--color-text-secondary)', opacity: 0.8, marginTop: '2px' }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          color: isActive
+                            ? 'var(--color-primary-light)'
+                            : 'var(--color-text-secondary)',
+                          opacity: 0.8,
+                          marginTop: '2px',
+                        }}
+                      >
                         {selectedModelName}
                       </span>
                     </div>
@@ -1156,30 +1415,59 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
           {/* Main Stage Panel */}
           <div className="main-stage-content">
             {currentActiveStage && (
-              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div
+                style={{
+                  marginBottom: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
                 <div>
-                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600 }}>{currentActiveStage.title}</h3>
-                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{currentActiveStage.desc}</p>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', fontWeight: 600 }}>
+                    {currentActiveStage.title}
+                  </h3>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: '0.82rem',
+                      color: 'var(--color-text-secondary)',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {currentActiveStage.desc}
+                  </p>
                 </div>
 
                 {isPuterSelected && !hasPuterKey && (
-                  <div style={{
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    color: '#f59e0b',
-                    fontSize: '0.82rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    lineHeight: 1.4
-                  }}>
-                    <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24' }}>
+                  <div
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      color: '#f59e0b',
+                      fontSize: '0.82rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <strong
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#fbbf24',
+                      }}
+                    >
                       ⚠️ Chave PUTER_API_KEY não configurada
                     </strong>
                     <span>
-                      Você selecionou um modelo do Puter. Para utilizar este modelo com suporte a JSON estruturado sem erro 403, você precisa configurar sua <code>PUTER_API_KEY</code>.
+                      Você selecionou um modelo do Puter. Para utilizar este modelo com suporte a
+                      JSON estruturado sem erro 403, você precisa configurar sua{' '}
+                      <code>PUTER_API_KEY</code>.
                     </span>
                     <button
                       type="button"
@@ -1195,7 +1483,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                         cursor: 'pointer',
                         fontWeight: 600,
                         marginTop: '4px',
-                        transition: 'all 0.15s ease'
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       Configurar Chaves de Acesso
@@ -1204,8 +1492,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                 )}
 
                 {/* Category Filter Tabs */}
-                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '4px' }} className="category-tabs">
-                  {categoryFilters.map(filter => {
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '8px',
+                    overflowX: 'auto',
+                    paddingBottom: '8px',
+                    marginBottom: '4px',
+                  }}
+                  className="category-tabs"
+                >
+                  {categoryFilters.map((filter) => {
                     const isActive = activeCategory === filter.id;
                     return (
                       <button
@@ -1215,14 +1512,16 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                         style={{
                           padding: '6px 12px',
                           borderRadius: '8px',
-                          border: '1px solid ' + (isActive ? 'rgba(139, 92, 246, 0.4)' : 'var(--color-border)'),
+                          border:
+                            '1px solid ' +
+                            (isActive ? 'rgba(139, 92, 246, 0.4)' : 'var(--color-border)'),
                           background: isActive ? 'rgba(139, 92, 246, 0.12)' : 'var(--color-bg-2)',
                           color: isActive ? '#a78bfa' : 'var(--color-text-secondary)',
                           fontSize: '0.78rem',
                           fontWeight: isActive ? 600 : 500,
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {filter.label}
@@ -1249,7 +1548,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                       color: 'var(--color-text)',
                       fontSize: '0.85rem',
                       outline: 'none',
-                      transition: 'border-color 0.2s ease'
+                      transition: 'border-color 0.2s ease',
                     }}
                   />
                   {searchTerm && (
@@ -1263,7 +1562,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                         background: 'none',
                         color: 'var(--color-text-secondary)',
                         cursor: 'pointer',
-                        fontSize: '0.85rem'
+                        fontSize: '0.85rem',
                       }}
                     >
                       Limpar
@@ -1276,12 +1575,28 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             {/* Grid Scroll Area */}
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
               {isLoadingPuter && puterModels.length === 0 && (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+                <div
+                  style={{
+                    padding: '20px',
+                    textAlign: 'center',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                >
                   Carregando modelos do Puter...
                 </div>
               )}
               {puterError && (
-                <div style={{ padding: '10px 20px', margin: '10px 0', background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', fontSize: '0.85rem' }}>
+                <div
+                  style={{
+                    padding: '10px 20px',
+                    margin: '10px 0',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#f87171',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                  }}
+                >
                   Aviso: Não foi possível obter os modelos do Puter. {puterError}
                 </div>
               )}
@@ -1289,11 +1604,27 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                 if (models.length === 0) return null;
                 return (
                   <div key={categoryName} style={{ marginBottom: '20px' }}>
-                    <h4 style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px', paddingLeft: '4px', fontWeight: 600 }}>
+                    <h4
+                      style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--color-text-secondary)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        marginBottom: '10px',
+                        paddingLeft: '4px',
+                        fontWeight: 600,
+                      }}
+                    >
                       {categoryName}
                     </h4>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                        gap: '12px',
+                      }}
+                    >
                       {models.map((model) => {
                         const isSelected = currentSelectedId === model.id;
                         return (
@@ -1303,22 +1634,41 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                             style={{
                               padding: '14px',
                               borderRadius: '12px',
-                              background: isSelected ? 'rgba(139, 92, 246, 0.06)' : 'var(--color-bg-2)',
-                              border: isSelected ? '2px solid #8b5cf6' : '1px solid var(--color-border)',
+                              background: isSelected
+                                ? 'rgba(139, 92, 246, 0.06)'
+                                : 'var(--color-bg-2)',
+                              border: isSelected
+                                ? '2px solid #8b5cf6'
+                                : '1px solid var(--color-border)',
                               cursor: 'pointer',
                               transition: 'all 0.15s ease',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
                               gap: '10px',
-                              position: 'relative'
+                              position: 'relative',
                             }}
                             className="model-modal-card"
                           >
                             {/* Checkmark Top Right */}
                             {isSelected && (
-                              <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#8b5cf6' }}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: '12px',
+                                  right: '12px',
+                                  color: '#8b5cf6',
+                                }}
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <path
+                                    d="M20 6L9 17l-5-5"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
                               </div>
                             )}
 
@@ -1326,26 +1676,82 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                             <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                               {model.logo}
                               <div style={{ paddingRight: isSelected ? '18px' : '0px' }}>
-                                <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>{model.title}</h5>
-                                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>{model.desc}</p>
+                                <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600 }}>
+                                  {model.title}
+                                </h5>
+                                <p
+                                  style={{
+                                    margin: '4px 0 0',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--color-text-secondary)',
+                                    lineHeight: 1.3,
+                                  }}
+                                >
+                                  {model.desc}
+                                </p>
                               </div>
                             </div>
 
                             {/* Ratings */}
                             {model.reasoning > 0 && (
-                              <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: '16px',
+                                  borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+                                  paddingTop: '8px',
+                                }}
+                              >
                                 <div>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Raciocínio</div>
+                                  <div
+                                    style={{
+                                      fontSize: '0.6rem',
+                                      color: 'rgba(255,255,255,0.4)',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                      marginBottom: '2px',
+                                    }}
+                                  >
+                                    Raciocínio
+                                  </div>
                                   <div style={{ display: 'flex', alignItems: 'center' }}>
                                     {renderStars(model.reasoning, BULB_SVG, '#fbbf24')}
-                                    <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#fbbf24', fontWeight: 500 }}>{model.reasoningText}</span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.65rem',
+                                        marginLeft: '4px',
+                                        color: '#fbbf24',
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {model.reasoningText}
+                                    </span>
                                   </div>
                                 </div>
                                 <div>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Velocidade</div>
+                                  <div
+                                    style={{
+                                      fontSize: '0.6rem',
+                                      color: 'rgba(255,255,255,0.4)',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                      marginBottom: '2px',
+                                    }}
+                                  >
+                                    Velocidade
+                                  </div>
                                   <div style={{ display: 'flex', alignItems: 'center' }}>
                                     {renderStars(model.speed, BOLT_SVG, '#60a5fa')}
-                                    <span style={{ fontSize: '0.65rem', marginLeft: '4px', color: '#60a5fa', fontWeight: 500 }}>{model.speedText}</span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.65rem',
+                                        marginLeft: '4px',
+                                        color: '#60a5fa',
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {model.speedText}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -1353,23 +1759,82 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 
                             {/* Puter Meta Info (Contexto + Custo) */}
                             {model.isPuterModel && (
-                              <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.04)', paddingTop: '8px' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: '16px',
+                                  borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+                                  paddingTop: '8px',
+                                }}
+                              >
                                 <div>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Contexto</div>
+                                  <div
+                                    style={{
+                                      fontSize: '0.6rem',
+                                      color: 'rgba(255,255,255,0.4)',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                      marginBottom: '2px',
+                                    }}
+                                  >
+                                    Contexto
+                                  </div>
                                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#60a5fa" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      width="12"
+                                      height="12"
+                                      fill="none"
+                                      stroke="#60a5fa"
+                                      strokeWidth="2.5"
+                                      style={{ marginRight: '4px' }}
+                                    >
                                       <path d="M4 14h16M4 10h16M4 6h16M4 18h16" />
                                     </svg>
-                                    <span style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600 }}>{formatPuterContext(model.contextLimit)}</span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.68rem',
+                                        color: '#60a5fa',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {formatPuterContext(model.contextLimit)}
+                                    </span>
                                   </div>
                                 </div>
                                 <div>
-                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>Custo (1M tokens)</div>
+                                  <div
+                                    style={{
+                                      fontSize: '0.6rem',
+                                      color: 'rgba(255,255,255,0.4)',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.04em',
+                                      marginBottom: '2px',
+                                    }}
+                                  >
+                                    Custo (1M tokens)
+                                  </div>
                                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fbbf24" strokeWidth="2.5" style={{ marginRight: '4px' }}>
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      width="12"
+                                      height="12"
+                                      fill="none"
+                                      stroke="#fbbf24"
+                                      strokeWidth="2.5"
+                                      style={{ marginRight: '4px' }}
+                                    >
                                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                                     </svg>
-                                    <span style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600 }}>{formatPuterCost(model.cost)}</span>
+                                    <span
+                                      style={{
+                                        fontSize: '0.68rem',
+                                        color: '#fbbf24',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {formatPuterCost(model.cost)}
+                                    </span>
                                   </div>
                                 </div>
                               </div>
@@ -1381,15 +1846,21 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
                   </div>
                 );
               })}
-
-
             </div>
-
           </div>
         </div>
 
         {/* Modal Footer actions */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '16px', gap: '12px' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            borderTop: '1px solid var(--color-border)',
+            paddingTop: '16px',
+            marginTop: '16px',
+            gap: '12px',
+          }}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -1407,7 +1878,6 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
             Confirmar e Salvar
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -1416,7 +1886,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({ onClose, current
 export function mountModelSelectorModal(
   currentSelected: string,
   onSelect: (modelId: string) => void,
-  mode: 'chat' | 'extractor' | 'corrector' = 'chat'
+  mode: 'chat' | 'extractor' | 'corrector' = 'chat',
 ) {
   const rootId = 'react-model-selector-modal-root';
   const existing = document.getElementById(rootId);
@@ -1439,6 +1909,6 @@ export function mountModelSelectorModal(
       currentSelected={currentSelected}
       onSelect={onSelect}
       mode={mode}
-    />
+    />,
   );
 }

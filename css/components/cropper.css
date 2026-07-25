@@ -7,7 +7,9 @@
 .selection-box {
   position: absolute;
   /* Transições suaves para hover e ativação */
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 /* --- Active Group (Editável) --- */
@@ -67,15 +69,51 @@
 /* Posicionamento dos handles com offsets ajustados para centralizar na linha */
 /* Assumindo handle de 10px, o offset para centralizar é -5px */
 
-.handle-n { top: -6px; left: 50%; margin-left: -5px; cursor: ns-resize; }
-.handle-s { bottom: -6px; left: 50%; margin-left: -5px; cursor: ns-resize; }
-.handle-w { left: -6px; top: 50%; margin-top: -5px; cursor: ew-resize; }
-.handle-e { right: -6px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+.handle-n {
+  top: -6px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: ns-resize;
+}
+.handle-s {
+  bottom: -6px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: ns-resize;
+}
+.handle-w {
+  left: -6px;
+  top: 50%;
+  margin-top: -5px;
+  cursor: ew-resize;
+}
+.handle-e {
+  right: -6px;
+  top: 50%;
+  margin-top: -5px;
+  cursor: ew-resize;
+}
 
-.handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
-.handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
-.handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
-.handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.handle-nw {
+  top: -6px;
+  left: -6px;
+  cursor: nwse-resize;
+}
+.handle-ne {
+  top: -6px;
+  right: -6px;
+  cursor: nesw-resize;
+}
+.handle-sw {
+  bottom: -6px;
+  left: -6px;
+  cursor: nesw-resize;
+}
+.handle-se {
+  bottom: -6px;
+  right: -6px;
+  cursor: nwse-resize;
+}
 
 /* --- Dimming Mask (SVG) --- */
 #selection-overlay path {
@@ -109,7 +147,10 @@
 
 /* Crops base: Transições suaves para todas as mudanças */
 .selection-box {
-  transition: opacity 0.4s ease, box-shadow 0.4s ease, transform 0.4s ease;
+  transition:
+    opacity 0.4s ease,
+    box-shadow 0.4s ease,
+    transform 0.4s ease;
 }
 
 /* Crops que estão em DESTAQUE (do grupo em hover) */
@@ -150,7 +191,7 @@
 .cropper-group-item.active {
   background: rgba(var(--color-primary-rgb, 59, 130, 246), 0.05); /* Tint leve */
   border-color: var(--color-primary, #3b82f6);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Animações de hover do card são controladas via JavaScript */

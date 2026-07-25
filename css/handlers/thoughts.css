@@ -1,273 +1,273 @@
 /* ---- Maia Thoughts (novo design) ---- */
 .maia-thoughts {
-    width: 100%;
-    display: block;
-    /* margin-bottom foi removido para evitar buracos quando fechado, quem define espaco entre eles é o pai */
-    margin-bottom: 8px;
-    background: var(--color-surface, rgba(20, 20, 25, 0.4));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    transition: background 0.3s ease, border-color 0.3s ease;
+  width: 100%;
+  display: block;
+  /* margin-bottom foi removido para evitar buracos quando fechado, quem define espaco entre eles é o pai */
+  margin-bottom: 8px;
+  background: var(--color-surface, rgba(20, 20, 25, 0.4));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.05));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .maia-thoughts[open] {
-    background: rgba(20, 20, 25, 0.6);
-    border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 25, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .maia-thoughts-summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid transparent;
-    transition: background 0.2s;
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid transparent;
+  transition: background 0.2s;
 }
 
 .maia-thoughts[open] .maia-thoughts-summary {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .maia-thoughts-summary::-webkit-details-marker {
-    display: none;
+  display: none;
 }
 
 .maia-thoughts-header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 /* Consolidated Button Styles */
 .btn-stop-ai,
 .btn-icon-action {
-    background: var(--color-bg-1, rgba(255, 255, 255, 0.08));
-    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
-    cursor: pointer;
-    font-size: 14px;
-    border-radius: 6px;
-    /* consistent radius */
-    transition: all 0.2s ease;
-    color: var(--color-text, #fff);
-    font-family: var(--font-family-sans, sans-serif);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
+  background: var(--color-bg-1, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 6px;
+  /* consistent radius */
+  transition: all 0.2s ease;
+  color: var(--color-text, #fff);
+  font-family: var(--font-family-sans, sans-serif);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
 }
 
 .btn-stop-ai:hover,
 .btn-icon-action:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Special text-mode for Cancel/Start during Countdown */
 .btn-stop-ai.cancel-mode,
 .btn-stop-ai.start-mode {
-    width: auto !important;
-    /* Allow text width */
-    height: auto !important;
-    padding: 6px 14px !important;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  width: auto !important;
+  /* Allow text width */
+  height: auto !important;
+  padding: 6px 14px !important;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 /* Cancel Mode Colors */
 .btn-stop-ai.cancel-mode {
-    background-color: var(--color-surface, #202025);
-    background-image: linear-gradient(rgba(255, 59, 48, 0.15), rgba(255, 59, 48, 0.15));
-    border-color: rgba(255, 69, 58, 0.3);
-    color: #ff453a;
+  background-color: var(--color-surface, #202025);
+  background-image: linear-gradient(rgba(255, 59, 48, 0.15), rgba(255, 59, 48, 0.15));
+  border-color: rgba(255, 69, 58, 0.3);
+  color: #ff453a;
 }
 
 .btn-stop-ai.cancel-mode:hover {
-    background-image: linear-gradient(rgba(255, 59, 48, 0.25), rgba(255, 59, 48, 0.25));
-    border-color: rgba(255, 69, 58, 0.5);
+  background-image: linear-gradient(rgba(255, 59, 48, 0.25), rgba(255, 59, 48, 0.25));
+  border-color: rgba(255, 69, 58, 0.5);
 }
 
 /* Start Mode Colors */
 .btn-stop-ai.start-mode {
-    background-color: var(--color-surface, #202025);
-    background-image: linear-gradient(rgba(46, 204, 113, 0.15), rgba(46, 204, 113, 0.15));
-    border-color: rgba(46, 204, 113, 0.3);
-    color: #2ecc71;
+  background-color: var(--color-surface, #202025);
+  background-image: linear-gradient(rgba(46, 204, 113, 0.15), rgba(46, 204, 113, 0.15));
+  border-color: rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
 }
 
 .btn-stop-ai.start-mode:hover {
-    background-image: linear-gradient(rgba(46, 204, 113, 0.25), rgba(46, 204, 113, 0.25));
-    border-color: rgba(46, 204, 113, 0.5);
+  background-image: linear-gradient(rgba(46, 204, 113, 0.25), rgba(46, 204, 113, 0.25));
+  border-color: rgba(46, 204, 113, 0.5);
 }
-
 
 /* Center title only during countdown - REMOVED. Forcing standard flex layout: Title Left, Button Right */
 #ai-scanner-global-header.countdown-active .maia-thoughts-title-group {
-    position: relative !important;
-    left: auto !important;
-    transform: none !important;
-    order: 0;
-    max-width: 70%;
-    /* Prevent title from hitting button if too long */
+  position: relative !important;
+  left: auto !important;
+  transform: none !important;
+  order: 0;
+  max-width: 70%;
+  /* Prevent title from hitting button if too long */
 }
 
 /* Ensure container flows correctly */
 #ai-scanner-global-header.countdown-active {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
 }
 
 .maia-thoughts-title-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--font-family-mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
 }
 
 .maia-thought-header-logo {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 #ai-thoughts-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px;
-    max-height: 250px;
-    /* Scrollável */
-    overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  max-height: 250px;
+  /* Scrollável */
+  overflow-y: auto;
 
-    /* Scrollbar fina */
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-primary) transparent;
+  /* Scrollbar fina */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) transparent;
 }
 
 #ai-thoughts-list::-webkit-scrollbar {
-    width: 4px;
+  width: 4px;
 }
 
 #ai-thoughts-list::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 #ai-thoughts-list::-webkit-scrollbar-thumb {
-    background-color: var(--color-primary);
-    border-radius: 4px;
+  background-color: var(--color-primary);
+  border-radius: 4px;
 }
 
 .maia-thought-card {
-    display: flex;
-    gap: 10px;
-    padding: 0px 12px 0px 12px;
-    border-radius: var(--radius-md);
+  display: flex;
+  gap: 10px;
+  padding: 0px 12px 0px 12px;
+  border-radius: var(--radius-md);
 }
 
 .maia-thought-logo {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    margin-top: 2px;
-    object-fit: contain;
-    opacity: 0.8;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  object-fit: contain;
+  opacity: 0.8;
 }
 
 .maia-thought-content {
-    flex: 1;
-    min-width: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .maia-thought-title {
-    font-family: var(--font-family-mono);
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--color-primary);
-    line-height: 1.2;
-    font-style: italic;
+  font-family: var(--font-family-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1.2;
+  font-style: italic;
 }
 
 .maia-thought-body {
-    margin-top: 6px;
-    font-family: var(--font-family-mono);
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    white-space: pre-wrap;
-    overflow: auto;
+  margin-top: 6px;
+  font-family: var(--font-family-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow: auto;
 }
 
 .maia-thought-body.is-title {
-    font-size: 13px;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--color-primary);
-    margin-top: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--color-primary);
+  margin-top: 0;
 }
 
 /* skeleton wrapper (card level) */
 .maia-thought-card--skeleton {
-    margin-bottom: 20px !important;
+  margin-bottom: 20px !important;
 }
 
 /* skeleton dentro do card (placeholder) */
 .maia-thought-title-skel {
-    height: 12px;
-    width: 42%;
-    margin-bottom: 10px;
+  height: 12px;
+  width: 42%;
+  margin-bottom: 10px;
 }
 
 .maia-thought-line-skel {
-    height: 10px;
-    width: 100%;
-    margin-bottom: 8px;
+  height: 10px;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .maia-thought-line-skel.short {
-    width: 78%;
-    margin-bottom: 0;
+  width: 78%;
+  margin-bottom: 0;
 }
 
 /* 1) Use só gap (não misture gap + margin-bottom) */
 .maia-thoughts {
-    --thought-gap: 20px;
-    gap: var(--thought-gap);
+  --thought-gap: 20px;
+  gap: var(--thought-gap);
 }
 
 .maia-thought-card {
-    margin: 20px 20px 0 20px;
-    /* remove o margin-bottom: 20px antigo */
+  margin: 20px 20px 0 20px;
+  /* remove o margin-bottom: 20px antigo */
 }
 
 /* 2) Linha conectando as estrelas (inclui skeleton e cards reais) */
 .maia-thought-logo-wrap {
-    position: relative;
-    width: 18px;
-    flex-shrink: 0;
+  position: relative;
+  width: 18px;
+  flex-shrink: 0;
 }
 
-
 .maia-thought-card:not(:last-child) .maia-thought-logo-wrap::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 20px;
-    /* abaixo da estrela */
-    transform: translateX(-50%);
-    width: 2px;
-    height: calc(100% + var(--thought-gap) + 20px - 20px);
-    background: rgba(33, 128, 141, 0.35);
-    /* ou use sua var de cor primária */
-    border-radius: 2px;
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  /* abaixo da estrela */
+  transform: translateX(-50%);
+  width: 2px;
+  height: calc(100% + var(--thought-gap) + 20px - 20px);
+  background: rgba(33, 128, 141, 0.35);
+  /* ou use sua var de cor primária */
+  border-radius: 2px;
 }
 
 /* --- AI SCANNING BLOCKED STATE --- */
@@ -276,15 +276,15 @@ body.ai-scanning-active .sidebar-header,
 body.ai-scanning-active .btn-add-manual-page,
 body.ai-scanning-active .header-main,
 body.ai-scanning-active nav {
-    pointer-events: none !important;
-    opacity: 0.5;
-    filter: grayscale(0.8);
-    transition: all 0.3s ease;
+  pointer-events: none !important;
+  opacity: 0.5;
+  filter: grayscale(0.8);
+  transition: all 0.3s ease;
 }
 
 /* Garante que o container do PDF (Viewer) continue interagível (Scroll, Drag) */
 body.ai-scanning-active #canvasContainer {
-    pointer-events: auto !important;
+  pointer-events: auto !important;
 }
 
 /* Garante que o Header do AI, TODOS os botões de controle e o floating funcionem */
@@ -298,224 +298,224 @@ body.ai-scanning-active #btn-float-pause,
 body.ai-scanning-active #btn-float-resume,
 body.ai-scanning-active #btn-float-cancel,
 body.ai-scanning-active #ai-floating-controls {
-    pointer-events: auto !important;
-    opacity: 1 !important;
-    filter: none !important;
-    z-index: 9999;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  filter: none !important;
+  z-index: 9999;
 }
 
 /* --- Sidebar Overlay (cobre a sidebar inteira) --- */
 #ai-sidebar-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 100;
-    pointer-events: none;
-    /* Overlay não bloqueia cliques por padrão */
-    display: flex;
-    justify-content: center;
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  /* Overlay não bloqueia cliques por padrão */
+  display: flex;
+  justify-content: center;
 }
 
 /* --- Floating AI Controls (dentro do overlay da sidebar) --- */
 #ai-floating-controls {
-    position: sticky;
-    top: 12px;
+  position: sticky;
+  top: 12px;
 
-    width: 90%;
-    height: 50px;
+  width: 90%;
+  height: 50px;
 
-    background: rgba(20, 20, 25, 1);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    padding: 10px 16px;
-    border-radius: 10px;
-    z-index: 9999;
+  background: rgba(20, 20, 25, 1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: 10px 16px;
+  border-radius: 10px;
+  z-index: 9999;
 
-    display: none;
-    align-items: center;
-    justify-content: center;
+  display: none;
+  align-items: center;
+  justify-content: center;
 
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0;
-    pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  pointer-events: none;
 }
 
 #ai-floating-controls.visible {
-    display: flex;
-    opacity: 1;
-    pointer-events: auto;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ai-float-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  justify-content: space-between;
 }
 
 .ai-float-status {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-primary, #fff);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ai-float-status::before {
-    content: '';
-    display: block;
-    width: 8px;
-    /* Slightly larger */
-    height: 8px;
-    background-color: var(--color-primary, #00d2ff);
-    border-radius: 50%;
-    box-shadow: 0 0 6px var(--color-primary, #00d2ff);
-    animation: pulse-dot 1.5s infinite;
+  content: "";
+  display: block;
+  width: 8px;
+  /* Slightly larger */
+  height: 8px;
+  background-color: var(--color-primary, #00d2ff);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--color-primary, #00d2ff);
+  animation: pulse-dot 1.5s infinite;
 }
 
 .ai-float-status.paused::before {
-    background-color: #ffc107;
-    /* Yellow warning */
-    box-shadow: none;
-    animation: none;
+  background-color: #ffc107;
+  /* Yellow warning */
+  box-shadow: none;
+  animation: none;
 }
 
 .ai-float-actions,
 .ai-header-actions {
-    display: flex;
-    gap: 6px;
-    align-items: center;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 /* Specific colors for actions */
 #btn-header-pause:hover,
 #btn-float-pause:hover {
-    color: #ffc107;
-    border-color: #ffc107;
+  color: #ffc107;
+  border-color: #ffc107;
 }
 
 #btn-header-resume:hover,
 #btn-float-resume:hover {
-    color: #2ecc71;
-    border-color: #2ecc71;
+  color: #2ecc71;
+  border-color: #2ecc71;
 }
 
 #btn-float-cancel:hover,
 #btn-stop-ai:not(.start-mode):not(.cancel-mode):hover {
-    color: #ff453a;
-    border-color: #ff453a;
-    background: rgba(255, 69, 58, 0.1);
+  color: #ff453a;
+  border-color: #ff453a;
+  background: rgba(255, 69, 58, 0.1);
 }
 
-
 @keyframes pulse-dot {
-    0% {
-        opacity: 0.5;
-        transform: scale(0.9);
-    }
+  0% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
 
-    50% {
-        opacity: 1;
-        transform: scale(1.1);
-    }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 
-    100% {
-        opacity: 0.5;
-        transform: scale(0.9);
-    }
+  100% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
 }
 
 /* Animation for delayed appearance */
 @keyframes floatUpFadeIn {
-    0% {
-        opacity: 0;
-        transform: translateY(10px);
-    }
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-
 
 /* --- Chat Specifc Thoughts --- */
 .chat-thoughts-container {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  width: 100%;
 }
 
 .chat-thought-details {
-    background: rgba(20, 20, 25, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    transition: all 0.3s ease;
+  background: rgba(20, 20, 25, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .chat-thought-details[open] {
-    background: rgba(20, 20, 25, 0.6);
-    border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 25, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .chat-thought-summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 10px 12px;
-    font-family: var(--font-family-mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: color 0.2s;
-    user-select: none;
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-family: var(--font-family-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s;
+  user-select: none;
 }
 
 .chat-thought-summary:hover {
-    color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .chat-thought-summary::-webkit-details-marker {
-    display: none;
+  display: none;
 }
 
 /* Seta animada customizada */
 .chat-thought-summary::before {
-    content: '▶';
-    font-size: 10px;
-    display: inline-block;
-    transition: transform 0.2s ease;
-    margin-right: 4px;
-    opacity: 0.7;
+  content: "▶";
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.2s ease;
+  margin-right: 4px;
+  opacity: 0.7;
 }
 
 .chat-thought-details[open] .chat-thought-summary::before {
-    transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .chat-thought-wrapper {
-    padding: 0 12px 12px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    margin-top: 0;
+  padding: 0 12px 12px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 0;
 }
 
 /* Ajustes no card quando dentro do chat */
 .chat-thought-wrapper .maia-thought-card {
-    margin: 12px 0 0 0;
-    padding: 0;
+  margin: 12px 0 0 0;
+  padding: 0;
 }
 
 .animate-appear {
-    animation: floatUpFadeIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: floatUpFadeIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }

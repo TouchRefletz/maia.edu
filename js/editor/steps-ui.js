@@ -1,6 +1,5 @@
 import { configurarRemocaoPasso } from './passos.js';
-import { criarHtmlBlocoEditor } from './structure-editor.js';
-import { iniciarEditorEstrutura } from './structure-editor.js';
+import { criarHtmlBlocoEditor, iniciarEditorEstrutura } from './structure-editor.js';
 
 export const initStepEditors = (container) => {
   // Supõe que 'container' é global ou acessível nesse escopo, conforme seu código original
@@ -48,9 +47,7 @@ export const configurarMenuToggle = (row, menu) => {
       const wasHidden = menu.classList.contains('hidden');
 
       // Fecha todos os menus abertos na página (reset global)
-      document
-        .querySelectorAll('.step-menu-content')
-        .forEach((m) => m.classList.add('hidden'));
+      document.querySelectorAll('.step-menu-content').forEach((m) => m.classList.add('hidden'));
 
       // Se estava fechado, abre este específico
       if (wasHidden) menu.classList.remove('hidden');

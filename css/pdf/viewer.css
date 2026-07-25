@@ -123,7 +123,11 @@ body.ai-scanning-active #btn-stop-ai {
 /* Desabilitar botões de edição de questão durante o scan, MAS manter scroll */
 body.ai-scanning-active .cropper-actions button,
 body.ai-scanning-active .btn-add-question,
-body.ai-scanning-active #viewerSidebar button:not(#btn-header-pause):not(#btn-header-resume):not(#btn-stop-ai):not(#btn-float-pause):not(#btn-float-resume):not(#btn-float-cancel) {
+body.ai-scanning-active
+  #viewerSidebar
+  button:not(#btn-header-pause):not(#btn-header-resume):not(#btn-stop-ai):not(#btn-float-pause):not(
+    #btn-float-resume
+  ):not(#btn-float-cancel) {
   pointer-events: none;
   opacity: 0.5;
   filter: grayscale(100%);
@@ -132,9 +136,9 @@ body.ai-scanning-active #viewerSidebar button:not(#btn-header-pause):not(#btn-he
 /* Garante que os controles flutuantes também sejam clicáveis */
 body.ai-scanning-active #ai-floating-controls,
 body.ai-scanning-active #ai-floating-controls button {
-    pointer-events: auto !important;
-    opacity: 1 !important;
-    filter: none !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 /* LOCK STATE FOR MANUAL CROP */
@@ -143,26 +147,26 @@ body.manual-crop-active #viewerHeader,
 body.manual-crop-active .pdf-controls-box,
 body.manual-crop-active .mode-toggle,
 body.manual-crop-active #sidebar-actions-footer {
-    pointer-events: none;
-    opacity: 0.5;
-    filter: grayscale(100%);
-    transition: all 0.3s ease;
+  pointer-events: none;
+  opacity: 0.5;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
 }
 
 body.manual-crop-active #canvasContainer {
-    overflow: hidden !important;
-    user-select: none; /* Previne seleção de texto nativa enquanto recorta */
+  overflow: hidden !important;
+  user-select: none; /* Previne seleção de texto nativa enquanto recorta */
 }
 
 /* Ensure overlay is always clickable above locked layers */
 body.manual-crop-active #selection-overlay {
-    pointer-events: auto !important;
-    z-index: 9999 !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
 }
 
 /* Ensure PDF Pages are detectable by elementFromPoint (hit test) */
 body.manual-crop-active .pdf-page {
-    pointer-events: auto !important;
+  pointer-events: auto !important;
 }
 
 /* --- QUESTION BADGES --- */

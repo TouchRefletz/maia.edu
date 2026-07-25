@@ -74,12 +74,7 @@ export function montarResizerLateral() {
  * Garante que a estrutura física do Sidebar e do Resizer existam no DOM.
  * Configura eventos de fechar e redimensionar.
  */
-export const _garantirEstruturaSidebar = (
-  viewerBody,
-  main,
-  sidebarExistente,
-  resizerExistente
-) => {
+export const _garantirEstruturaSidebar = (viewerBody, main, sidebarExistente, resizerExistente) => {
   let sidebar = sidebarExistente;
   let resizer = resizerExistente;
 

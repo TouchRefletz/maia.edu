@@ -1,12 +1,12 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
+import { gerarConteudoEmJSONComImagemStream } from '../api/worker.js';
 import {
-  getJudgeSystemPrompt,
-  getJudgeResponseSchema,
   buildJudgePrompt,
-  processarAvaliacaoJuiz,
-  getJudgeSystemPromptForPart,
+  getJudgeResponseSchema,
   getJudgeResponseSchemaForPart,
-} from "./prompts/judge-prompt.js";
+  getJudgeSystemPrompt,
+  getJudgeSystemPromptForPart,
+  processarAvaliacaoJuiz,
+} from './prompts/judge-prompt.js';
 
 /**
  * Substitui menções a modelos específicos por um marcador genérico para garantir anonimização cega.
@@ -14,14 +14,14 @@ import {
  * @returns {string} Texto anonimizado
  */
 export function anonimizarModelos(texto) {
-  if (typeof texto !== "string") return texto;
+  if (typeof texto !== 'string') return texto;
   return texto
-    .replace(/gemma[- ]*4(?:[- ]*31b(?:[- ]*it)?)?/gi, "[MODELO_ANONIMIZADO]")
-    .replace(/gemini[- ]*3\.5(?:[- ]*flash)?/gi, "[MODELO_ANONIMIZADO]")
-    .replace(/gpt[- ]*oss(?:[- ]*120b)?/gi, "[MODELO_ANONIMIZADO]")
-    .replace(/\bgemma\b/gi, "[MODELO_ANONIMIZADO]")
-    .replace(/\bgemini\b/gi, "[MODELO_ANONIMIZADO]")
-    .replace(/\bgpt\b/gi, "[MODELO_ANONIMIZADO]");
+    .replace(/gemma[- ]*4(?:[- ]*31b(?:[- ]*it)?)?/gi, '[MODELO_ANONIMIZADO]')
+    .replace(/gemini[- ]*3\.5(?:[- ]*flash)?/gi, '[MODELO_ANONIMIZADO]')
+    .replace(/gpt[- ]*oss(?:[- ]*120b)?/gi, '[MODELO_ANONIMIZADO]')
+    .replace(/\bgemma\b/gi, '[MODELO_ANONIMIZADO]')
+    .replace(/\bgemini\b/gi, '[MODELO_ANONIMIZADO]')
+    .replace(/\bgpt\b/gi, '[MODELO_ANONIMIZADO]');
 }
 
 /**
@@ -42,17 +42,22 @@ export async function executarAvaliacaoApendiceA(
   respostaIA,
   isInterdisciplinary,
   handlers = {},
-  signal = null
+  signal = null,
 ) {
   // Anonimiza a resposta da IA avaliada antes de enviar ao juiz para evitar viés de preferência
   const respostaAnonimizada = anonimizarModelos(respostaIA);
   const enunciadoAnonimizado = anonimizarModelos(enunciado);
   const gabaritoAnonimizado = anonimizarModelos(gabarito);
 
-  const promptOriginal = buildJudgePrompt(enunciadoAnonimizado, gabaritoAnonimizado, respostaAnonimizada, isInterdisciplinary);
+  const promptOriginal = buildJudgePrompt(
+    enunciadoAnonimizado,
+    gabaritoAnonimizado,
+    respostaAnonimizada,
+    isInterdisciplinary,
+  );
 
-  let thoughtsAccumulated = "";
-  let rawResponseAccumulated = "";
+  let thoughtsAccumulated = '';
+  let rawResponseAccumulated = '';
 
   const systemInstruction = getJudgeSystemPrompt(isInterdisciplinary);
   const responseSchema = getJudgeResponseSchema(isInterdisciplinary);
@@ -60,7 +65,7 @@ export async function executarAvaliacaoApendiceA(
   const options = {
     model: modelJudgeId,
     generationConfig: {
-      responseMimeType: "application/json",
+      responseMimeType: 'application/json',
       responseSchema: responseSchema,
     },
     systemInstruction: systemInstruction,
@@ -89,7 +94,7 @@ export async function executarAvaliacaoApendiceA(
       promptOriginal,
       responseSchema,
       [], // Sem imagens anexadas na avaliação do juiz
-      "image/jpeg",
+      'image/jpeg',
       localHandlers,
       options,
     );
@@ -97,15 +102,17 @@ export async function executarAvaliacaoApendiceA(
     const endTime = performance.now();
     const latencyMs = Math.round(endTime - startTime);
 
-    let processedResponseText = "";
+    let processedResponseText = '';
     let processedResult = null;
     try {
-      const parsedResult = typeof finalResult === "string" ? JSON.parse(finalResult) : finalResult;
+      const parsedResult = typeof finalResult === 'string' ? JSON.parse(finalResult) : finalResult;
       processedResult = processarAvaliacaoJuiz(parsedResult, isInterdisciplinary);
-      processedResponseText = typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2);
+      processedResponseText =
+        typeof finalResult === 'string' ? finalResult : JSON.stringify(finalResult, null, 2);
     } catch (e) {
-      console.warn("[Apêndice A] Falha ao pós-processar e calcular nota blinded:", e);
-      processedResponseText = typeof finalResult === "string" ? finalResult : JSON.stringify(finalResult, null, 2);
+      console.warn('[Apêndice A] Falha ao pós-processar e calcular nota blinded:', e);
+      processedResponseText =
+        typeof finalResult === 'string' ? finalResult : JSON.stringify(finalResult, null, 2);
     }
 
     return {
@@ -118,7 +125,7 @@ export async function executarAvaliacaoApendiceA(
       latency_ms: latencyMs,
     };
   } catch (error) {
-    console.error("[Apêndice A] Erro na execução da avaliação:", error);
+    console.error('[Apêndice A] Erro na execução da avaliação:', error);
     throw error;
   }
 }
@@ -135,19 +142,24 @@ export async function executarAvaliacaoGemmaEmPartes(
   isInterdisciplinary,
   handlers = {},
   onPartAction,
-  stepConfigs = null
+  stepConfigs = null,
 ) {
   const respostaAnonimizada = anonimizarModelos(respostaIA);
   const enunciadoAnonimizado = anonimizarModelos(enunciado);
   const gabaritoAnonimizado = anonimizarModelos(gabarito);
-  const promptOriginal = buildJudgePrompt(enunciadoAnonimizado, gabaritoAnonimizado, respostaAnonimizada, isInterdisciplinary);
+  const promptOriginal = buildJudgePrompt(
+    enunciadoAnonimizado,
+    gabaritoAnonimizado,
+    respostaAnonimizada,
+    isInterdisciplinary,
+  );
 
   const accumulatedCriterios = {};
   const accumulatedComments = [];
   const partDetails = [];
 
   let totalLatency = 0;
-  let accumulatedThoughts = "";
+  let accumulatedThoughts = '';
 
   for (let part = 1; part <= 4; part++) {
     let partDone = false;
@@ -155,11 +167,21 @@ export async function executarAvaliacaoGemmaEmPartes(
       const stepConfig = stepConfigs ? stepConfigs[part - 1] : null;
       const stepModel = stepConfig ? stepConfig.model : modelJudgeId;
       const stepThinking = stepConfig ? stepConfig.thinking : true;
-      const stepModelLabel = stepModel === "vertex-maas/gpt-oss-120b" ? "GPT-OSS-120B (Vertex)" :
-                             stepModel === "groq/gpt-oss-120b" ? "GPT-OSS-120B (Groq)" : stepModel;
-      const thinkingLabel = (stepModel === "vertex-maas/gpt-oss-120b") ? (stepThinking ? " [com pensamento]" : " [sem pensamento]") : "";
+      const stepModelLabel =
+        stepModel === 'vertex-maas/gpt-oss-120b'
+          ? 'GPT-OSS-120B (Vertex)'
+          : stepModel === 'groq/gpt-oss-120b'
+            ? 'GPT-OSS-120B (Groq)'
+            : stepModel;
+      const thinkingLabel =
+        stepModel === 'vertex-maas/gpt-oss-120b'
+          ? stepThinking
+            ? ' [com pensamento]'
+            : ' [sem pensamento]'
+          : '';
 
-      if (handlers.onStatus) handlers.onStatus(`Executando Parte ${part} de 4 com ${stepModelLabel}${thinkingLabel}...`);
+      if (handlers.onStatus)
+        handlers.onStatus(`Executando Parte ${part} de 4 com ${stepModelLabel}${thinkingLabel}...`);
       if (handlers.onThought) handlers.onThought(`\n\n=== [PARTE ${part} DE 4] ===\n`);
       if (handlers.onAnswerDelta) handlers.onAnswerDelta(`\n\n=== [PARTE ${part} DE 4] ===\n`);
 
@@ -169,7 +191,7 @@ export async function executarAvaliacaoGemmaEmPartes(
       const options = {
         model: stepModel,
         generationConfig: {
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
           responseSchema: responseSchema,
         },
         systemInstruction: systemInstruction,
@@ -177,10 +199,10 @@ export async function executarAvaliacaoGemmaEmPartes(
       };
 
       const startTime = performance.now();
-      
-      let partThoughts = "";
-      let partRawResponse = "";
-      
+
+      let partThoughts = '';
+      let partRawResponse = '';
+
       const localHandlers = {
         onStatus: handlers.onStatus,
         onThought: (thought) => {
@@ -201,23 +223,32 @@ export async function executarAvaliacaoGemmaEmPartes(
           promptOriginal,
           responseSchema,
           [], // Sem imagens
-          "image/jpeg",
+          'image/jpeg',
           localHandlers,
-          options
+          options,
         );
         const endTime = performance.now();
         const latency = Math.round(endTime - startTime);
 
-        const parsed = typeof finalResult === "string" ? JSON.parse(finalResult) : finalResult;
-        
-        if (handlers.onStatus) handlers.onStatus(`Parte ${part} concluída. Aguardando confirmação...`);
-        const action = await onPartAction(part, "success", null, parsed, latency, systemInstruction, promptOriginal);
-        
-        if (action === "cancel") {
-          throw new Error("USER_CANCELLED");
+        const parsed = typeof finalResult === 'string' ? JSON.parse(finalResult) : finalResult;
+
+        if (handlers.onStatus)
+          handlers.onStatus(`Parte ${part} concluída. Aguardando confirmação...`);
+        const action = await onPartAction(
+          part,
+          'success',
+          null,
+          parsed,
+          latency,
+          systemInstruction,
+          promptOriginal,
+        );
+
+        if (action === 'cancel') {
+          throw new Error('USER_CANCELLED');
         }
-        
-        if (action === "next") {
+
+        if (action === 'next') {
           if (parsed && parsed.criterios) {
             Object.assign(accumulatedCriterios, parsed.criterios);
           }
@@ -233,39 +264,53 @@ export async function executarAvaliacaoGemmaEmPartes(
             thoughts: partThoughts,
             prompt_original: promptOriginal,
             prompt_compiled: `${systemInstruction}\n\n---\n\nUsuário: ${promptOriginal}`,
-            avaliacao_juiz: parsed
+            avaliacao_juiz: parsed,
           });
 
           totalLatency += latency;
           partDone = true;
         }
       } catch (err) {
-        if (handlers.isExited?.() || (err.name === "AbortError" && !handlers.signal)) {
+        if (handlers.isExited?.() || (err.name === 'AbortError' && !handlers.signal)) {
           throw err;
         }
         console.error(`Erro na parte ${part}:`, err);
-        const displayErrorMsg = err.name === "AbortError" || handlers.signal?.aborted ? "Interrompido pelo usuário" : (err.message || "Erro desconhecido");
+        const displayErrorMsg =
+          err.name === 'AbortError' || handlers.signal?.aborted
+            ? 'Interrompido pelo usuário'
+            : err.message || 'Erro desconhecido';
         if (handlers.onStatus) handlers.onStatus(`Erro na parte ${part}: ${displayErrorMsg}`);
-        const action = await onPartAction(part, "error", displayErrorMsg, null, 0, systemInstruction, promptOriginal);
-        
-        if (action === "cancel") {
-          throw new Error("USER_CANCELLED");
+        const action = await onPartAction(
+          part,
+          'error',
+          displayErrorMsg,
+          null,
+          0,
+          systemInstruction,
+          promptOriginal,
+        );
+
+        if (action === 'cancel') {
+          throw new Error('USER_CANCELLED');
         }
-        
-        if (action === "next") {
+
+        if (action === 'next') {
           const schema = getJudgeResponseSchemaForPart(part, isInterdisciplinary);
           const criteriaKeys = Object.keys(schema.properties.criterios.properties);
           for (const key of criteriaKeys) {
-            accumulatedCriterios[key] = { presente: false, evidencia: "Pulado pelo usuário devido a erro na geração." };
+            accumulatedCriterios[key] = {
+              presente: false,
+              evidencia: 'Pulado pelo usuário devido a erro na geração.',
+            };
           }
           accumulatedComments.push(`Parte ${part}: Pulado pelo usuário devido a erro.`);
-          
+
           const defaultResult = {
             criterios: {},
-            comentario_geral: "Erro de geração"
+            comentario_geral: 'Erro de geração',
           };
           for (const key of criteriaKeys) {
-            defaultResult.criterios[key] = { presente: false, evidencia: "Erro" };
+            defaultResult.criterios[key] = { presente: false, evidencia: 'Erro' };
           }
 
           partDetails.push({
@@ -276,7 +321,7 @@ export async function executarAvaliacaoGemmaEmPartes(
             thoughts: partThoughts,
             prompt_original: promptOriginal,
             prompt_compiled: `${systemInstruction}\n\n---\n\nUsuário: ${promptOriginal}`,
-            avaliacao_juiz: defaultResult
+            avaliacao_juiz: defaultResult,
           });
 
           partDone = true;
@@ -287,7 +332,7 @@ export async function executarAvaliacaoGemmaEmPartes(
 
   const compiledResult = {
     criterios: accumulatedCriterios,
-    comentario_geral: accumulatedComments.join("\n\n"),
+    comentario_geral: accumulatedComments.join('\n\n'),
   };
 
   const processedResult = processarAvaliacaoJuiz(compiledResult, isInterdisciplinary);

@@ -12,30 +12,22 @@ import { renderizarEstruturaHTML } from './structure.js';
  * Usa os seus helpers globais (pick, normCreditos, etc).
  */
 export function prepararDadosGabarito(gabarito, questao) {
-  const respostaLetra = String(
-    pick(gabarito.alternativa_correta, gabarito.resposta, '')
-  )
+  const respostaLetra = String(pick(gabarito.alternativa_correta, gabarito.resposta, ''))
     .trim()
     .toUpperCase();
 
   // Normalização da explicação usando seu helper global
-  const explicacaoArray = normalizeExplicacao(
-    pick(gabarito.explicacao, gabarito.resolucao, [])
-  );
+  const explicacaoArray = normalizeExplicacao(pick(gabarito.explicacao, gabarito.resolucao, []));
 
   // Normalização das alternativas analisadas
   const alternativasAnalisadas = normalizeAlternativasAnalisadas(
     pick(gabarito.alternativas_analisadas, []),
-    respostaLetra
+    respostaLetra,
   );
 
   return {
     respostaLetra,
-    justificativaCurta: pick(
-      gabarito.justificativa_curta,
-      gabarito.justificativa,
-      ''
-    ),
+    justificativaCurta: pick(gabarito.justificativa_curta, gabarito.justificativa, ''),
     possuiImagem: !!pick(gabarito.possui_imagem, gabarito.possuiimagem, false),
     confianca: pick(gabarito.confianca, null),
     coerencia: pick(gabarito.coerencia, {}),
@@ -45,11 +37,7 @@ export function prepararDadosGabarito(gabarito, questao) {
     alertasCredito: asStringArray(pick(gabarito.alertas_credito, [])),
     explicacaoArray,
     alternativasAnalisadas,
-    complexidadeRaw: pick(
-      gabarito.analise_complexidade,
-      gabarito.analiseComplexidade,
-      null
-    ),
+    complexidadeRaw: pick(gabarito.analise_complexidade, gabarito.analiseComplexidade, null),
     questao: questao, // Passamos a questão original para ter acesso às alternativas originais
   };
 }
@@ -109,11 +97,7 @@ export function _renderMetaGabarito(confianca, creditos) {
   const chips = [];
 
   // Chip Confiança
-  if (
-    confianca !== null &&
-    confianca !== undefined &&
-    !Number.isNaN(Number(confianca))
-  ) {
+  if (confianca !== null && confianca !== undefined && !Number.isNaN(Number(confianca))) {
     chips.push(`
             <div class="gabarito-chip gabarito-chip--info">
                 <span class="gabarito-chip__k">Confiança</span>
@@ -134,10 +118,7 @@ export function _renderMetaGabarito(confianca, creditos) {
 
   if (!chips.length) return '';
 
-  const showBar =
-    confianca !== null &&
-    confianca !== undefined &&
-    !Number.isNaN(Number(confianca));
+  const showBar = confianca !== null && confianca !== undefined && !Number.isNaN(Number(confianca));
   const fill = showBar ? fmtPct(confianca) : '0%';
 
   return `
@@ -174,7 +155,7 @@ export function _renderOpcoesGabarito(questao, respostaLetra, alternativasAnalis
                 const letra = normLetra(alt?.letra);
                 const isCorrect = letra && correta && letra === correta;
                 const analise = (alternativasAnalisadas || []).find(
-                  (a) => normLetra(a?.letra) === letra
+                  (a) => normLetra(a?.letra) === letra,
                 );
 
                 return `
@@ -206,13 +187,12 @@ export function _renderPassosExplicacao(explicacaoArray) {
                 if (!window.__imagensLimpas) window.__imagensLimpas = {}; // Safety check
                 if (!window.__imagensLimpas.gabarito_passos)
                   window.__imagensLimpas.gabarito_passos = {};
-                const imagensDestePasso =
-                  window.__imagensLimpas.gabarito_passos[idx] || [];
+                const imagensDestePasso = window.__imagensLimpas.gabarito_passos[idx] || [];
 
                 const htmlConteudo = renderizarEstruturaHTML(
                   p.estrutura,
                   imagensDestePasso,
-                  `gabarito_passo_${idx}`
+                  `gabarito_passo_${idx}`,
                 );
 
                 const origemRaw = String(p?.origem || '')
@@ -247,8 +227,7 @@ export function _renderPassosExplicacao(explicacaoArray) {
 
 export function _renderDetalhesTecnicos(dados) {
   const { creditos, alertasCredito, observacoes, coerencia } = dados;
-  if (!creditos && !alertasCredito.length && !observacoes.length && !coerencia)
-    return '';
+  if (!creditos && !alertasCredito.length && !observacoes.length && !coerencia) return '';
 
   // Helper interno para formatar chips de coerência
   const chip = (label, ok, okTxt = 'OK', badTxt = 'Atenção') => `
@@ -261,14 +240,9 @@ export function _renderDetalhesTecnicos(dados) {
   // Renderização da Coerência
   let htmlCoerencia = '';
   if (coerencia) {
-    const altOk =
-      coerencia.alternativa_correta_existe ??
-      coerencia.alternativaCorretaExiste;
-    const todasOk =
-      coerencia.tem_analise_para_todas ?? coerencia.temAnaliseParaTodas;
-    const obs = Array.isArray(coerencia.observacoes)
-      ? coerencia.observacoes
-      : [];
+    const altOk = coerencia.alternativa_correta_existe ?? coerencia.alternativaCorretaExiste;
+    const todasOk = coerencia.tem_analise_para_todas ?? coerencia.temAnaliseParaTodas;
+    const obs = Array.isArray(coerencia.observacoes) ? coerencia.observacoes : [];
     const htmlObs = obs.length
       ? `<div class="coerencia-obs"><div class="coerencia-obs-title">Observações</div><ul>${obs.map((o) => `<li>${safe(o)}</li>`).join('')}</ul></div>`
       : `<div class="coerencia-obs coerencia-obs--empty">Sem observações.</div>`;
@@ -292,9 +266,7 @@ export function _renderDetalhesTecnicos(dados) {
     const chipKV = (k, v, cls = '') =>
       `<div class="coerencia-chip ${cls}"><span class="coerencia-chip-k">${safe(k)}</span><span class="coerencia-chip-v">${safe(v ?? '—')}</span></div>`;
     const toPct = (n) =>
-      !Number.isNaN(Number(n))
-        ? `${Math.round(Math.max(0, Math.min(1, Number(n))) * 100)}%`
-        : null;
+      !Number.isNaN(Number(n)) ? `${Math.round(Math.max(0, Math.min(1, Number(n))) * 100)}%` : null;
 
     htmlCreditos = `
             <div class="field-group">
@@ -451,9 +423,7 @@ export function _renderEditorPassos(explicacaoArray) {
 }
 
 export function _renderEditorAnaliseAlternativas(questao, alternativasAnalisadas) {
-  const altsHtml = (
-    Array.isArray(questao?.alternativas) ? questao.alternativas : []
-  )
+  const altsHtml = (Array.isArray(questao?.alternativas) ? questao.alternativas : [])
     .map((alt) => {
       const letra = String(alt?.letra || '')
         .trim()
@@ -462,7 +432,7 @@ export function _renderEditorAnaliseAlternativas(questao, alternativasAnalisadas
         (a) =>
           String(a?.letra || '')
             .trim()
-            .toUpperCase() === letra
+            .toUpperCase() === letra,
       );
 
       return `
@@ -507,7 +477,7 @@ export function _renderEditorComplexidade(complexidadeRaw) {
     const val = !!pick(
       cFatores[key],
       cFatores[key.replace(/_([a-z])/g, (_, x) => x.toUpperCase())],
-      false
+      false,
     );
     return `
             <label style="display:flex; gap:6px; align-items:center; margin-bottom:4px; cursor:pointer;">

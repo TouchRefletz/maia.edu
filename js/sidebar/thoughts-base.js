@@ -1,14 +1,14 @@
-import { sanitizeInlineMarkdown } from "../normalize/primitives.js";
+import { sanitizeInlineMarkdown } from '../normalize/primitives.js';
 
 export function limparResultadosAnteriores(sidebar) {
   if (!sidebar) return;
 
   // Remove resultado anterior (se houver)
-  const oldResult = sidebar.querySelector(".extraction-result");
+  const oldResult = sidebar.querySelector('.extraction-result');
   if (oldResult) oldResult.remove();
 
   // Remove loader anterior (se houver)
-  const oldLoader = sidebar.querySelector(".skeleton-wrapper");
+  const oldLoader = sidebar.querySelector('.skeleton-wrapper');
   // O loader antigo fica dentro de um wrapper pai, removemos o pai
   if (oldLoader && oldLoader.parentElement) {
     oldLoader.parentElement.remove();
@@ -40,8 +40,8 @@ export function construirSkeletonLoader(sidebar) {
     </div>
     `;
 
-  const loadingContainer = document.createElement("div");
-  loadingContainer.id = "maia-scroll-wrapper"; // ID explícito para scroll mobile
+  const loadingContainer = document.createElement('div');
+  loadingContainer.id = 'maia-scroll-wrapper'; // ID explícito para scroll mobile
   loadingContainer.innerHTML = skeletonHTML;
 
   // FIX: Usar estritamente o container passado como argumento (Contexto da Aba)
@@ -49,14 +49,14 @@ export function construirSkeletonLoader(sidebar) {
   const targetContainer = sidebar;
 
   // Limpa apenas o container específico da aba
-  targetContainer.innerHTML = "";
+  targetContainer.innerHTML = '';
   targetContainer.appendChild(loadingContainer);
 
   // Retorna as referências buscando dentro do container criado para evitar conflitos de ID global
   return {
     loadingContainer,
-    thoughtListEl: loadingContainer.querySelector("#maiaThoughts"),
-    textElement: loadingContainer.querySelector("#loading-text"),
+    thoughtListEl: loadingContainer.querySelector('#maiaThoughts'),
+    textElement: loadingContainer.querySelector('#loading-text'),
   };
 }
 
@@ -78,7 +78,7 @@ export function tentarExtrairTituloComRegex(raw) {
   if (lines.length >= 2) {
     return {
       title: sanitizeInlineMarkdown(lines[0]),
-      body: sanitizeInlineMarkdown(lines.slice(1).join("\n")),
+      body: sanitizeInlineMarkdown(lines.slice(1).join('\n')),
     };
   }
 
@@ -101,13 +101,11 @@ export function tentarExtrairTituloComRegex(raw) {
   }
 
   // 5) Heurística de palavras-chave em inglês (I'm, I've, Now...)
-  const mHeu = raw.match(
-    /^(.{8,60}?)(?:\s+(I['’]m|I am|I've|I have|Now|Next|Then)\b)(.*)$/s
-  );
+  const mHeu = raw.match(/^(.{8,60}?)(?:\s+(I['’]m|I am|I've|I have|Now|Next|Then)\b)(.*)$/s);
   if (mHeu) {
     return {
       title: sanitizeInlineMarkdown(mHeu[1]),
-      body: sanitizeInlineMarkdown((mHeu[2] + (mHeu[3] || "")).trim()),
+      body: sanitizeInlineMarkdown((mHeu[2] + (mHeu[3] || '')).trim()),
     };
   }
 
@@ -116,12 +114,12 @@ export function tentarExtrairTituloComRegex(raw) {
 
 export function splitThought(t) {
   // 1. Remove prefixo "Pensando: " (case insensitive)
-  let raw = String(t || "").trim();
-  raw = raw.replace(/^Pensando:\s*/i, "");
+  let raw = String(t || '').trim();
+  raw = raw.replace(/^Pensando:\s*/i, '');
 
   // CLEANUP: Remove reticências finais (...) ou .. que a UI/Stream possa ter adicionado
   // User reported unwanted "..." at the end.
-  raw = raw.replace(/\s*\.{2,}$/, "").trim();
+  raw = raw.replace(/\s*\.{2,}$/, '').trim();
 
   // Tenta encontrar algum padrão conhecido
   const resultado = tentarExtrairTituloComRegex(raw);
@@ -139,40 +137,40 @@ export function splitThought(t) {
   if (raw.length < 80 && lineCount <= 2) {
     return {
       title: sanitizeInlineMarkdown(raw),
-      body: "",
+      body: '',
     };
   }
 
   return {
-    title: "Pensamento",
+    title: 'Pensamento',
     body: sanitizeInlineMarkdown(raw),
   };
 }
 
 export function criarElementoCardPensamento(title, body) {
-  const card = document.createElement("div");
-  card.className = "maia-thought-card";
+  const card = document.createElement('div');
+  card.className = 'maia-thought-card';
 
   // Logo
-  const logoWrap = document.createElement("div");
-  logoWrap.className = "maia-thought-logo-wrap";
-  const logo = document.createElement("img");
-  logo.className = "maia-thought-logo";
-  logo.src = "logo.png";
-  logo.alt = "Maia";
+  const logoWrap = document.createElement('div');
+  logoWrap.className = 'maia-thought-logo-wrap';
+  const logo = document.createElement('img');
+  logo.className = 'maia-thought-logo';
+  logo.src = 'logo.png';
+  logo.alt = 'Maia';
   logoWrap.appendChild(logo);
 
   // Conteúdo
-  const contentEl = document.createElement("div");
-  contentEl.className = "maia-thought-content";
+  const contentEl = document.createElement('div');
+  contentEl.className = 'maia-thought-content';
 
-  const titleEl = document.createElement("div");
-  titleEl.className = "maia-thought-title";
-  titleEl.textContent = title || "Pensamento";
+  const titleEl = document.createElement('div');
+  titleEl.className = 'maia-thought-title';
+  titleEl.textContent = title || 'Pensamento';
 
-  const bodyEl = document.createElement("div");
-  bodyEl.className = "maia-thought-body";
-  bodyEl.textContent = body || "";
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'maia-thought-body';
+  bodyEl.textContent = body || '';
 
   contentEl.appendChild(titleEl);
   contentEl.appendChild(bodyEl);

@@ -1,88 +1,81 @@
-import { exibirModalOriginais } from "../render/final/OriginaisModal.tsx";
-import { showConfirmModal } from "../ui/modal-confirm.js";
+import { exibirModalOriginais } from '../render/final/OriginaisModal.tsx';
+import { showConfirmModal } from '../ui/modal-confirm.js';
 
 export function toggleGabarito(cardId) {
-  const el = document.getElementById(cardId + "_res");
+  const el = document.getElementById(cardId + '_res');
   if (!el) return;
 
   // Alterna entre mostrar e esconder
-  if (el.style.display === "none") {
-    el.style.display = "block";
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
     // Opcional: faz scroll suave até a resolução
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else {
-    el.style.display = "none";
+    el.style.display = 'none';
   }
 }
 
 export async function toggleKeywordsDissertativa(btn, cardId) {
-  const keywordsContainer = document.getElementById(cardId + "_keywords");
+  const keywordsContainer = document.getElementById(cardId + '_keywords');
   if (!keywordsContainer) return;
 
-  if (keywordsContainer.style.display === "none") {
-    const message = 'Estas palavras-chave compõem a "resposta esperada" da questão. Recomendamos tentar responder à questão antes de visualizá-las para testar seu conhecimento. Deseja mostrar assim mesmo?';
-    
+  if (keywordsContainer.style.display === 'none') {
+    const message =
+      'Estas palavras-chave compõem a "resposta esperada" da questão. Recomendamos tentar responder à questão antes de visualizá-las para testar seu conhecimento. Deseja mostrar assim mesmo?';
+
     // Utilize the site's native custom modal
     const confirmed = await showConfirmModal(
-      "Atenção",
+      'Atenção',
       message,
-      "Mostrar Palavras-Chave",
-      "Cancelar",
-      false // false = negative/warning action (usually red button style)
+      'Mostrar Palavras-Chave',
+      'Cancelar',
+      false, // false = negative/warning action (usually red button style)
     );
 
     if (confirmed) {
-      keywordsContainer.style.display = "flex";
-      btn.style.display = "none";
+      keywordsContainer.style.display = 'flex';
+      btn.style.display = 'none';
     }
   }
 }
 
-export function verificarRespostaBanco(
-  btn,
-  cardId,
-  letraEscolhida,
-  letraCorreta,
-) {
-  const container = document.getElementById(cardId + "_opts");
-  const resolution = document.getElementById(cardId + "_res");
+export function verificarRespostaBanco(btn, cardId, letraEscolhida, letraCorreta) {
+  const container = document.getElementById(cardId + '_opts');
+  const resolution = document.getElementById(cardId + '_res');
 
-  if (container.classList.contains("answered")) return;
-  container.classList.add("answered");
+  if (container.classList.contains('answered')) return;
+  container.classList.add('answered');
 
-  const todosBotoes = container.querySelectorAll(".q-opt-btn");
+  const todosBotoes = container.querySelectorAll('.q-opt-btn');
   letraCorreta = letraCorreta.trim().toUpperCase();
   letraEscolhida = letraEscolhida.trim().toUpperCase();
 
   todosBotoes.forEach((b) => {
-    const letra = b
-      .querySelector(".q-opt-letter")
-      .innerText.replace(")", "")
-      .trim();
+    const letra = b.querySelector('.q-opt-letter').innerText.replace(')', '').trim();
 
     if (letra === letraCorreta) {
-      b.classList.add("correct");
+      b.classList.add('correct');
     }
     if (letra === letraEscolhida && letra !== letraCorreta) {
-      b.classList.add("wrong");
+      b.classList.add('wrong');
     }
-    b.style.cursor = "default";
+    b.style.cursor = 'default';
 
     // Exibe justificativa individual (motivo) se existir
     const motivo = b.dataset.motivo;
     if (motivo) {
-      const motivoEl = b.querySelector(".q-opt-motivo");
+      const motivoEl = b.querySelector('.q-opt-motivo');
       if (motivoEl) {
         motivoEl.textContent = motivo;
-        motivoEl.style.display = "block";
+        motivoEl.style.display = 'block';
       }
     }
   });
 
   // Delay e Revelação
   setTimeout(() => {
-    resolution.style.display = "block";
-    resolution.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    resolution.style.display = 'block';
+    resolution.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, 800);
 }
 
@@ -94,44 +87,37 @@ export function abrirScanOriginal(btn) {
 
   try {
     const imgs = JSON.parse(jsonImgs);
-    console.log("[Interacoes] Abrindo modal de originais com dados:", imgs);
+    console.log('[Interacoes] Abrindo modal de originais com dados:', imgs);
 
     exibirModalOriginais(imgs);
   } catch (e) {
-    console.error("Erro ao abrir imagens originais", e);
+    console.error('Erro ao abrir imagens originais', e);
   }
 }
 
+import { bancoState } from '../main.js';
 // Correção Dissertativa no Banco
-import {
-  checkAnswerWithEmbeddings,
-  checkAnswerWithAI,
-} from "../services/answer-checker.js";
-import { bancoState } from "../main.js";
+import { checkAnswerWithAI, checkAnswerWithEmbeddings } from '../services/answer-checker.js';
 
 function getApiKey() {
-  return localStorage.getItem("gemini_api_key") || "";
+  return localStorage.getItem('gemini_api_key') || '';
 }
 
 export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
-  const container = document.getElementById(cardId + "_opts");
-  const feedbackDiv = document.getElementById(cardId + "_feedback");
-  const textarea = container.querySelector(".q-dissert-input");
+  const container = document.getElementById(cardId + '_opts');
+  const feedbackDiv = document.getElementById(cardId + '_feedback');
+  const textarea = container.querySelector('.q-dissert-input');
 
   if (!textarea || !textarea.value.trim()) {
-    alert(
-      "Por favor, escreva ou rascunhe sua resposta no campo antes de realizar a correção.",
-    );
+    alert('Por favor, escreva ou rascunhe sua resposta no campo antes de realizar a correção.');
     return;
   }
 
-  const idFirebase = cardId.replace("q_", "").replace("card_", "");
-  const fullData = bancoState.todasQuestoesCache.find(
-    (x) => x.key === idFirebase,
-  );
+  const idFirebase = cardId.replace('q_', '').replace('card_', '');
+  const fullData = bancoState.todasQuestoesCache.find((x) => x.key === idFirebase);
 
   if (!fullData) {
-    alert("Não foi possível encontrar os dados originais da questão no cache.");
+    alert('Não foi possível encontrar os dados originais da questão no cache.');
     return;
   }
 
@@ -139,32 +125,32 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
   const apiKey = getApiKey();
 
   const g = fullData.dados_gabarito || {};
-  const expectedAnswer = g.resposta_modelo || g.respostaModelo || "";
+  const expectedAnswer = g.resposta_modelo || g.respostaModelo || '';
 
   // Desabilitar botões enquanto analisa
-  const btns = container.querySelectorAll(".q-opt-btn");
+  const btns = container.querySelectorAll('.q-opt-btn');
   btns.forEach((b) => {
     b.disabled = true;
-    b.style.opacity = "0.5";
-    b.style.cursor = "not-allowed";
+    b.style.opacity = '0.5';
+    b.style.cursor = 'not-allowed';
   });
 
-  feedbackDiv.style.display = "block";
+  feedbackDiv.style.display = 'block';
   feedbackDiv.innerHTML = `
     <div style="text-align:center; padding: 20px;">
         <div class="spinner" style="margin: 0 auto;"></div>
         <p style="margin-top:15px; color:var(--color-primary); font-weight:bold;">
-           ${tipoCorrecao === "ai" ? "Analisando via Google Gemini AI..." : "Extraindo similaridade e vetores via Embeddings Pinecone..."}
+           ${tipoCorrecao === 'ai' ? 'Analisando via Google Gemini AI...' : 'Extraindo similaridade e vetores via Embeddings Pinecone...'}
         </p>
     </div>`;
 
   try {
-    let resultHTML = "";
+    let resultHTML = '';
 
-    if (tipoCorrecao === "ai") {
+    if (tipoCorrecao === 'ai') {
       const result = await checkAnswerWithAI(userAnswer, fullData, apiKey);
 
-      if (result.method === "error") {
+      if (result.method === 'error') {
         resultHTML = `<div style="color:var(--color-danger); padding:10px;"><b>Erro:</b> ${result.feedback_geral}</div>`;
       } else {
         const criteriosHTML =
@@ -175,8 +161,8 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
                      ${result.criterios_avaliados
                        .map(
                          (crit, idx) => `
-                       <div style="padding:12px 15px; border-bottom:${idx < result.criterios_avaliados.length - 1 ? "1px solid var(--color-border)" : "none"}; display:flex; gap:12px; align-items:flex-start;">
-                         <div style="font-size:16px;">${crit.atendido ? "✅" : "❌"}</div>
+                       <div style="padding:12px 15px; border-bottom:${idx < result.criterios_avaliados.length - 1 ? '1px solid var(--color-border)' : 'none'}; display:flex; gap:12px; align-items:flex-start;">
+                         <div style="font-size:16px;">${crit.atendido ? '✅' : '❌'}</div>
                          <div>
                            <div style="font-weight:600; font-size:13px; color:var(--color-text); margin-bottom:4px;">${crit.criterio}</div>
                            <div style="font-size:12px; color:var(--color-text-secondary);">${crit.feedback}</div>
@@ -184,10 +170,10 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
                        </div>
                      `,
                        )
-                       .join("")}
+                       .join('')}
                    </div>
                  </div>`
-            : "";
+            : '';
 
         resultHTML = `
                 <div style="font-family: inherit; margin-bottom: 10px;">
@@ -203,14 +189,14 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
                       <div style="flex:1; min-width: 250px; background:rgba(40,167,69,0.08); padding:15px; border-radius:6px; border-left:4px solid var(--color-success);">
                         <b style="color:var(--color-success)">🟢 Pontos Fortes e Cobertos:</b>
                         <ul style="margin:8px 0 0 20px; padding:0; font-size:0.9em; display:flex; flex-direction:column; gap:6px;">
-                          ${result.pontos_fortes.map((p) => `<li>${p}</li>`).join("")}
+                          ${result.pontos_fortes.map((p) => `<li>${p}</li>`).join('')}
                         </ul>
                       </div>
                       <div style="flex:1; min-width: 250px; background:rgba(220,53,69,0.08); padding:15px; border-radius:6px; border-left:4px solid var(--color-danger);">
                         <b style="color:var(--color-danger)">🔴 Elementos a Melhorar / Sugestões:</b>
                         <ul style="margin:8px 0 0 20px; padding:0; font-size:0.9em; display:flex; flex-direction:column; gap:6px;">
-                          ${result.pontos_fracos.map((p) => `<li>${p}</li>`).join("")}
-                          ${result.sugestoes.map((s) => `<li><i style="opacity:0.8">Sugestão:</i> ${s}</li>`).join("")}
+                          ${result.pontos_fracos.map((p) => `<li>${p}</li>`).join('')}
+                          ${result.sugestoes.map((s) => `<li><i style="opacity:0.8">Sugestão:</i> ${s}</li>`).join('')}
                         </ul>
                       </div>
                     </div>
@@ -218,14 +204,9 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
             `;
       }
     } else {
-      const result = await checkAnswerWithEmbeddings(
-        userAnswer,
-        expectedAnswer,
-        fullData,
-        apiKey,
-      );
+      const result = await checkAnswerWithEmbeddings(userAnswer, expectedAnswer, fullData, apiKey);
 
-      if (result.method === "error") {
+      if (result.method === 'error') {
         resultHTML = `<div style="color:var(--color-danger); padding:10px;"><b>Erro:</b> ${result.feedback}</div>`;
       } else {
         resultHTML = `
@@ -238,11 +219,11 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
                     <div style="display:flex; gap:10px; margin-top:15px; flex-wrap: wrap;">
                       <div style="flex:1; min-width: 250px; background:rgba(40,167,69,0.08); padding:15px; border-radius:6px; border-left:4px solid var(--color-success);">
                         <b style="color:var(--color-success)">🟢 Palavras-Chave Contidas (${result.keywordsFound.length}):</b>
-                        <div style="margin-top:8px; font-size:0.85em; display: flex; flex-wrap: wrap; gap: 4px;">${result.keywordsFound.map((k) => `<span style="margin:2px; display:inline-block; padding:4px 8px; background:var(--color-bg-1); border-radius:4px; border:1px solid var(--color-success);">${k}</span>`).join("") || '<span style="color:var(--color-text-secondary)">Nenhuma localizada.</span>'}</div>
+                        <div style="margin-top:8px; font-size:0.85em; display: flex; flex-wrap: wrap; gap: 4px;">${result.keywordsFound.map((k) => `<span style="margin:2px; display:inline-block; padding:4px 8px; background:var(--color-bg-1); border-radius:4px; border:1px solid var(--color-success);">${k}</span>`).join('') || '<span style="color:var(--color-text-secondary)">Nenhuma localizada.</span>'}</div>
                       </div>
                       <div style="flex:1; min-width: 250px; background:rgba(220,53,69,0.08); padding:15px; border-radius:6px; border-left:4px solid var(--color-danger);">
                         <b style="color:var(--color-danger)">🔴 Palavras-Chave Faltantes (${result.keywordsMissing.length}):</b>
-                        <div style="margin-top:8px; font-size:0.85em; display: flex; flex-wrap: wrap; gap: 4px;">${result.keywordsMissing.map((k) => `<span style="margin:2px; display:inline-block; padding:4px 8px; background:var(--color-bg-1); border-radius:4px; border:1px dashed var(--color-danger); opacity:0.8;">${k}</span>`).join("") || '<span style="color:var(--color-text-secondary)">Nenhuma faltante de peso superior.</span>'}</div>
+                        <div style="margin-top:8px; font-size:0.85em; display: flex; flex-wrap: wrap; gap: 4px;">${result.keywordsMissing.map((k) => `<span style="margin:2px; display:inline-block; padding:4px 8px; background:var(--color-bg-1); border-radius:4px; border:1px dashed var(--color-danger); opacity:0.8;">${k}</span>`).join('') || '<span style="color:var(--color-text-secondary)">Nenhuma faltante de peso superior.</span>'}</div>
                       </div>
                     </div>
                 </div>
@@ -266,8 +247,8 @@ export async function avaliarRespostaDissertativa(btn, cardId, tipoCorrecao) {
   } finally {
     btns.forEach((b) => {
       b.disabled = false;
-      b.style.opacity = "1";
-      b.style.cursor = "pointer";
+      b.style.opacity = '1';
+      b.style.cursor = 'pointer';
     });
   }
 }

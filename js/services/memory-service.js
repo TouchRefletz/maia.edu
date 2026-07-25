@@ -1,18 +1,18 @@
-import { EntityDB } from "@babycommando/entity-db";
+import { EntityDB } from '@babycommando/entity-db';
 import {
   gerarConteudoEmJSONComImagemStream,
   gerarEmbedding,
-  upsertPineconeWorker,
   queryPineconeWorker,
-} from "../api/worker.js";
+  upsertPineconeWorker,
+} from '../api/worker.js';
 import {
   PROMPT_NARRADOR_MEMORIA,
   PROMPT_SINTETIZADOR_CONTEXTO,
-} from "../chat/prompts/memory-prompts.js";
-import { auth } from "../firebase/init.js";
-import { fileToBase64 } from "../utils/file-utils.js";
+} from '../chat/prompts/memory-prompts.js';
+import { auth } from '../firebase/init.js';
+import { fileToBase64 } from '../utils/file-utils.js';
 
-const DB_NAME = "maia_memory";
+const DB_NAME = 'maia_memory';
 const MIN_SCORE = 0.6; // Local
 const MIN_SCORE_CLOUD = 0.7; // Pinecone (Mais rigoroso)
 const LOCAL_EXPIRATION_TIME = 30 * 60 * 1000; // 30 mins
@@ -26,7 +26,7 @@ async function getDb() {
   if (dbInstance) return dbInstance;
 
   dbInstance = new EntityDB({
-    vectorPath: "vector",
+    vectorPath: 'vector',
   });
   return dbInstance;
 }
@@ -46,7 +46,7 @@ async function getDb() {
  */
 export async function addFact(fact) {
   try {
-    console.log("[MemoryService] addFact chamado com:", fact);
+    console.log('[MemoryService] addFact chamado com:', fact);
     const db = await getDb();
 
     // Gera embedding
@@ -82,12 +82,12 @@ export async function addFact(fact) {
       metadata: metadata,
     };
     await db.insertManualVectors(payload);
-    console.log("[MemoryService] Fato salvo localmente.");
+    console.log('[MemoryService] Fato salvo localmente.');
 
     // 2. Save Cloud (Pinecone) if Logged In and not Anonymous
     const user = auth.currentUser;
     if (user && !user.isAnonymous) {
-      console.log("[MemoryService] Enviando fato para Pinecone...");
+      console.log('[MemoryService] Enviando fato para Pinecone...');
       const pineconeVector = {
         id: crypto.randomUUID(),
         values: vector,
@@ -100,12 +100,12 @@ export async function addFact(fact) {
       await upsertPineconeWorker(
         [pineconeVector],
         user.uid, // Namespace = UID
-        "maia-memory", // Target Index Name (Assumes worker routes this correctly)
+        'maia-memory', // Target Index Name (Assumes worker routes this correctly)
       );
-      console.log("[MemoryService] Fato sincronizado no Pinecone.");
+      console.log('[MemoryService] Fato sincronizado no Pinecone.');
     }
   } catch (error) {
-    console.error("[MemoryService] Erro ao salvar fato:", error);
+    console.error('[MemoryService] Erro ao salvar fato:', error);
   }
 }
 
@@ -136,9 +136,7 @@ export async function cleanupExpired() {
     // Garante init da lib (embora vamos usar raw access, isso configura paths se precisar)
     await getDb();
 
-    console.log(
-      "[MemoryService] Iniciando limpeza via varredura direta (Cursor)...",
-    );
+    console.log('[MemoryService] Iniciando limpeza via varredura direta (Cursor)...');
 
     // Tenta acessar via prop da lib ou abre conexão manual com o nome padrão "EntityDB"
     // O screenshot mostra que o banco chama "EntityDB".
@@ -147,29 +145,27 @@ export async function cleanupExpired() {
 
     if (!rawDb) {
       try {
-        rawDb = await openRawDB("EntityDB"); // Try default
+        rawDb = await openRawDB('EntityDB'); // Try default
       } catch (e) {
-        console.warn("[MemoryService] Falha ao abrir EntityDB raw:", e);
+        console.warn('[MemoryService] Falha ao abrir EntityDB raw:', e);
         return [];
       }
     }
 
     // [FIX] Detect valid store name (vector vs vectors)
-    let storeName = "vectors"; // Default guess
-    if (rawDb.objectStoreNames.contains("vector")) {
-      storeName = "vector";
-    } else if (rawDb.objectStoreNames.contains("vectors")) {
-      storeName = "vectors";
+    let storeName = 'vectors'; // Default guess
+    if (rawDb.objectStoreNames.contains('vector')) {
+      storeName = 'vector';
+    } else if (rawDb.objectStoreNames.contains('vectors')) {
+      storeName = 'vectors';
     } else if (rawDb.objectStoreNames.length > 0) {
       storeName = rawDb.objectStoreNames[0]; // Fallback to first store
     } else {
-      console.error(
-        "[MemoryService] Cleanup aborted: No object stores found in DB.",
-      );
+      console.error('[MemoryService] Cleanup aborted: No object stores found in DB.');
       return [];
     }
 
-    const tx = rawDb.transaction([storeName], "readwrite");
+    const tx = rawDb.transaction([storeName], 'readwrite');
     const store = tx.objectStore(storeName);
 
     let deletedCount = 0;
@@ -223,10 +219,7 @@ export async function cleanupExpired() {
         const vectorsToUpsert = expiredItems.map((wrapper) => {
           const p = wrapper.value;
           return {
-            id:
-              typeof wrapper.key === "string"
-                ? wrapper.key
-                : crypto.randomUUID(),
+            id: typeof wrapper.key === 'string' ? wrapper.key : crypto.randomUUID(),
             values: p.vector || p.values,
             metadata: {
               ...(p.metadata || {}),
@@ -237,13 +230,10 @@ export async function cleanupExpired() {
         });
 
         try {
-          await upsertPineconeWorker(vectorsToUpsert, user.uid, "maia-memory");
-          console.log("[MemoryService] Sync successful. Proceeding to delete.");
+          await upsertPineconeWorker(vectorsToUpsert, user.uid, 'maia-memory');
+          console.log('[MemoryService] Sync successful. Proceeding to delete.');
         } catch (e) {
-          console.warn(
-            "[MemoryService] Sync failed. ABORTING DELETION to prevent data loss.",
-            e,
-          );
+          console.warn('[MemoryService] Sync failed. ABORTING DELETION to prevent data loss.', e);
           // If sync fails, we DO NOT DELETE.
           return validItems;
         }
@@ -251,7 +241,7 @@ export async function cleanupExpired() {
 
       // Pass 3: Delete from Local (New Transaction to be safe/clean)
       // Re-open transaction because cursor transaction might have autocommitted or timed out during async sync
-      const txDelete = rawDb.transaction([storeName], "readwrite");
+      const txDelete = rawDb.transaction([storeName], 'readwrite');
       const storeDelete = txDelete.objectStore(storeName);
 
       const deletePromises = expiredItems.map((item) => {
@@ -266,16 +256,14 @@ export async function cleanupExpired() {
       });
 
       await Promise.all(deletePromises);
-      console.log(
-        `[MemoryService] Successfully deleted ${deletedCount} local items.`,
-      );
+      console.log(`[MemoryService] Successfully deleted ${deletedCount} local items.`);
     } else {
-      console.log("[MemoryService] No expired items to clean.");
+      console.log('[MemoryService] No expired items to clean.');
     }
 
     return validItems;
   } catch (e) {
-    console.warn("[MemoryService] Erro crítico no cleanup:", e);
+    console.warn('[MemoryService] Erro crítico no cleanup:', e);
     return [];
   }
 }
@@ -296,7 +284,7 @@ export async function syncPendingToCloud() {
   if (!user || user.isAnonymous) return;
 
   try {
-    console.log("[MemoryService] Sincronizando memórias para nuvem...");
+    console.log('[MemoryService] Sincronizando memórias para nuvem...');
     const validItems = await cleanupExpired(); // Reusa scan
 
     if (validItems.length === 0) return;
@@ -312,12 +300,10 @@ export async function syncPendingToCloud() {
     }));
 
     // Batch upsert (limit chunks if needed)
-    await upsertPineconeWorker(vectorsToUpsert, user.uid, "maia-memory");
-    console.log(
-      `[MemoryService] ${vectorsToUpsert.length} memórias sincronizadas.`,
-    );
+    await upsertPineconeWorker(vectorsToUpsert, user.uid, 'maia-memory');
+    console.log(`[MemoryService] ${vectorsToUpsert.length} memórias sincronizadas.`);
   } catch (e) {
-    console.error("[MemoryService] Sync failed:", e);
+    console.error('[MemoryService] Sync failed:', e);
   }
 }
 
@@ -355,11 +341,11 @@ export async function queryContext(query, limit = 10) {
             conteudo: r.text || r.metadata?.conteudo,
             ...r.metadata,
             score: r.similarity,
-            source: "local",
+            source: 'local',
           }));
       })
       .catch((e) => {
-        console.warn("[Memory] Local query failed:", e);
+        console.warn('[Memory] Local query failed:', e);
         return [];
       });
 
@@ -370,7 +356,7 @@ export async function queryContext(query, limit = 10) {
         queryVector,
         limit,
         {}, // filters
-        "maia-memory", // Target Index Name
+        'maia-memory', // Target Index Name
         user.uid, // Namespace
       )
         .then((result) => {
@@ -382,24 +368,19 @@ export async function queryContext(query, limit = 10) {
               conteudo: match.metadata?.text || match.metadata?.conteudo,
               ...match.metadata,
               score: match.score,
-              source: "cloud",
+              source: 'cloud',
             }));
         })
         .catch((e) => {
-          console.warn("[Memory] Cloud query failed:", e);
+          console.warn('[Memory] Cloud query failed:', e);
           return [];
         });
     }
 
     // Wait for both
-    const [localResults, cloudResults] = await Promise.all([
-      localPromise,
-      cloudPromise,
-    ]);
+    const [localResults, cloudResults] = await Promise.all([localPromise, cloudPromise]);
 
-    console.log(
-      `[Memory] Results - Local: ${localResults.length}, Cloud: ${cloudResults.length}`,
-    );
+    console.log(`[Memory] Results - Local: ${localResults.length}, Cloud: ${cloudResults.length}`);
 
     // Merge & Deduplicate
     // Dedup approach: Use text content similarity or exact match?
@@ -409,7 +390,7 @@ export async function queryContext(query, limit = 10) {
     const uniqueMap = new Map();
 
     allResults.forEach((item) => {
-      const key = item.conteudo || "";
+      const key = item.conteudo || '';
       if (key && !uniqueMap.has(key)) {
         uniqueMap.set(key, item);
       }
@@ -417,7 +398,7 @@ export async function queryContext(query, limit = 10) {
 
     return Array.from(uniqueMap.values()).slice(0, limit);
   } catch (error) {
-    console.error("[MemoryService] Erro ao buscar contexto:", error);
+    console.error('[MemoryService] Erro ao buscar contexto:', error);
     return [];
   }
 }
@@ -436,8 +417,8 @@ export async function synthesizeContext(
   attachments = [],
   opts = {}, // Receive options with signal
 ) {
-  if (opts.signal?.aborted) throw new DOMException("Aborted", "AbortError");
-  if (!facts || facts.length === 0) return "";
+  if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  if (!facts || facts.length === 0) return '';
 
   try {
     const sortedFacts = [...facts].sort((a, b) => b.timestamp - a.timestamp);
@@ -447,28 +428,31 @@ export async function synthesizeContext(
       .map((f) => {
         const date = new Date(f.timestamp).toLocaleDateString();
         // Incluindo confianca e categoria no texto para o modelo julgar
-        return `- [${date}] [${f.categoria}] (Conf: ${f.confianca}): ${f.conteudo || f.fatos_atomicos} (Evidência: "${f.evidencia || ""}")`;
+        return `- [${date}] [${f.categoria}] (Conf: ${f.confianca}): ${f.conteudo || f.fatos_atomicos} (Evidência: "${f.evidencia || ''}")`;
       })
-      .join("\n");
+      .join('\n');
 
     // Prompt já importado no topo
     const fullPrompt = `${PROMPT_SINTETIZADOR_CONTEXTO}\n\n---\nMENSAGEM ATUAL DO USUÁRIO: "${currentMessage}"\n\nLISTA DE FATOS RECUPERADOS:\n${factsList}`;
 
     const finalApiKey =
       apiKey ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
         : undefined);
 
     const finalGithubKey =
       opts.githubApiKey ||
-      (typeof sessionStorage !== "undefined"
-        ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
         : undefined);
 
     // Opções para geração rápida (Flash) ou modelo selecionado pelo usuário
-    const specificModel = opts.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedSpecificModel : null);
-    const finalModel = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+    const specificModel =
+      opts.selectedSpecificModel ||
+      (typeof window !== 'undefined' ? window.selectedSpecificModel : null);
+    const finalModel =
+      specificModel && specificModel !== 'automatico' ? specificModel : 'models/gemini-3.5-flash';
 
     const workerOptions = {
       model: finalModel,
@@ -490,14 +474,14 @@ export async function synthesizeContext(
     // Vamos checar worker.js depois. Por segurança, vou pedir JSON com um campo "diretivas".
 
     const synthesisSchema = {
-      type: "object",
+      type: 'object',
       properties: {
         diretivas: {
-          type: "string",
-          description: "O texto completo das diretivas formatado com hífens.",
+          type: 'string',
+          description: 'O texto completo das diretivas formatado com hífens.',
         },
       },
-      required: ["diretivas"],
+      required: ['diretivas'],
     };
 
     // Processa anexos
@@ -509,16 +493,13 @@ export async function synthesizeContext(
             const base64 = await fileToBase64(file);
             return {
               data: base64,
-              mimeType: file.type || "application/octet-stream",
-              name: file.name || "arquivo",
+              mimeType: file.type || 'application/octet-stream',
+              name: file.name || 'arquivo',
             };
           }),
         );
       } catch (e) {
-        console.warn(
-          "[MemoryService] Erro ao processar anexos para síntese:",
-          e,
-        );
+        console.warn('[MemoryService] Erro ao processar anexos para síntese:', e);
       }
     }
 
@@ -526,7 +507,7 @@ export async function synthesizeContext(
       fullPrompt,
       synthesisSchema,
       processedFiles,
-      "",
+      '',
       handlers,
       workerOptions,
     );
@@ -535,9 +516,9 @@ export async function synthesizeContext(
       return result.diretivas;
     }
 
-    return ""; // Fallback
+    return ''; // Fallback
   } catch (error) {
-    console.error("[MemoryService] Falha na síntese de contexto:", error);
+    console.error('[MemoryService] Falha na síntese de contexto:', error);
     throw error;
   }
 }
@@ -546,14 +527,14 @@ export async function synthesizeContext(
  * Fallback simples
  */
 export function formatFactsForSynthesis(facts) {
-  if (!facts || facts.length === 0) return "";
+  if (!facts || facts.length === 0) return '';
   const sortedFacts = [...facts].sort((a, b) => b.timestamp - a.timestamp);
   return sortedFacts
     .map((f) => {
       const txt = f.conteudo || f.fatos_atomicos;
       return `- ${txt}`;
     })
-    .join("\n");
+    .join('\n');
 }
 
 /**
@@ -574,14 +555,14 @@ export async function extractAndSaveNarrative(
   try {
     const finalApiKey =
       apiKey ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
         : undefined);
 
-    console.log("[MemoryService] Iniciando extração de narrativa...");
+    console.log('[MemoryService] Iniciando extração de narrativa...');
 
     // Adaptação para passar o JSON completo, pois a estrutura pode ser complexa (sections/layout) e o prompt precisa de tudo
-    let aiText = "";
+    let aiText = '';
     if (aiResponse) {
       aiText = JSON.stringify(aiResponse);
     }
@@ -595,38 +576,38 @@ export async function extractAndSaveNarrative(
     // Schema simplificado para a extração
     // Schema atualizado para fatos atômicos
     const extractionSchema = {
-      type: "object",
+      type: 'object',
       properties: {
         fatos: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "object",
+            type: 'object',
             properties: {
-              fatos_atomicos: { type: "string" },
+              fatos_atomicos: { type: 'string' },
               categoria: {
-                type: "string",
+                type: 'string',
                 enum: [
-                  "PERFIL",
-                  "HABILIDADE",
-                  "LACUNA",
-                  "PREFERENCIA",
-                  "ESTADO_COGNITIVO",
-                  "EVENTO",
+                  'PERFIL',
+                  'HABILIDADE',
+                  'LACUNA',
+                  'PREFERENCIA',
+                  'ESTADO_COGNITIVO',
+                  'EVENTO',
                 ],
               },
-              confianca: { type: "number" },
-              evidencia: { type: "string" },
-              validade: { type: "string", enum: ["PERMANENTE", "TEMPORARIO"] },
+              confianca: { type: 'number' },
+              evidencia: { type: 'string' },
+              validade: { type: 'string', enum: ['PERMANENTE', 'TEMPORARIO'] },
             },
-            required: ["fatos_atomicos", "categoria", "confianca", "validade"],
+            required: ['fatos_atomicos', 'categoria', 'confianca', 'validade'],
           },
         },
       },
-      required: ["fatos"],
+      required: ['fatos'],
     };
 
     // Chama worker (sem exibição de stream visual principal, mas enviando pensamentos se solicitado)
-    let jsonBuffer = "";
+    let jsonBuffer = '';
     const handlers = {
       onStatus: () => {},
       onThought: options.onThought || (() => {}),
@@ -648,32 +629,32 @@ export async function extractAndSaveNarrative(
             const base64 = await fileToBase64(file);
             return {
               data: base64,
-              mimeType: file.type || "application/octet-stream",
-              name: file.name || "arquivo",
+              mimeType: file.type || 'application/octet-stream',
+              name: file.name || 'arquivo',
             };
           }),
         );
       } catch (e) {
-        console.warn(
-          "[MemoryService] Erro ao processar anexos para memória:",
-          e,
-        );
+        console.warn('[MemoryService] Erro ao processar anexos para memória:', e);
       }
     }
 
     const finalGithubKey =
       options.githubApiKey ||
-      (typeof sessionStorage !== "undefined"
-        ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey"))
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
         : undefined);
 
-    const specificModel = options.selectedSpecificModel || (typeof window !== "undefined" ? window.selectedSpecificModel : null);
-    const finalModel = (specificModel && specificModel !== "automatico") ? specificModel : "gemini-3-flash-preview";
+    const specificModel =
+      options.selectedSpecificModel ||
+      (typeof window !== 'undefined' ? window.selectedSpecificModel : null);
+    const finalModel =
+      specificModel && specificModel !== 'automatico' ? specificModel : 'gemini-3-flash-preview';
 
     const requestOptions = {
       model: finalModel, // Tenta usar o modelo ativo
       generationConfig: {
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
       },
       apiKey: finalApiKey,
       githubApiKey: finalGithubKey,
@@ -683,7 +664,7 @@ export async function extractAndSaveNarrative(
       prompt,
       extractionSchema,
       processedFiles, // Passa os arquivos processados
-      "", // mimetype (ignorado quando files são passados como objects)
+      '', // mimetype (ignorado quando files são passados como objects)
       handlers,
       requestOptions,
     );
@@ -693,22 +674,20 @@ export async function extractAndSaveNarrative(
       try {
         if (result.fatos && Array.isArray(result.fatos)) {
           if (result.fatos.length > 0) {
-            console.log("[MemoryService] 🧠 Fatos extraídos:", result.fatos);
+            console.log('[MemoryService] 🧠 Fatos extraídos:', result.fatos);
           }
           for (const fato of result.fatos) {
             await addFact(fato);
           }
-          console.log("[MemoryService] Processamento de fatos concluído.");
+          console.log('[MemoryService] Processamento de fatos concluído.');
         } else {
-          console.log(
-            "[MemoryService] Nenhum fato encontrado no JSON extraído.",
-          );
+          console.log('[MemoryService] Nenhum fato encontrado no JSON extraído.');
         }
       } catch (e) {
-        console.error("[MemoryService] Erro ao parsear JSON de extração:", e);
+        console.error('[MemoryService] Erro ao parsear JSON de extração:', e);
       }
     }
   } catch (error) {
-    console.error("[MemoryService] Falha na extração de narrativa:", error);
+    console.error('[MemoryService] Falha na extração de narrativa:', error);
   }
 }

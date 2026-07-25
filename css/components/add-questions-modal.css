@@ -51,7 +51,9 @@
   color: var(--color-text);
   font-size: 0.95rem;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .add-questions-search-wrapper input:focus {
@@ -81,7 +83,9 @@
   cursor: pointer;
   padding: 8px;
   border-radius: 50%;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .add-questions-close-btn:hover {
@@ -210,7 +214,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== Question Items ===== */

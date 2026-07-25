@@ -16,31 +16,31 @@ export const CropperState = {
 
   // PALETA DE CORES VIBRANTES PARA QUESTÕES (16 cores)
   colorPalette: [
-    "#00BCD4", // Cyan (Default - Q1)
-    "#E91E63", // Pink (Q2)
-    "#4CAF50", // Green (Q3)
-    "#FF9800", // Orange (Q4)
-    "#9C27B0", // Purple (Q5)
-    "#3F51B5", // Indigo (Q6)
-    "#FFEB3B", // Yellow (Q7 - Text needs contrast? Use darker border)
-    "#795548", // Brown (Q8)
-    "#F44336", // Red (Q9)
-    "#607D8B", // Blue Grey (Q10)
-    "#009688", // Teal (Q11)
-    "#673AB7", // Deep Purple (Q12)
-    "#FF5722", // Deep Orange (Q13)
-    "#8BC34A", // Light Green (Q14)
-    "#03A9F4", // Light Blue (Q15)
-    "#CDDC39", // Lime (Q16)
+    '#00BCD4', // Cyan (Default - Q1)
+    '#E91E63', // Pink (Q2)
+    '#4CAF50', // Green (Q3)
+    '#FF9800', // Orange (Q4)
+    '#9C27B0', // Purple (Q5)
+    '#3F51B5', // Indigo (Q6)
+    '#FFEB3B', // Yellow (Q7 - Text needs contrast? Use darker border)
+    '#795548', // Brown (Q8)
+    '#F44336', // Red (Q9)
+    '#607D8B', // Blue Grey (Q10)
+    '#009688', // Teal (Q11)
+    '#673AB7', // Deep Purple (Q12)
+    '#FF5722', // Deep Orange (Q13)
+    '#8BC34A', // Light Green (Q14)
+    '#03A9F4', // Light Blue (Q15)
+    '#CDDC39', // Lime (Q16)
   ],
 
   getGroupColor(group) {
-    if (!group) return "#00BCD4"; // Default
+    if (!group) return '#00BCD4'; // Default
     // Removed draft check to allow color variation during creation/draft
 
     // Fix: Force distinct color for Slot Mode (consistent UX)
-    if (group.tags && group.tags.includes("slot-mode")) {
-      return "#ff00f2ff"; // Pink
+    if (group.tags && group.tags.includes('slot-mode')) {
+      return '#ff00f2ff'; // Pink
     }
 
     // Se tiver externalId (IA), tenta usar o número da questão para cor consistente
@@ -60,8 +60,7 @@ export const CropperState = {
 
   subscribe(callback) {
     this.listeners.push(callback);
-    return () =>
-      (this.listeners = this.listeners.filter((cb) => cb !== callback));
+    return () => (this.listeners = this.listeners.filter((cb) => cb !== callback));
   },
 
   notify() {
@@ -175,10 +174,10 @@ export const CropperState = {
       crops: [],
       tags: options.tags || [], // New: Tags support (manual, ia, revisada)
       externalId: options.externalId || null, // ID externo (ex: do JSON da IA) para merging
-      tipo: options.tipo || "questao_completa", // Guarda se nasceu como parte ou completa
+      tipo: options.tipo || 'questao_completa', // Guarda se nasceu como parte ou completa
       // Visual Status: 'draft' (default/gray) | 'verified' (cyan) | 'sent' (final)
-      status: options.status || "draft",
-      customInstruction: options.customInstruction || "",
+      status: options.status || 'draft',
+      customInstruction: options.customInstruction || '',
     };
     this.groups.push(newGroup);
     this.renumberGroups(); // Garante o número correto sequencial
@@ -190,7 +189,7 @@ export const CropperState = {
   setCustomInstruction(groupId, instruction) {
     const group = this.groups.find((g) => g.id === groupId || String(g.id) === String(groupId));
     if (group) {
-      group.customInstruction = instruction || "";
+      group.customInstruction = instruction || '';
       this.notify();
     }
   },
@@ -204,20 +203,14 @@ export const CropperState = {
       if (g.crops.length === 0) return true; // Keep empty groups? Or remove? Let's keep for now unless explicit.
 
       const firstCrop = g.crops[0];
-      if (
-        firstCrop.anchorData.anchorPageNum === pageNum &&
-        g.status === status
-      ) {
+      if (firstCrop.anchorData.anchorPageNum === pageNum && g.status === status) {
         return false; // Remove
       }
       return true; // Keep
     });
 
     if (this.groups.length !== initialLength) {
-      if (
-        this.activeGroupId &&
-        !this.groups.find((g) => g.id === this.activeGroupId)
-      ) {
+      if (this.activeGroupId && !this.groups.find((g) => g.id === this.activeGroupId)) {
         this.activeGroupId = null;
       }
       this.renumberGroups();
@@ -253,7 +246,7 @@ export const CropperState = {
 
       // 'slot-mode' special behavior: Only one crop allowed per group (uni-crop).
       // If the group is in slot mode, clear any existing crops before adding the new one.
-      if (group.tags && group.tags.includes("slot-mode")) {
+      if (group.tags && group.tags.includes('slot-mode')) {
         group.crops = [];
       }
 
@@ -288,7 +281,7 @@ export const CropperState = {
 
     // Helper to normalize IDs (e.g. "06" -> "6")
     const normalize = (val) => {
-      if (val == null) return "";
+      if (val == null) return '';
       const s = String(val).trim();
       // If purely numeric, convert to integer string to remove leading zeros
       if (/^\d+$/.test(s)) {
@@ -354,7 +347,7 @@ export const CropperState = {
         ...c,
         groupId: g.id,
         status: g.status, // Propagate group status to crop
-        tipo: c.tipo || g.tipo || "questao_completa", // Propagate type (from crop specific or group default)
+        tipo: c.tipo || g.tipo || 'questao_completa', // Propagate type (from crop specific or group default)
         color, // Propagate calculated color
         isActiveGroup: g.id === this.activeGroupId,
       }));
@@ -375,12 +368,10 @@ export const CropperState = {
     // Geralmente crops de grupos que NÃO são slot-mode e são do tipo 'questao_completa'.
     return this.groups.flatMap((g) => {
       // Ignora o póprio grupo de slot ou grupos irrelevantes
-      if (g.tags && g.tags.includes("slot-mode")) return [];
+      if (g.tags && g.tags.includes('slot-mode')) return [];
 
       // Filtra crops na página solicitada
-      const pageCrops = g.crops.filter(
-        (c) => c.anchorData.anchorPageNum === pageNum
-      );
+      const pageCrops = g.crops.filter((c) => c.anchorData.anchorPageNum === pageNum);
 
       // Inject groupId so consumers can filter by parent question
       return pageCrops.map((c) => ({

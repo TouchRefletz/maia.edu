@@ -4,89 +4,91 @@
  * e recomenda uma metodologia pedagógica otimizada.
  */
 
-import { getMetodologiaIds } from "../metodologias-config.js";
+import { getMetodologiaIds } from '../metodologias-config.js';
 
 export const ROUTER_RESPONSE_SCHEMA = {
-  type: "object",
+  type: 'object',
   additionalProperties: false,
   properties: {
     complexidade: {
-      type: "string",
-      enum: ["BAIXA", "ALTA"],
-      description: "Classificação da complexidade da tarefa",
+      type: 'string',
+      enum: ['BAIXA', 'ALTA'],
+      description: 'Classificação da complexidade da tarefa',
     },
     motivo: {
-      type: "string",
-      description: "Breve justificativa da classificação (1-2 frases)",
+      type: 'string',
+      description: 'Breve justificativa da classificação (1-2 frases)',
     },
     confianca: {
-      type: "number",
+      type: 'number',
       minimum: 0,
       maximum: 1,
-      description: "Confiança na classificação (0 a 1)",
+      description: 'Confiança na classificação (0 a 1)',
     },
     // NOVO: Detecção de Scaffolding
     scaffolding_detected: {
-      type: "boolean",
+      type: 'boolean',
       description:
-        "True se o usuário pedir treino interativo, verdadeiro ou falso, ou aprendizagem passo-a-passo.",
+        'True se o usuário pedir treino interativo, verdadeiro ou falso, ou aprendizagem passo-a-passo.',
     },
     // NOVO: Detecção de intrnção de busca de questão
     busca_questao: {
-      type: "object",
+      type: 'object',
       description:
-        "Preencher SOMENTE se o usuário pedir explicitamente para resolver ou buscar uma questão/exercício do banco de dados.",
+        'Preencher SOMENTE se o usuário pedir explicitamente para resolver ou buscar uma questão/exercício do banco de dados.',
       properties: {
         tipo: {
-          type: "string",
-          enum: ["questao"],
+          type: 'string',
+          enum: ['questao'],
         },
         conteudo: {
-          type: "string",
+          type: 'string',
           description:
             "Uma query de busca concisa (MAX 100 caracteres). Use APENAS PALAVRAS-CHAVE. NÃO copie a pergunta inteira. Ex: 'Leis de Newton', 'História do Brasil', 'Função Segundo Grau'.",
           maxLength: 150,
         },
         props: {
-          type: "object",
+          type: 'object',
           properties: {
             institution: {
-              type: "string",
+              type: 'string',
               description: "Filtro opcional: Instituição (ex: 'ENEM').",
             },
             year: {
-              type: "string",
+              type: 'string',
               description: "Filtro opcional: Ano (ex: '2021').",
             },
             subject: {
-              type: "string",
+              type: 'string',
               description: "Filtro opcional: Matéria (ex: 'Física').",
             },
           },
           additionalProperties: false, // ESTRITO: Nada além disso
         },
       },
-      required: ["tipo", "conteudo"],
+      required: ['tipo', 'conteudo'],
       additionalProperties: false,
     },
     // NOVO: Recomendação de Metodologia Pedagógica
     metodologia_recomendada: {
-      type: "string",
+      type: 'string',
       enum: getMetodologiaIds(),
       description:
-        "A metodologia pedagógica mais adequada para esta interação. Analise a intenção, domínio e contexto para escolher.",
+        'A metodologia pedagógica mais adequada para esta interação. Analise a intenção, domínio e contexto para escolher.',
     },
     // NOVO: Necessidade de Pesquisa (Grounding)
     necessidade_pesquisa: {
-      type: "boolean",
-      description: "True se for necessário realizar pesquisa na internet para evitar alucinações sobre fatos reais, notícias recentes ou temas técnicos profundos.",
+      type: 'boolean',
+      description:
+        'True se for necessário realizar pesquisa na internet para evitar alucinações sobre fatos reais, notícias recentes ou temas técnicos profundos.',
     },
     instrucao_pesquisa: {
-      type: "string",
-      description: "Instrução específica do que pesquisar caso 'necessidade_pesquisa' seja true (ex: 'Pesquise sobre as últimas atualizações da BNCC').",
+      type: 'string',
+      description:
+        "Instrução específica do que pesquisar caso 'necessidade_pesquisa' seja true (ex: 'Pesquise sobre as últimas atualizações da BNCC').",
     },
   },
-  required: ["complexidade", "motivo", "confianca", "necessidade_pesquisa"],
+  required: ['complexidade', 'motivo', 'confianca', 'necessidade_pesquisa'],
 };
 
 export const ROUTER_SYSTEM_PROMPT = `Você é um classificador de complexidade de tarefas E um seletor de metodologia pedagógica.
@@ -173,7 +175,7 @@ ${JSON.stringify(ROUTER_RESPONSE_SCHEMA, null, 2)}`;
 export function buildRouterPrompt(
   userMessage,
   hasAttachments = false,
-  memoryContext = "",
+  memoryContext = '',
   previousQueries = [],
 ) {
   let prompt = `Analise a seguinte mensagem e classifique sua complexidade:
@@ -198,7 +200,7 @@ ${memoryContext}`;
     prompt += `
 
 [🚫 HISTÓRICO DE BUSCAS JÁ FEITAS (PROIBIDO REPETIR ESTES TERMOS EXATOS, A MENOS QUE O USUÁRIO PEÇA 'REPETIR')]:
-${previousQueries.map((q) => `- "${q}"`).join("\n")}
+${previousQueries.map((q) => `- "${q}"`).join('\n')}
 Se o usuário pediu "mais uma" ou "outra", busque algo NOVO ou uma variação.`;
   }
 

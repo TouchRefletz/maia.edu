@@ -2,28 +2,33 @@ import {
   gerarConteudoEmJSONComImagemStream,
   realizarPesquisaGeral,
   sanitizeJsonForPrompt,
-} from "../api/worker.js";
-import * as MemoryService from "../services/memory-service.js"; // Import MemoryService
-import { findBestQuestion } from "../services/question-service.js"; // Import question service
-import { fileToBase64 } from "../utils/file-utils.js";
-import { parseStreamedJSON } from "../utils/json-stream-parser.js";
-import { cleanQuestionDataForAI } from "../utils/question-cleaner.js";
-import { getGenerationParams, getModeConfig } from "./config.js";
-import { getMetodologia } from "./metodologias-config.js";
+} from '../api/worker.js';
+import { ChatStorageService } from '../services/chat-storage.js'; // Import Persistence Service
+import * as MemoryService from '../services/memory-service.js'; // Import MemoryService
+import { findBestQuestion } from '../services/question-service.js'; // Import question service
+import { fileToBase64 } from '../utils/file-utils.js';
+import { parseStreamedJSON } from '../utils/json-stream-parser.js';
+import { cleanQuestionDataForAI } from '../utils/question-cleaner.js';
 import {
+  ARCHITECTURE_VERSIONS,
+  getArchitectureVersion,
+  getGenerationParams,
+  getModeConfig,
+} from './config.js';
+import { getMetodologia } from './metodologias-config.js';
+import {
+  getSystemPromptBloomConteudoRaciocinio,
+  getSystemPromptBloomConteudoRapido,
+  getSystemPromptBloomLayoutAdapter,
   getSystemPromptRaciocinio,
   getSystemPromptRapido,
   getSystemPromptScaffolding,
-} from "./prompts/chat-system-prompt.js";
-import { determineFinalMode } from "./router.js";
-import { CHAT_RESPONSE_SCHEMA, SCAFFOLDING_STEP_SCHEMA } from "./schemas.js"; // Import schema
-import { ScaffoldingService } from "./services/scaffolding-service.js"; // Import ScaffoldingService
-import {
-  checkQuestionRelevance,
-  triggerQuestionExtraction,
-} from "./services/gap-detector.js"; // Import Gap Detector
-import { ChatStorageService } from "../services/chat-storage.js"; // Import Persistence Service
-import { validateStudyContext } from "./services/guardrail-service.js"; // Import Guardrail Semântico
+} from './prompts/chat-system-prompt.js';
+import { determineFinalMode } from './router.js';
+import { CHAT_RESPONSE_SCHEMA, SCAFFOLDING_STEP_SCHEMA } from './schemas.js'; // Import schema
+import { checkQuestionRelevance, triggerQuestionExtraction } from './services/gap-detector.js'; // Import Gap Detector
+import { validateStudyContext } from './services/guardrail-service.js'; // Import Guardrail Semântico
+import { ScaffoldingService } from './services/scaffolding-service.js'; // Import ScaffoldingService
 
 /**
  * NORMALIZAÇÃO (STAGE 3 / TRANSFORMER)
@@ -36,8 +41,8 @@ function normalizarBlocos(blocos) {
   return blocos.flatMap((b) => {
     // 0. Auto-Splitter de LaTeX: Corrige quando a IA esquece de usar o bloco 'equacao'
     if (
-      ["texto", "lista", "destaque", "citacao"].includes(b.tipo) &&
-      typeof b.conteudo === "string"
+      ['texto', 'lista', 'destaque', 'citacao'].includes(b.tipo) &&
+      typeof b.conteudo === 'string'
     ) {
       const regex = /(\\\[[\s\S]*?\\\]|\\\(.*?\\\)|(?:\$\$[\s\S]*?\$\$))/g;
       if (regex.test(b.conteudo)) {
@@ -45,12 +50,12 @@ function normalizarBlocos(blocos) {
         return parts
           .map((part) => {
             if (!part) return null;
-            if (part.startsWith("\\[") && part.endsWith("\\]")) {
-              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
-            } else if (part.startsWith("\\(") && part.endsWith("\\)")) {
-              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
-            } else if (part.startsWith("$$") && part.endsWith("$$")) {
-              return { tipo: "equacao", conteudo: part.slice(2, -2).trim() };
+            if (part.startsWith('\\[') && part.endsWith('\\]')) {
+              return { tipo: 'equacao', conteudo: part.slice(2, -2).trim() };
+            } else if (part.startsWith('\\(') && part.endsWith('\\)')) {
+              return { tipo: 'equacao', conteudo: part.slice(2, -2).trim() };
+            } else if (part.startsWith('$$') && part.endsWith('$$')) {
+              return { tipo: 'equacao', conteudo: part.slice(2, -2).trim() };
             }
             return { ...b, conteudo: part }; // Mantém o tipo original para partes de texto
           })
@@ -59,12 +64,12 @@ function normalizarBlocos(blocos) {
     }
 
     // 1. Scaffolding: Move scaffolding_data para o root
-    if (b.tipo === "scaffolding" && b.scaffolding_data) {
+    if (b.tipo === 'scaffolding' && b.scaffolding_data) {
       const { scaffolding_data, ...resto } = b;
       return [{ ...resto, ...scaffolding_data }];
     }
     // 2. Slides: Renomeia slide_data para content e normaliza recursivamente
-    if (b.tipo === "block_slide" && b.slide_data) {
+    if (b.tipo === 'block_slide' && b.slide_data) {
       const { slide_data, ...resto } = b;
       return [{ ...resto, content: normalizarBlocos(slide_data) }];
     }
@@ -73,7 +78,7 @@ function normalizarBlocos(blocos) {
 }
 
 function normalizarResposta(raw) {
-  if (!raw || typeof raw !== "object") return raw;
+  if (!raw || typeof raw !== 'object') return raw;
   if (!raw.sections || !Array.isArray(raw.sections)) return raw;
 
   return {
@@ -102,26 +107,24 @@ function normalizarResposta(raw) {
 function cleanHistoryForControlGroup(history) {
   if (!history || !Array.isArray(history)) return history;
   return history.map((msg) => {
-    if (msg.role === "model" || msg.role === "assistant") {
+    if (msg.role === 'model' || msg.role === 'assistant') {
       let content = msg.content;
-      if (typeof content === "object" && content !== null) {
+      if (typeof content === 'object' && content !== null) {
         if (content.sections && Array.isArray(content.sections)) {
           content = content.sections
             .map((sec) => {
               if (sec.conteudo && Array.isArray(sec.conteudo)) {
                 return sec.conteudo
-                  .map((c) =>
-                    typeof c === "object" ? c.conteudo || "" : String(c),
-                  )
-                  .join("\n\n");
+                  .map((c) => (typeof c === 'object' ? c.conteudo || '' : String(c)))
+                  .join('\n\n');
               }
-              return "";
+              return '';
             })
-            .join("\n\n");
+            .join('\n\n');
         } else if (content.conteudo && Array.isArray(content.conteudo)) {
           content = content.conteudo
-            .map((c) => (typeof c === "object" ? c.conteudo || "" : String(c)))
-            .join("\n\n");
+            .map((c) => (typeof c === 'object' ? c.conteudo || '' : String(c)))
+            .join('\n\n');
         } else {
           content = JSON.stringify(content);
         }
@@ -136,7 +139,7 @@ function cleanHistoryForControlGroup(history) {
  * Retorna apenas o essencial do JSON da questão para reduzir o uso de tokens.
  */
 function getEssentialQuestionData(fullData) {
-  if (!fullData || typeof fullData !== "object") return fullData;
+  if (!fullData || typeof fullData !== 'object') return fullData;
   const essential = {};
 
   if (fullData.dados_questao) {
@@ -151,8 +154,7 @@ function getEssentialQuestionData(fullData) {
     };
   } else {
     essential.identificacao = fullData.identificacao || fullData.id;
-    essential.enunciado =
-      fullData.enunciado || fullData.questao || fullData.text;
+    essential.enunciado = fullData.enunciado || fullData.questao || fullData.text;
     essential.alternativas = fullData.alternativas || fullData.options;
   }
 
@@ -176,32 +178,27 @@ function getEssentialQuestionData(fullData) {
 /**
  * Pipeline principal - escolhe e executa o pipeline correto
  */
-export async function runChatPipeline(
-  selectedMode,
-  message,
-  attachments = [],
-  context = {},
-) {
+export async function runChatPipeline(selectedMode, message, attachments = [], context = {}) {
   let startTime = performance.now();
   const use_maia_architecture =
-    typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+    typeof window !== 'undefined' && window.useMaiaArchitecture !== false;
   const isMaiaActive = use_maia_architecture;
 
   let executionMode = selectedMode;
-  let finalMode = selectedMode === "automatico" ? "rapido" : selectedMode;
+  let finalMode = selectedMode === 'automatico' ? 'rapido' : selectedMode;
   let wasRouted = false;
   let routerResult = null;
-  let finalMetodologiaId = "automatico";
-  let metodologiaInjection = "";
-  let additionalContextMessage = "";
-  let memorySynthesizedContext = "";
-  let scaffoldingPromptRefinado = "";
-  let memoryContextForRouter = "";
+  let finalMetodologiaId = 'automatico';
+  let metodologiaInjection = '';
+  let additionalContextMessage = '';
+  let memorySynthesizedContext = '';
+  let scaffoldingPromptRefinado = '';
+  let memoryContextForRouter = '';
   let questionData = null;
   let attachedQuestionData = null;
   if (Array.isArray(attachments)) {
     for (const file of attachments) {
-      if (file.name && file.name.endsWith(".json")) {
+      if (file.name && file.name.endsWith('.json')) {
         try {
           const text = await file.text();
           const parsed = JSON.parse(text);
@@ -211,22 +208,22 @@ export async function runChatPipeline(
               fullData: parsed,
             };
             console.log(
-              "[Pipeline] Encontrada questão anexada diretamente:",
+              '[Pipeline] Encontrada questão anexada diretamente:',
               attachedQuestionData.id,
             );
             break;
           }
         } catch (e) {
-          console.warn("[Pipeline] Erro ao analisar JSON anexado:", e);
+          console.warn('[Pipeline] Erro ao analisar JSON anexado:', e);
         }
       }
     }
   }
   let searchSources = [];
-  let searchReport = "";
+  let searchReport = '';
 
   const debugLog = {
-    session_id: context.chatId || "nova_sessao",
+    session_id: context.chatId || 'nova_sessao',
     timestamp: new Date().toISOString(),
     use_maia_architecture: isMaiaActive,
     model: null,
@@ -260,35 +257,30 @@ export async function runChatPipeline(
     // 0. === GUARDRAIL SEMÂNTICO DE ESCOPO ===
     if (isMaiaActive) {
       if (context.onProcessingStatus) {
-        context.onProcessingStatus(
-          "loading",
-          "Validando alinhamento semântico",
-        );
+        context.onProcessingStatus('loading', 'Validando alinhamento semântico');
       }
 
       const guardrailValidation = await validateStudyContext(message);
 
       if (!guardrailValidation.isValid) {
         const reasonMap = {
-          low_vector_score: "Score vetorial insuficiente",
-          chrome_ai_rejected: "Juiz Local (Chrome AI) detectou off-topic",
-          transformers_rejected:
-            "Juiz Local (Transformers.js) detectou off-topic",
+          low_vector_score: 'Score vetorial insuficiente',
+          chrome_ai_rejected: 'Juiz Local (Chrome AI) detectou off-topic',
+          transformers_rejected: 'Juiz Local (Transformers.js) detectou off-topic',
         };
 
         const reasonText =
-          reasonMap[guardrailValidation.reason] ||
-          "Assunto fora do escopo educacional";
+          reasonMap[guardrailValidation.reason] || 'Assunto fora do escopo educacional';
         console.warn(
-          `[Pipeline] ⛔ Guardrail ativado: ${reasonText} (Score: ${guardrailValidation.score?.toFixed(3) || "N/A"})`,
+          `[Pipeline] ⛔ Guardrail ativado: ${reasonText} (Score: ${guardrailValidation.score?.toFixed(3) || 'N/A'})`,
         );
 
         const rejectedResponse = {
-          layout: [{ tipo: "destaque", size: "full" }],
+          layout: [{ tipo: 'destaque', size: 'full' }],
           conteudo: [
             {
-              tipo: "destaque",
-              conteudo: `⛔ **Acesso Bloqueado pelo Guardrail**\n\nIdentifiquei que sua mensagem não possui alinhamento com o domínio de estudos desta IA.\n\n- **Motivo técnico:** ${reasonText}\n- **Score de Confiança:** \`${guardrailValidation.score?.toFixed(3) || "0.000"}\`\n\nPor favor, utilize o chat exclusivamente para tópicos acadêmicos (Matemática, Física, História, etc).`,
+              tipo: 'destaque',
+              conteudo: `⛔ **Acesso Bloqueado pelo Guardrail**\n\nIdentifiquei que sua mensagem não possui alinhamento com o domínio de estudos desta IA.\n\n- **Motivo técnico:** ${reasonText}\n- **Score de Confiança:** \`${guardrailValidation.score?.toFixed(3) || '0.000'}\`\n\nPor favor, utilize o chat exclusivamente para tópicos acadêmicos (Matemática, Física, História, etc).`,
             },
           ],
         };
@@ -297,11 +289,11 @@ export async function runChatPipeline(
           context.onStream(rejectedResponse);
         }
         if (context.onComplete) {
-          context.onComplete({ mode: "blocked", response: rejectedResponse });
+          context.onComplete({ mode: 'blocked', response: rejectedResponse });
         }
         return {
           success: false,
-          mode: "blocked",
+          mode: 'blocked',
           reason: guardrailValidation.reason,
           score: guardrailValidation.score,
         };
@@ -309,9 +301,9 @@ export async function runChatPipeline(
     }
 
     // 1. === PERSISTENCE & INIT ===
-    const oldActive = document.getElementById("stepsAccordion");
+    const oldActive = document.getElementById('stepsAccordion');
     if (oldActive) {
-      oldActive.removeAttribute("id");
+      oldActive.removeAttribute('id');
     }
 
     // Gerencia criação de chat se não existir ID
@@ -323,10 +315,7 @@ export async function runChatPipeline(
 
     if (!chatId) {
       try {
-        const newChat = await ChatStorageService.createNewChat(
-          message,
-          attachments,
-        );
+        const newChat = await ChatStorageService.createNewChat(message, attachments);
         chatId = newChat.id;
         context.chatId = chatId; // Atualiza contexto
         isNewChat = true;
@@ -334,19 +323,14 @@ export async function runChatPipeline(
         // Notifica UI sobre novo chat
         if (context.onChatCreated) context.onChatCreated(newChat);
       } catch (err) {
-        console.warn("[Pipeline] Falha ao criar chat no storage:", err);
+        console.warn('[Pipeline] Falha ao criar chat no storage:', err);
       }
     } else {
       // Persiste mensagem do usuário em chat existente
       try {
-        await ChatStorageService.addMessage(
-          chatId,
-          "user",
-          message,
-          attachments,
-        );
+        await ChatStorageService.addMessage(chatId, 'user', message, attachments);
       } catch (err) {
-        console.warn("[Pipeline] Falha ao salvar mensagem do user:", err);
+        console.warn('[Pipeline] Falha ao salvar mensagem do user:', err);
       }
     }
 
@@ -354,19 +338,16 @@ export async function runChatPipeline(
     if (isMaiaActive) {
       let startMemory = performance.now();
       try {
-        console.log("[Pipeline] 🧠 Consultando Memória Contextual...");
+        console.log('[Pipeline] 🧠 Consultando Memória Contextual...');
         // Update UI: "Recuperando informações..."
         if (context.onProcessingStatus) {
-          window._currentChatPhase = "memory";
-          context.onProcessingStatus("loading", "Recuperando informações");
+          window._currentChatPhase = 'memory';
+          context.onProcessingStatus('loading', 'Recuperando informações');
         }
 
         const memoryFacts = await MemoryService.queryContext(message);
 
-        console.log(
-          "[Pipeline] 🧠 Memória Contextual encontrada:",
-          memoryFacts,
-        );
+        console.log('[Pipeline] 🧠 Memória Contextual encontrada:', memoryFacts);
 
         if (memoryFacts.length > 0) {
           // Síntese de contexto via LLM para gerar diretivas comportamentais
@@ -379,9 +360,8 @@ export async function runChatPipeline(
               signal: context.signal,
               onThought: context.onThought,
               selectedSpecificModel:
-                (typeof window !== "undefined"
-                  ? window.selectedModelMemory
-                  : null) || "models/gemma-4-31b-it",
+                (typeof window !== 'undefined' ? window.selectedModelMemory : null) ||
+                'models/gemma-4-31b-it',
               githubApiKey: context.githubApiKey,
               groqApiKey: context.groqApiKey,
               vertexProjectId: context.vertexProjectId,
@@ -407,33 +387,26 @@ export async function runChatPipeline(
             // Contexto limpo para o router (sem quebras excessivas)
             memoryContextForRouter = contextString;
 
-            console.log(
-              "[Pipeline] 🧠 Diretivas de memória injetadas:",
-              contextString,
-            );
+            console.log('[Pipeline] 🧠 Diretivas de memória injetadas:', contextString);
             // Update UI: "Memórias recuperadas!" (System Message + Status)
             if (context.onProcessingStatus) {
               // Check abort before updating UI
-              if (context.signal?.aborted)
-                throw new DOMException("Aborted", "AbortError");
+              if (context.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-              context.onProcessingStatus(
-                "loading",
-                "Escolhendo modo de execução",
-              );
+              context.onProcessingStatus('loading', 'Escolhendo modo de execução');
               // Passamos o objeto completo de detalhes para a UI renderizar o bloco expansível
               const memoryContent = {
-                title: "Memórias recuperadas",
+                title: 'Memórias recuperadas',
                 facts: memoryFacts,
                 summary: contextString,
               };
-              context.onProcessingStatus("memory_found", memoryContent);
+              context.onProcessingStatus('memory_found', memoryContent);
 
               // [PERSISTENCE] Acumular evento de memória
               consolidatedTurnMessages.push({
-                role: "system",
+                role: 'system',
                 content: {
-                  type: "memory_found",
+                  type: 'memory_found',
                   ...memoryContent,
                 },
               });
@@ -441,30 +414,27 @@ export async function runChatPipeline(
           }
         }
       } catch (err) {
-        if (err.name === "AbortError") throw err; // Propagate abort
-        console.error("[Pipeline] ⚠️ Erro no sistema de memória:", err);
+        if (err.name === 'AbortError') throw err; // Propagate abort
+        console.error('[Pipeline] ⚠️ Erro no sistema de memória:', err);
         throw err;
       } finally {
-        debugLog.latencies.memory_ms = Math.round(
-          performance.now() - startMemory,
-        );
+        debugLog.latencies.memory_ms = Math.round(performance.now() - startMemory);
         debugLog.models.memory =
-          (typeof window !== "undefined" ? window.selectedModelMemory : null) ||
-          "models/gemma-4-31b-it";
+          (typeof window !== 'undefined' ? window.selectedModelMemory : null) ||
+          'models/gemma-4-31b-it';
       }
     }
 
     // 2. Determina o modo final (Agora com CONTEXTO de memória)
     if (isMaiaActive) {
-      if (context.signal?.aborted)
-        throw new DOMException("Aborted", "AbortError");
+      if (context.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
       // Inicializa conjunto de queries se não existir
       if (!context.previousQueries) {
         context.previousQueries = [];
       }
 
-      window._currentChatPhase = "mode"; // Garante que a UI de pensamentos do router renderize na caixa dele
+      window._currentChatPhase = 'mode'; // Garante que a UI de pensamentos do router renderize na caixa dele
       let startRouter = performance.now();
       const routedResult = await determineFinalMode(
         selectedMode,
@@ -482,9 +452,8 @@ export async function runChatPipeline(
           vertexCredentials: context.vertexCredentials,
           onThought: context.onThought, // Hook de pensamentos pro router usar
           selectedSpecificModel:
-            (typeof window !== "undefined"
-              ? window.selectedModelRouter
-              : null) || "models/gemma-4-31b-it", // Pass router model
+            (typeof window !== 'undefined' ? window.selectedModelRouter : null) ||
+            'models/gemma-4-31b-it', // Pass router model
           onAttemptStart: () => {
             const now = performance.now();
             const elapsed = now - startRouter;
@@ -498,12 +467,10 @@ export async function runChatPipeline(
           },
         },
       );
-      debugLog.latencies.router_ms = Math.round(
-        performance.now() - startRouter,
-      );
+      debugLog.latencies.router_ms = Math.round(performance.now() - startRouter);
       debugLog.models.router =
-        (typeof window !== "undefined" ? window.selectedModelRouter : null) ||
-        "models/gemma-4-31b-it";
+        (typeof window !== 'undefined' ? window.selectedModelRouter : null) ||
+        'models/gemma-4-31b-it';
       finalMode = routedResult.finalMode;
       wasRouted = routedResult.wasRouted;
       routerResult = routedResult.routerResult;
@@ -513,36 +480,34 @@ export async function runChatPipeline(
 
     // 2b. === RESOLVE METODOLOGIA PEDAGÓGICA ===
     if (isMaiaActive) {
-      const userMetodologia = context.selectedMetodologia || "automatico";
+      const userMetodologia = context.selectedMetodologia || 'automatico';
 
-      if (userMetodologia !== "automatico") {
+      if (userMetodologia !== 'automatico') {
         // Usuário escolheu manualmente — usar diretamente
         finalMetodologiaId = userMetodologia;
         console.log(`[Pipeline] 📖 Metodologia manual: ${finalMetodologiaId}`);
       } else if (wasRouted && routerResult?.metodologia) {
         // Modo automático — usar recomendação do router
         finalMetodologiaId = routerResult.metodologia;
-        console.log(
-          `[Pipeline] 📖 Metodologia automática (Router): ${finalMetodologiaId}`,
-        );
+        console.log(`[Pipeline] 📖 Metodologia automática (Router): ${finalMetodologiaId}`);
       } else {
         // Fallback
-        finalMetodologiaId = "feynman";
+        finalMetodologiaId = 'feynman';
         console.log(`[Pipeline] 📖 Metodologia fallback: feynman`);
       }
 
       const metodologiaObj = getMetodologia(finalMetodologiaId);
-      metodologiaInjection = metodologiaObj?.systemPromptInjection || "";
+      metodologiaInjection = metodologiaObj?.systemPromptInjection || '';
     }
 
     // LOGICA SCAFFOLDING
-    if (isMaiaActive && finalMode === "scaffolding") {
+    if (isMaiaActive && finalMode === 'scaffolding') {
       const decision = ScaffoldingService.decidirProximoStatus();
 
       // Tenta extrair dados do contexto ou mensagem
       const questaoAlvo = {
         questao: message, // Assume que a msg do user é o tópico/questão
-        resposta_correta: "Não definido",
+        resposta_correta: 'Não definido',
       };
 
       // Gera o prompt usando a nova lógica robusta
@@ -553,10 +518,10 @@ export async function runChatPipeline(
       );
 
       scaffoldingPromptRefinado = promptRefinado;
-      additionalContextMessage += "\n\n" + promptRefinado;
+      additionalContextMessage += '\n\n' + promptRefinado;
 
       console.log(
-        `[Pipeline] 🏗️ Scaffolding: Decisão System=${decision ? "V" : "F"}, Prompt Refinado Injected.`,
+        `[Pipeline] 🏗️ Scaffolding: Decisão System=${decision ? 'V' : 'F'}, Prompt Refinado Injected.`,
       );
     }
 
@@ -565,7 +530,7 @@ export async function runChatPipeline(
       if (attachedQuestionData) {
         questionData = attachedQuestionData;
         console.log(
-          "[Pipeline] ✅ Utilizando questão anexada diretamente (sem RAG):",
+          '[Pipeline] ✅ Utilizando questão anexada diretamente (sem RAG):',
           questionData.id,
         );
 
@@ -576,16 +541,13 @@ export async function runChatPipeline(
         };
 
         const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
-        if (finalMode === "scaffolding") {
+        if (finalMode === 'scaffolding') {
           additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
         } else {
           additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
         }
       } else if (routerResult?.busca_questao) {
-        console.log(
-          "[Pipeline] 🔎 Router solicitou busca de questão:",
-          routerResult.busca_questao,
-        );
+        console.log('[Pipeline] 🔎 Router solicitou busca de questão:', routerResult.busca_questao);
         try {
           const startRAG = performance.now();
           questionData = await findBestQuestion({
@@ -596,7 +558,7 @@ export async function runChatPipeline(
 
           if (questionData) {
             console.log(
-              "[Pipeline] ✅ Questão encontrada e injetada no contexto:",
+              '[Pipeline] ✅ Questão encontrada e injetada no contexto:',
               questionData.id,
             );
 
@@ -609,10 +571,8 @@ export async function runChatPipeline(
             // REGISTRA QUERY USADA PARA NÃO REPETIR
             context.previousQueries.push(routerResult.busca_questao.conteudo);
 
-            const cleanedFullData = cleanQuestionDataForAI(
-              questionData.fullData,
-            );
-            if (finalMode === "scaffolding") {
+            const cleanedFullData = cleanQuestionDataForAI(questionData.fullData);
+            if (finalMode === 'scaffolding') {
               additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
             } else {
               additionalContextMessage += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(cleanedFullData)}`;
@@ -627,52 +587,37 @@ export async function runChatPipeline(
               context.signal,
             )
               .then((relevance) => {
-                console.log("[Pipeline] 🔍 Relevance check:", relevance);
+                console.log('[Pipeline] 🔍 Relevance check:', relevance);
                 if (!relevance.relevant || relevance.needs_more) {
-                  console.log(
-                    "[Pipeline] 🔍 Gap detected — triggering extraction",
-                  );
-                  triggerQuestionExtraction(
-                    routerResult.busca_questao,
-                    context,
-                  );
+                  console.log('[Pipeline] 🔍 Gap detected — triggering extraction');
+                  triggerQuestionExtraction(routerResult.busca_questao, context);
                 }
               })
               .catch((err) => {
-                if (err.name !== "AbortError") {
-                  console.warn("[Pipeline] ⚠️ Gap detection error:", err);
+                if (err.name !== 'AbortError') {
+                  console.warn('[Pipeline] ⚠️ Gap detection error:', err);
                 }
               });
           } else {
             // No results at all — trigger extraction
-            console.log(
-              "[Pipeline] ❌ No question found — triggering extraction",
-            );
+            console.log('[Pipeline] ❌ No question found — triggering extraction');
             triggerQuestionExtraction(routerResult.busca_questao, context);
           }
         } catch (err) {
-          console.warn(
-            "[Pipeline] ⚠️ Falha ao buscar questão sugerida pelo router:",
-            err,
-          );
+          console.warn('[Pipeline] ⚠️ Falha ao buscar questão sugerida pelo router:', err);
         }
       }
     }
 
     // 2c. === RESEARCH STAGE (DEEP SEARCH) ===
     const needsResearch =
-      isMaiaActive &&
-      (window.researchEnabled ||
-        (wasRouted && routerResult?.necessidade_pesquisa));
+      isMaiaActive && (window.researchEnabled || (wasRouted && routerResult?.necessidade_pesquisa));
 
     if (needsResearch) {
-      console.log("[Pipeline] 🔍 Ativando Pesquisa Profunda...");
+      console.log('[Pipeline] 🔍 Ativando Pesquisa Profunda...');
       if (context.onProcessingStatus) {
-        window._currentChatPhase = "research";
-        context.onProcessingStatus(
-          "loading",
-          "Realizando pesquisa aprofundada",
-        );
+        window._currentChatPhase = 'research';
+        context.onProcessingStatus('loading', 'Realizando pesquisa aprofundada');
       }
 
       const MAX_RESEARCH_RETRIES = 3;
@@ -700,28 +645,21 @@ TEMA DA PESQUISA: ${searchQuery}`;
 
           if (researchAttempt > 1 && context.onProcessingStatus) {
             context.onProcessingStatus(
-              "loading",
+              'loading',
               `Realizando pesquisa aprofundada (tentativa ${researchAttempt}/${MAX_RESEARCH_RETRIES})...`,
             );
           }
 
           const startSearch = performance.now();
-          const searchResult = await realizarPesquisaGeral(
-            researcherPrompt,
-            attachments,
-            {
-              onStatus: context.onProcessingStatus,
-              onThought: context.onThought,
-              signal: context.signal,
-            },
-          );
-          debugLog.latencies.search_ms = Math.round(
-            performance.now() - startSearch,
-          );
+          const searchResult = await realizarPesquisaGeral(researcherPrompt, attachments, {
+            onStatus: context.onProcessingStatus,
+            onThought: context.onThought,
+            signal: context.signal,
+          });
+          debugLog.latencies.search_ms = Math.round(performance.now() - startSearch);
           debugLog.models.search =
-            (typeof window !== "undefined"
-              ? window.selectedModelSearch
-              : null) || "models/gemini-3.5-flash";
+            (typeof window !== 'undefined' ? window.selectedModelSearch : null) ||
+            'models/gemini-3.5-flash';
 
           searchReport = searchResult.report;
           searchSources = searchResult.sources || [];
@@ -733,7 +671,7 @@ TEMA DA PESQUISA: ${searchQuery}`;
           };
           researchSuccess = true;
         } catch (err) {
-          if (err.name === "AbortError") throw err;
+          if (err.name === 'AbortError') throw err;
           console.warn(
             `[Pipeline] ⚠️ Tentativa de pesquisa ${researchAttempt}/${MAX_RESEARCH_RETRIES} falhou:`,
             err,
@@ -746,12 +684,8 @@ TEMA DA PESQUISA: ${searchQuery}`;
       }
 
       if (!researchSuccess) {
-        console.error(
-          "[Pipeline] ❌ Todas as tentativas de pesquisa profunda falharam.",
-        );
-        throw (
-          researchError || new Error("Falha na etapa de pesquisa profunda.")
-        );
+        console.error('[Pipeline] ❌ Todas as tentativas de pesquisa profunda falharam.');
+        throw researchError || new Error('Falha na etapa de pesquisa profunda.');
       }
 
       if (searchReport) {
@@ -762,16 +696,16 @@ Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex:
 Sua resposta deve ser fluida, natural e baseada em evidências.`;
 
         if (context.onProcessingStatus) {
-          context.onProcessingStatus("research_done", {
+          context.onProcessingStatus('research_done', {
             report: searchReport,
             sources: searchSources,
           });
 
           if (chatId) {
             consolidatedTurnMessages.push({
-              role: "system",
+              role: 'system',
               content: {
-                type: "research_results",
+                type: 'research_results',
                 report: searchReport,
                 sources: searchSources,
               },
@@ -799,36 +733,58 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
 
       // [PERSISTENCE] Acumular evento de decisão de modo
       consolidatedTurnMessages.push({
-        role: "system",
+        role: 'system',
         content: {
-          type: "mode_selected",
+          type: 'mode_selected',
           ...modeData,
         },
       });
     }
 
-    // Executa pipeline específico
+    // Resolva versão da arquitetura: Bloom (V2 - 2 etapas) vs Vygotsky (V1 - 1 etapa)
+    const activeArchitecture = isMaiaActive
+      ? getArchitectureVersion(context)
+      : ARCHITECTURE_VERSIONS.VYGOTSKY;
+
     let systemPrompt;
     let configMode;
 
     if (!use_maia_architecture) {
-      systemPrompt = "";
-      configMode = "rapido";
-    } else if (finalMode === "scaffolding") {
+      systemPrompt = '';
+      configMode = 'rapido';
+    } else if (finalMode === 'scaffolding') {
       systemPrompt = getSystemPromptScaffolding();
-      configMode = "scaffolding";
-    } else if (finalMode === "raciocinio") {
-      systemPrompt = getSystemPromptRaciocinio(metodologiaInjection);
-      configMode = "raciocinio";
+      configMode = 'scaffolding';
+    } else if (activeArchitecture === ARCHITECTURE_VERSIONS.BLOOM) {
+      // Bloom (V2 - Etapa 1: Gerador de Conteúdo em Texto Plano)
+      if (finalMode === 'raciocinio') {
+        systemPrompt = getSystemPromptBloomConteudoRaciocinio(metodologiaInjection);
+        configMode = 'raciocinio';
+      } else {
+        systemPrompt = getSystemPromptBloomConteudoRapido(metodologiaInjection);
+        configMode = 'rapido';
+      }
     } else {
-      systemPrompt = getSystemPromptRapido(metodologiaInjection);
-      configMode = "rapido";
+      // Vygotsky (V1 - 1 Etapa Direta com JSON de Layout)
+      if (finalMode === 'raciocinio') {
+        systemPrompt = getSystemPromptRaciocinio(metodologiaInjection);
+        configMode = 'raciocinio';
+      } else {
+        systemPrompt = getSystemPromptRapido(metodologiaInjection);
+        configMode = 'rapido';
+      }
     }
 
-    console.log(`[Pipeline] 🚀 Executando modo ${finalMode.toUpperCase()}`);
+    console.log(
+      `[Pipeline] 🚀 Executando Arquitetura: ${activeArchitecture.toUpperCase()} (${
+        activeArchitecture === ARCHITECTURE_VERSIONS.BLOOM
+          ? 'Bloom V2 - 2 Etapas'
+          : 'Vygotsky V1 - 1 Etapa'
+      }) | Modo: ${finalMode.toUpperCase()}`,
+    );
 
     if (context.onStart) {
-      context.onStart({ mode: finalMode });
+      context.onStart({ mode: finalMode, architecture: activeArchitecture });
     }
 
     // Acumulador de pensamentos para persistência
@@ -836,58 +792,57 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
 
     const specificModel =
       context.selectedSpecificModel ||
-      (typeof window !== "undefined" ? window.selectedModelChat : null) ||
-      "models/gemini-3.5-flash";
+      (typeof window !== 'undefined' ? window.selectedModelChat : null) ||
+      'models/gemini-3.5-flash';
     const finalModelToUse =
-      specificModel !== "automatico"
-        ? specificModel
-        : "models/gemini-3.5-flash";
+      specificModel !== 'automatico' ? specificModel : 'models/gemini-3.5-flash';
 
-    // Registrar informações finais de prompt compilado e modelo no log de debug
-    const currentDateTime = new Date().toLocaleString("pt-BR", {
-      dateStyle: "full",
-      timeStyle: "short",
+    const currentDateTime = new Date().toLocaleString('pt-BR', {
+      dateStyle: 'full',
+      timeStyle: 'short',
     });
     const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
 
-    let cleanLevel = "full"; // 'full' | 'soft' | 'essential'
+    let cleanLevel = 'full';
     let includeMemory = true;
     let attemptLevel = 0;
     let fullResponse;
 
     const isGptOss120b =
       finalModelToUse &&
-      (finalModelToUse.toLowerCase().includes("gpt-oss-120b") ||
-        finalModelToUse.toLowerCase().includes("gpt_oss_120b") ||
-        finalModelToUse.toLowerCase().includes("120b"));
+      (finalModelToUse.toLowerCase().includes('gpt-oss-120b') ||
+        finalModelToUse.toLowerCase().includes('gpt_oss_120b') ||
+        finalModelToUse.toLowerCase().includes('120b'));
 
-    // 🌟 ADICIONE ESTE BLOCO LOGO ABAIXO DA VERIFICAÇÃO ACIMA:
     if (attachments && attachments.length > 0) {
-      debugLog.models.image_descriptor = 
-        (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || 
-        (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || 
-        "models/gemma-4-31b-it";
+      debugLog.models.image_descriptor =
+        (typeof window !== 'undefined' ? window.selectedModelImageDescriptor : null) ||
+        (typeof localStorage !== 'undefined'
+          ? localStorage.getItem('selectedModelImageDescriptor')
+          : null) ||
+        'models/gemma-4-31b-it';
     }
 
-    const getFinalMessage = (level, includeMem) => {
-      let extra = "";
+    // Função de injeção de contexto para Vygotsky (V1) - Formato original preservado 100%
+    const getFinalMessageVygotsky = (level, includeMem) => {
+      let extra = '';
       if (includeMem && memorySynthesizedContext) {
         extra += `\n\n${memorySynthesizedContext}\n`;
       }
       if (scaffoldingPromptRefinado) {
-        extra += "\n\n" + scaffoldingPromptRefinado;
+        extra += '\n\n' + scaffoldingPromptRefinado;
       }
       if (questionData && questionData.fullData) {
         let qData;
-        if (level === "essential") {
+        if (level === 'essential') {
           qData = getEssentialQuestionData(questionData.fullData);
-        } else if (level === "soft") {
+        } else if (level === 'soft') {
           qData = sanitizeJsonForPrompt(questionData.fullData);
         } else {
           qData = cleanQuestionDataForAI(questionData.fullData);
         }
 
-        if (finalMode === "scaffolding") {
+        if (finalMode === 'scaffolding') {
           extra += `\n\n[SISTEMA - DADOS INJETADOS]: Você está em modo Scaffolding para a questão abaixo. Você DEVE incluir o bloco 'questao' na sua resposta para que o usuário veja a questão original de partida. Use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(qData)}`;
         } else {
           extra += `\n\n[SISTEMA - DADOS INJETADOS]: O usuário adicionou uma questão. Você pode decidir se mostra a questão em um bloco 'questao' na resposta (se for relevante para a conversa) ou não. Se decidir mostrar, use exatamente estes dados para estruturar o bloco, sem inventar:\n${JSON.stringify(qData)}`;
@@ -903,141 +858,332 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       return message + extra;
     };
 
-    let startGen = performance.now();
-
-    while (true) {
-      finalMessage = getFinalMessage(cleanLevel, includeMemory);
-      const fullPromptCompiled = isMaiaActive
-        ? `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`
-        : finalMessage;
-
-      debugLog.model = finalModelToUse;
-      debugLog.models.generation = finalModelToUse;
-      debugLog.prompt_compiled = fullPromptCompiled;
-
-      if (attemptLevel > 0) {
-        console.log(
-          `[Pipeline] Retrying generation at Level ${attemptLevel} - cleanLevel: ${cleanLevel}, includeMemory: ${includeMemory}`,
-        );
-        accumulatedThoughts = [];
-        if (context.onStream) {
-          context.onStream({ layout: { id: "linear" }, conteudo: [] });
+    // Função de injeção de contexto para Bloom (V2) - Formato limpo com tags XML
+    const getStep1UserMessageBloom = (level, includeMem) => {
+      let extra = '';
+      if (includeMem && memorySynthesizedContext) {
+        extra += `\n\n<diretivas_memoria>\n${memorySynthesizedContext}\n</diretivas_memoria>\n`;
+      }
+      if (scaffoldingPromptRefinado) {
+        extra +=
+          '\n\n<diretivas_scaffolding>\n' +
+          scaffoldingPromptRefinado +
+          '\n</diretivas_scaffolding>';
+      }
+      if (questionData && questionData.fullData) {
+        let qData;
+        if (level === 'essential') {
+          qData = getEssentialQuestionData(questionData.fullData);
+        } else if (level === 'soft') {
+          qData = sanitizeJsonForPrompt(questionData.fullData);
+        } else {
+          qData = cleanQuestionDataForAI(questionData.fullData);
         }
+
+        extra += `\n\n<dados_questao>\n${JSON.stringify(qData, null, 2)}\n</dados_questao>`;
+      }
+      if (searchReport) {
+        extra += `\n\n<pesquisa_aprofundada>\n${searchReport}\n</pesquisa_aprofundada>\n`;
+        extra += `\n[SISTEMA]: Você possui um relatório de pesquisa acima em <pesquisa_aprofundada>. Incorpore o conhecimento com total autoridade didática, atribuindo informações diretamente às fontes reais citadas.`;
+      }
+      return message + extra;
+    };
+
+    const startGen = performance.now();
+
+    // === EXECUÇÃO DA GERAÇÃO (BLOOM VS VYGOTSKY) ===
+    if (
+      activeArchitecture === ARCHITECTURE_VERSIONS.BLOOM &&
+      finalMode !== 'scaffolding' &&
+      use_maia_architecture
+    ) {
+      // --- ARQUITETURA BLOOM (V2 - 2 ETAPAS) ---
+
+      // ETAPA 1: Geração de Conteúdo em Texto Plano
+      if (context.onProcessingStatus) {
+        context.onProcessingStatus('bloom_step1_start', {
+          title: 'Elaborando resposta didática (Bloom - Etapa 1/2)',
+        });
       }
 
-      try {
-        fullResponse = await generateChatStreamed({
-          model: finalModelToUse,
-          generationConfig: isMaiaActive
-            ? getGenerationParams(configMode)
-            : { responseMimeType: "text/plain", temperature: 1 },
-          systemPrompt,
-          userMessage: finalMessage, // Usa a mensagem com contexto injetado
-          attachments,
-          onStream: (val) => {
-            if (!context.onStream) return;
-            if (!val) {
-              context.onStream({ layout: { id: "linear" }, conteudo: [] });
-              return;
-            }
-            if (typeof val === "string") {
-              context.onStream({
-                layout: { id: "linear" },
-                conteudo: [{ tipo: "texto", conteudo: val }],
-              });
-            } else {
-              context.onStream(val);
-            }
-          },
-          onThought: (thought) => {
-            accumulatedThoughts.push(thought);
-            if (context.onThought) context.onThought(thought);
-          },
-          onStatus: (status) => {
-            if (context.onStatus) context.onStatus(status);
-          },
-          onGemmaLatency: (latency) => {
-            debugLog.latencies.gemma_image_ms = latency;
-          },
-          onAttemptStart: () => {
-            const now = performance.now();
-            const elapsedSinceGenStart = now - startGen;
-            if (elapsedSinceGenStart > 0) {
-              startTime += elapsedSinceGenStart;
-              startGen = now;
-              console.log(
-                `[Pipeline] Resetting start times. Discarded error time: ${Math.round(elapsedSinceGenStart)} ms`,
-              );
-            }
-          },
-          apiKey: context.apiKey,
-          githubApiKey: context.githubApiKey,
-          groqApiKey: context.groqApiKey,
-          vertexProjectId: context.vertexProjectId,
-          vertexLocation: context.vertexLocation,
-          vertexCredentials: context.vertexCredentials,
-          chatMode: context.chatMode,
-          history: isMaiaActive
-            ? context.history
-            : cleanHistoryForControlGroup(context.history),
-          signal: context.signal,
-          useMaiaArchitecture: isMaiaActive,
-        });
+      let step1RawText = '';
+      while (true) {
+        finalMessage = getStep1UserMessageBloom(cleanLevel, includeMemory);
+        const fullPromptCompiled = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`;
 
-        // Se deu tudo certo, break!
-        break;
-      } catch (err) {
-        if (err.name === "AbortError" || err.message?.includes("aborted")) {
-          throw err;
-        }
+        debugLog.model = finalModelToUse;
+        debugLog.models.generation = finalModelToUse;
+        debugLog.prompt_compiled = fullPromptCompiled;
+        debugLog.architecture_version = 'bloom';
 
-        console.warn(
-          `[Pipeline] Falha na geração no nível ${attemptLevel}:`,
-          err,
-        );
+        try {
+          const step1Result = await generateChatStreamed({
+            model: finalModelToUse,
+            generationConfig: { responseMimeType: 'text/plain', temperature: 1 },
+            systemPrompt,
+            userMessage: finalMessage,
+            attachments,
+            onStream: (val) => {
+              // NÃO envia no context.onStream para impedir exibição de raw markdown na tela do user.
+              // Emite apenas no manipulador preliminar para o modal de resposta preliminar (JSON).
+              if (context.onBloomPreliminaryStream) {
+                context.onBloomPreliminaryStream(val);
+              } else if (context.onProcessingStatus) {
+                context.onProcessingStatus('bloom_step1_stream', val);
+              }
+            },
+            onThought: (thought) => {
+              accumulatedThoughts.push(thought);
+              if (context.onThought) context.onThought(thought);
+            },
+            onStatus: (status) => {
+              if (context.onStatus) context.onStatus(status);
+            },
+            onGemmaLatency: (latency) => {
+              debugLog.latencies.gemma_image_ms = latency;
+            },
+            apiKey: context.apiKey,
+            githubApiKey: context.githubApiKey,
+            groqApiKey: context.groqApiKey,
+            vertexProjectId: context.vertexProjectId,
+            vertexLocation: context.vertexLocation,
+            vertexCredentials: context.vertexCredentials,
+            chatMode: context.chatMode,
+            history: context.history,
+            signal: context.signal,
+            useMaiaArchitecture: false,
+          });
 
-        const isTokenLimitError =
-          err.message &&
-          /token|limit|max_token|length|context|exceed|overflow|8192|8000/i.test(
-            err.message,
-          );
-
-        if (isGptOss120b || isTokenLimitError) {
+          step1RawText =
+            typeof step1Result === 'string' ? step1Result : JSON.stringify(step1Result);
+          break;
+        } catch (err) {
+          if (err.name === 'AbortError' || err.message?.includes('aborted')) throw err;
+          console.warn(`[Pipeline Bloom Etapa 1] Erro na tentativa ${attemptLevel}:`, err);
           if (attemptLevel === 0) {
             attemptLevel = 1;
-            cleanLevel = "soft";
-            includeMemory = true;
+            cleanLevel = 'soft';
             continue;
           } else if (attemptLevel === 1) {
             attemptLevel = 2;
-            cleanLevel = "essential";
-            includeMemory = true;
+            cleanLevel = 'essential';
             continue;
-          } else if (attemptLevel === 2) {
-            attemptLevel = 3;
-            cleanLevel = "essential";
-            includeMemory = false;
-            continue;
+          }
+          throw err;
+        }
+      }
+
+      const step1EndTime = performance.now();
+      debugLog.latencies.step1_ms = Math.round(step1EndTime - startGen);
+
+      if (context.onProcessingStatus) {
+        context.onProcessingStatus('bloom_step1_done', {
+          title: 'Resposta preliminar gerada (Bloom - Etapa 1/2)',
+          text: step1RawText,
+        });
+      }
+
+      // ETAPA 2: Conversão e Diagramação do Layout em Blocos JSON
+      if (context.onProcessingStatus) {
+        context.onProcessingStatus('bloom_step2_start', {
+          title: 'Formatando visualmente e aplicando layouts (Bloom - Etapa 2/2)',
+        });
+      }
+
+      let step2Success = false;
+      const MAX_BLOOM_STEP2_RETRIES = 3;
+      const adapterSystemPrompt = getSystemPromptBloomLayoutAdapter();
+      const adapterInputMessage = `<conteudo_gerado>\n${step1RawText}\n</conteudo_gerado>`;
+
+      for (let bloomAttempt = 1; bloomAttempt <= MAX_BLOOM_STEP2_RETRIES; bloomAttempt++) {
+        try {
+          const adapterStart = performance.now();
+          const step2Result = await generateChatStreamed({
+            model: finalModelToUse,
+            generationConfig: {
+              ...getGenerationParams(configMode),
+              maxOutputTokens: 65536,
+            },
+            systemPrompt: adapterSystemPrompt,
+            userMessage: adapterInputMessage,
+            attachments: [],
+            onStream: (val) => {
+              if (context.onStream && val && typeof val === 'object') {
+                context.onStream(val);
+              }
+            },
+            onThought: (thought) => {
+              accumulatedThoughts.push(thought);
+              if (context.onThought) context.onThought(thought);
+            },
+            apiKey: context.apiKey,
+            githubApiKey: context.githubApiKey,
+            groqApiKey: context.groqApiKey,
+            vertexProjectId: context.vertexProjectId,
+            vertexLocation: context.vertexLocation,
+            vertexCredentials: context.vertexCredentials,
+            chatMode: context.chatMode,
+            history: [],
+            signal: context.signal,
+            useMaiaArchitecture: true,
+          });
+
+          debugLog.latencies.step2_ms = Math.round(performance.now() - adapterStart);
+
+          if (step2Result && typeof step2Result === 'object' && step2Result.sections) {
+            fullResponse = step2Result;
+            step2Success = true;
+            break;
+          }
+        } catch (adapterErr) {
+          if (adapterErr.name === 'AbortError' || adapterErr.message?.includes('aborted'))
+            throw adapterErr;
+          console.warn(
+            `[Pipeline Bloom] Tentativa ${bloomAttempt}/${MAX_BLOOM_STEP2_RETRIES} da Etapa 2 falhou:`,
+            adapterErr,
+          );
+        }
+      }
+
+      if (!step2Success) {
+        console.warn(
+          `[Pipeline Bloom] Todas as ${MAX_BLOOM_STEP2_RETRIES} tentativas da Etapa 2 falharam. Aplicando fallback de texto linear.`,
+        );
+
+        fullResponse = {
+          layout: { id: 'linear' },
+          conteudo: [{ tipo: 'texto', conteudo: step1RawText }],
+        };
+      }
+
+      if (fullResponse && typeof fullResponse === 'object') {
+        fullResponse._preliminaryText = step1RawText;
+      }
+
+      if (context.onProcessingStatus) {
+        context.onProcessingStatus('bloom_step2_done', {
+          title: step2Success
+            ? 'Layouts e blocos formatados (Bloom - Etapa 2/2)'
+            : 'Layouts e blocos formatados (Modo Padrão)',
+        });
+      }
+    } else {
+      // --- ARQUITETURA VYGOTSKY (V1 - 1 ETAPA DIRETA COM JSON) ---
+      debugLog.architecture_version = 'vygotsky';
+      while (true) {
+        finalMessage = getFinalMessageVygotsky(cleanLevel, includeMemory);
+        const fullPromptCompiled = isMaiaActive
+          ? `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${finalMessage}\n=== FIM DO PROMPT ===`
+          : finalMessage;
+
+        debugLog.model = finalModelToUse;
+        debugLog.models.generation = finalModelToUse;
+        debugLog.prompt_compiled = fullPromptCompiled;
+
+        if (attemptLevel > 0) {
+          console.log(
+            `[Pipeline Vygotsky] Retrying generation at Level ${attemptLevel} - cleanLevel: ${cleanLevel}, includeMemory: ${includeMemory}`,
+          );
+          accumulatedThoughts = [];
+          if (context.onStream) {
+            context.onStream({ layout: { id: 'linear' }, conteudo: [] });
           }
         }
 
-        throw err;
+        try {
+          fullResponse = await generateChatStreamed({
+            model: finalModelToUse,
+            generationConfig: isMaiaActive
+              ? getGenerationParams(configMode)
+              : { responseMimeType: 'text/plain', temperature: 1 },
+            systemPrompt,
+            userMessage: finalMessage,
+            attachments,
+            onStream: (val) => {
+              if (!context.onStream) return;
+              if (!val) {
+                context.onStream({ layout: { id: 'linear' }, conteudo: [] });
+                return;
+              }
+              if (typeof val === 'string') {
+                context.onStream({
+                  layout: { id: 'linear' },
+                  conteudo: [{ tipo: 'texto', conteudo: val }],
+                });
+              } else {
+                context.onStream(val);
+              }
+            },
+            onThought: (thought) => {
+              accumulatedThoughts.push(thought);
+              if (context.onThought) context.onThought(thought);
+            },
+            onStatus: (status) => {
+              if (context.onStatus) context.onStatus(status);
+            },
+            onGemmaLatency: (latency) => {
+              debugLog.latencies.gemma_image_ms = latency;
+            },
+            apiKey: context.apiKey,
+            githubApiKey: context.githubApiKey,
+            groqApiKey: context.groqApiKey,
+            vertexProjectId: context.vertexProjectId,
+            vertexLocation: context.vertexLocation,
+            vertexCredentials: context.vertexCredentials,
+            chatMode: context.chatMode,
+            history: isMaiaActive ? context.history : cleanHistoryForControlGroup(context.history),
+            signal: context.signal,
+            useMaiaArchitecture: isMaiaActive,
+          });
+
+          break;
+        } catch (err) {
+          if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+            throw err;
+          }
+
+          console.warn(`[Pipeline Vygotsky] Falha na geração no nível ${attemptLevel}:`, err);
+
+          const isTokenLimitError =
+            err.message &&
+            /token|limit|max_token|length|context|exceed|overflow|8192|8000/i.test(err.message);
+
+          if (isGptOss120b || isTokenLimitError) {
+            if (attemptLevel === 0) {
+              attemptLevel = 1;
+              cleanLevel = 'soft';
+              includeMemory = true;
+              continue;
+            } else if (attemptLevel === 1) {
+              attemptLevel = 2;
+              cleanLevel = 'essential';
+              includeMemory = true;
+              continue;
+            } else if (attemptLevel === 2) {
+              attemptLevel = 3;
+              cleanLevel = 'essential';
+              includeMemory = false;
+              continue;
+            }
+          }
+
+          throw err;
+        }
       }
     }
 
     debugLog.latencies.gemma_image_ms = debugLog.latencies.gemma_image_ms || 0;
     debugLog.latencies.generation_ms = Math.max(
       0,
-      Math.round(performance.now() - startGen) -
-        debugLog.latencies.gemma_image_ms,
+      Math.round(performance.now() - startGen) - debugLog.latencies.gemma_image_ms,
     );
 
     // A resposta final agora é o objeto estruturado completo ({ layout, conteudo })
     let finalContent;
-    if (typeof fullResponse === "string") {
+    if (typeof fullResponse === 'string') {
       finalContent = {
-        layout: { id: "linear" },
-        conteudo: [{ tipo: "texto", conteudo: fullResponse }],
+        layout: { id: 'linear' },
+        conteudo: [{ tipo: 'texto', conteudo: fullResponse }],
       };
     } else {
       finalContent = fullResponse || {};
@@ -1061,11 +1207,9 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     // Armazena EXATAMENTE o que a IA respondeu na sua essência, sem maquiagem de layout da UI do site
     try {
       debugLog.response_text =
-        typeof fullResponse === "string"
-          ? fullResponse
-          : JSON.stringify(fullResponse);
+        typeof fullResponse === 'string' ? fullResponse : JSON.stringify(fullResponse);
     } catch (_e) {
-      debugLog.response_text = "[não serializável]";
+      debugLog.response_text = '[não serializável]';
     }
 
     // Anexa uma cópia do debugLog ao conteúdo de retorno (sem referência circular)
@@ -1079,14 +1223,13 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     if (chatId) {
       // Adiciona a resposta final da IA ao lote de mensagens do turno
       consolidatedTurnMessages.push({
-        role: "model",
+        role: 'model',
         content: finalContent,
       });
 
       // Salva tudo de uma vez no banco
-      ChatStorageService.addMessages(chatId, consolidatedTurnMessages).catch(
-        (err) =>
-          console.warn("[Pipeline] Erro ao salvar histórico consolidado:", err),
+      ChatStorageService.addMessages(chatId, consolidatedTurnMessages).catch((err) =>
+        console.warn('[Pipeline] Erro ao salvar histórico consolidado:', err),
       );
 
       // === AUTO-TITLE GENERATION (If New Chat) ===
@@ -1094,14 +1237,12 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
         generateChatTitleData(message, finalContent, context.apiKey)
           .then((title) => {
             if (title) {
-              console.log("[Pipeline] Título gerado:", title);
+              console.log('[Pipeline] Título gerado:', title);
               ChatStorageService.updateTitle(chatId, title);
               if (context.onTitleUpdated) context.onTitleUpdated(chatId, title);
             }
           })
-          .catch((err) =>
-            console.warn("[Pipeline] Erro ao gerar título:", err),
-          );
+          .catch((err) => console.warn('[Pipeline] Erro ao gerar título:', err));
       }
     }
 
@@ -1109,50 +1250,43 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     if (isMaiaActive) {
       // Notify UI that memory saving is starting
       if (context.onProcessingStatus) {
-        context.onProcessingStatus("memory_saving", {
-          title: "Salvando memórias...",
+        context.onProcessingStatus('memory_saving', {
+          title: 'Salvando memórias...',
         });
       }
 
       setTimeout(() => {
-        MemoryService.extractAndSaveNarrative(
-          message,
-          fullResponse,
-          context.apiKey,
-          attachments,
-          {
-            onThought: context.onThought,
-            signal: context.signal,
-            selectedSpecificModel:
-              (typeof window !== "undefined"
-                ? window.selectedModelMemory
-                : null) || "models/gemma-4-31b-it",
-            githubApiKey: context.githubApiKey,
-            groqApiKey: context.groqApiKey,
-            vertexProjectId: context.vertexProjectId,
-            vertexLocation: context.vertexLocation,
-            vertexCredentials: context.vertexCredentials,
-          },
-        )
+        MemoryService.extractAndSaveNarrative(message, fullResponse, context.apiKey, attachments, {
+          onThought: context.onThought,
+          signal: context.signal,
+          selectedSpecificModel:
+            (typeof window !== 'undefined' ? window.selectedModelMemory : null) ||
+            'models/gemma-4-31b-it',
+          githubApiKey: context.githubApiKey,
+          groqApiKey: context.groqApiKey,
+          vertexProjectId: context.vertexProjectId,
+          vertexLocation: context.vertexLocation,
+          vertexCredentials: context.vertexCredentials,
+        })
           .then(() => {
-            console.log("[Pipeline] 🧠 Ciclo de memória concluído.");
+            console.log('[Pipeline] 🧠 Ciclo de memória concluído.');
             if (context.onProcessingStatus) {
-              context.onProcessingStatus("memory_saved", {
-                title: "Memórias salvas",
+              context.onProcessingStatus('memory_saved', {
+                title: 'Memórias salvas',
               });
             }
           })
           .catch((err) => {
-            console.error("[Pipeline] ⚠️ Erro no ciclo de memória:", err);
+            console.error('[Pipeline] ⚠️ Erro no ciclo de memória:', err);
             if (context.onProcessingStatus) {
-              context.onProcessingStatus("memory_saved", {
-                title: "Memórias processadas",
+              context.onProcessingStatus('memory_saved', {
+                title: 'Memórias processadas',
               });
             }
           });
       }, 100);
     } else {
-      if (typeof window !== "undefined") {
+      if (typeof window !== 'undefined') {
         window.currentChatAbortController = null;
       }
     }
@@ -1160,14 +1294,14 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
     return { success: true, mode: finalMode, response: finalContent };
   } catch (error) {
     // [FIX] Tratamento específico para cancelamento (Stop Generation)
-    if (error.name === "AbortError" || error.message?.includes("aborted")) {
-      console.log("[Pipeline] 🛑 Execução interrompida pelo usuário.");
+    if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+      console.log('[Pipeline] 🛑 Execução interrompida pelo usuário.');
       // Repassa o erro de abort para a UI atualizar o estado (botão voltar ao normal)
       if (context.onError) context.onError(error);
       return { success: false, mode: executionMode, aborted: true };
     }
 
-    console.error("[Pipeline] Erro:", error);
+    console.error('[Pipeline] Erro:', error);
     if (context.onError) context.onError(error);
     return { success: false, mode: executionMode, error: error.message };
   }
@@ -1175,11 +1309,11 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
 
 // Stub para manter compatibilidade se algo importar diretamente (não deveria)
 export async function runRapidoPipeline(message, attachments, context) {
-  return runChatPipeline("rapido", message, attachments, context);
+  return runChatPipeline('rapido', message, attachments, context);
 }
 
 export async function runRaciocinioPipeline(message, attachments, context) {
-  return runChatPipeline("raciocinio", message, attachments, context);
+  return runChatPipeline('raciocinio', message, attachments, context);
 }
 
 /**
@@ -1193,32 +1327,32 @@ export async function generateSilentScaffoldingStep(
   githubApiKey = null,
   groqApiKey = null,
 ) {
-  console.log("[Pipeline] 🤫 Gerando passo de scaffolding silencioso...");
+  console.log('[Pipeline] 🤫 Gerando passo de scaffolding silencioso...');
 
   // Check for user-selected scaffolding model from granular config
   const userSelectedScaffolding =
-    typeof window !== "undefined" ? window.selectedModelScaffolding : null;
+    typeof window !== 'undefined' ? window.selectedModelScaffolding : null;
 
   const defaultModelsChain = [
-    { name: "models/gemini-3-flash-preview", type: "google" },
-    { name: "models/gemini-3.5-flash", type: "google" },
-    { name: "models/gemini-3.1-flash-lite", type: "google" },
-    { name: "models/gemini-2.5-flash", type: "google" },
-    { name: "models/gemini-2.5-flash-lite", type: "google" },
-    { name: "github/gpt-4o-mini", type: "github" },
-    { name: "github/gpt-4o", type: "github" },
-    { name: "github/gpt-4.1-mini", type: "github" },
-    { name: "github/o3-mini", type: "github" },
+    { name: 'models/gemini-3-flash-preview', type: 'google' },
+    { name: 'models/gemini-3.5-flash', type: 'google' },
+    { name: 'models/gemini-3.1-flash-lite', type: 'google' },
+    { name: 'models/gemini-2.5-flash', type: 'google' },
+    { name: 'models/gemini-2.5-flash-lite', type: 'google' },
+    { name: 'github/gpt-4o-mini', type: 'github' },
+    { name: 'github/gpt-4o', type: 'github' },
+    { name: 'github/gpt-4.1-mini', type: 'github' },
+    { name: 'github/o3-mini', type: 'github' },
   ];
 
   // If user has a specific model selected, put it first in the chain
   let modelsChain = defaultModelsChain;
-  if (userSelectedScaffolding && userSelectedScaffolding !== "automatico") {
-    const modelType = userSelectedScaffolding.startsWith("github/")
-      ? "github"
-      : userSelectedScaffolding.startsWith("groq/")
-        ? "groq"
-        : "google";
+  if (userSelectedScaffolding && userSelectedScaffolding !== 'automatico') {
+    const modelType = userSelectedScaffolding.startsWith('github/')
+      ? 'github'
+      : userSelectedScaffolding.startsWith('groq/')
+        ? 'groq'
+        : 'google';
     // Remove duplicate if it already exists in the chain, then prepend
     modelsChain = [
       { name: userSelectedScaffolding, type: modelType },
@@ -1228,44 +1362,36 @@ export async function generateSilentScaffoldingStep(
 
   const actualGithubKey =
     githubApiKey ||
-    sessionStorage.getItem("githubApiKey") ||
-    sessionStorage.getItem("GITHUB_PAT_KEY");
-  const actualGroqKey = groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
+    sessionStorage.getItem('githubApiKey') ||
+    sessionStorage.getItem('GITHUB_PAT_KEY');
+  const actualGroqKey = groqApiKey || sessionStorage.getItem('GROQ_API_KEY');
   const actualVertexProjectId =
-    typeof sessionStorage !== "undefined"
-      ? sessionStorage.getItem("VERTEX_PROJECT_ID")
-      : null;
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('VERTEX_PROJECT_ID') : null;
   const actualVertexLocation =
-    typeof sessionStorage !== "undefined"
-      ? sessionStorage.getItem("VERTEX_LOCATION")
-      : null;
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('VERTEX_LOCATION') : null;
   const actualVertexCredentials =
-    typeof sessionStorage !== "undefined"
-      ? sessionStorage.getItem("VERTEX_CREDENTIALS")
-      : null;
+    typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('VERTEX_CREDENTIALS') : null;
   let lastError = null;
   const startTime = Date.now();
 
   for (const modelInfo of modelsChain) {
-    if (modelInfo.type === "github" && !actualGithubKey) {
+    if (modelInfo.type === 'github' && !actualGithubKey) {
       continue;
     }
-    if (modelInfo.type === "groq" && !actualGroqKey) {
+    if (modelInfo.type === 'groq' && !actualGroqKey) {
       continue;
     }
 
     try {
-      console.log(
-        `[Pipeline] Tentando gerar scaffolding com modelo: ${modelInfo.name}`,
-      );
+      console.log(`[Pipeline] Tentando gerar scaffolding com modelo: ${modelInfo.name}`);
       const response = await generateChatStreamed({
         model: modelInfo.name,
         generationConfig: {
-          responseMimeType: "application/json",
+          responseMimeType: 'application/json',
           responseSchema: SCAFFOLDING_STEP_SCHEMA,
         },
         systemPrompt:
-          "You are a helpful assistant. Output ONLY valid JSON matching the schema. Do not output multiple JSON objects.",
+          'You are a helpful assistant. Output ONLY valid JSON matching the schema. Do not output multiple JSON objects.',
         userMessage: prompt,
         attachments,
         onStream: null,
@@ -1283,7 +1409,7 @@ export async function generateSilentScaffoldingStep(
       const latency = Date.now() - startTime;
       console.log(`[Pipeline] Sucesso com ${modelInfo.name} em ${latency}ms`);
 
-      if (response && typeof response === "object") {
+      if (response && typeof response === 'object') {
         response._meta = {
           model_used: modelInfo.name,
           generation_time_ms: latency,
@@ -1296,29 +1422,21 @@ export async function generateSilentScaffoldingStep(
     }
   }
 
-  throw (
-    lastError ||
-    new Error("Todos os modelos da cadeia falharam ao gerar passo.")
-  );
+  throw lastError || new Error('Todos os modelos da cadeia falharam ao gerar passo.');
 }
 
 /**
  * Simulates three student personas responding to a scaffolding step using Gemma 4.
  */
-export async function generatePersonaSimulation(
-  enunciado,
-  respostaCorreta,
-  dica,
-  apiKey,
-) {
+export async function generatePersonaSimulation(enunciado, respostaCorreta, dica, apiKey) {
   const startTime = Date.now();
-  console.log("[Pipeline] 👥 Gerando simulação de personas com Gemma 4...");
+  console.log('[Pipeline] 👥 Gerando simulação de personas com Gemma 4...');
 
   const prompt = `Você é o modelo Gemma 4 31B IT. Simule o comportamento de três perfis de alunos respondendo a esta afirmação de Verdadeiro/Falso do scaffolding:
   
   Afirmação: "${enunciado}"
   Resposta Correta da Afirmação: "${respostaCorreta}"
-  Dica: "${dica || ""}"
+  Dica: "${dica || ''}"
 
   Os perfis de alunos a simular são:
   1. Aluno avançado: responde corretamente na maioria dos casos, com alta certeza e rapidamente.
@@ -1355,48 +1473,48 @@ export async function generatePersonaSimulation(
   NÃO adicione nenhum texto além do JSON.`;
 
   const response = await generateChatStreamed({
-    model: "models/gemma-4-31b-it", // Gemma 4 model as requested
+    model: 'models/gemma-4-31b-it', // Gemma 4 model as requested
     generationConfig: {
-      responseMimeType: "application/json",
+      responseMimeType: 'application/json',
       responseSchema: {
-        type: "object",
+        type: 'object',
         properties: {
           aluno_avancado: {
-            type: "object",
+            type: 'object',
             properties: {
-              resposta: { type: "string" },
-              certeza: { type: "integer" },
-              tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" },
+              resposta: { type: 'string' },
+              certeza: { type: 'integer' },
+              tempo_gasto: { type: 'integer' },
+              pensamento: { type: 'string' },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
+            required: ['resposta', 'certeza', 'tempo_gasto', 'pensamento'],
           },
           aluno_inseguro: {
-            type: "object",
+            type: 'object',
             properties: {
-              resposta: { type: "string" },
-              certeza: { type: "integer" },
-              tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" },
+              resposta: { type: 'string' },
+              certeza: { type: 'integer' },
+              tempo_gasto: { type: 'integer' },
+              pensamento: { type: 'string' },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
+            required: ['resposta', 'certeza', 'tempo_gasto', 'pensamento'],
           },
           aluno_chutador: {
-            type: "object",
+            type: 'object',
             properties: {
-              resposta: { type: "string" },
-              certeza: { type: "integer" },
-              tempo_gasto: { type: "integer" },
-              pensamento: { type: "string" },
+              resposta: { type: 'string' },
+              certeza: { type: 'integer' },
+              tempo_gasto: { type: 'integer' },
+              pensamento: { type: 'string' },
             },
-            required: ["resposta", "certeza", "tempo_gasto", "pensamento"],
+            required: ['resposta', 'certeza', 'tempo_gasto', 'pensamento'],
           },
         },
-        required: ["aluno_avancado", "aluno_inseguro", "aluno_chutador"],
+        required: ['aluno_avancado', 'aluno_inseguro', 'aluno_chutador'],
       },
     },
     systemPrompt:
-      "Você é um simulador de alunos especializado. Retorne APENAS o JSON válido de acordo com o esquema solicitado.",
+      'Você é um simulador de alunos especializado. Retorne APENAS o JSON válido de acordo com o esquema solicitado.',
     userMessage: prompt,
     attachments: [],
     onStream: null,
@@ -1407,9 +1525,9 @@ export async function generatePersonaSimulation(
   });
 
   const latency = Date.now() - startTime;
-  if (response && typeof response === "object") {
+  if (response && typeof response === 'object') {
     response._meta = {
-      model_used: "models/gemma-4-31b-it",
+      model_used: 'models/gemma-4-31b-it',
       generation_time_ms: latency,
     };
   }
@@ -1448,9 +1566,9 @@ async function generateChatStreamed(params) {
   if (!useMaiaArchitecture) {
     fullPrompt = userMessage;
   } else {
-    const currentDateTime = new Date().toLocaleString("pt-BR", {
-      dateStyle: "full",
-      timeStyle: "short",
+    const currentDateTime = new Date().toLocaleString('pt-BR', {
+      dateStyle: 'full',
+      timeStyle: 'short',
     });
     const timeContext = `\n[SISTEMA - DATA/HORA ATUAL: ${currentDateTime}]`;
     fullPrompt = `${systemPrompt}${timeContext}\n\n---\n\n=== PROMPT DO USUÁRIO (PRIORIDADE MÁXIMA) ===\nUsuário: ${userMessage}\n=== FIM DO PROMPT ===`;
@@ -1459,18 +1577,18 @@ async function generateChatStreamed(params) {
   // Converte anexos (imagens ou arquivos) para base64
   const arquivosProcessados = [];
   // mimeType padrão caso seja só 1 arquivo de imagem (mantendo lógica antiga se necessário, mas agora passamos explicito no objeto)
-  let mimeType = "image/jpeg";
+  let mimeType = 'image/jpeg';
 
   for (const file of attachments) {
     // Se for arquivo JSON de questão que já foi processado e injetado no prompt,
     // pula o envio como anexo para evitar duplicação de dados no worker.
-    if (file.name && file.name.endsWith(".json")) {
+    if (file.name && file.name.endsWith('.json')) {
       try {
         const text = await file.text();
         const parsed = JSON.parse(text);
         if (parsed.dados_questao || parsed.dados_gabarito) {
           console.log(
-            "[Pipeline] Pulando anexo JSON de questão para evitar duplicação:",
+            '[Pipeline] Pulando anexo JSON de questão para evitar duplicação:',
             file.name,
           );
           continue;
@@ -1483,8 +1601,8 @@ async function generateChatStreamed(params) {
     const base64 = await fileToBase64(file);
     arquivosProcessados.push({
       data: base64,
-      mimeType: file.type || "application/octet-stream",
-      name: file.name || "arquivo",
+      mimeType: file.type || 'application/octet-stream',
+      name: file.name || 'arquivo',
     });
     // Se for o primeiro, define o mimeType "principal" (apenas para compatibilidade de assinatura, embora o worker agora use o array de files)
     if (arquivosProcessados.length === 1) {
@@ -1493,26 +1611,25 @@ async function generateChatStreamed(params) {
   }
 
   const use_maia_architecture =
-    typeof window !== "undefined" && window.useMaiaArchitecture !== false;
+    typeof window !== 'undefined' && window.useMaiaArchitecture !== false;
 
   // Condiciona os parâmetros da chamada da API do modelo de geração usando use_maia_architecture
-  let finalGenerationConfig = { ...(generationConfig || {}) };
+  const finalGenerationConfig = { ...(generationConfig || {}) };
   if (!use_maia_architecture) {
     // Desativa completamente o formato de saída em JSON (response_format: json_object e responseMimeType)
-    finalGenerationConfig.responseMimeType = "text/plain";
+    finalGenerationConfig.responseMimeType = 'text/plain';
     if (finalGenerationConfig.response_format) {
       delete finalGenerationConfig.response_format;
     }
   }
 
   const isJsonMode =
-    use_maia_architecture &&
-    finalGenerationConfig?.responseMimeType !== "text/plain";
+    use_maia_architecture && finalGenerationConfig?.responseMimeType !== 'text/plain';
 
   // Estado local para controle do streaming JSON
-  let jsonBuffer = "";
+  let jsonBuffer = '';
   let lastParsedJson = null;
-  let answerText = "";
+  let answerText = '';
 
   // Handlers para o worker
   const handlers = {
@@ -1527,12 +1644,12 @@ async function generateChatStreamed(params) {
       if (onThought) onThought(thought);
     },
     onReset: () => {
-      console.log("[Pipeline] Resetting streaming buffer due to worker reset.");
-      jsonBuffer = "";
+      console.log('[Pipeline] Resetting streaming buffer due to worker reset.');
+      jsonBuffer = '';
       lastParsedJson = null;
-      answerText = "";
+      answerText = '';
       if (onStream) {
-        onStream(isJsonMode ? null : "");
+        onStream(isJsonMode ? null : '');
       }
     },
     onAnswerDelta: (delta) => {
@@ -1562,10 +1679,7 @@ async function generateChatStreamed(params) {
         try {
           params.onAttemptStart();
         } catch (e) {
-          console.error(
-            "[generateChatStreamed] Error in onAttemptStart handler:",
-            e,
-          );
+          console.error('[generateChatStreamed] Error in onAttemptStart handler:', e);
         }
       }
     },
@@ -1574,13 +1688,11 @@ async function generateChatStreamed(params) {
 
   const vertexModelId = getModeConfig(model)?.vertexModelId || undefined;
   const imageDescriptorModel =
-    (typeof window !== "undefined"
-      ? window.selectedModelImageDescriptor
+    (typeof window !== 'undefined' ? window.selectedModelImageDescriptor : null) ||
+    (typeof localStorage !== 'undefined'
+      ? localStorage.getItem('selectedModelImageDescriptor')
       : null) ||
-    (typeof localStorage !== "undefined"
-      ? localStorage.getItem("selectedModelImageDescriptor")
-      : null) ||
-    "models/gemma-4-31b-it";
+    'models/gemma-4-31b-it';
   const imageDescriptorVertexModelId =
     getModeConfig(imageDescriptorModel)?.vertexModelId || undefined;
 
@@ -1592,47 +1704,44 @@ async function generateChatStreamed(params) {
     generationConfig: finalGenerationConfig,
     chatMode,
     history,
-    systemInstruction:
-      chatMode && useMaiaArchitecture ? systemPrompt : undefined, // In Chat Mode, separate system instruction
+    systemInstruction: chatMode && useMaiaArchitecture ? systemPrompt : undefined, // In Chat Mode, separate system instruction
     apiKey,
     githubApiKey,
     groqApiKey:
       groqApiKey ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("GROQ_API_KEY")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('GROQ_API_KEY')
         : undefined) ||
       undefined,
     vertexProjectId:
       vertexProjectId ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('VERTEX_PROJECT_ID')
         : undefined) ||
       undefined,
     vertexLocation:
       vertexLocation ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("VERTEX_LOCATION")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('VERTEX_LOCATION')
         : undefined) ||
       undefined,
     vertexCredentials:
       vertexCredentials ||
-      (typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+      (typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem('VERTEX_CREDENTIALS')
         : undefined) ||
       undefined,
   };
 
   console.log(
-    `[Generate] 🚀 Iniciando geração ${isJsonMode ? "JSON Estruturado" : "Texto Plano"} Streamed...`,
+    `[Generate] 🚀 Iniciando geração ${isJsonMode ? 'JSON Estruturado' : 'Texto Plano'} Streamed...`,
   );
 
   // Chama a função do worker
   // Ela retorna o JSON final parseado ou string de texto quando terminar (ou lança erro)
   const finalResult = await gerarConteudoEmJSONComImagemStream(
     fullPrompt,
-    isJsonMode
-      ? generationConfig?.responseSchema || CHAT_RESPONSE_SCHEMA
-      : null,
+    isJsonMode ? generationConfig?.responseSchema || CHAT_RESPONSE_SCHEMA : null,
     arquivosProcessados, // Agora passamos lista de objetos {data, mimeType}
     mimeType,
     handlers,
@@ -1652,7 +1761,7 @@ async function generateChatStreamed(params) {
 export async function generateChatTitleData(userMsg, aiContent, apiKey) {
   try {
     let aiText;
-    if (typeof aiContent === "string") {
+    if (typeof aiContent === 'string') {
       aiText = aiContent;
     } else {
       try {
@@ -1690,13 +1799,13 @@ RESPOSTA (apenas o título, texto puro):`;
     // Usa gerarConteudoEmJSONComImagemStream com modelo Gemma e sem JSON mode forçado
     // Necessário adaptar a chamada pois ela espera schemas/attachments
     // Assinatura: (texto, schema, attachments, mimeType, handlers, options)
-    let titleAccumulator = "";
+    let titleAccumulator = '';
 
     await gerarConteudoEmJSONComImagemStream(
       prompt,
       null, // Schema null
       [], // Attachments empty
-      "image/jpeg", // mimeType placeholder
+      'image/jpeg', // mimeType placeholder
       {
         onAnswerDelta: (text) => {
           titleAccumulator += text;
@@ -1704,31 +1813,31 @@ RESPOSTA (apenas o título, texto puro):`;
       },
       {
         model:
-          (typeof window !== "undefined" ? window.selectedModelTitle : null) ||
-          "models/gemma-4-31b-it",
-        generationConfig: { responseMimeType: "text/plain" }, // Força texto plano
+          (typeof window !== 'undefined' ? window.selectedModelTitle : null) ||
+          'models/gemma-4-31b-it',
+        generationConfig: { responseMimeType: 'text/plain' }, // Força texto plano
       },
     );
 
     let title = titleAccumulator;
 
     // Limpeza garantida
-    if (typeof title !== "string") {
+    if (typeof title !== 'string') {
       title = JSON.stringify(title);
     }
 
     // Remove aspas extras e quebras de linha que o modelo possa ter colocado
     title = title
-      .replace(/^["']|["']$/g, "")
-      .replace(/\n/g, " ")
+      .replace(/^["']|["']$/g, '')
+      .replace(/\n/g, ' ')
       .trim();
 
     // Remove prefixos comuns se houver
-    title = title.replace(/^Título:\s*/i, "");
-    title = title.replace(/^Title:\s*/i, "");
+    title = title.replace(/^Título:\s*/i, '');
+    title = title.replace(/^Title:\s*/i, '');
 
     // Se o modelo gerou JSON apesar das instruções, tenta extrair o título
-    if (title.startsWith("{") || title.startsWith("[")) {
+    if (title.startsWith('{') || title.startsWith('[')) {
       try {
         const parsed = JSON.parse(title);
         // Tenta extrair título de estruturas comuns
@@ -1740,16 +1849,16 @@ RESPOSTA (apenas o título, texto puro):`;
           JSON.stringify(parsed).substring(0, 50);
       } catch {
         // Se não for JSON válido, pega apenas os primeiros 50 chars
-        title = title.replace(/[{}\[\]]/g, "").substring(0, 50);
+        title = title.replace(/[{}[\]]/g, '').substring(0, 50);
       }
     }
 
     // Remove qualquer markdown restante
-    title = title.replace(/[#*_`]/g, "").trim();
+    title = title.replace(/[#*_`]/g, '').trim();
 
-    return title || "Nova Conversa";
+    return title || 'Nova Conversa';
   } catch (e) {
-    console.warn("Erro no gerador de títulos:", e);
+    console.warn('Erro no gerador de títulos:', e);
     return null;
   }
 }

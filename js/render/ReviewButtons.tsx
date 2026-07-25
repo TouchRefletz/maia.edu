@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 
 interface ReviewButtonsProps {
   fieldId: string;
@@ -16,7 +16,7 @@ export const ReviewButtons: React.FC<ReviewButtonsProps> = ({
   state,
   onApprove,
   onReject,
-  size = 'sm'
+  size = 'sm',
 }) => {
   const sizeClass = size === 'sm' ? 'review-btn--sm' : 'review-btn--md';
 
@@ -55,7 +55,8 @@ export const ReviewableField: React.FC<{
   className?: string;
   style?: React.CSSProperties;
 }> = ({ fieldId, state, onApprove, onReject, children, label, className = '', style }) => {
-  const stateClass = state === 'approved' ? 'field-approved' : state === 'rejected' ? 'field-rejected' : '';
+  const stateClass =
+    state === 'approved' ? 'field-approved' : state === 'rejected' ? 'field-rejected' : '';
 
   return (
     <div className={`reviewable-field ${stateClass} ${className}`} style={style}>
@@ -70,9 +71,7 @@ export const ReviewableField: React.FC<{
           />
         </div>
       )}
-      <div className="reviewable-field-content">
-        {children}
-      </div>
+      <div className="reviewable-field-content">{children}</div>
       {!label && (
         <div className="reviewable-field-inline-btns">
           <ReviewButtons
@@ -107,10 +106,22 @@ export const ReviewableTags: React.FC<{
       {items.map((item, idx) => {
         const fieldId = `${fieldPrefix}_${idx}`;
         const state = reviewState[fieldId] || null;
-        const stateClass = state === 'approved' ? 'tag-approved' : state === 'rejected' ? 'tag-rejected' : '';
+        const stateClass =
+          state === 'approved' ? 'tag-approved' : state === 'rejected' ? 'tag-rejected' : '';
 
         return (
-          <div key={idx} className={`reviewable-tag ${stateClass}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px', borderRadius: '10px', background: 'var(--color-background-json)' }}>
+          <div
+            key={idx}
+            className={`reviewable-tag ${stateClass}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '10px',
+              borderRadius: '10px',
+              background: 'var(--color-background-json)',
+            }}
+          >
             <span className={tagClass}>{item}</span>
             <div className="review-btn-group" style={{ marginLeft: '2px' }}>
               <button

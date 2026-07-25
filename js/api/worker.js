@@ -1,36 +1,33 @@
-import { parseStreamedJSON } from "../utils/json-stream-parser.js";
-import { CHAT_CONFIG } from "../chat/config.js";
+import { CHAT_CONFIG } from '../chat/config.js';
+import { parseStreamedJSON } from '../utils/json-stream-parser.js';
 
 /**
  * Limpa blocos de código markdown (como ```json e ```) no início/fim de uma string JSON.
  * Se necessário, tenta extrair a primeira ocorrência de um objeto ou array JSON.
  */
 function cleanJsonString(str) {
-  if (typeof str !== "string") return str;
+  if (typeof str !== 'string') return str;
   let cleaned = str.trim();
 
   // Remove markdown codeblock no início (ex: ```json ou ```)
-  cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, "");
+  cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, '');
   // Remove markdown codeblock no final (ex: ```)
-  cleaned = cleaned.replace(/\s*```$/, "");
+  cleaned = cleaned.replace(/\s*```$/, '');
   cleaned = cleaned.trim();
 
   // Se ainda não começar com '{' ou '[', tenta encontrar o primeiro '{' ou '[' e o último correspondente
-  if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
-    const firstBrace = cleaned.indexOf("{");
-    const firstBracket = cleaned.indexOf("[");
+  if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
+    const firstBrace = cleaned.indexOf('{');
+    const firstBracket = cleaned.indexOf('[');
     let startIdx = -1;
-    let endChar = "";
+    let endChar = '';
 
-    if (
-      firstBrace !== -1 &&
-      (firstBracket === -1 || firstBrace < firstBracket)
-    ) {
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
       startIdx = firstBrace;
-      endChar = "}";
+      endChar = '}';
     } else if (firstBracket !== -1) {
       startIdx = firstBracket;
-      endChar = "]";
+      endChar = ']';
     }
 
     if (startIdx !== -1) {
@@ -45,7 +42,7 @@ function cleanJsonString(str) {
 }
 
 function isStructureEmpty(obj) {
-  if (!obj || typeof obj !== "object") return false;
+  if (!obj || typeof obj !== 'object') return false;
   if (Array.isArray(obj.sections)) {
     if (obj.sections.length === 0) return true;
     let totalItems = 0;
@@ -53,7 +50,7 @@ function isStructureEmpty(obj) {
       if (Array.isArray(sec.blocks) && sec.blocks.length > 0) {
         totalItems += sec.blocks.length;
       }
-      if (sec.slots && typeof sec.slots === "object") {
+      if (sec.slots && typeof sec.slots === 'object') {
         for (const slotKey in sec.slots) {
           const slotContent = sec.slots[slotKey];
           if (Array.isArray(slotContent) && slotContent.length > 0) {
@@ -71,13 +68,13 @@ function isTextMimeType(mimeType) {
   if (!mimeType) return false;
   const m = mimeType.toLowerCase();
   return (
-    m.startsWith("text/") ||
-    m.includes("json") ||
-    m.includes("javascript") ||
-    m.includes("typescript") ||
-    m.includes("xml") ||
-    m === "application/x-python" ||
-    m === "text/x-python"
+    m.startsWith('text/') ||
+    m.includes('json') ||
+    m.includes('javascript') ||
+    m.includes('typescript') ||
+    m.includes('xml') ||
+    m === 'application/x-python' ||
+    m === 'text/x-python'
   );
 }
 
@@ -89,7 +86,7 @@ function decodeBase64ToUtf8(base64Data) {
     for (let i = 0; i < len; i++) {
       bytes[i] = binString.charCodeAt(i);
     }
-    const decodedText = new TextDecoder("utf-8").decode(bytes);
+    const decodedText = new TextDecoder('utf-8').decode(bytes);
 
     try {
       const parsed = JSON.parse(decodedText);
@@ -99,19 +96,19 @@ function decodeBase64ToUtf8(base64Data) {
       return decodedText;
     }
   } catch (e) {
-    console.error("[decodeBase64ToUtf8 Error]", e);
-    return "";
+    console.error('[decodeBase64ToUtf8 Error]', e);
+    return '';
   }
 }
 
-function detectRepetitionDegeneration(text, modelName = "") {
+function detectRepetitionDegeneration(text, modelName = '') {
   if (!text || text.length < 15) return false;
 
-  const modelLower = String(modelName || "").toLowerCase();
+  const modelLower = String(modelName || '').toLowerCase();
   const isGptOss =
-    modelLower.includes("gpt-oss") ||
-    modelLower.includes("oss-120b") ||
-    modelLower.includes("gpt_oss");
+    modelLower.includes('gpt-oss') ||
+    modelLower.includes('oss-120b') ||
+    modelLower.includes('gpt_oss');
 
   // 1. Checagem rápida de repetição contínua do mesmo caractere no final do texto
   const lastChar = text[text.length - 1];
@@ -126,7 +123,7 @@ function detectRepetitionDegeneration(text, modelName = "") {
 
   // Caracteres de formatação markdown, pontuação estrutural e separadores visuais
   // (ex: '-', '=', '_', '*', '~', '#', '|', '+', ':', '.', '/', '\', '`', ',', ';', etc.)
-  const isMarkdownFormattingChar = /[\s\-_=*~#|+:.\`/>\\,;!()\[\]{}]/.test(lastChar);
+  const isMarkdownFormattingChar = /[\s\-_=*~#|+:.`/>\\,;!()[\]{}]/.test(lastChar);
 
   // Limite para caractere único contínuo:
   // - Para caracteres de formatação/separadores: tolera até 300 (ou 500 se for gpt-oss)
@@ -140,7 +137,7 @@ function detectRepetitionDegeneration(text, modelName = "") {
 
   if (singleCharCount >= maxSingleChar) {
     console.warn(
-      `[Repetition Detector] Caractere único '${lastChar}' repetiu ${singleCharCount} vezes seguidas (modelo: ${modelName || "desconhecido"}).`
+      `[Repetition Detector] Caractere único '${lastChar}' repetiu ${singleCharCount} vezes seguidas (modelo: ${modelName || 'desconhecido'}).`,
     );
     return true;
   }
@@ -150,7 +147,7 @@ function detectRepetitionDegeneration(text, modelName = "") {
     const pattern = text.slice(-len);
 
     // Se o padrão for puramente formatação, separadores markdown ou espaços
-    const isPureFormatting = /^[\s\-_=*~#|+:.\`/>\\,;!()\[\]{}]+$/.test(pattern);
+    const isPureFormatting = /^[\s\-_=*~#|+:.`/>\\,;!()[\]{}]+$/.test(pattern);
 
     let requiredRepeats;
     if (isPureFormatting) {
@@ -186,7 +183,7 @@ function detectRepetitionDegeneration(text, modelName = "") {
 
     if (repeats >= requiredRepeats) {
       console.warn(
-        `[Repetition Detector] Padrão de degeneração "${pattern.substring(0, 30)}${pattern.length > 30 ? "..." : ""}" detectado (${repeats} repetições, modelo: ${modelName || "desconhecido"}).`
+        `[Repetition Detector] Padrão de degeneração "${pattern.substring(0, 30)}${pattern.length > 30 ? '...' : ''}" detectado (${repeats} repetições, modelo: ${modelName || 'desconhecido'}).`,
       );
       return true;
     }
@@ -196,38 +193,35 @@ function detectRepetitionDegeneration(text, modelName = "") {
 }
 
 export function sanitizeJsonForPrompt(obj) {
-  if (typeof obj === "string") {
+  if (typeof obj === 'string') {
     if (
       obj.length > 200 &&
-      (obj.startsWith("data:") ||
-        !obj.includes(" ") ||
+      (obj.startsWith('data:') ||
+        !obj.includes(' ') ||
         /^[A-Za-z0-9+/=]+$/.test(obj.substring(0, 100)))
     ) {
       return `[BASE64/DATA_URL TRUNCATED: ${obj.length} chars]`;
     }
     if (obj.length > 1500) {
-      return (
-        obj.substring(0, 1500) +
-        `... [TRUNCATED: ${obj.length - 1500} chars]`
-      );
+      return obj.substring(0, 1500) + `... [TRUNCATED: ${obj.length - 1500} chars]`;
     }
     return obj;
   }
   if (Array.isArray(obj)) {
     return obj.map(sanitizeJsonForPrompt);
   }
-  if (typeof obj === "object" && obj !== null) {
+  if (typeof obj === 'object' && obj !== null) {
     const cleaned = {};
     const keysToStrip = [
-      "fotos_originais",
-      "fontes_externas",
-      "pdfjs_crop_h",
-      "pdfjs_crop_w",
-      "pdfjs_source_h",
-      "pdfjs_source_w",
-      "pdfjs_x",
-      "pdfjs_y",
-      "cropped_base64",
+      'fotos_originais',
+      'fontes_externas',
+      'pdfjs_crop_h',
+      'pdfjs_crop_w',
+      'pdfjs_source_h',
+      'pdfjs_source_w',
+      'pdfjs_x',
+      'pdfjs_y',
+      'cropped_base64',
     ];
     for (const [key, value] of Object.entries(obj)) {
       if (keysToStrip.includes(key)) {
@@ -242,7 +236,7 @@ export function sanitizeJsonForPrompt(obj) {
 }
 
 function dataURLtoFile(dataurl, filename) {
-  var arr = dataurl.split(","),
+  var arr = dataurl.split(','),
     mime = arr[0].match(/:(.*?);/)[1],
     bstr = atob(arr[arr.length - 1]),
     n = bstr.length,
@@ -254,31 +248,30 @@ function dataURLtoFile(dataurl, filename) {
 }
 
 async function ensurePuterLoaded() {
-  if (typeof window !== "undefined" && window.puter) return window.puter;
-  if (typeof window !== "undefined" && window.__loadingPuter)
-    return window.__loadingPuter;
+  if (typeof window !== 'undefined' && window.puter) return window.puter;
+  if (typeof window !== 'undefined' && window.__loadingPuter) return window.__loadingPuter;
 
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     window.__loadingPuter = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://js.puter.com/v2/";
+      const script = document.createElement('script');
+      script.src = 'https://js.puter.com/v2/';
       script.onload = () => resolve(window.puter);
       script.onerror = (e) => {
         window.__loadingPuter = null;
-        reject(new Error("Falha ao carregar puter.js: " + e));
+        reject(new Error('Falha ao carregar puter.js: ' + e));
       };
       document.head.appendChild(script);
     });
     return window.__loadingPuter;
   }
-  throw new Error("Puter só pode ser executado no navegador.");
+  throw new Error('Puter só pode ser executado no navegador.');
 }
 
 async function chamarPuterAI(
   texto,
   schema = null,
   attachments = [],
-  mimeType = "image/jpeg",
+  mimeType = 'image/jpeg',
   handlers = {},
   options = {},
 ) {
@@ -287,30 +280,30 @@ async function chamarPuterAI(
   // Garantir autenticação (não anonimizado)
   if (!puter.auth.isSignedIn()) {
     const msg =
-      "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+      'Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.';
     alert(msg);
-    throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
+    throw new Error('PUTER_NOT_AUTHENTICATED: ' + msg);
   }
 
-  handlers?.onStatus?.("Conectando ao Puter AI...");
+  handlers?.onStatus?.('Conectando ao Puter AI...');
 
-  const modelName = options.model.replace("puter/", "");
+  const modelName = options.model.replace('puter/', '');
   const isSearchStage = options.isSearchStage || false;
 
   // Configuração se for modelo OpenAI e em etapa de pesquisa
-  const isOpenAI = modelName.startsWith("openai/") || modelName.includes("gpt");
+  const isOpenAI = modelName.startsWith('openai/') || modelName.includes('gpt');
 
   const puterOptions = {
     model: modelName,
   };
 
   if (isOpenAI && isSearchStage) {
-    puterOptions.tools = [{ type: "web_search" }];
+    puterOptions.tools = [{ type: 'web_search' }];
   }
 
   // Processar anexos (identificar textos, imagens e arquivos binários)
-  let textWithFiles = "";
-  let filesToUpload = [];
+  let textWithFiles = '';
+  const filesToUpload = [];
   let userContent = texto;
 
   if (attachments && attachments.length > 0) {
@@ -320,13 +313,13 @@ async function chamarPuterAI(
     for (let i = 0; i < attachments.length; i++) {
       const att = attachments[i];
       let fileMime = mimeType;
-      let fileData = "";
+      let fileData = '';
       let name = `arquivo_${i}`;
 
-      if (typeof att === "string") {
+      if (typeof att === 'string') {
         fileMime = mimeType;
         fileData = att;
-      } else if (att && typeof att === "object" && att.data) {
+      } else if (att && typeof att === 'object' && att.data) {
         fileMime = att.mimeType || mimeType;
         fileData = att.data;
         name = att.name || `arquivo_${i}`;
@@ -335,9 +328,9 @@ async function chamarPuterAI(
       if (isTextMimeType(fileMime)) {
         const decodedText = decodeBase64ToUtf8(fileData);
         textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
-      } else if (fileMime.startsWith("image/") && fileData) {
+      } else if (fileMime.startsWith('image/') && fileData) {
         parts.push({
-          type: "image_url",
+          type: 'image_url',
           image_url: { url: `data:${fileMime};base64,${fileData}` },
         });
         hasImages = true;
@@ -352,7 +345,7 @@ async function chamarPuterAI(
     }
 
     if (hasImages) {
-      parts.unshift({ type: "text", text: texto });
+      parts.unshift({ type: 'text', text: texto });
       userContent = parts;
     } else {
       userContent = texto;
@@ -366,53 +359,50 @@ async function chamarPuterAI(
   // Se houver schema, fazemos uma chamada direta à API compatível com OpenAI do Puter
   // para usar o suporte nativo a response_format com json_schema.
   if (schema) {
-    const token = sessionStorage.getItem("PUTER_API_KEY") || puter.authToken || localStorage.getItem("puter.auth.token");
+    const token =
+      sessionStorage.getItem('PUTER_API_KEY') ||
+      puter.authToken ||
+      localStorage.getItem('puter.auth.token');
     if (!token) {
-      throw new Error("Não foi possível recuperar o token de autenticação do Puter.");
+      throw new Error('Não foi possível recuperar o token de autenticação do Puter.');
     }
 
     const systemPrompt =
-      "Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.";
+      'Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.';
 
     const messages = [
       {
-        role: "system",
+        role: 'system',
         content: systemPrompt,
       },
       {
-        role: "user",
+        role: 'user',
         content: userContent,
       },
     ];
 
-    console.log(
-      `[Puter API response_format] Executando modelo ${modelName} com schema:`,
-      schema,
-    );
+    console.log(`[Puter API response_format] Executando modelo ${modelName} com schema:`, schema);
 
-    let content = "";
+    let content = '';
     try {
-      const response = await fetch(
-        "https://api.puter.com/puterai/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages,
-            response_format: {
-              type: "json_schema",
-              json_schema: {
-                name: "chat_response",
-                schema: schema,
-              },
-            },
-          }),
+      const response = await fetch('https://api.puter.com/puterai/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({
+          model: modelName,
+          messages,
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
+              name: 'chat_response',
+              schema: schema,
+            },
+          },
+        }),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -420,29 +410,29 @@ async function chamarPuterAI(
       }
 
       const data = await response.json();
-      console.log("[Puter API response_format] Resposta recebida:", data);
-      content = data.choices?.[0]?.message?.content || "";
+      console.log('[Puter API response_format] Resposta recebida:', data);
+      content = data.choices?.[0]?.message?.content || '';
     } catch (err) {
       console.warn(
-        "[Puter API response_format] Falhou, tentando chamada simples de texto como fallback...",
+        '[Puter API response_format] Falhou, tentando chamada simples de texto como fallback...',
         err,
       );
 
       // Fallback: Chamada simples de texto usando a SDK padrão do Puter sem response_format
       // Mas instruindo o modelo no prompt a retornar apenas JSON válido.
       const fallbackSystemPrompt =
-        "Você é um assistente especializado em retornar dados estruturados.\n" +
-        "Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n" +
-        "SCHEMA:\n" +
+        'Você é um assistente especializado em retornar dados estruturados.\n' +
+        'Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n' +
+        'SCHEMA:\n' +
         JSON.stringify(schema, null, 2);
 
       const fallbackMessages = [
         {
-          role: "system",
+          role: 'system',
           content: fallbackSystemPrompt,
         },
         {
-          role: "user",
+          role: 'user',
           content: userContent,
         },
       ];
@@ -455,9 +445,9 @@ async function chamarPuterAI(
       delete puterOptionsFallback.tool_choice;
 
       const response = await puter.ai.chat(fallbackMessages, puterOptionsFallback);
-      console.log("[Puter API Fallback] Resposta recebida:", response);
+      console.log('[Puter API Fallback] Resposta recebida:', response);
       const message = response?.message;
-      content = message?.content || response?.toString() || "";
+      content = message?.content || response?.toString() || '';
     }
 
     return content;
@@ -465,27 +455,23 @@ async function chamarPuterAI(
 
   // Caso contrário, chamada padrão com streaming de texto
   puterOptions.stream = true;
-  console.log(
-    `[Puter Stream] Executando modelo ${modelName} com prompt:`,
-    texto,
-  );
+  console.log(`[Puter Stream] Executando modelo ${modelName} com prompt:`, texto);
   const responseStream = await puter.ai.chat(texto, puterOptions);
 
-  let answerText = "";
+  let answerText = '';
   for await (const part of responseStream) {
-    const textChunk =
-      typeof part === "string" ? part : part?.text || part?.content || "";
+    const textChunk = typeof part === 'string' ? part : part?.text || part?.content || '';
     answerText += textChunk;
     handlers?.onAnswerDelta?.(textChunk);
 
     if (detectRepetitionDegeneration(answerText, modelName)) {
-      console.warn("[Puter Stream] Loop de repetição detectado!");
-      throw new Error("REPETITION_DEGENERATION_ERROR");
+      console.warn('[Puter Stream] Loop de repetição detectado!');
+      throw new Error('REPETITION_DEGENERATION_ERROR');
     }
   }
 
   if (!answerText || !answerText.trim()) {
-    throw new Error("Resposta do Puter vazia.");
+    throw new Error('Resposta do Puter vazia.');
   }
 
   return answerText;
@@ -494,14 +480,8 @@ async function chamarPuterAI(
 // --- CONFIGURAÇÃO DO WORKER ---
 // Para local: http://localhost:8787
 // Para prod: Sua URL do Cloudflare (ex: https://meu-worker.seu-usuario.workers.dev)
-export const WORKER_URL =
-  import.meta.env?.VITE_WORKER_URL || "http://localhost:8787";
-console.log(
-  "DEBUG ENV:",
-  import.meta.env?.VITE_WORKER_URL,
-  "FINAL URL:",
-  WORKER_URL,
-);
+export const WORKER_URL = import.meta.env?.VITE_WORKER_URL || 'http://localhost:8787';
+console.log('DEBUG ENV:', import.meta.env?.VITE_WORKER_URL, 'FINAL URL:', WORKER_URL);
 
 /**
  * Helper to construct the Proxy URL with robust decoding/encoding of the target URL.
@@ -514,7 +494,7 @@ export function getProxyPdfUrl(rawUrl) {
   let cleanUrl = rawUrl;
   try {
     let iterations = 0;
-    while (cleanUrl.includes("%") && iterations < 5) {
+    while (cleanUrl.includes('%') && iterations < 5) {
       const decoded = decodeURIComponent(cleanUrl);
       if (decoded === cleanUrl) break;
       cleanUrl = decoded;
@@ -523,10 +503,10 @@ export function getProxyPdfUrl(rawUrl) {
   } catch (e) {}
 
   if (
-    cleanUrl.startsWith("blob:") ||
-    cleanUrl.includes("localhost") ||
-    cleanUrl.includes("127.0.0.1") ||
-    cleanUrl.includes("download.inep.gov.br")
+    cleanUrl.startsWith('blob:') ||
+    cleanUrl.includes('localhost') ||
+    cleanUrl.includes('127.0.0.1') ||
+    cleanUrl.includes('download.inep.gov.br')
   )
     return cleanUrl;
 
@@ -538,28 +518,29 @@ export function getProxyPdfUrl(rawUrl) {
  */
 export async function callWorker(endpoint, body) {
   try {
-    const isVertexModel = !body.model || body.model.startsWith("vertex/") || body.model.startsWith("vertex-maas/");
+    const isVertexModel =
+      !body.model || body.model.startsWith('vertex/') || body.model.startsWith('vertex-maas/');
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       signal: body.signal, // Adicionado suporte a signal
       body: JSON.stringify({
-        apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || undefined,
+        apiKey: sessionStorage.getItem('GOOGLE_GENAI_API_KEY') || undefined,
         githubApiKey:
-          sessionStorage.getItem("GITHUB_PAT_KEY") ||
-          sessionStorage.getItem("githubApiKey") ||
+          sessionStorage.getItem('GITHUB_PAT_KEY') ||
+          sessionStorage.getItem('githubApiKey') ||
           undefined,
-        groqApiKey: sessionStorage.getItem("GROQ_API_KEY") || undefined,
+        groqApiKey: sessionStorage.getItem('GROQ_API_KEY') || undefined,
         vertexProjectId: isVertexModel
-          ? sessionStorage.getItem("VERTEX_PROJECT_ID") || undefined
+          ? sessionStorage.getItem('VERTEX_PROJECT_ID') || undefined
           : undefined,
         vertexLocation: isVertexModel
-          ? sessionStorage.getItem("VERTEX_LOCATION") || undefined
+          ? sessionStorage.getItem('VERTEX_LOCATION') || undefined
           : undefined,
         vertexCredentials: isVertexModel
-          ? sessionStorage.getItem("VERTEX_CREDENTIALS") || undefined
+          ? sessionStorage.getItem('VERTEX_CREDENTIALS') || undefined
           : undefined,
         ...body,
         signal: undefined, // Não enviar signal no corpo JSON
@@ -575,11 +556,10 @@ export async function callWorker(endpoint, body) {
   } catch (error) {
     if (
       !navigator.onLine ||
-      (error.name === "TypeError" &&
-        error.message.includes("Failed to fetch")) ||
-      error.message === "NETWORK_ERROR"
+      (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+      error.message === 'NETWORK_ERROR'
     ) {
-      throw new Error("NETWORK_ERROR");
+      throw new Error('NETWORK_ERROR');
     }
     console.error(`Erro ao chamar Worker (${endpoint}):`, error);
     throw error;
@@ -591,21 +571,21 @@ export async function gerarConteudo(texto) {
   // Mas seu uso parece focado em JSON. Vamos manter compatibilidade básica.
   // Se for uso legado que espera string, pegaremos o JSON e stringificaremos ou ajustaremos o worker.
   // Por enquanto, vou supor que o uso principal é o JSON.
-  const result = await callWorker("/generate", { texto });
-  return typeof result === "string" ? result : JSON.stringify(result);
+  const result = await callWorker('/generate', { texto });
+  return typeof result === 'string' ? result : JSON.stringify(result);
 }
 
 export async function gerarConteudoEmJSON(texto, schema = null) {
-  return await callWorker("/generate", { texto, schema });
+  return await callWorker('/generate', { texto, schema });
 }
 
 export async function gerarConteudoEmJSONComImagem(
   texto,
   schema = null,
   listaImagensBase64 = [],
-  mimeType = "image/jpeg",
+  mimeType = 'image/jpeg',
 ) {
-  return await callWorker("/generate", {
+  return await callWorker('/generate', {
     texto,
     schema,
     listaImagensBase64,
@@ -617,11 +597,11 @@ export async function gerarConteudoEmJSONComImagemStream(
   texto,
   schema = null,
   attachments = [], // Renamed from listaImagensBase64 to support generic files
-  mimeType = "image/jpeg",
+  mimeType = 'image/jpeg',
   handlers = {},
   options = {},
 ) {
-  const isPuter = options?.model && options.model.startsWith("puter/");
+  const isPuter = options?.model && options.model.startsWith('puter/');
   if (isPuter) {
     try {
       const answerText = await chamarPuterAI(
@@ -638,24 +618,19 @@ export async function gerarConteudoEmJSONComImagemStream(
         return JSON.parse(cleanedAnswer);
       } catch (pe) {
         if (schema) {
-          console.warn(
-            "[Puter] Resposta não é JSON perfeito. Tentando recuperar...",
-          );
+          console.warn('[Puter] Resposta não é JSON perfeito. Tentando recuperar...');
           const parsedRecovered = parseStreamedJSON(cleanedAnswer);
-          if (parsedRecovered && typeof parsedRecovered === "object") {
-            console.log("[Puter] JSON recuperado com sucesso via best-effort!");
+          if (parsedRecovered && typeof parsedRecovered === 'object') {
+            console.log('[Puter] JSON recuperado com sucesso via best-effort!');
             return parsedRecovered;
           }
-          throw new Error("INVALID_JSON_STRUCTURE");
+          throw new Error('INVALID_JSON_STRUCTURE');
         }
-        console.log(
-          "[Puter] Resposta não é JSON válido. Retornando texto bruto.",
-          pe.message,
-        );
+        console.log('[Puter] Resposta não é JSON válido. Retornando texto bruto.', pe.message);
         return answerText;
       }
     } catch (error) {
-      console.error("[Puter] Erro na chamada:", error);
+      console.error('[Puter] Erro na chamada:', error);
       throw error;
     }
   }
@@ -672,10 +647,10 @@ export async function gerarConteudoEmJSONComImagemStream(
   let payloadFiles = [];
 
   if (Array.isArray(attachments) && attachments.length > 0) {
-    if (typeof attachments[0] === "string") {
+    if (typeof attachments[0] === 'string') {
       // Legacy behavior: Array of Base64 strings (Images only)
       payloadImages = attachments;
-    } else if (typeof attachments[0] === "object") {
+    } else if (typeof attachments[0] === 'object') {
       // New behavior: Array of { data, mimeType } objects
       payloadFiles = attachments;
     }
@@ -689,77 +664,87 @@ export async function gerarConteudoEmJSONComImagemStream(
       try {
         handlers.onAttemptStart();
       } catch (err) {
-        console.error("[Worker] Error in onAttemptStart handler:", err);
+        console.error('[Worker] Error in onAttemptStart handler:', err);
       }
     }
 
     // Atualiza status na UI
     if (handlers?.onStatus) {
       if (isRetry) {
-        handlers.onStatus(
-          `Re-tentando conexão com IA (${attempt}/${MAX_RETRIES})...`,
-        );
+        handlers.onStatus(`Re-tentando conexão com IA (${attempt}/${MAX_RETRIES})...`);
       } else {
-        handlers.onStatus("Conectando ao Worker (1/3)...");
+        handlers.onStatus('Conectando ao Worker (1/3)...');
       }
     }
 
     try {
       // [DEBUG] Log API key status
-      const customApiKey =
-        options.apiKey || sessionStorage.getItem("GOOGLE_GENAI_API_KEY");
+      const customApiKey = options.apiKey || sessionStorage.getItem('GOOGLE_GENAI_API_KEY');
       const customGithubKey =
         options.githubApiKey ||
-        sessionStorage.getItem("GITHUB_PAT_KEY") ||
-        sessionStorage.getItem("githubApiKey");
-      const customGroqKey =
-        options.groqApiKey || sessionStorage.getItem("GROQ_API_KEY");
+        sessionStorage.getItem('GITHUB_PAT_KEY') ||
+        sessionStorage.getItem('githubApiKey');
+      const customGroqKey = options.groqApiKey || sessionStorage.getItem('GROQ_API_KEY');
 
-      const resolvedVertexModelId = options.vertexModelId || CHAT_CONFIG?.modes?.[options.model]?.vertexModelId || undefined;
-      const resolvedImageDescriptorModel = options.imageDescriptorModel || (typeof window !== "undefined" ? window.selectedModelImageDescriptor : null) || (typeof localStorage !== "undefined" ? localStorage.getItem("selectedModelImageDescriptor") : null) || "models/gemma-4-31b-it";
-      const resolvedImageDescriptorVertexModelId = options.imageDescriptorVertexModelId || CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId || undefined;
+      const resolvedVertexModelId =
+        options.vertexModelId || CHAT_CONFIG?.modes?.[options.model]?.vertexModelId || undefined;
+      const resolvedImageDescriptorModel =
+        options.imageDescriptorModel ||
+        (typeof window !== 'undefined' ? window.selectedModelImageDescriptor : null) ||
+        (typeof localStorage !== 'undefined'
+          ? localStorage.getItem('selectedModelImageDescriptor')
+          : null) ||
+        'models/gemma-4-31b-it';
+      const resolvedImageDescriptorVertexModelId =
+        options.imageDescriptorVertexModelId ||
+        CHAT_CONFIG?.modes?.[resolvedImageDescriptorModel]?.vertexModelId ||
+        undefined;
 
       const isVertexModel =
         !options.model ||
-        options.model.startsWith("vertex/") ||
-        options.model.startsWith("vertex-maas/") ||
-        (resolvedImageDescriptorModel && (resolvedImageDescriptorModel.startsWith("vertex/") || resolvedImageDescriptorModel.startsWith("vertex-maas/")));
+        options.model.startsWith('vertex/') ||
+        options.model.startsWith('vertex-maas/') ||
+        (resolvedImageDescriptorModel &&
+          (resolvedImageDescriptorModel.startsWith('vertex/') ||
+            resolvedImageDescriptorModel.startsWith('vertex-maas/')));
 
       const customVertexProjectId = isVertexModel
-        ? options.vertexProjectId || sessionStorage.getItem("VERTEX_PROJECT_ID")
+        ? options.vertexProjectId || sessionStorage.getItem('VERTEX_PROJECT_ID')
         : undefined;
       const customVertexLocation = isVertexModel
-        ? options.vertexLocation || sessionStorage.getItem("VERTEX_LOCATION")
+        ? options.vertexLocation || sessionStorage.getItem('VERTEX_LOCATION')
         : undefined;
       const customVertexCredentials = isVertexModel
-        ? options.vertexCredentials || sessionStorage.getItem("VERTEX_CREDENTIALS")
+        ? options.vertexCredentials || sessionStorage.getItem('VERTEX_CREDENTIALS')
         : undefined;
       console.log(
         `[Worker] Attempt ${attempt}/${MAX_RETRIES} - API Key present: ${!!customApiKey}, GitHub Key present: ${!!customGithubKey}, Groq Key present: ${!!customGroqKey}, Vertex AI present: ${!!customVertexProjectId}`,
       );
 
-      console.log("==================== WORKER REQUEST DETAILS ====================");
+      console.log('==================== WORKER REQUEST DETAILS ====================');
       console.log(`[Model]: ${options.model}`);
       console.log(`[Vertex Model ID]: ${resolvedVertexModelId}`);
       console.log(`[System Instruction]:\n`, options.systemInstruction);
       console.log(`[User Prompt / Text]:\n`, texto);
-      console.log("================================================================");
+      console.log('================================================================');
 
       const promptReinforcement = isRetry
         ? `\n\n[INSTRUÇÃO CRÍTICA DE RE-TENTATIVA / RETRY]:\nA resposta anterior foi devolvida com estrutura vazia (content: [] ou slots vazios). Você É OBRIGADO a preencher os slots e blocos de conteúdo com o texto completo da resposta/resolução. NUNCA envie respostas ou arrays de conteúdo vazios.`
-        : "";
+        : '';
 
       const effectiveSystemInstruction = options.systemInstruction
         ? options.systemInstruction + promptReinforcement
-        : (promptReinforcement ? promptReinforcement.trim() : undefined);
+        : promptReinforcement
+          ? promptReinforcement.trim()
+          : undefined;
 
       const effectiveTexto = isRetry
         ? `${texto}\n\n[INSTRUÇÃO CRÍTICA]: Forneça a resposta completa preenchendo todos os slots de conteúdo. NÃO envie respostas com slots vazios.`
         : texto;
 
       const response = await fetch(`${WORKER_URL}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         signal: handlers.signal,
         body: JSON.stringify({
           apiKey: customApiKey || undefined,
@@ -771,8 +756,7 @@ export async function gerarConteudoEmJSONComImagemStream(
           texto: effectiveTexto,
           schema: schema || undefined,
           jsonMode: !!schema,
-          listaImagensBase64:
-            payloadImages.length > 0 ? payloadImages : undefined,
+          listaImagensBase64: payloadImages.length > 0 ? payloadImages : undefined,
           files: payloadFiles.length > 0 ? payloadFiles : undefined,
           mimeType,
           model: options.model,
@@ -792,12 +776,12 @@ export async function gerarConteudoEmJSONComImagemStream(
         throw new Error(err.error || `Erro HTTP ${response.status}`);
       }
 
-      if (!response.body) throw new Error("Resposta sem corpo (stream)");
+      if (!response.body) throw new Error('Resposta sem corpo (stream)');
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let answerText = "";
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let answerText = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -807,121 +791,109 @@ export async function gerarConteudoEmJSONComImagemStream(
         buffer += decoder.decode(value, { stream: true });
 
         // Process lines individually
-        let parts = buffer.split("\n");
+        const parts = buffer.split('\n');
         // Last part might be incomplete, keep it in buffer
-        buffer = parts.pop() || "";
+        buffer = parts.pop() || '';
 
         for (const line of parts) {
           if (!line.trim()) continue;
           try {
             const msg = JSON.parse(line);
             console.log(msg);
-            if (msg.type === "meta" && msg.event === "attempt_start") {
+            if (msg.type === 'meta' && msg.event === 'attempt_start') {
               try {
-                const vertexSuffix = msg.vertex ? " (Vertex AI)" : "";
+                const vertexSuffix = msg.vertex ? ' (Vertex AI)' : '';
                 handlers?.onStatus?.(`🤖 Modelo: ${msg.model}${vertexSuffix}`);
               } catch (err) {
-                console.error("Error in onStatus handler:", err);
+                console.error('Error in onStatus handler:', err);
               }
-            } else if (msg.type === "thought") {
+            } else if (msg.type === 'thought') {
               try {
                 handlers?.onThought?.(msg.text);
               } catch (err) {
-                console.error("Error in onThought handler:", err);
+                console.error('Error in onThought handler:', err);
               }
-            } else if (msg.type === "gemma_latency") {
+            } else if (msg.type === 'gemma_latency') {
               try {
                 handlers?.onGemmaLatency?.(msg.latency_ms);
               } catch (err) {
-                console.error("Error in onGemmaLatency handler:", err);
+                console.error('Error in onGemmaLatency handler:', err);
               }
-            } else if (msg.type === "answer") {
+            } else if (msg.type === 'answer') {
               // Accumulate FIRST to ensure data integrity
               answerText += msg.text;
               try {
                 handlers?.onAnswerDelta?.(msg.text);
               } catch (err) {
-                console.error("Error in onAnswerDelta handler:", err);
+                console.error('Error in onAnswerDelta handler:', err);
               }
               if (detectRepetitionDegeneration(answerText, options?.model)) {
-                console.warn("[Worker] Repetition degeneration detected in stream. Cancelling stream and forcing retry...");
+                console.warn(
+                  '[Worker] Repetition degeneration detected in stream. Cancelling stream and forcing retry...',
+                );
                 try {
                   await reader.cancel();
                 } catch (cancelErr) {
-                  console.error("Error cancelling stream reader:", cancelErr);
+                  console.error('Error cancelling stream reader:', cancelErr);
                 }
-                throw new Error("REPETITION_DEGENERATION_ERROR");
+                throw new Error('REPETITION_DEGENERATION_ERROR');
               }
-            } else if (msg.type === "debug") {
-              console.log("🛠️ WORKER DEBUG:", msg.text);
-            } else if (msg.type === "error") {
-              
-              console.group("🚨 CRITICAL ERROR: PROMPT QUE CAUSOU A FALHA");
-              console.log("Modelo Solicitado:", options.model);
-              console.log("Tamanho do Prompt (chars):", texto?.length);
-              console.log("Conteúdo Completo Enviado:\n", texto);
+            } else if (msg.type === 'debug') {
+              console.log('🛠️ WORKER DEBUG:', msg.text);
+            } else if (msg.type === 'error') {
+              console.group('🚨 CRITICAL ERROR: PROMPT QUE CAUSOU A FALHA');
+              console.log('Modelo Solicitado:', options.model);
+              console.log('Tamanho do Prompt (chars):', texto?.length);
+              console.log('Conteúdo Completo Enviado:\n', texto);
               console.groupEnd();
 
-              if (msg.code === "RECITATION") {
-                console.warn(
-                  "⚠️ Não foi possível responder por conta de recitação.",
-                );
-                throw new Error("RECITATION_ERROR");
+              if (msg.code === 'RECITATION') {
+                console.warn('⚠️ Não foi possível responder por conta de recitação.');
+                throw new Error('RECITATION_ERROR');
               }
 
               // Tratamento de Rate Limit / Sobrecarga / Falha Geral
               const isRateLimit =
                 msg.status === 429 ||
                 msg.status === 503 ||
-                (msg.code === "ALL_MODELS_FAILED" &&
-                  /rate|limit|quota|exhausted|429/i.test(msg.message || ""));
+                (msg.code === 'ALL_MODELS_FAILED' &&
+                  /rate|limit|quota|exhausted|429/i.test(msg.message || ''));
 
               if (isRateLimit) {
+                console.error('⚠️ Worker Rate Limit/Outage:', msg.code, msg.message, msg.attempts);
+                throw new Error('RATE_LIMIT_ERROR');
+              } else if (msg.code === 'ALL_MODELS_FAILED') {
                 console.error(
-                  "⚠️ Worker Rate Limit/Outage:",
+                  '⚠️ Worker Model Execution Failed:',
                   msg.code,
                   msg.message,
                   msg.attempts,
                 );
-                throw new Error("RATE_LIMIT_ERROR");
-              } else if (msg.code === "ALL_MODELS_FAILED") {
-                console.error(
-                  "⚠️ Worker Model Execution Failed:",
-                  msg.code,
-                  msg.message,
-                  msg.attempts,
-                );
-                throw new Error(
-                  `WORKER_RUN_FAILED: ${msg.message || "Unknown error"}`,
-                );
+                throw new Error(`WORKER_RUN_FAILED: ${msg.message || 'Unknown error'}`);
               }
 
-              console.error("Erro do worker stream:", msg.text);
+              console.error('Erro do worker stream:', msg.text);
               handlers?.onStatus?.(`Erro: ${msg.text}`);
-            } else if (msg.type === "status") {
+            } else if (msg.type === 'status') {
               handlers?.onStatus?.(msg.text);
-            } else if (msg.type === "reset") {
-              console.log(
-                "♻️ Tentativa falhou com RECITATION. Reiniciando buffer...",
-              );
-              answerText = "";
+            } else if (msg.type === 'reset') {
+              console.log('♻️ Tentativa falhou com RECITATION. Reiniciando buffer...');
+              answerText = '';
               if (handlers?.onReset) {
                 try {
                   handlers.onReset();
                 } catch (err) {
-                  console.error("Error in onReset handler:", err);
+                  console.error('Error in onReset handler:', err);
                 }
               }
-              handlers?.onStatus?.(
-                "Recitation detectado. Tentando novamente...",
-              );
+              handlers?.onStatus?.('Recitation detectado. Tentando novamente...');
             }
           } catch (e) {
-            if (e.message === "RECITATION_ERROR") throw e;
-            if (e.message === "RATE_LIMIT_ERROR") throw e;
-            if (e.message === "REPETITION_DEGENERATION_ERROR") throw e;
-            if (e.message?.startsWith("WORKER_RUN_FAILED")) throw e;
-            console.warn("Erro ao parsear chunk do worker:", line, e);
+            if (e.message === 'RECITATION_ERROR') throw e;
+            if (e.message === 'RATE_LIMIT_ERROR') throw e;
+            if (e.message === 'REPETITION_DEGENERATION_ERROR') throw e;
+            if (e.message?.startsWith('WORKER_RUN_FAILED')) throw e;
+            console.warn('Erro ao parsear chunk do worker:', line, e);
           }
         }
       }
@@ -930,13 +902,13 @@ export async function gerarConteudoEmJSONComImagemStream(
       if (buffer.trim()) {
         try {
           const msg = JSON.parse(buffer);
-          if (msg.type === "answer") answerText += msg.text;
+          if (msg.type === 'answer') answerText += msg.text;
         } catch (e) {}
       }
 
       // Apenas garantimos que não está vazio antes de parsear
       if (!answerText || !answerText.trim()) {
-        throw new Error("EMPTY_RESPONSE_ERROR");
+        throw new Error('EMPTY_RESPONSE_ERROR');
       }
 
       console.log(answerText);
@@ -947,44 +919,37 @@ export async function gerarConteudoEmJSONComImagemStream(
         const parsed = JSON.parse(cleanedAnswer);
         if (isStructureEmpty(parsed)) {
           console.warn(
-            "[Worker] Resposta retornou estrutura vazia (content: []). Forçando retry...",
+            '[Worker] Resposta retornou estrutura vazia (content: []). Forçando retry...',
           );
-          throw new Error("EMPTY_STRUCTURE_ERROR");
+          throw new Error('EMPTY_STRUCTURE_ERROR');
         }
         return parsed;
       } catch (pe) {
-        if (pe.message === "EMPTY_STRUCTURE_ERROR") throw pe;
+        if (pe.message === 'EMPTY_STRUCTURE_ERROR') throw pe;
         if (schema) {
-          console.warn(
-            "[Worker] Resposta não é JSON perfeito. Tentando recuperar...",
-          );
+          console.warn('[Worker] Resposta não é JSON perfeito. Tentando recuperar...');
           const parsedRecovered = parseStreamedJSON(cleanedAnswer);
-          if (parsedRecovered && typeof parsedRecovered === "object") {
+          if (parsedRecovered && typeof parsedRecovered === 'object') {
             if (isStructureEmpty(parsedRecovered)) {
               console.warn(
-                "[Worker] JSON recuperado também retornou estrutura vazia. Forçando retry...",
+                '[Worker] JSON recuperado também retornou estrutura vazia. Forçando retry...',
               );
-              throw new Error("EMPTY_STRUCTURE_ERROR");
+              throw new Error('EMPTY_STRUCTURE_ERROR');
             }
-            console.log(
-              "[Worker] JSON recuperado com sucesso via best-effort!",
-            );
+            console.log('[Worker] JSON recuperado com sucesso via best-effort!');
             return parsedRecovered;
           }
-          throw new Error("INVALID_JSON_STRUCTURE");
+          throw new Error('INVALID_JSON_STRUCTURE');
         }
-        console.log(
-          "[Worker] Resposta não é JSON válido. Retornando texto bruto.",
-          pe.message,
-        );
+        console.log('[Worker] Resposta não é JSON válido. Retornando texto bruto.', pe.message);
         return answerText;
       }
     } catch (error) {
-      if (error.name === "AbortError") throw error;
-      if (error.message === "RECITATION_ERROR") throw error;
-      if (error.message === "RATE_LIMIT_ERROR") throw error;
+      if (error.name === 'AbortError') throw error;
+      if (error.message === 'RECITATION_ERROR') throw error;
+      if (error.message === 'RATE_LIMIT_ERROR') throw error;
 
-      if (error.message === "EMPTY_STRUCTURE_ERROR") {
+      if (error.message === 'EMPTY_STRUCTURE_ERROR') {
         if (emptyStructureAttempts < MAX_EMPTY_STRUCTURE_RETRIES) {
           emptyStructureAttempts++;
           attempt--; // Mantém a tentativa principal para dar até 3 retries de estrutura vazia
@@ -995,7 +960,7 @@ export async function gerarConteudoEmJSONComImagemStream(
             try {
               handlers.onReset();
             } catch (err) {
-              console.error("Error in onReset handler:", err);
+              console.error('Error in onReset handler:', err);
             }
           }
           handlers?.onStatus?.(
@@ -1007,47 +972,44 @@ export async function gerarConteudoEmJSONComImagemStream(
           console.error(
             `[Worker] Estrutura vazia persistiu após ${MAX_EMPTY_STRUCTURE_RETRIES} tentativas de retry.`,
           );
-          throw new Error("EMPTY_STRUCTURE_LIMIT_EXCEEDED");
+          throw new Error('EMPTY_STRUCTURE_LIMIT_EXCEEDED');
         }
       }
 
-      if (error.message === "REPETITION_DEGENERATION_ERROR") {
+      if (error.message === 'REPETITION_DEGENERATION_ERROR') {
         if (repetitionAttempts < MAX_REPETITION_RETRIES) {
           repetitionAttempts++;
           attempt--; // Keep attempt count the same so we retry
           console.warn(
-            `[Worker] Loop de repetição detectado! Tentando novamente (Tentativa de repetição ${repetitionAttempts}/${MAX_REPETITION_RETRIES})...`
+            `[Worker] Loop de repetição detectado! Tentando novamente (Tentativa de repetição ${repetitionAttempts}/${MAX_REPETITION_RETRIES})...`,
           );
           if (handlers?.onReset) {
             try {
               handlers.onReset();
             } catch (err) {
-              console.error("Error in onReset handler:", err);
+              console.error('Error in onReset handler:', err);
             }
           }
-          handlers?.onStatus?.(
-            "Loop de repetição detectado. Reiniciando geração..."
-          );
+          handlers?.onStatus?.('Loop de repetição detectado. Reiniciando geração...');
           // Wait briefly before retrying
           await new Promise((r) => setTimeout(r, 1000));
           continue;
         } else {
           console.error(
-            `[Worker] Loop de repetição detectado, mas limite de tentativas extras (${MAX_REPETITION_RETRIES}) foi atingido.`
+            `[Worker] Loop de repetição detectado, mas limite de tentativas extras (${MAX_REPETITION_RETRIES}) foi atingido.`,
           );
-          throw new Error("REPETITION_DEGENERATION_LIMIT_EXCEEDED");
+          throw new Error('REPETITION_DEGENERATION_LIMIT_EXCEEDED');
         }
       }
 
       // Classifica se o erro é temporário/elegível para nova tentativa (incluindo falha de modelo e rede)
       const isRetryable =
-        error.message === "EMPTY_RESPONSE_ERROR" ||
-        error.message === "EMPTY_STRUCTURE_ERROR" ||
-        error.message === "INVALID_JSON_STRUCTURE" ||
-        error.message.startsWith("WORKER_RUN_FAILED") ||
-        (error.name === "TypeError" &&
-          error.message.includes("Failed to fetch")) ||
-        error.message === "NETWORK_ERROR";
+        error.message === 'EMPTY_RESPONSE_ERROR' ||
+        error.message === 'EMPTY_STRUCTURE_ERROR' ||
+        error.message === 'INVALID_JSON_STRUCTURE' ||
+        error.message.startsWith('WORKER_RUN_FAILED') ||
+        (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+        error.message === 'NETWORK_ERROR';
 
       if (isRetryable) {
         if (attempt < MAX_RETRIES) {
@@ -1061,19 +1023,18 @@ export async function gerarConteudoEmJSONComImagemStream(
       }
 
       // Se esgotou as tentativas ou o erro não é elegível para retry
-      if (error.message === "EMPTY_RESPONSE_ERROR") throw error;
+      if (error.message === 'EMPTY_RESPONSE_ERROR') throw error;
 
       // Detecção de erro de rede
       if (
         !navigator.onLine ||
-        (error.name === "TypeError" &&
-          error.message.includes("Failed to fetch")) ||
-        error.message === "NETWORK_ERROR"
+        (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+        error.message === 'NETWORK_ERROR'
       ) {
-        throw new Error("NETWORK_ERROR");
+        throw new Error('NETWORK_ERROR');
       }
 
-      console.error("Erro no Worker stream:", error);
+      console.error('Erro no Worker stream:', error);
       throw new Error(`Falha no Worker: ${error.message}`);
     }
   }
@@ -1081,7 +1042,7 @@ export async function gerarConteudoEmJSONComImagemStream(
 
 export async function gerarEmbedding(texto) {
   // console.log("Chamando Embedding no Worker...");
-  return await callWorker("/embed", { texto });
+  return await callWorker('/embed', { texto });
 }
 
 /**
@@ -1091,10 +1052,10 @@ export async function gerarEmbedding(texto) {
  */
 export async function uploadImagemWorker(imageBase64) {
   try {
-    const result = await callWorker("/upload-image", { image: imageBase64 });
+    const result = await callWorker('/upload-image', { image: imageBase64 });
     return result.success ? result.data.url : null;
   } catch (error) {
-    console.error("Erro no upload de imagem via Worker:", error);
+    console.error('Erro no upload de imagem via Worker:', error);
     return null;
   }
 }
@@ -1106,12 +1067,8 @@ export async function uploadImagemWorker(imageBase64) {
  * @param {string} target - 'default' (main/deep-search) ou 'filter' (maia-filter)
  * @returns {Promise<any>}
  */
-export async function upsertPineconeWorker(
-  vectors,
-  namespace = "",
-  target = "default",
-) {
-  return await callWorker("/pinecone-upsert", { vectors, namespace, target });
+export async function upsertPineconeWorker(vectors, namespace = '', target = 'default') {
+  return await callWorker('/pinecone-upsert', { vectors, namespace, target });
 }
 
 /**
@@ -1119,8 +1076,8 @@ export async function upsertPineconeWorker(
  * @param {string} target - 'default', 'filter' ou 'maia-memory'
  * @returns {Promise<any>}
  */
-export async function clearAllPineconeVectors(target = "default") {
-  return await callWorker("/pinecone-clear-all", { target });
+export async function clearAllPineconeVectors(target = 'default') {
+  return await callWorker('/pinecone-clear-all', { target });
 }
 
 /**
@@ -1129,8 +1086,8 @@ export async function clearAllPineconeVectors(target = "default") {
  * @param {string} target - Alvo do index ('default' = questões, 'filter', 'maia-memory')
  * @returns {Promise<any>}
  */
-export async function deletePineconeRecordWorker(slug, target = "default") {
-  return await callWorker("/delete-pinecone-record", { slug, target });
+export async function deletePineconeRecordWorker(slug, target = 'default') {
+  return await callWorker('/delete-pinecone-record', { slug, target });
 }
 
 /**
@@ -1146,10 +1103,10 @@ export async function queryPineconeWorker(
   vector,
   topK = 1,
   filter = {},
-  target = "default",
-  namespace = "",
+  target = 'default',
+  namespace = '',
 ) {
-  return await callWorker("/pinecone-query", {
+  return await callWorker('/pinecone-query', {
     vector,
     topK,
     filter,
@@ -1166,10 +1123,7 @@ function resolveOriginalSourceUrl(uri, title) {
   if (!uri) return null;
   try {
     // Se o título já for uma URL, é a fonte mais direta
-    if (
-      title &&
-      (title.startsWith("http://") || title.startsWith("https://"))
-    ) {
+    if (title && (title.startsWith('http://') || title.startsWith('https://'))) {
       return title;
     }
 
@@ -1177,29 +1131,27 @@ function resolveOriginalSourceUrl(uri, title) {
 
     // 1. Tratamento para Google Search Proxy
     if (
-      url.hostname.includes("google.com") &&
-      (url.pathname.includes("/url") || url.pathname.includes("/search"))
+      url.hostname.includes('google.com') &&
+      (url.pathname.includes('/url') || url.pathname.includes('/search'))
     ) {
-      const target = url.searchParams.get("url") || url.searchParams.get("q");
-      if (target && target.startsWith("http")) return target;
+      const target = url.searchParams.get('url') || url.searchParams.get('q');
+      if (target && target.startsWith('http')) return target;
     }
 
     // 2. Tratamento para Vertex AI Search
     if (
-      url.hostname.includes("vertexaisearch.googleapis.com") ||
-      url.hostname.includes("vertexaisearch.cloud.google.com")
+      url.hostname.includes('vertexaisearch.googleapis.com') ||
+      url.hostname.includes('vertexaisearch.cloud.google.com')
     ) {
       const target =
-        url.searchParams.get("url") ||
-        url.searchParams.get("link") ||
-        url.searchParams.get("uri");
-      if (target && target.startsWith("http")) return target;
+        url.searchParams.get('url') || url.searchParams.get('link') || url.searchParams.get('uri');
+      if (target && target.startsWith('http')) return target;
     }
 
     return uri;
   } catch (e) {
     // Se falhar o parse do URL, retorna original ou tenta regex simples se for Vertex
-    if (uri.includes("url=http")) {
+    if (uri.includes('url=http')) {
       const match = uri.match(/url=(https?%3A%2F%2F[^&]+)/);
       if (match) return decodeURIComponent(match[1]);
     }
@@ -1215,7 +1167,7 @@ const urlResolutionCache = new Map();
  * Útil para limpar links de redirecionamento do Google Search Grounding.
  */
 export async function resolveLinkOnDemand(uri) {
-  if (!uri || !uri.startsWith("http")) return uri;
+  if (!uri || !uri.startsWith('http')) return uri;
 
   // 1. Tenta limpeza local rápida primeiro
   const fastResolve = resolveOriginalSourceUrl(uri);
@@ -1223,8 +1175,7 @@ export async function resolveLinkOnDemand(uri) {
 
   // 2. Verifica se o domínio é um alvo que precisa de resolução remota
   const needsRemote =
-    uri.includes("vertexaisearch.cloud.google.com") ||
-    uri.includes("google.com/url");
+    uri.includes('vertexaisearch.cloud.google.com') || uri.includes('google.com/url');
 
   if (!needsRemote) return uri;
 
@@ -1233,9 +1184,9 @@ export async function resolveLinkOnDemand(uri) {
 
   try {
     const workerUrl =
-      typeof import.meta !== "undefined" && import.meta.env?.VITE_WORKER_URL
+      typeof import.meta !== 'undefined' && import.meta.env?.VITE_WORKER_URL
         ? import.meta.env.VITE_WORKER_URL
-        : "https://maia-api.touchrefletz.workers.dev";
+        : 'https://maia-api.touchrefletz.workers.dev';
 
     const apiUrl = `${workerUrl}/resolve-link?url=${encodeURIComponent(uri)}`;
     const res = await fetch(apiUrl);
@@ -1248,7 +1199,7 @@ export async function resolveLinkOnDemand(uri) {
       }
     }
   } catch (e) {
-    console.warn("[Worker API] Erro ao resolver link:", e);
+    console.warn('[Worker API] Erro ao resolver link:', e);
   }
 
   return uri;
@@ -1266,14 +1217,14 @@ export async function realizarPesquisa(
   schema = null,
   model = null,
 ) {
-  const isPuter = model && model.startsWith("puter/");
+  const isPuter = model && model.startsWith('puter/');
   if (isPuter) {
     try {
       const reportText = await chamarPuterAI(
         texto,
         schema,
         listaImagensBase64,
-        "image/jpeg",
+        'image/jpeg',
         handlers,
         {
           model: model,
@@ -1298,45 +1249,44 @@ export async function realizarPesquisa(
         rawMetadata: null,
       };
     } catch (error) {
-      console.error("[Puter Search] Erro:", error);
+      console.error('[Puter Search] Erro:', error);
       throw error;
     }
   }
 
-  handlers?.onStatus?.("Conectando ao Researcher...");
+  handlers?.onStatus?.('Conectando ao Researcher...');
 
-  const isVertexModel = !model || model.startsWith("vertex/") || model.startsWith("vertex-maas/");
+  const isVertexModel = !model || model.startsWith('vertex/') || model.startsWith('vertex-maas/');
 
   try {
     const response = await fetch(`${WORKER_URL}/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       signal: handlers?.signal,
       body: JSON.stringify({
         apiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
             : undefined,
         githubApiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GITHUB_PAT_KEY") ||
-              sessionStorage.getItem("githubApiKey")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
             : undefined,
         groqApiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GROQ_API_KEY")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GROQ_API_KEY')
             : undefined,
         vertexProjectId:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_PROJECT_ID')
             : undefined,
         vertexLocation:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_LOCATION")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_LOCATION')
             : undefined,
         vertexCredentials:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_CREDENTIALS')
             : undefined,
         texto,
         listaImagensBase64,
@@ -1350,13 +1300,13 @@ export async function realizarPesquisa(
       throw new Error(err.error || `Erro HTTP ${response.status}`);
     }
 
-    if (!response.body) throw new Error("Resposta sem corpo (stream)");
+    if (!response.body) throw new Error('Resposta sem corpo (stream)');
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
 
-    let reportText = "";
+    let reportText = '';
     let groundingMetadata = null;
 
     while (true) {
@@ -1364,8 +1314,8 @@ export async function realizarPesquisa(
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      let parts = buffer.split("\n");
-      buffer = parts.pop() || "";
+      const parts = buffer.split('\n');
+      buffer = parts.pop() || '';
 
       for (const line of parts) {
         if (!line.trim()) continue;
@@ -1373,48 +1323,43 @@ export async function realizarPesquisa(
           const msg = JSON.parse(line);
           console.log(msg);
 
-          if (msg.type === "meta" && msg.event === "attempt_start") {
-            const vertexSuffix = msg.vertex ? " (Vertex AI)" : "";
+          if (msg.type === 'meta' && msg.event === 'attempt_start') {
+            const vertexSuffix = msg.vertex ? ' (Vertex AI)' : '';
             handlers?.onStatus?.(`🤖 Modelo: ${msg.model}${vertexSuffix}`);
           }
 
-          if (msg.type === "thought") {
+          if (msg.type === 'thought') {
             handlers?.onThought?.(msg.text);
-          } else if (msg.type === "answer") {
+          } else if (msg.type === 'answer') {
             // No caso do Search, 'answer' é o texto do relatório
             reportText += msg.text;
-            handlers?.onStatus?.("🔎 Pesquisando e compilando relatório...");
-          } else if (msg.type === "grounding") {
+            handlers?.onStatus?.('🔎 Pesquisando e compilando relatório...');
+          } else if (msg.type === 'grounding') {
             groundingMetadata = msg.metadata;
-          } else if (msg.type === "error") {
-            throw new Error(msg.message || "Erro no worker de pesquisa");
-          } else if (msg.type === "reset") {
+          } else if (msg.type === 'error') {
+            throw new Error(msg.message || 'Erro no worker de pesquisa');
+          } else if (msg.type === 'reset') {
             // Limpa relatório se houver reset (recitation)
-            reportText = "";
+            reportText = '';
             if (handlers?.onReset) {
               try {
                 handlers.onReset();
               } catch (err) {
-                console.error("Error in onReset handler:", err);
+                console.error('Error in onReset handler:', err);
               }
             }
-            handlers?.onStatus?.(
-              "Recitation detectado na pesquisa. Tentando novo modelo...",
-            );
+            handlers?.onStatus?.('Recitation detectado na pesquisa. Tentando novo modelo...');
           }
         } catch (e) {
-          console.warn("Erro parse stream pesquisa:", e);
+          console.warn('Erro parse stream pesquisa:', e);
         }
       }
     }
 
     // Processa metadados
-    console.log("DEBUG: Raw Grounding Metadata:", groundingMetadata);
+    console.log('DEBUG: Raw Grounding Metadata:', groundingMetadata);
 
-    const chunks =
-      groundingMetadata?.groundingChunks ||
-      groundingMetadata?.grounding_chunks ||
-      [];
+    const chunks = groundingMetadata?.groundingChunks || groundingMetadata?.grounding_chunks || [];
 
     const sources = chunks
       .map((c) => {
@@ -1434,13 +1379,12 @@ export async function realizarPesquisa(
   } catch (error) {
     if (
       !navigator.onLine ||
-      (error.name === "TypeError" &&
-        error.message.includes("Failed to fetch")) ||
-      error.message === "NETWORK_ERROR"
+      (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+      error.message === 'NETWORK_ERROR'
     ) {
-      throw new Error("NETWORK_ERROR");
+      throw new Error('NETWORK_ERROR');
     }
-    console.error("Erro na pesquisa streaming:", error);
+    console.error('Erro na pesquisa streaming:', error);
     throw error;
   }
 }
@@ -1456,16 +1400,15 @@ export async function realizarPesquisaGeral(
   handlers = {},
   schema = null,
 ) {
-  const model =
-    typeof window !== "undefined" ? window.selectedModelSearch : null;
-  const isPuter = model && model.startsWith("puter/");
+  const model = typeof window !== 'undefined' ? window.selectedModelSearch : null;
+  const isPuter = model && model.startsWith('puter/');
   if (isPuter) {
     try {
       const reportText = await chamarPuterAI(
         texto,
         schema,
         listaImagensBase64,
-        "image/jpeg",
+        'image/jpeg',
         handlers,
         {
           model: model,
@@ -1490,45 +1433,44 @@ export async function realizarPesquisaGeral(
         rawMetadata: null,
       };
     } catch (error) {
-      console.error("[Puter Search] Erro:", error);
+      console.error('[Puter Search] Erro:', error);
       throw error;
     }
   }
 
-  handlers?.onStatus?.("Conectando ao sistema de pesquisa profunda...");
+  handlers?.onStatus?.('Conectando ao sistema de pesquisa profunda...');
 
-  const isVertexModel = !model || model.startsWith("vertex/") || model.startsWith("vertex-maas/");
+  const isVertexModel = !model || model.startsWith('vertex/') || model.startsWith('vertex-maas/');
 
   try {
     const response = await fetch(`${WORKER_URL}/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       signal: handlers?.signal,
       body: JSON.stringify({
         apiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
             : undefined,
         githubApiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GITHUB_PAT_KEY") ||
-              sessionStorage.getItem("githubApiKey")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
             : undefined,
         groqApiKey:
-          typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("GROQ_API_KEY")
+          typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GROQ_API_KEY')
             : undefined,
         vertexProjectId:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_PROJECT_ID")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_PROJECT_ID')
             : undefined,
         vertexLocation:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_LOCATION")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_LOCATION')
             : undefined,
         vertexCredentials:
-          isVertexModel && typeof sessionStorage !== "undefined"
-            ? sessionStorage.getItem("VERTEX_CREDENTIALS")
+          isVertexModel && typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_CREDENTIALS')
             : undefined,
         texto,
         listaImagensBase64,
@@ -1541,13 +1483,13 @@ export async function realizarPesquisaGeral(
       throw new Error(err.error || `Erro HTTP ${response.status}`);
     }
 
-    if (!response.body) throw new Error("Resposta sem corpo (stream)");
+    if (!response.body) throw new Error('Resposta sem corpo (stream)');
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
 
-    let reportText = "";
+    let reportText = '';
     let groundingMetadata = null;
 
     while (true) {
@@ -1555,45 +1497,40 @@ export async function realizarPesquisaGeral(
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      let parts = buffer.split("\n");
-      buffer = parts.pop() || "";
+      const parts = buffer.split('\n');
+      buffer = parts.pop() || '';
 
       for (const line of parts) {
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
 
-          if (msg.type === "thought") {
+          if (msg.type === 'thought') {
             handlers?.onThought?.(msg.text);
-          } else if (msg.type === "answer") {
+          } else if (msg.type === 'answer') {
             reportText += msg.text;
-          } else if (msg.type === "grounding") {
+          } else if (msg.type === 'grounding') {
             groundingMetadata = msg.metadata;
-          } else if (msg.type === "error") {
-            throw new Error(msg.message || "Erro no worker de pesquisa");
-          } else if (msg.type === "reset") {
-            reportText = "";
+          } else if (msg.type === 'error') {
+            throw new Error(msg.message || 'Erro no worker de pesquisa');
+          } else if (msg.type === 'reset') {
+            reportText = '';
             if (handlers?.onReset) {
               try {
                 handlers.onReset();
               } catch (err) {
-                console.error("Error in onReset handler:", err);
+                console.error('Error in onReset handler:', err);
               }
             }
-            handlers?.onStatus?.(
-              "Recitation detectado na pesquisa. Tentando novo modelo...",
-            );
+            handlers?.onStatus?.('Recitation detectado na pesquisa. Tentando novo modelo...');
           }
         } catch (e) {
-          console.warn("Erro parse stream pesquisa:", e);
+          console.warn('Erro parse stream pesquisa:', e);
         }
       }
     }
 
-    const chunks =
-      groundingMetadata?.groundingChunks ||
-      groundingMetadata?.grounding_chunks ||
-      [];
+    const chunks = groundingMetadata?.groundingChunks || groundingMetadata?.grounding_chunks || [];
     const sources = chunks
       .map((c) => {
         if (!c.web) return null;
@@ -1612,13 +1549,12 @@ export async function realizarPesquisaGeral(
   } catch (error) {
     if (
       !navigator.onLine ||
-      (error.name === "TypeError" &&
-        error.message.includes("Failed to fetch")) ||
-      error.message === "NETWORK_ERROR"
+      (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+      error.message === 'NETWORK_ERROR'
     ) {
-      throw new Error("NETWORK_ERROR");
+      throw new Error('NETWORK_ERROR');
     }
-    console.error("Erro na pesquisa profunda:", error);
+    console.error('Erro na pesquisa profunda:', error);
     throw error;
   }
 }
@@ -1653,23 +1589,19 @@ export async function gerarGabaritoComPesquisa(
   mimeType,
   handlers,
   imagensPesquisa = [], // Argumento opcional para imagens limpas/originais
-  textoQuestao = "", // Contexto específico da questão (JSON/Texto) para a pesquisa
+  textoQuestao = '', // Contexto específico da questão (JSON/Texto) para a pesquisa
   options = {},
 ) {
   // 1. Etapa de Pesquisa
-  handlers?.onStatus?.(
-    "🕵️ Analisando imagem e pesquisando resoluções (Step 1/2)...",
-  );
+  handlers?.onStatus?.('🕵️ Analisando imagem e pesquisando resoluções (Step 1/2)...');
 
-  let relatorioPesquisa = "";
+  let relatorioPesquisa = '';
   let fontesEncontradas = [];
 
   // Decide quais imagens usar na pesquisa:
   // Se tiver imagens de pesquisa específicas (limpas), usa elas. Senão, usa as da lista (carimbadas/misturadas).
   const imagensParaBusca =
-    imagensPesquisa && imagensPesquisa.length > 0
-      ? imagensPesquisa
-      : listaImagens;
+    imagensPesquisa && imagensPesquisa.length > 0 ? imagensPesquisa : listaImagens;
 
   try {
     // Adiciona o contexto da questão (SE FORNECIDO) ao prompt do pesquisador
@@ -1696,22 +1628,15 @@ export async function gerarGabaritoComPesquisa(
     relatorioPesquisa = searchResult.report;
     fontesEncontradas = searchResult.sources || [];
 
-    console.log("DEBUG: Relatório Pesquisa:", relatorioPesquisa);
-    console.log("DEBUG: Fontes Encontradas:", fontesEncontradas);
+    console.log('DEBUG: Relatório Pesquisa:', relatorioPesquisa);
+    console.log('DEBUG: Fontes Encontradas:', fontesEncontradas);
   } catch (err) {
-    console.warn(
-      "Falha na etapa de pesquisa (prosseguindo sem contexto extra):",
-      err,
-    );
-    handlers?.onStatus?.(
-      "⚠️ Pesquisa falhou, gerando com conhecimento interno...",
-    );
+    console.warn('Falha na etapa de pesquisa (prosseguindo sem contexto extra):', err);
+    handlers?.onStatus?.('⚠️ Pesquisa falhou, gerando com conhecimento interno...');
   }
 
   // 2. Etapa de Geração Final
-  handlers?.onStatus?.(
-    "✍️ Escrevendo gabarito detalhado com base na pesquisa (Step 2/2)...",
-  );
+  handlers?.onStatus?.('✍️ Escrevendo gabarito detalhado com base na pesquisa (Step 2/2)...');
 
   // Enriquece o prompt original com o relatório
   // Enriquece o prompt original com o relatório
@@ -1742,7 +1667,7 @@ export async function gerarGabaritoComPesquisa(
     jsonFinal.texto_referencia = relatorioPesquisa; // Para renderizar na UI por demanda
   }
 
-  console.log("DEBUG: JSON FINAL GABARITO:", jsonFinal);
+  console.log('DEBUG: JSON FINAL GABARITO:', jsonFinal);
 
   return jsonFinal;
 }
@@ -1754,14 +1679,10 @@ export async function gerarGabaritoComPesquisa(
  * @returns {string} Mensagem de erro amigável e limpa
  */
 export function formatFriendlyError(errorMessage) {
-  if (!errorMessage) return "Erro desconhecido nos modelos.";
+  if (!errorMessage) return 'Erro desconhecido nos modelos.';
 
   let cleanMsg = errorMessage.trim();
-  const prefixes = [
-    "Falha no Worker:",
-    "WORKER_RUN_FAILED:",
-    "Todos falharam:",
-  ];
+  const prefixes = ['Falha no Worker:', 'WORKER_RUN_FAILED:', 'Todos falharam:'];
 
   let changed = true;
   while (changed) {
@@ -1776,15 +1697,15 @@ export function formatFriendlyError(errorMessage) {
 
   // Helper recursivo para extrair a mensagem de erros JSON aninhados
   const extractFromJson = (obj) => {
-    if (!obj || typeof obj !== "object") return null;
+    if (!obj || typeof obj !== 'object') return null;
     const inner = obj.error || obj;
-    if (!inner || typeof inner !== "object") return null;
+    if (!inner || typeof inner !== 'object') return null;
 
-    let msg = inner.message || inner.error || null;
-    let status = inner.status || null;
-    let code = inner.code || null;
+    const msg = inner.message || inner.error || null;
+    const status = inner.status || null;
+    const code = inner.code || null;
 
-    if (typeof msg === "string") {
+    if (typeof msg === 'string') {
       try {
         const nested = JSON.parse(msg);
         const extracted = extractFromJson(nested);
@@ -1805,7 +1726,7 @@ export function formatFriendlyError(errorMessage) {
     const parsed = JSON.parse(cleanMsg);
     const result = extractFromJson(parsed);
     if (result && result.message) {
-      let suffix = "";
+      let suffix = '';
       if (result.status && result.code) {
         suffix = ` (${result.status} - Código ${result.code})`;
       } else if (result.status) {
@@ -1830,8 +1751,8 @@ async function chamarPuterAIViaFetchMock(url, options) {
 
   // Extract attachments (could be files or base64 images)
   const attachments = bodyObj.files || bodyObj.listaImagensBase64 || [];
-  const mimeType = bodyObj.mimeType || "image/jpeg";
-  const isSearchStage = url.includes("/search");
+  const mimeType = bodyObj.mimeType || 'image/jpeg';
+  const isSearchStage = url.includes('/search');
 
   const encoder = new TextEncoder();
 
@@ -1843,36 +1764,33 @@ async function chamarPuterAIViaFetchMock(url, options) {
         // 1. Runtime authentication check (failure when not signed in)
         if (!puter.auth.isSignedIn()) {
           const msg =
-            "Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.";
+            'Você precisa estar autenticado no Puter para continuar. Por favor, acesse o modal de modelos para fazer login.';
           alert(msg);
-          const errPayload = { type: "error", message: msg };
-          controller.enqueue(encoder.encode(JSON.stringify(errPayload) + "\n"));
+          const errPayload = { type: 'error', message: msg };
+          controller.enqueue(encoder.encode(JSON.stringify(errPayload) + '\n'));
           controller.close();
-          throw new Error("PUTER_NOT_AUTHENTICATED: " + msg);
+          throw new Error('PUTER_NOT_AUTHENTICATED: ' + msg);
         }
 
         // Notify attempt start
         const attemptPayload = {
-          type: "meta",
-          event: "attempt_start",
+          type: 'meta',
+          event: 'attempt_start',
           model: puterModel,
         };
-        controller.enqueue(
-          encoder.encode(JSON.stringify(attemptPayload) + "\n"),
-        );
+        controller.enqueue(encoder.encode(JSON.stringify(attemptPayload) + '\n'));
 
-        const modelName = puterModel.replace("puter/", "");
-        const isOpenAI =
-          modelName.startsWith("openai/") || modelName.includes("gpt");
+        const modelName = puterModel.replace('puter/', '');
+        const isOpenAI = modelName.startsWith('openai/') || modelName.includes('gpt');
 
         const puterOptions = { model: modelName };
         if (isOpenAI && isSearchStage) {
-          puterOptions.tools = [{ type: "web_search" }];
+          puterOptions.tools = [{ type: 'web_search' }];
         }
 
         // Processar anexos (identificar textos, imagens e arquivos binários)
-        let textWithFiles = "";
-        let filesToUpload = [];
+        let textWithFiles = '';
+        const filesToUpload = [];
         let userContent = texto;
 
         if (attachments && attachments.length > 0) {
@@ -1882,13 +1800,13 @@ async function chamarPuterAIViaFetchMock(url, options) {
           for (let i = 0; i < attachments.length; i++) {
             const att = attachments[i];
             let fileMime = mimeType;
-            let fileData = "";
+            let fileData = '';
             let name = `arquivo_${i}`;
 
-            if (typeof att === "string") {
+            if (typeof att === 'string') {
               fileMime = mimeType;
               fileData = att;
-            } else if (att && typeof att === "object" && att.data) {
+            } else if (att && typeof att === 'object' && att.data) {
               fileMime = att.mimeType || mimeType;
               fileData = att.data;
               name = att.name || `arquivo_${i}`;
@@ -1897,9 +1815,9 @@ async function chamarPuterAIViaFetchMock(url, options) {
             if (isTextMimeType(fileMime)) {
               const decodedText = decodeBase64ToUtf8(fileData);
               textWithFiles += `\n\n=== CONTEÚDO DO ARQUIVO ANEXADO [${name}] ===\n${decodedText}\n=============================================\n`;
-            } else if (fileMime.startsWith("image/") && fileData) {
+            } else if (fileMime.startsWith('image/') && fileData) {
               parts.push({
-                type: "image_url",
+                type: 'image_url',
                 image_url: { url: `data:${fileMime};base64,${fileData}` },
               });
               hasImages = true;
@@ -1914,7 +1832,7 @@ async function chamarPuterAIViaFetchMock(url, options) {
           }
 
           if (hasImages) {
-            parts.unshift({ type: "text", text: texto });
+            parts.unshift({ type: 'text', text: texto });
             userContent = parts;
           } else {
             userContent = texto;
@@ -1926,21 +1844,24 @@ async function chamarPuterAIViaFetchMock(url, options) {
         }
 
         if (schema) {
-          const token = sessionStorage.getItem("PUTER_API_KEY") || puter.authToken || localStorage.getItem("puter.auth.token");
+          const token =
+            sessionStorage.getItem('PUTER_API_KEY') ||
+            puter.authToken ||
+            localStorage.getItem('puter.auth.token');
           if (!token) {
-            throw new Error("Não foi possível recuperar o token de autenticação do Puter.");
+            throw new Error('Não foi possível recuperar o token de autenticação do Puter.');
           }
 
           const systemPrompt =
-            "Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.";
+            'Você é um assistente especializado em retornar dados estruturados. Responda estritamente usando o formato de esquema JSON fornecido.';
 
           const messages = [
             {
-              role: "system",
+              role: 'system',
               content: systemPrompt,
             },
             {
-              role: "user",
+              role: 'user',
               content: userContent,
             },
           ];
@@ -1950,23 +1871,23 @@ async function chamarPuterAIViaFetchMock(url, options) {
             schema,
           );
 
-          let content = "";
+          let content = '';
           try {
             const response = await fetch(
-              "https://api.puter.com/puterai/openai/v1/chat/completions",
+              'https://api.puter.com/puterai/openai/v1/chat/completions',
               {
-                method: "POST",
+                method: 'POST',
                 headers: {
-                  "Content-Type": "application/json",
+                  'Content-Type': 'application/json',
                   Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   model: modelName,
                   messages,
                   response_format: {
-                    type: "json_schema",
+                    type: 'json_schema',
                     json_schema: {
-                      name: "chat_response",
+                      name: 'chat_response',
                       schema: schema,
                     },
                   },
@@ -1976,31 +1897,33 @@ async function chamarPuterAIViaFetchMock(url, options) {
 
             if (!response.ok) {
               const errorText = await response.text();
-              throw new Error(`Erro na API do Puter (OpenAI format Mock): ${response.status} - ${errorText}`);
+              throw new Error(
+                `Erro na API do Puter (OpenAI format Mock): ${response.status} - ${errorText}`,
+              );
             }
 
             const data = await response.json();
-            console.log("[Puter Fetch Mock API response_format] Resposta recebida:", data);
-            content = data.choices?.[0]?.message?.content || "";
+            console.log('[Puter Fetch Mock API response_format] Resposta recebida:', data);
+            content = data.choices?.[0]?.message?.content || '';
           } catch (err) {
             console.warn(
-              "[Puter Fetch Mock API response_format] Falhou, tentando chamada simples de texto como fallback...",
+              '[Puter Fetch Mock API response_format] Falhou, tentando chamada simples de texto como fallback...',
               err,
             );
 
             const fallbackSystemPrompt =
-              "Você é um assistente especializado em retornar dados estruturados.\n" +
-              "Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n" +
-              "SCHEMA:\n" +
+              'Você é um assistente especializado em retornar dados estruturados.\n' +
+              'Você deve responder APENAS com o objeto JSON correspondente ao seguinte schema, sem blocos de código markdown (como ```json) e sem qualquer texto explicativo.\n\n' +
+              'SCHEMA:\n' +
               JSON.stringify(schema, null, 2);
 
             const fallbackMessages = [
               {
-                role: "system",
+                role: 'system',
                 content: fallbackSystemPrompt,
               },
               {
-                role: "user",
+                role: 'user',
                 content: userContent,
               },
             ];
@@ -2013,63 +1936,49 @@ async function chamarPuterAIViaFetchMock(url, options) {
             delete puterOptionsFallback.tool_choice;
 
             const response = await puter.ai.chat(fallbackMessages, puterOptionsFallback);
-            console.log("[Puter Fetch Mock API Fallback] Resposta recebida:", response);
+            console.log('[Puter Fetch Mock API Fallback] Resposta recebida:', response);
             const message = response?.message;
-            content = message?.content || response?.toString() || "";
+            content = message?.content || response?.toString() || '';
           }
-          
-          const answerPayload = { type: "answer", text: content };
-          controller.enqueue(
-            encoder.encode(JSON.stringify(answerPayload) + "\n"),
-          );
+
+          const answerPayload = { type: 'answer', text: content };
+          controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + '\n'));
         } else {
           puterOptions.stream = true;
-          console.log(
-            `[Puter Fetch Mock Stream] Executando ${modelName} com prompt:`,
-            texto,
-          );
+          console.log(`[Puter Fetch Mock Stream] Executando ${modelName} com prompt:`, texto);
           const responseStream = await puter.ai.chat(texto, puterOptions);
 
-          let reportText = "";
+          let reportText = '';
           for await (const part of responseStream) {
-            const textChunk =
-              typeof part === "string"
-                ? part
-                : part?.text || part?.content || "";
+            const textChunk = typeof part === 'string' ? part : part?.text || part?.content || '';
             reportText += textChunk;
-            const answerPayload = { type: "answer", text: textChunk };
-            controller.enqueue(
-              encoder.encode(JSON.stringify(answerPayload) + "\n"),
-            );
+            const answerPayload = { type: 'answer', text: textChunk };
+            controller.enqueue(encoder.encode(JSON.stringify(answerPayload) + '\n'));
           }
 
           if (isSearchStage) {
             const urlRegex = /https?:\/\/[^\s)\]]+/g;
             const foundUrls = reportText.match(urlRegex) || [];
-            const groundingChunks = Array.from(new Set(foundUrls)).map(
-              (url) => {
-                try {
-                  return {
-                    web: { uri: url, title: new URL(url).hostname || url },
-                  };
-                } catch (e) {
-                  return { web: { uri: url, title: url } };
-                }
-              },
-            );
+            const groundingChunks = Array.from(new Set(foundUrls)).map((url) => {
+              try {
+                return {
+                  web: { uri: url, title: new URL(url).hostname || url },
+                };
+              } catch (e) {
+                return { web: { uri: url, title: url } };
+              }
+            });
             const groundingPayload = {
-              type: "grounding",
+              type: 'grounding',
               metadata: { groundingChunks },
             };
-            controller.enqueue(
-              encoder.encode(JSON.stringify(groundingPayload) + "\n"),
-            );
+            controller.enqueue(encoder.encode(JSON.stringify(groundingPayload) + '\n'));
           }
         }
       } catch (err) {
-        console.error("[Puter Fetch Mock] Erro:", err);
-        const errPayload = { type: "error", message: err.message };
-        controller.enqueue(encoder.encode(JSON.stringify(errPayload) + "\n"));
+        console.error('[Puter Fetch Mock] Erro:', err);
+        const errPayload = { type: 'error', message: err.message };
+        controller.enqueue(encoder.encode(JSON.stringify(errPayload) + '\n'));
       } finally {
         controller.close();
       }
@@ -2078,7 +1987,7 @@ async function chamarPuterAIViaFetchMock(url, options) {
 
   return new Response(stream, {
     status: 200,
-    headers: { "Content-Type": "application/x-ndjson" },
+    headers: { 'Content-Type': 'application/x-ndjson' },
   });
 }
 
@@ -2088,10 +1997,10 @@ window.fetch = async function (url, options) {
   const urlStr = String(url);
   if (
     options &&
-    options.method === "POST" &&
-    (urlStr.includes("/generate") || urlStr.includes("/search")) &&
+    options.method === 'POST' &&
+    (urlStr.includes('/generate') || urlStr.includes('/search')) &&
     options.body &&
-    typeof options.body === "string" &&
+    typeof options.body === 'string' &&
     options.body.includes('"model":"puter/')
   ) {
     return chamarPuterAIViaFetchMock(urlStr, options);

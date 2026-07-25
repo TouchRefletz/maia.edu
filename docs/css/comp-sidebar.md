@@ -1,13 +1,17 @@
-﻿# Componentes - Sidebar/Cropper
+# Estilização da Sidebar e Painel Lateral (`css/comp-sidebar.md`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+Componentes+-+Sidebar/Cropper&labels=docs)
+O `css/comp-sidebar.css` gerencia o visual da barra lateral, abas de navegação e controles do modo Cropper.
 
-## Visao Geral
-Pagina de documentacao para `css/components/sidebar.css + cropper.css`.
+---
 
-## Arquivo: `css/components/sidebar.css + cropper.css`
+## 🎨 Layout e Animações
 
-## Referencias Cruzadas
-- [Cropper Core](/cropper/core)
-- [Arquitetura](/guia/arquitetura)
+- **Estrutura Flexbox**: Distribuição vertical com cabeçalho fixo, corpo rolável (`overflow-y: auto`) e rodapé fixo.
+- **Transição de Deslize**: Transições de largura suaves (`transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)`).
+- **Indicadores de Aba Ativa**: Realce com a cor primária do sistema (`var(--color-primary)`).
 
+---
+
+## 🔗 Referências Cruzadas
+- [Sidebar Tabs UI](/ui/sidebar-tabs)
+- [Design Tokens](/css/design-tokens)

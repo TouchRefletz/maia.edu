@@ -3,8 +3,8 @@ import {
   ref,
   serverTimestamp,
   update,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { db } from "../main.js";
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { db } from '../main.js';
 
 /**
  * Incrementa o contador de aprovação ou rejeição para um campo
@@ -17,7 +17,7 @@ export async function incrementarRevisao(questaoPath, fieldId, tipo) {
   const baseRef = ref(db, `revisoes/${questaoPath}/${fieldId}`);
   const updates = {};
 
-  if (tipo === "aprovar") {
+  if (tipo === 'aprovar') {
     updates[`aprovados`] = increment(1);
   } else {
     updates[`rejeitados`] = increment(1);
@@ -49,17 +49,16 @@ export async function incrementarRevisao(questaoPath, fieldId, tipo) {
  * @param {Record<string, 'approved' | 'rejected'>} reviewState - Estado local das revisões
  */
 export async function enviarTodasRevisoes(questaoPath, reviewState) {
-  const { get } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+  const { get } = await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js');
 
   const updates = {};
   const baseRef = ref(db, `revisoes/${questaoPath}`);
 
   // Monta objecto de updates para os campos individuais
   Object.entries(reviewState).forEach(([fieldId, state]) => {
-    if (state === "approved") {
+    if (state === 'approved') {
       updates[`${fieldId}/aprovados`] = increment(1);
-    } else if (state === "rejected") {
+    } else if (state === 'rejected') {
       updates[`${fieldId}/rejeitados`] = increment(1);
     }
   });
@@ -73,14 +72,12 @@ export async function enviarTodasRevisoes(questaoPath, reviewState) {
   let sessionRejected = 0;
 
   Object.values(reviewState).forEach((state) => {
-    if (state === "approved") sessionApproved++;
-    if (state === "rejected") sessionRejected++;
+    if (state === 'approved') sessionApproved++;
+    if (state === 'rejected') sessionRejected++;
   });
 
-  if (sessionApproved > 0)
-    updates[`_stats_aprovados`] = increment(sessionApproved);
-  if (sessionRejected > 0)
-    updates[`_stats_rejeitados`] = increment(sessionRejected);
+  if (sessionApproved > 0) updates[`_stats_aprovados`] = increment(sessionApproved);
+  if (sessionRejected > 0) updates[`_stats_rejeitados`] = increment(sessionRejected);
 
   // --- CÁLCULO DO STATUS (Lógica: read-modify-write para o status) ---
   try {
@@ -90,13 +87,11 @@ export async function enviarTodasRevisoes(questaoPath, reviewState) {
     const snapshot = await get(baseRef);
     const existingData = snapshot.val() || {};
 
-    const currentApproved =
-      (existingData._stats_aprovados || 0) + sessionApproved;
-    const currentRejected =
-      (existingData._stats_rejeitados || 0) + sessionRejected;
+    const currentApproved = (existingData._stats_aprovados || 0) + sessionApproved;
+    const currentRejected = (existingData._stats_rejeitados || 0) + sessionRejected;
     const totalReviews = currentApproved + currentRejected;
 
-    let newStatus = "não revisada";
+    let newStatus = 'não revisada';
 
     if (totalReviews > 0) {
       const approvalRate = currentApproved / totalReviews;
@@ -104,9 +99,9 @@ export async function enviarTodasRevisoes(questaoPath, reviewState) {
       const isHighVolume = totalReviews >= 1000;
 
       if (isHighVolume) {
-        newStatus = isPositive ? "verificada" : "invalidada";
+        newStatus = isPositive ? 'verificada' : 'invalidada';
       } else {
-        newStatus = isPositive ? "revisada" : "sinalizada";
+        newStatus = isPositive ? 'revisada' : 'sinalizada';
       }
     }
 
@@ -125,15 +120,12 @@ export async function enviarTodasRevisoes(questaoPath, reviewState) {
 
     // Atualiza RELATIVO ao caminho da questão na tabela revisões
     await update(baseRef, updates);
-    console.log("[Revisão] Todas as revisões e status enviados com sucesso!");
+    console.log('[Revisão] Todas as revisões e status enviados com sucesso!');
     return true;
   } catch (error) {
-    console.error("[Revisão] Erro ao enviar revisões:", error);
-    if (error.code === "PERMISSION_DENIED") {
-      console.error(
-        "⛔ PERMISSÃO NEGADA PARA ESCREVA EM:",
-        `revisoes/${questaoPath}`,
-      );
+    console.error('[Revisão] Erro ao enviar revisões:', error);
+    if (error.code === 'PERMISSION_DENIED') {
+      console.error('⛔ PERMISSÃO NEGADA PARA ESCREVA EM:', `revisoes/${questaoPath}`);
     }
     throw error;
   }
@@ -144,8 +136,7 @@ export async function enviarTodasRevisoes(questaoPath, reviewState) {
  * @param {string} questaoPath - Caminho da questão
  */
 export async function buscarRevisoes(questaoPath) {
-  const { get } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+  const { get } = await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js');
 
   try {
     const snapshot = await get(ref(db, `revisoes/${questaoPath}`));
@@ -154,7 +145,7 @@ export async function buscarRevisoes(questaoPath) {
     }
     return null;
   } catch (error) {
-    console.error("[Revisão] Erro ao buscar:", error);
+    console.error('[Revisão] Erro ao buscar:', error);
     return null;
   }
 }
@@ -165,18 +156,18 @@ export async function buscarRevisoes(questaoPath) {
  * @returns {Promise<boolean>}
  */
 export async function verificarJaRevisou(questaoPath) {
-  const { getAuth } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js");
-  const { get, ref } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-  const { app, db } = await import("../main.js");
+  const { getAuth } = await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js');
+  const { get, ref } = await import(
+    'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+  );
+  const { app, db } = await import('../main.js');
 
   const auth = getAuth(app);
   const user = auth.currentUser;
 
   if (!user) {
     console.warn(
-      "[Revisão] Usuário não autenticado. Assumindo que não revisou (ou bloqueando fluxo na UI).",
+      '[Revisão] Usuário não autenticado. Assumindo que não revisou (ou bloqueando fluxo na UI).',
     );
     return false; // Ou true se quiser bloquear por segurança, mas UI deve tratar
   }
@@ -186,7 +177,7 @@ export async function verificarJaRevisou(questaoPath) {
     const snapshot = await get(userRef);
     return snapshot.exists();
   } catch (e) {
-    console.error("[Revisão] Erro ao verificar histórico do usuário:", e);
+    console.error('[Revisão] Erro ao verificar histórico do usuário:', e);
     // Em caso de erro (ex: permission denied), retorna false pra não travar tudo,
     // ou true se formos super restritivos. Vamos retornar false e deixar enviar.
     return false;
@@ -198,11 +189,11 @@ export async function verificarJaRevisou(questaoPath) {
  * @param {string} questaoPath
  */
 export async function registrarRevisaoUsuario(questaoPath) {
-  const { getAuth } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js");
-  const { ref, set, serverTimestamp } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-  const { app, db } = await import("../main.js");
+  const { getAuth } = await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js');
+  const { ref, set, serverTimestamp } = await import(
+    'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+  );
+  const { app, db } = await import('../main.js');
 
   const auth = getAuth(app);
   const user = auth.currentUser;
@@ -215,8 +206,8 @@ export async function registrarRevisaoUsuario(questaoPath) {
       timestamp: serverTimestamp(),
       uid: user.uid,
     });
-    console.log("[Revisão] Usuário registrado com sucesso.");
+    console.log('[Revisão] Usuário registrado com sucesso.');
   } catch (e) {
-    console.error("[Revisão] Erro ao registrar usuário:", e);
+    console.error('[Revisão] Erro ao registrar usuário:', e);
   }
 }

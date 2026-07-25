@@ -1,7 +1,7 @@
 # Relatório Estendido de Validação e Projeção de Dificuldade da IA (N = 125)
  
-**Data da Análise:** 22/07/2026, 14:30:57
-**Número de Amostras:** 125 questões de Linguagens e Códigos (LC) e Ciências Humanas (CH)
+**Data da Análise:** 24/07/2026, 16:42:55
+**Número de Amostras:** 125 questões (Linguagens, Humanas, Natureza, Matemática e Interdisciplinar FUVEST)
 **Scale Normalization:** Apêndice B normalizado linearmente de [5, 25] para [0, 100] via:
 $$\text{Ap. B \%} = \frac{\text{Pontuação} - 5}{20} \times 100$$
  

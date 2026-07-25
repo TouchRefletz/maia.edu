@@ -2,14 +2,14 @@ import { customAlert } from '../../ui/GlobalAlertsLogic.tsx';
 
 // Importa helpers do TSX que retornam strings HTML
 import {
-    generateComplexidadeVisualHtml,
-    generateCreditosTableHtml,
-    generateImgsLimpasHtml,
-    generateListaAlternativasHtml,
-    generatePainelGabaritoHtml,
-    generatePainelQuestaoHtml,
-    generatePassosGabaritoHtml,
-    generateTagsHtml
+  generateComplexidadeVisualHtml,
+  generateCreditosTableHtml,
+  generateImgsLimpasHtml,
+  generateListaAlternativasHtml,
+  generatePainelGabaritoHtml,
+  generatePainelQuestaoHtml,
+  generatePassosGabaritoHtml,
+  generateTagsHtml,
 } from './RenderComponents.tsx';
 
 export const renderImgsLimpas = (lista, titulo) => {
@@ -30,17 +30,14 @@ export function prepararDadosGerais() {
   const g = window.__ultimoGabaritoExtraido;
 
   if (!q || !g) {
-    customAlert(
-      '⚠️ Extração incompleta. Certifique-se de processar Questão e Gabarito.'
-    );
+    customAlert('⚠️ Extração incompleta. Certifique-se de processar Questão e Gabarito.');
     return null;
   }
 
   return {
     q,
     g,
-    tituloMaterial:
-      window.__viewerArgs?.rawTitle || 'Material Não Identificado',
+    tituloMaterial: window.__viewerArgs?.rawTitle || 'Material Não Identificado',
     explicacaoArray: Array.isArray(g.explicacao) ? g.explicacao : [],
     imagensFinais: {
       q_original: window.__imagensLimpas?.questao_original || [],

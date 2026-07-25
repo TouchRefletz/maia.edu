@@ -1,5 +1,5 @@
 // --- AlternativasRender.tsx ---
-import React from 'react';
+import type React from 'react';
 import { AlternativeStructure } from './StructureRender';
 
 interface EstruturaItem {
@@ -22,12 +22,12 @@ interface AlternativasProps {
   onReject?: (fieldId: string) => void;
 }
 
-export const Alternativas: React.FC<AlternativasProps> = ({ 
-  alts, 
-  isReviewMode, 
-  reviewState, 
-  onApprove, 
-  onReject 
+export const Alternativas: React.FC<AlternativasProps> = ({
+  alts,
+  isReviewMode,
+  reviewState,
+  onApprove,
+  onReject,
 }) => {
   if (!alts || alts.length === 0) {
     return <div className="data-box">Sem alternativas</div>;
@@ -49,13 +49,25 @@ export const Alternativas: React.FC<AlternativasProps> = ({
 
         // Modo revisão: envolve com botões
         if (isReviewMode && onApprove && onReject) {
-          const stateClass = altState === 'approved' ? 'block-approved' : altState === 'rejected' ? 'block-rejected' : '';
+          const stateClass =
+            altState === 'approved'
+              ? 'block-approved'
+              : altState === 'rejected'
+                ? 'block-rejected'
+                : '';
 
           return (
-            <div className={`reviewable-block ${stateClass}`} key={`${letra}-${index}`} style={{ marginBottom: '12px' }}>
+            <div
+              className={`reviewable-block ${stateClass}`}
+              key={`${letra}-${index}`}
+              style={{ marginBottom: '12px' }}
+            >
               {/* Header da alternativa com botões */}
               <div className="reviewable-block-header">
-                <span className="reviewable-block-tipo" style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                <span
+                  className="reviewable-block-tipo"
+                  style={{ fontWeight: 'bold', fontSize: '14px' }}
+                >
                   Alternativa {letra}
                 </span>
                 <div className="review-btn-group">
@@ -77,7 +89,7 @@ export const Alternativas: React.FC<AlternativasProps> = ({
                   </button>
                 </div>
               </div>
-              
+
               {/* Conteúdo com blocos individuais */}
               <div className="alt-content" style={{ flex: 1, width: '100%', minWidth: 0 }}>
                 <AlternativeStructure
@@ -98,7 +110,11 @@ export const Alternativas: React.FC<AlternativasProps> = ({
 
         // Modo normal
         return (
-          <div className="alt-row" key={`${letra}-${index}`} style={{ display: 'flex', width: '100%', alignItems: 'flex-start' }}>
+          <div
+            className="alt-row"
+            key={`${letra}-${index}`}
+            style={{ display: 'flex', width: '100%', alignItems: 'flex-start' }}
+          >
             <span className="alt-letter">{letra}</span>
             <div className="alt-content" style={{ flex: 1, width: '100%', minWidth: 0 }}>
               <AlternativeStructure

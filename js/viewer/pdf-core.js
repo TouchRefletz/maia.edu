@@ -1,5 +1,5 @@
-import { viewerState } from "../main.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { viewerState } from '../main.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 // --- CONTROLE DE LAZY LOADING ---
 let observer = null;
@@ -13,28 +13,25 @@ let programmaticScrollTimeout = null;
 function startIntersectionObserver() {
   if (observer) observer.disconnect();
 
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container) return;
 
   const options = {
     root: container,
-    rootMargin: "400px", // Carrega páginas 400px antes de entrarem na tela (Aumentado para smooth scroll)
+    rootMargin: '400px', // Carrega páginas 400px antes de entrarem na tela (Aumentado para smooth scroll)
     threshold: [0, 0.1, 0.5], // Gatilhos mais granulares
   };
 
   observer = new IntersectionObserver(handleIntersection, options);
 
   // Observa todas as páginas já criadas no DOM
-  const pages = document.querySelectorAll(".pdf-page");
+  const pages = document.querySelectorAll('.pdf-page');
   pages.forEach((page) => observer.observe(page));
 }
 
 // NOVO: Import para atualizar overlay ao renderizar
-import { refreshOverlayPosition } from "../cropper/selection-overlay.js";
-import {
-  configurarSidebarMobile,
-  garantirSidebarEBackdrop,
-} from "./sidebar-mobile.js";
+import { refreshOverlayPosition } from '../cropper/selection-overlay.js';
+import { configurarSidebarMobile, garantirSidebarEBackdrop } from './sidebar-mobile.js';
 
 /**
  * Handler do Observer (Debounced + Lock)
@@ -59,25 +56,23 @@ function handleIntersection(entries) {
 
   // CÁLCULO DE PÁGINA DOMINANTE
   // Percorremos todas as páginas visíveis para decidir quem manda.
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container) return;
 
-  const visiblePages = Array.from(document.querySelectorAll(".pdf-page")).map(
-    (page) => {
-      const rect = page.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
+  const visiblePages = Array.from(document.querySelectorAll('.pdf-page')).map((page) => {
+    const rect = page.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
 
-      // Calcula intersecção vertical
-      const intersectionTop = Math.max(rect.top, containerRect.top);
-      const intersectionBottom = Math.min(rect.bottom, containerRect.bottom);
-      const height = Math.max(0, intersectionBottom - intersectionTop);
+    // Calcula intersecção vertical
+    const intersectionTop = Math.max(rect.top, containerRect.top);
+    const intersectionBottom = Math.min(rect.bottom, containerRect.bottom);
+    const height = Math.max(0, intersectionBottom - intersectionTop);
 
-      return {
-        pageNum: parseInt(page.dataset.pageNum),
-        visibleHeight: height,
-      };
-    },
-  );
+    return {
+      pageNum: parseInt(page.dataset.pageNum),
+      visibleHeight: height,
+    };
+  });
 
   // Ordena por maior altura visível
   visiblePages.sort((a, b) => b.visibleHeight - a.visibleHeight);
@@ -91,7 +86,7 @@ function handleIntersection(entries) {
         updateNavigationUI(bestPage.pageNum);
         // Dispara evento para que a sidebar (e outros) saibam que a página dominante mudou
         document.dispatchEvent(
-          new CustomEvent("maia:pagechanged", {
+          new CustomEvent('maia:pagechanged', {
             detail: { pageNum: bestPage.pageNum },
           }),
         );
@@ -101,8 +96,8 @@ function handleIntersection(entries) {
 }
 
 function updateNavigationUI(pageNum) {
-  const pageLabel = document.getElementById("page_num");
-  const pageLabelMobile = document.getElementById("pageNumMobile"); // Mobile Sync
+  const pageLabel = document.getElementById('page_num');
+  const pageLabelMobile = document.getElementById('pageNumMobile'); // Mobile Sync
 
   if (viewerState.pdfDoc) {
     const text = `Pag ${pageNum} / ${viewerState.pdfDoc.numPages}`;
@@ -120,7 +115,7 @@ function updateNavigationUI(pageNum) {
  * Preserva o scroll relativo visualmente.
  */
 export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container || !viewerState.pdfDoc) return;
 
   const numPages = viewerState.pdfDoc.numPages;
@@ -131,9 +126,9 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
   if (container.children.length > 0 && viewerState.pdfScale) {
     const containerCenter = container.scrollTop + container.clientHeight / 2;
     const wrappers = Array.from(container.children).filter((el) =>
-      el.classList.contains("pdf-page"),
+      el.classList.contains('pdf-page'),
     );
-    for (let wrapper of wrappers) {
+    for (const wrapper of wrappers) {
       const top = wrapper.offsetTop;
       const bottom = top + wrapper.offsetHeight;
       if (containerCenter >= top && containerCenter < bottom) {
@@ -161,7 +156,7 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
   // Assume-se que mudarZoom não muda o doc.
 
   // Se o número de páginas mudou (ex: novo doc), aí sim limpamos tudo
-  const currentWrappers = container.querySelectorAll(".pdf-page");
+  const currentWrappers = container.querySelectorAll('.pdf-page');
   if (currentWrappers.length !== numPages) {
     // Reset total se mudou a estrutura do doc
     if (observer) observer.disconnect();
@@ -172,15 +167,15 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
 
     const fragment = document.createDocumentFragment();
     for (let i = 1; i <= numPages; i++) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "pdf-page";
+      const wrapper = document.createElement('div');
+      wrapper.className = 'pdf-page';
       wrapper.id = `page-wrapper-${i}`;
       wrapper.dataset.pageNum = i;
-      wrapper.style.width = cssWidth + "px";
-      wrapper.style.height = cssHeight + "px";
+      wrapper.style.width = cssWidth + 'px';
+      wrapper.style.height = cssHeight + 'px';
 
       // Placeholder inicial
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement('canvas');
       canvas.id = `page-canvas-${i}`;
       // Inicialmente vazio ou loading
 
@@ -188,7 +183,7 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
       fragment.appendChild(wrapper);
     }
 
-    const overlayEl = document.getElementById("selection-overlay");
+    const overlayEl = document.getElementById('selection-overlay');
     if (overlayEl) {
       container.insertBefore(fragment, overlayEl);
     } else {
@@ -205,15 +200,15 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
     if (observer) observer.disconnect();
 
     currentWrappers.forEach((wrapper) => {
-      wrapper.style.width = cssWidth + "px";
-      wrapper.style.height = cssHeight + "px";
+      wrapper.style.width = cssWidth + 'px';
+      wrapper.style.height = cssHeight + 'px';
 
-      const canvas = wrapper.querySelector("canvas");
+      const canvas = wrapper.querySelector('canvas');
       if (canvas) {
         // Truque: manter o canvas.width/height (físico) antigo, mas esticar via CSS
         // O novo render vai ajustar o físico depois.
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
       }
 
       // Invalida cache de render para forçar update visual na qualidade nova
@@ -231,36 +226,28 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
     const currentScrollLeft = container.scrollLeft;
     const currentScrollTop = container.scrollTop;
 
-    const newScrollLeft =
-      (currentScrollLeft + zoomPoint.x) * scaleRatio - zoomPoint.x;
-    const newScrollTop =
-      (currentScrollTop + zoomPoint.y) * scaleRatio - zoomPoint.y;
+    const newScrollLeft = (currentScrollLeft + zoomPoint.x) * scaleRatio - zoomPoint.x;
+    const newScrollTop = (currentScrollTop + zoomPoint.y) * scaleRatio - zoomPoint.y;
 
     container.scrollTo({
       left: newScrollLeft,
       top: newScrollTop,
-      behavior: "auto", // Instantâneo para evitar pulos visuais
+      behavior: 'auto', // Instantâneo para evitar pulos visuais
     });
   } else if (scrollRestoration) {
     // Legacy: Mantém posição relativa da página (útil pra resize de janela ou zoom sem ponto)
     // Como não removemos os elementos, o offsetTop já deve refletir as novas alturas (pois alteramos styles acima)
-    const targetWrapper = document.getElementById(
-      `page-wrapper-${scrollRestoration.pageNum}`,
-    );
+    const targetWrapper = document.getElementById(`page-wrapper-${scrollRestoration.pageNum}`);
     if (targetWrapper) {
       const newTop = targetWrapper.offsetTop;
       const newHeight = targetWrapper.offsetHeight;
       const scrollTarget =
-        newTop +
-        newHeight * scrollRestoration.ratio -
-        container.clientHeight / 2;
-      container.scrollTo({ top: scrollTarget, behavior: "auto" });
+        newTop + newHeight * scrollRestoration.ratio - container.clientHeight / 2;
+      container.scrollTo({ top: scrollTarget, behavior: 'auto' });
     }
   } else {
     // FIX Initial Load
-    const targetWrapper = document.getElementById(
-      `page-wrapper-${viewerState.pageNum}`,
-    );
+    const targetWrapper = document.getElementById(`page-wrapper-${viewerState.pageNum}`);
     if (targetWrapper) {
       container.scrollTop = targetWrapper.offsetTop;
     } else {
@@ -273,19 +260,15 @@ export async function renderAllPages(zoomPoint = null, scaleRatio = 1) {
   refreshOverlayPosition();
 
   // --- 5. UI UPDATES ---
-  const zoomLabel = document.getElementById("zoom_level");
-  if (zoomLabel)
-    zoomLabel.textContent = `${Math.round(viewerState.pdfScale * 100)}%`;
+  const zoomLabel = document.getElementById('zoom_level');
+  if (zoomLabel) zoomLabel.textContent = `${Math.round(viewerState.pdfScale * 100)}%`;
 
-  const zoomLabelMobile = document.getElementById("zoomLevelMobile");
-  if (zoomLabelMobile)
-    zoomLabelMobile.textContent = `${Math.round(viewerState.pdfScale * 100)}%`;
+  const zoomLabelMobile = document.getElementById('zoomLevelMobile');
+  if (zoomLabelMobile) zoomLabelMobile.textContent = `${Math.round(viewerState.pdfScale * 100)}%`;
 
   // Renderiza visíveis
   // Prioridade de render
-  const initialPage = scrollRestoration
-    ? scrollRestoration.pageNum
-    : viewerState.pageNum;
+  const initialPage = scrollRestoration ? scrollRestoration.pageNum : viewerState.pageNum;
   await renderPage(initialPage);
   renderPage(initialPage + 1);
   if (initialPage > 1) renderPage(initialPage - 1);
@@ -303,7 +286,7 @@ export function renderPage(num) {
   if (pagesRenderedState[num] === true) return Promise.resolve();
   // Se estiver 'pending', devíamos esperar? Por simplificação, deixamos sobrescrever.
 
-  pagesRenderedState[num] = "pending";
+  pagesRenderedState[num] = 'pending';
 
   const wrapper = document.getElementById(`page-wrapper-${num}`);
   // Nota: Não buscamos canvas aqui porque ele pode nem existir ou vai ser substituído
@@ -322,17 +305,17 @@ export function renderPage(num) {
 
       // --- DOUBLE BUFFERING ---
       // Cria um canvas novo em memória, desenha nele, e só depois troca.
-      const newCanvas = document.createElement("canvas");
+      const newCanvas = document.createElement('canvas');
       newCanvas.width = viewport.width;
       newCanvas.height = viewport.height;
 
       // Configura CSS do novo canvas para bater com o wrapper
       // wrapper já está com o tamanho certo (definido no zoom)
-      newCanvas.style.width = "100%";
-      newCanvas.style.height = "100%";
+      newCanvas.style.width = '100%';
+      newCanvas.style.height = '100%';
       newCanvas.id = `page-canvas-${num}`; // Mantém ID para referências futuras
 
-      const ctx = newCanvas.getContext("2d");
+      const ctx = newCanvas.getContext('2d');
       const renderContext = {
         canvasContext: ctx,
         viewport: viewport,
@@ -341,14 +324,14 @@ export function renderPage(num) {
       return page.render(renderContext).promise.then(() => {
         // Swap!
         // Remove o canvas antigo existente no wrapper e insere o novo
-        const oldCanvas = wrapper.querySelector("canvas");
+        const oldCanvas = wrapper.querySelector('canvas');
         if (oldCanvas) {
           wrapper.replaceChild(newCanvas, oldCanvas);
         } else {
           wrapper.appendChild(newCanvas);
         }
 
-        wrapper.setAttribute("data-loaded", "true");
+        wrapper.setAttribute('data-loaded', 'true');
         pagesRenderedState[num] = true;
 
         // Se era a página atual, talvez precise retriggerar algo de UI?
@@ -369,34 +352,41 @@ export function renderPage(num) {
  */
 export async function carregarDocumentoPDF(url) {
   // Configuração do Worker (Fix)
-  if (
-    typeof pdfjsLib !== "undefined" &&
-    !pdfjsLib.GlobalWorkerOptions.workerSrc
-  ) {
+  if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 
   try {
-    console.log("PDF-Core: Loading:", url);
+    console.log('PDF-Core: Loading:', url);
     let loadingTask = pdfjsLib.getDocument(url);
     let pdf;
     try {
       pdf = await loadingTask.promise;
     } catch (err) {
-      console.warn("PDF-Core: Direct/Proxy load failed, trying Puter fallback...", err);
+      console.warn('PDF-Core: Direct/Proxy load failed, trying Puter fallback...', err);
       let targetUrl = url;
-      if (url && typeof url === "string" && url.includes("/proxy-pdf?url=")) {
+      if (url && typeof url === 'string' && url.includes('/proxy-pdf?url=')) {
         try {
-          const urlParams = new URLSearchParams(url.split("?")[1]);
-          targetUrl = urlParams.get("url") || url;
+          const urlParams = new URLSearchParams(url.split('?')[1]);
+          targetUrl = urlParams.get('url') || url;
         } catch (e) {}
       } else if (window.__pdfOriginalUrl) {
         targetUrl = window.__pdfOriginalUrl;
       }
 
-      if (targetUrl && targetUrl.startsWith("http") && typeof window !== "undefined" && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
-        console.log("PDF-Core: Fetching via puter.net.fetch:", targetUrl);
+      if (
+        targetUrl &&
+        targetUrl.startsWith('http') &&
+        typeof window !== 'undefined' &&
+        window.puter &&
+        window.puter.auth &&
+        typeof window.puter.auth.isSignedIn === 'function' &&
+        window.puter.auth.isSignedIn() &&
+        window.puter.net &&
+        window.puter.net.fetch
+      ) {
+        console.log('PDF-Core: Fetching via puter.net.fetch:', targetUrl);
         const res = await window.puter.net.fetch(targetUrl);
         if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
         const arrayBuffer = await res.arrayBuffer();
@@ -409,7 +399,7 @@ export async function carregarDocumentoPDF(url) {
     viewerState.pdfDoc = pdf;
 
     // Inicializa a sidebar com o número total de páginas para criar os containers/details
-    import("../ui/sidebar-page-manager.js").then(({ SidebarPageManager }) => {
+    import('../ui/sidebar-page-manager.js').then(({ SidebarPageManager }) => {
       SidebarPageManager.init(pdf.numPages);
 
       // [FIX] Garante que a sidebar mobile funcione (Bottom Sheet)
@@ -421,7 +411,7 @@ export async function carregarDocumentoPDF(url) {
     const page = await pdf.getPage(1);
 
     if (window.innerWidth <= 900) {
-      const container = document.getElementById("canvasContainer");
+      const container = document.getElementById('canvasContainer');
       if (container) {
         const viewport = page.getViewport({ scale: 1.0 });
         const availableWidth = container.clientWidth - 24;
@@ -438,11 +428,8 @@ export async function carregarDocumentoPDF(url) {
     await renderAllPages();
     return true;
   } catch (err) {
-    console.error("PDF-Core: Load Error:", err);
-    customAlert(
-      "Erro ao carregar PDF. O arquivo pode estar indisponível.",
-      3000,
-    );
+    console.error('PDF-Core: Load Error:', err);
+    customAlert('Erro ao carregar PDF. O arquivo pode estar indisponível.', 3000);
     return false;
   }
 }
@@ -456,7 +443,7 @@ export function mudarZoom(delta, zoomPoint = null) {
 
     // Se não informou ponto (ex: clicou no botão +), usa o centro do container
     if (!zoomPoint) {
-      const container = document.getElementById("canvasContainer");
+      const container = document.getElementById('canvasContainer');
       if (container) {
         zoomPoint = {
           x: container.clientWidth / 2,
@@ -472,16 +459,14 @@ export function mudarZoom(delta, zoomPoint = null) {
 
 export function mudarPagina(dir) {
   if (!viewerState.pdfDoc) return;
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container) return;
 
   // SMART ALIGN LOGIC:
   // Se o usuário está "perto" de uma página mas não alinhado ao topo, o primeiro clique apenas alinha.
   // Se já está alinhado, troca de página.
 
-  const currentPageWrapper = document.getElementById(
-    `page-wrapper-${viewerState.pageNum}`,
-  );
+  const currentPageWrapper = document.getElementById(`page-wrapper-${viewerState.pageNum}`);
 
   if (currentPageWrapper) {
     const scrollTop = container.scrollTop;
@@ -506,7 +491,7 @@ export function mudarPagina(dir) {
 
     if (!isAligned) {
       // Scroll para o topo da página ATUAL
-      container.scrollTo({ top: pageTop, behavior: "smooth" });
+      container.scrollTo({ top: pageTop, behavior: 'smooth' });
       // Não muda pageNum ainda.
       // Mas precisamos atualizar a UI pra garantir q ele saiba q está na P1?
       return;
@@ -536,7 +521,7 @@ export function mudarPagina(dir) {
       const topPos = wrapper.offsetTop; // Removido o padding negativo para snap perfeito
       container.scrollTo({
         top: topPos,
-        behavior: "smooth",
+        behavior: 'smooth',
       });
       // Pré-carrega a página alvo já
       renderPage(targetPage);
@@ -546,7 +531,7 @@ export function mudarPagina(dir) {
 
 export function irParaPagina(targetPage) {
   if (!viewerState.pdfDoc) return;
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container) return;
 
   if (targetPage >= 1 && targetPage <= viewerState.pdfDoc.numPages) {
@@ -565,7 +550,7 @@ export function irParaPagina(targetPage) {
     if (wrapper) {
       container.scrollTo({
         top: wrapper.offsetTop,
-        behavior: "smooth",
+        behavior: 'smooth',
       });
       renderPage(targetPage);
     }
@@ -578,8 +563,7 @@ export function ensurePdfUrls() {
   const args = window.__viewerArgs;
   const fileProva = args?.fileProva;
 
-  if (!window.__pdfUrls.prova && fileProva)
-    window.__pdfUrls.prova = URL.createObjectURL(fileProva);
+  if (!window.__pdfUrls.prova && fileProva) window.__pdfUrls.prova = URL.createObjectURL(fileProva);
 
   return !!window.__pdfUrls.prova;
 }
@@ -593,16 +577,16 @@ export async function renderPageHighRes(num) {
     const scale = dpi / 72;
     const viewport = page.getViewport({ scale: scale });
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    return canvas.toDataURL("image/png");
+    return canvas.toDataURL('image/png');
   } catch (e) {
-    console.error("Erro HR", e);
+    console.error('Erro HR', e);
     return null;
   }
 }

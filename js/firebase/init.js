@@ -1,10 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js';
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
   EmailAuthProvider,
-  getAuth,
   GoogleAuthProvider,
+  getAuth,
   linkWithCredential,
   linkWithPopup,
   onAuthStateChanged,
@@ -16,8 +16,8 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { getDatabase } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js';
+import { getDatabase } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
 
 // Configuração do Firebase
 export const firebaseConfig = {
@@ -40,7 +40,7 @@ export const db = getDatabase(app);
 export const auth = getAuth(app);
 
 // Inicializa Firestore
-import { getFirestore } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getFirestore } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 export const firestore = getFirestore(app);
 
 // Configuração de Persistência
@@ -49,11 +49,11 @@ setPersistence(auth, browserLocalPersistence)
     // Escuta o estado inicial APÓS a tentativa de restore do Firebase
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        console.log("Sessão restaurada para:", user.uid);
+        console.log('Sessão restaurada para:', user.uid);
       } else {
-        console.log("Nenhum usuário detectado. Iniciando sessão anônima...");
+        console.log('Nenhum usuário detectado. Iniciando sessão anônima...');
         signInAnonymously(auth).catch((error) =>
-          console.error("Erro na autenticação anônima:", error),
+          console.error('Erro na autenticação anônima:', error),
         );
       }
       // Remove este listener específico de inicialização
@@ -61,7 +61,7 @@ setPersistence(auth, browserLocalPersistence)
     });
   })
   .catch((error) => {
-    console.error("Erro ao definir persistência da sessão:", error);
+    console.error('Erro ao definir persistência da sessão:', error);
   });
 
 export function loginWithGoogle() {
@@ -72,11 +72,11 @@ export function loginWithGoogle() {
 export async function logoutUser() {
   try {
     await signOut(auth);
-    console.log("User logged out");
+    console.log('User logged out');
     // Re-authenticate anonymously to keep app working for non-logged in features
     await signInAnonymously(auth);
   } catch (error) {
-    console.error("Logout failed:", error);
+    console.error('Logout failed:', error);
   }
 }
 

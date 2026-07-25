@@ -1,8 +1,8 @@
-import { pick } from "../utils/pick.tsx";
-import { normalizeAlternativasAnalisadas } from "./alternativas.js";
-import { normCreditos } from "./creditos.js";
-import { normalizeExplicacao } from "./explicacao.js";
-import { asArray, asStringArray, safeClone } from "./primitives.js";
+import { pick } from '../utils/pick.tsx';
+import { normalizeAlternativasAnalisadas } from './alternativas.js';
+import { normCreditos } from './creditos.js';
+import { normalizeExplicacao } from './explicacao.js';
+import { asArray, asStringArray, safeClone } from './primitives.js';
 
 /**
  * PREPARAÇÃO DE DADOS INICIAIS
@@ -13,13 +13,13 @@ export const _prepararDadosIniciais = (dados) => {
   const root = pick(dados?.resultado, dados?.data, dados?.payload, dados) ?? {};
 
   // Detecta se é Gabarito baseado nos campos do dado, não no modo e usando 'in' para evitar falsos negativos com strings vazias
-  const isGabaritoData = 
-    ('alternativa_correta' in root) || 
-    ('resposta' in root) || 
-    ('justificativa_curta' in root) || 
-    ('resposta_modelo' in root) || 
-    ('explicacao' in root) || 
-    ('analise_complexidade' in root);
+  const isGabaritoData =
+    'alternativa_correta' in root ||
+    'resposta' in root ||
+    'justificativa_curta' in root ||
+    'resposta_modelo' in root ||
+    'explicacao' in root ||
+    'analise_complexidade' in root;
 
   return {
     root,
@@ -46,20 +46,14 @@ export const _processarDadosPayload = (root, isGabaritoData) => {
  */
 export const _processarGabarito = (root) => {
   // 1. Prepara a base da explicação
-  const explicacaoBasica = normalizeExplicacao(
-    pick(root?.explicacao, root?.resolucao, []),
-  );
+  const explicacaoBasica = normalizeExplicacao(pick(root?.explicacao, root?.resolucao, []));
 
   // 2. Injeta imagens nos passos
   const explicacaoComImagens = explicacaoBasica.map((passo, idxPasso) => {
-    const imgsDestePasso =
-      window.__imagensLimpas?.gabarito_passos?.[idxPasso] || [];
+    const imgsDestePasso = window.__imagensLimpas?.gabarito_passos?.[idxPasso] || [];
 
     // Usa o helper genérico para injetar imagens na estrutura deste passo
-    const novaEstrutura = _injetarImagensEmEstrutura(
-      passo.estrutura,
-      imgsDestePasso,
-    );
+    const novaEstrutura = _injetarImagensEmEstrutura(passo.estrutura, imgsDestePasso);
 
     return {
       ...passo,
@@ -70,15 +64,10 @@ export const _processarGabarito = (root) => {
   return {
     // Campos básicos
     alternativa_correta: String(
-      pick(
-        root?.alternativa_correta,
-        root?.resposta,
-        root?.alternativacorreta,
-        "",
-      ) ?? "",
+      pick(root?.alternativa_correta, root?.resposta, root?.alternativacorreta, '') ?? '',
     ),
     justificativa_curta: String(
-      pick(root?.justificativa_curta, root?.justificativacurta, "") ?? "",
+      pick(root?.justificativa_curta, root?.justificativacurta, '') ?? '',
     ),
     confianca: pick(root?.confianca, null),
 
@@ -94,11 +83,11 @@ export const _processarGabarito = (root) => {
 
     alternativas_analisadas: normalizeAlternativasAnalisadas(
       pick(root?.alternativas_analisadas, []),
-      String(pick(root?.alternativa_correta, root?.resposta, "")),
+      String(pick(root?.alternativa_correta, root?.resposta, '')),
     ),
     coerencia: root?.coerencia ?? {},
     fontes_externas: root?.fontes_externas || [],
-    texto_referencia: root?.texto_referencia || "",
+    texto_referencia: root?.texto_referencia || '',
   };
 };
 
@@ -108,33 +97,25 @@ export const _processarGabarito = (root) => {
  */
 export const _processarQuestao = (root) => {
   const imgsEnunciado = window.__imagensLimpas?.questao_original || [];
-  const imgsAlternativasMap =
-    window.__imagensLimpas?.alternativas?.questao || {};
+  const imgsAlternativasMap = window.__imagensLimpas?.alternativas?.questao || {};
 
   // Normaliza estrutura inicial do enunciado (garante array)
   const estruturaEnunciadoRaw = Array.isArray(root?.estrutura)
     ? root.estrutura
     : [
         {
-          tipo: "texto",
-          conteudo: String(
-            pick(root?.enunciado, root?.texto, root?.statement, "") ?? "",
-          ),
+          tipo: 'texto',
+          conteudo: String(pick(root?.enunciado, root?.texto, root?.statement, '') ?? ''),
         },
       ];
 
   // Injeta imagens no enunciado
-  const estruturaEnunciado = _injetarImagensEmEstrutura(
-    estruturaEnunciadoRaw,
-    imgsEnunciado,
-  );
+  const estruturaEnunciado = _injetarImagensEmEstrutura(estruturaEnunciadoRaw, imgsEnunciado);
 
   // Processa Alternativas
-  const alternativasRaw = asArray(
-    pick(root?.alternativas, root?.alternatives, []),
-  );
+  const alternativasRaw = asArray(pick(root?.alternativas, root?.alternatives, []));
   const alternativasProcessadas = alternativasRaw.map((a) => {
-    const letra = String(pick(a?.letra, a?.letter, "") ?? "")
+    const letra = String(pick(a?.letra, a?.letter, '') ?? '')
       .trim()
       .toUpperCase();
     const imgsDestaLetra = imgsAlternativasMap[letra] || [];
@@ -143,33 +124,28 @@ export const _processarQuestao = (root) => {
       ? a.estrutura
       : [
           {
-            tipo: "texto",
-            conteudo: String(pick(a?.texto, a?.text, "") ?? ""),
+            tipo: 'texto',
+            conteudo: String(pick(a?.texto, a?.text, '') ?? ''),
           },
         ];
 
     // Injeta imagens na alternativa
-    const estrutura = _injetarImagensEmEstrutura(
-      estruturaBruta,
-      imgsDestaLetra,
-    ).filter((b) => ["texto", "equacao", "imagem"].includes(b.tipo));
+    const estrutura = _injetarImagensEmEstrutura(estruturaBruta, imgsDestaLetra).filter((b) =>
+      ['texto', 'equacao', 'imagem'].includes(b.tipo),
+    );
 
     return { letra, estrutura };
   });
 
   return {
-    identificacao: String(
-      pick(root?.identificacao, root?.id, root?.codigo, "") ?? "",
-    ),
+    identificacao: String(pick(root?.identificacao, root?.id, root?.codigo, '') ?? ''),
     foto_original: root?.scan_original || imgsEnunciado[0] || null,
     estrutura: estruturaEnunciado,
-    materias_possiveis: asArray(
-      pick(root?.materias_possiveis, root?.materiaspossiveis, []),
-    ).map(String),
-    palavras_chave: asArray(
-      pick(root?.palavras_chave, root?.palavraschave, []),
-    ).map(String),
-    tipo_resposta: String(pick(root?.tipo_resposta, root?.tiporesposta, "objetiva")),
+    materias_possiveis: asArray(pick(root?.materias_possiveis, root?.materiaspossiveis, [])).map(
+      String,
+    ),
+    palavras_chave: asArray(pick(root?.palavras_chave, root?.palavraschave, [])).map(String),
+    tipo_resposta: String(pick(root?.tipo_resposta, root?.tiporesposta, 'objetiva')),
     alternativas: alternativasProcessadas,
     fotos_originais: asArray(pick(root?.fotos_originais, [])),
   };
@@ -180,8 +156,8 @@ export const _processarQuestao = (root) => {
  * em chaves numéricas ("0", "1", "2", ...).
  */
 export const _reconstructStringFromIndexedObject = (obj) => {
-  if (!obj || typeof obj !== "object") return null;
-  let str = "";
+  if (!obj || typeof obj !== 'object') return null;
+  let str = '';
   let i = 0;
   while (String(i) in obj) {
     str += obj[String(i)];
@@ -195,7 +171,7 @@ export const _reconstructStringFromIndexedObject = (obj) => {
  * removendo essas chaves e restaurando a URL da imagem.
  */
 export const _sanitizeBlocoIfCorrupted = (bloco) => {
-  if (!bloco || typeof bloco !== "object") return bloco;
+  if (!bloco || typeof bloco !== 'object') return bloco;
   const reconstructedStr = _reconstructStringFromIndexedObject(bloco);
   if (reconstructedStr) {
     const cleanBloco = { ...bloco };
@@ -223,29 +199,29 @@ export const _injetarImagensEmEstrutura = (estrutura, imagensDisponiveis) => {
     // Sanitiza bloco original se contiver chaves numéricas corrompidas
     const sanitizedBloco = _sanitizeBlocoIfCorrupted(bloco);
 
-    const tipo = String(sanitizedBloco?.tipo || "texto")
+    const tipo = String(sanitizedBloco?.tipo || 'texto')
       .toLowerCase()
       .trim();
-    const conteudo = String(sanitizedBloco?.conteudo ?? "");
+    const conteudo = String(sanitizedBloco?.conteudo ?? '');
 
-    if (tipo === "imagem") {
+    if (tipo === 'imagem') {
       const imagemLocal = imagensDisponiveis ? imagensDisponiveis[cursor] : null;
       cursor++;
 
       if (imagemLocal) {
-        if (typeof imagemLocal === "string") {
+        if (typeof imagemLocal === 'string') {
           return {
             ...sanitizedBloco,
-            tipo: "imagem",
+            tipo: 'imagem',
             url: imagemLocal,
             conteudo: sanitizedBloco.conteudo || conteudo,
           };
-        } else if (typeof imagemLocal === "object" && imagemLocal !== null) {
+        } else if (typeof imagemLocal === 'object' && imagemLocal !== null) {
           const sanitizedLocal = _sanitizeBlocoIfCorrupted(imagemLocal);
           return {
             ...sanitizedBloco,
             ...sanitizedLocal,
-            tipo: "imagem",
+            tipo: 'imagem',
             url: sanitizedLocal.url || sanitizedLocal.src || sanitizedBloco.url,
             conteudo: sanitizedLocal.conteudo || sanitizedBloco.conteudo || conteudo,
           };
@@ -254,7 +230,7 @@ export const _injetarImagensEmEstrutura = (estrutura, imagensDisponiveis) => {
 
       return {
         ...sanitizedBloco,
-        tipo: "imagem",
+        tipo: 'imagem',
         url: sanitizedBloco.url || sanitizedBloco.src,
         conteudo: conteudo,
       };
@@ -292,27 +268,27 @@ export const _prepararInterfaceBasica = (dadosNorm) => {
   }
 
   // --- LIMPEZA DE UI (Loaders e Botões Antigos) ---
-  document.getElementById("reopenSidebarBtn")?.remove();
+  document.getElementById('reopenSidebarBtn')?.remove();
 
-  const skeletonLoader = document.getElementById("ai-skeleton-loader");
+  const skeletonLoader = document.getElementById('ai-skeleton-loader');
   if (skeletonLoader && skeletonLoader.parentElement) {
     skeletonLoader.parentElement.remove();
   }
 
   // --- SELEÇÃO DE ELEMENTOS DO VIEWER ---
-  const viewerBody = document.getElementById("viewerBody");
-  const main = document.getElementById("viewerMain");
+  const viewerBody = document.getElementById('viewerBody');
+  const main = document.getElementById('viewerMain');
 
   // Nota: Retornamos como valores para serem manipulados (criados) depois se necessário
-  const sidebar = document.getElementById("viewerSidebar");
-  const resizer = document.getElementById("sidebarResizer");
+  const sidebar = document.getElementById('viewerSidebar');
+  const resizer = document.getElementById('sidebarResizer');
 
   // --- LIMPEZA DE OVERLAYS DE RECORTE ---
-  document.querySelector(".selection-box")?.remove();
-  document.getElementById("crop-overlay")?.remove();
+  document.querySelector('.selection-box')?.remove();
+  document.getElementById('crop-overlay')?.remove();
 
   // Remove skeleton interno da sidebar, se houver
-  const skeleton = sidebar?.querySelector(".skeleton-loader");
+  const skeleton = sidebar?.querySelector('.skeleton-loader');
   if (skeleton) skeleton.remove();
 
   // Retorna tudo que o restante da função principal vai precisar usar
@@ -335,37 +311,33 @@ export const _prepararContainerEBackups = (elementoAlvo, dados) => {
 
   // [BATCH FIX] Se temos um elementoAlvo específico (ex: container de aba),
   // criamos um container filho NOVO em vez de reusar um global.
-  if (
-    elementoAlvo &&
-    elementoAlvo.id &&
-    elementoAlvo.id.startsWith("tab-content-")
-  ) {
+  if (elementoAlvo && elementoAlvo.id && elementoAlvo.id.startsWith('tab-content-')) {
     // Container específico para esta aba
     const uniqueId = `extractionResult-${elementoAlvo.id}`;
     container = document.getElementById(uniqueId);
 
     if (!container) {
-      container = document.createElement("div");
+      container = document.createElement('div');
       container.id = uniqueId;
     }
   } else {
     // Comportamento legado: busca ou cria container global
-    container = document.getElementById("extractionResult");
+    container = document.getElementById('extractionResult');
 
     if (!container) {
-      const legacy = document.getElementById("renderContainer");
+      const legacy = document.getElementById('renderContainer');
       if (legacy && legacy !== elementoAlvo) {
         container = legacy;
       }
     }
 
     if (!container) {
-      container = document.createElement("div");
-      container.id = "renderContainer";
+      container = document.createElement('div');
+      container.id = 'renderContainer';
     }
 
     // Configuração final do container legado
-    container.id = "extractionResult";
+    container.id = 'extractionResult';
   }
 
   // 2. Lógica de Backup (Questão)
@@ -375,7 +347,7 @@ export const _prepararContainerEBackups = (elementoAlvo, dados) => {
   }
 
   // Configuração de classe
-  container.className = "extraction-result";
+  container.className = 'extraction-result';
 
   return container;
 };

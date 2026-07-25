@@ -7,31 +7,30 @@
  *    e notifica o usuário no chat.
  */
 
-import { WORKER_URL } from "../../api/worker.js";
+import { WORKER_URL } from '../../api/worker.js';
 
 // --- SCHEMA PARA RELEVANCE CHECK ---
 
 const RELEVANCE_SCHEMA = {
-  type: "object",
+  type: 'object',
   additionalProperties: false,
   properties: {
     relevant: {
-      type: "boolean",
+      type: 'boolean',
       description:
-        "true se o resultado encontrado é genuinamente relevante para a busca do usuário.",
+        'true se o resultado encontrado é genuinamente relevante para a busca do usuário.',
     },
     reason: {
-      type: "string",
-      description:
-        "Justificativa curta (1-2 frases) de por que é ou não relevante.",
+      type: 'string',
+      description: 'Justificativa curta (1-2 frases) de por que é ou não relevante.',
     },
     needs_more: {
-      type: "boolean",
+      type: 'boolean',
       description:
-        "true se existem questões sobre o tema mas são poucas ou insuficientes para uma prática completa.",
+        'true se existem questões sobre o tema mas são poucas ou insuficientes para uma prática completa.',
     },
   },
-  required: ["relevant", "reason", "needs_more"],
+  required: ['relevant', 'reason', 'needs_more'],
 };
 
 // --- RELEVANCE CHECK ---
@@ -61,12 +60,9 @@ export async function checkQuestionRelevance(
       JSON.stringify(questionData.fullData).substring(0, 500);
 
     const institution =
-      questionData.fullData?.metadata?.institution ||
-      questionData.institution ||
-      "Desconhecida";
+      questionData.fullData?.metadata?.institution || questionData.institution || 'Desconhecida';
 
-    const year =
-      questionData.fullData?.metadata?.year || questionData.year || "?";
+    const year = questionData.fullData?.metadata?.year || questionData.year || '?';
 
     const score = questionData.score || 0;
 
@@ -86,19 +82,39 @@ ANALISE:
 
 Responda com o JSON estruturado.`;
 
-    const specificModel = typeof window !== "undefined" ? window.selectedModelSearch : null;
-    const modelToUse = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+    const specificModel = typeof window !== 'undefined' ? window.selectedModelSearch : null;
+    const modelToUse =
+      specificModel && specificModel !== 'automatico' ? specificModel : 'models/gemini-3.5-flash';
 
     const response = await fetch(`${WORKER_URL}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       signal,
       body: JSON.stringify({
-        apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
-        githubApiKey: githubApiKey || (typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey")) : undefined) || undefined,
-        vertexProjectId: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
-        vertexLocation: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
-        vertexCredentials: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
+        apiKey:
+          apiKey ||
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
+            : undefined) ||
+          undefined,
+        githubApiKey:
+          githubApiKey ||
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
+            : undefined) ||
+          undefined,
+        vertexProjectId:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_PROJECT_ID')
+            : undefined) || undefined,
+        vertexLocation:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_LOCATION')
+            : undefined) || undefined,
+        vertexCredentials:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_CREDENTIALS')
+            : undefined) || undefined,
         texto: prompt,
         schema: RELEVANCE_SCHEMA,
         model: modelToUse,
@@ -108,22 +124,20 @@ Responda com o JSON estruturado.`;
     });
 
     if (!response.ok) {
-      console.warn(
-        `[GapDetector] Relevance check HTTP error: ${response.status}`,
-      );
+      console.warn(`[GapDetector] Relevance check HTTP error: ${response.status}`);
       // Fallback: assume relevant (don't trigger extraction on error)
       return {
         relevant: true,
-        reason: "Fallback por erro HTTP",
+        reason: 'Fallback por erro HTTP',
         needs_more: false,
       };
     }
 
     // Process streamed response
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let answerText = "";
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let answerText = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -131,14 +145,14 @@ Responda com o JSON estruturado.`;
       const chunk = decoder.decode(value, { stream: true });
       buffer += chunk;
 
-      let parts = buffer.split("\n");
-      buffer = parts.pop() || "";
+      const parts = buffer.split('\n');
+      buffer = parts.pop() || '';
 
       for (const line of parts) {
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
-          if (msg.type === "answer") {
+          if (msg.type === 'answer') {
             answerText += msg.text;
           }
         } catch {
@@ -151,30 +165,34 @@ Responda com o JSON estruturado.`;
     const jsonMatch = answerText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const result = JSON.parse(jsonMatch[0]);
-      console.log("[GapDetector] Relevance check:", result);
+      console.log('[GapDetector] Relevance check:', result);
       return {
         relevant: result.relevant ?? true,
-        reason: result.reason || "",
+        reason: result.reason || '',
         needs_more: result.needs_more ?? false,
       };
     }
 
     // Fallback
-    console.warn("[GapDetector] Could not parse relevance response");
+    console.warn('[GapDetector] Could not parse relevance response');
     return {
       relevant: true,
-      reason: "Fallback: parse failed",
+      reason: 'Fallback: parse failed',
       needs_more: false,
     };
   } catch (error) {
-    if (error.name === "AbortError") throw error;
+    if (error.name === 'AbortError') throw error;
 
-    if (!navigator.onLine || (error.name === "TypeError" && error.message.includes("Failed to fetch")) || error.message === "NETWORK_ERROR") {
-      throw new Error("NETWORK_ERROR");
+    if (
+      !navigator.onLine ||
+      (error.name === 'TypeError' && error.message.includes('Failed to fetch')) ||
+      error.message === 'NETWORK_ERROR'
+    ) {
+      throw new Error('NETWORK_ERROR');
     }
 
-    console.warn("[GapDetector] Relevance check error:", error);
-    return { relevant: true, reason: "Fallback por erro", needs_more: false };
+    console.warn('[GapDetector] Relevance check error:', error);
+    return { relevant: true, reason: 'Fallback por erro', needs_more: false };
   }
 }
 
@@ -188,26 +206,27 @@ Responda com o JSON estruturado.`;
  */
 export async function triggerQuestionExtraction(buscaQuestao, context) {
   try {
-    const isBlocked = (typeof localStorage !== "undefined" && localStorage.getItem("blockQuestionExtraction") === "true") || 
-                      (typeof window !== "undefined" && window.blockQuestionExtraction === true);
-                      
+    const isBlocked =
+      (typeof localStorage !== 'undefined' &&
+        localStorage.getItem('blockQuestionExtraction') === 'true') ||
+      (typeof window !== 'undefined' && window.blockQuestionExtraction === true);
+
     if (isBlocked) {
-      console.log("[GapDetector] 🚫 Question extraction blocked by Admin toggle (localStorage/window).");
+      console.log(
+        '[GapDetector] 🚫 Question extraction blocked by Admin toggle (localStorage/window).',
+      );
       return;
     }
 
-    console.log(
-      "[GapDetector] 🔍 Triggering question extraction for:",
-      buscaQuestao.conteudo,
-    );
+    console.log('[GapDetector] 🔍 Triggering question extraction for:', buscaQuestao.conteudo);
 
     // 1. Notify chat UI
     if (context.onProcessingStatus) {
-      context.onProcessingStatus("extraction_triggered", {
-        title: "Extração de questões solicitada",
+      context.onProcessingStatus('extraction_triggered', {
+        title: 'Extração de questões solicitada',
         message:
-          "🔍 Nossa IA identificou lacunas no banco de dados relacionado ao tema solicitado. " +
-          "Foi solicitada a extração de novas questões — elas estarão disponíveis em alguns minutos.",
+          '🔍 Nossa IA identificou lacunas no banco de dados relacionado ao tema solicitado. ' +
+          'Foi solicitada a extração de novas questões — elas estarão disponíveis em alguns minutos.',
         query: buscaQuestao.conteudo,
         props: buscaQuestao.props,
       });
@@ -215,25 +234,22 @@ export async function triggerQuestionExtraction(buscaQuestao, context) {
 
     // 2. Persist notification in chat history
     if (context.chatId) {
-      const { ChatStorageService } =
-        await import("../../services/chat-storage.js");
-      ChatStorageService.addMessage(context.chatId, "system", {
-        type: "extraction_triggered",
+      const { ChatStorageService } = await import('../../services/chat-storage.js');
+      ChatStorageService.addMessage(context.chatId, 'system', {
+        type: 'extraction_triggered',
         message:
-          "🔍 Nossa IA identificou lacunas no banco de dados relacionado ao tema solicitado. " +
-          "Foi solicitada a extração de novas questões — elas estarão disponíveis em alguns minutos.",
+          '🔍 Nossa IA identificou lacunas no banco de dados relacionado ao tema solicitado. ' +
+          'Foi solicitada a extração de novas questões — elas estarão disponíveis em alguns minutos.',
         query: buscaQuestao.conteudo,
         props: buscaQuestao.props,
         timestamp: new Date().toISOString(),
-      }).catch((err) =>
-        console.warn("[GapDetector] Failed to persist notification:", err),
-      );
+      }).catch((err) => console.warn('[GapDetector] Failed to persist notification:', err));
     }
 
     // 3. Call Worker to trigger extraction workflow
     const response = await fetch(`${WORKER_URL}/trigger-extraction`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: buscaQuestao.conteudo,
         institution: buscaQuestao.props?.institution,
@@ -244,14 +260,14 @@ export async function triggerQuestionExtraction(buscaQuestao, context) {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("[GapDetector] Extraction trigger failed:", errText);
+      console.error('[GapDetector] Extraction trigger failed:', errText);
       return;
     }
 
     const result = await response.json();
-    console.log("[GapDetector] ✅ Extraction triggered:", result);
+    console.log('[GapDetector] ✅ Extraction triggered:', result);
   } catch (error) {
     // Don't propagate — extraction is async, don't break the chat
-    console.error("[GapDetector] Error triggering extraction:", error);
+    console.error('[GapDetector] Error triggering extraction:', error);
   }
 }

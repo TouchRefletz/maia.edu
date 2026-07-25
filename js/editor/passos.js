@@ -1,6 +1,5 @@
-import { configurarLinhaEditorPasso } from './steps-ui.js';
+import { configurarLinhaEditorPasso, initStepEditors } from './steps-ui.js';
 import { criarHtmlBlocoEditor } from './structure-editor.js';
-import { initStepEditors } from './steps-ui.js';
 
 /**
  * Configura o botão de excluir a linha inteira.

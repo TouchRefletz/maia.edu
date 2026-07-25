@@ -13,15 +13,13 @@ let currentContainer = null;
  */
 function getScrollableContainer() {
   // Try finding the chat messages container
-  let container = document.getElementById("chatMessages");
+  let container = document.getElementById('chatMessages');
 
   // If not found, try finding any scrollable container in chat mode
   if (!container) {
-    const chatContainer = document.querySelector(
-      ".maia-ai-container.chat-mode",
-    );
+    const chatContainer = document.querySelector('.maia-ai-container.chat-mode');
     if (chatContainer) {
-      container = chatContainer.querySelector(".chat-messages");
+      container = chatContainer.querySelector('.chat-messages');
     }
   }
 
@@ -40,19 +38,19 @@ export function initCustomChatScrollbar() {
   if (!messagesContainer) return;
 
   // Initialize track and thumb early to avoid ReferenceError in hoisted updateThumbPosition
-  let scrollTrack = document.querySelector(".chat-scroll-track");
+  let scrollTrack = document.querySelector('.chat-scroll-track');
   if (!scrollTrack) {
-    scrollTrack = document.createElement("div");
-    scrollTrack.className = "chat-scroll-track";
+    scrollTrack = document.createElement('div');
+    scrollTrack.className = 'chat-scroll-track';
 
-    const scrollThumb = document.createElement("div");
-    scrollThumb.className = "chat-scroll-thumb";
+    const scrollThumb = document.createElement('div');
+    scrollThumb.className = 'chat-scroll-thumb';
     scrollTrack.appendChild(scrollThumb);
 
     document.body.appendChild(scrollTrack);
   }
 
-  const scrollThumb = scrollTrack.querySelector(".chat-scroll-thumb");
+  const scrollThumb = scrollTrack.querySelector('.chat-scroll-thumb');
 
   // If already initialized with same container, just update
   if (scrollbarInitialized && currentContainer === messagesContainer) {
@@ -87,16 +85,16 @@ export function initCustomChatScrollbar() {
 
     // Only hide thumb (not track) if no scroll needed
     if (scrollHeight <= clientHeight) {
-      scrollThumb.style.opacity = "0.3";
-      scrollTrack.style.pointerEvents = "none";
+      scrollThumb.style.opacity = '0.3';
+      scrollTrack.style.pointerEvents = 'none';
     } else {
-      scrollThumb.style.opacity = "1";
-      scrollTrack.style.pointerEvents = "auto";
+      scrollThumb.style.opacity = '1';
+      scrollTrack.style.pointerEvents = 'auto';
     }
   }
 
   // Listen to scroll events
-  messagesContainer.addEventListener("scroll", updateThumbPosition, {
+  messagesContainer.addEventListener('scroll', updateThumbPosition, {
     passive: true,
   });
 
@@ -108,16 +106,16 @@ export function initCustomChatScrollbar() {
   function handleDragStart(e) {
     e.preventDefault();
     isDragging = true;
-    scrollThumb.classList.add("dragging");
+    scrollThumb.classList.add('dragging');
 
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     startY = clientY;
     startScrollTop = messagesContainer.scrollTop;
 
-    document.addEventListener("mousemove", handleDragMove);
-    document.addEventListener("mouseup", handleDragEnd);
-    document.addEventListener("touchmove", handleDragMove, { passive: false });
-    document.addEventListener("touchend", handleDragEnd);
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
+    document.addEventListener('touchend', handleDragEnd);
   }
 
   function handleDragMove(e) {
@@ -143,22 +141,22 @@ export function initCustomChatScrollbar() {
 
   function handleDragEnd() {
     isDragging = false;
-    scrollThumb.classList.remove("dragging");
+    scrollThumb.classList.remove('dragging');
 
-    document.removeEventListener("mousemove", handleDragMove);
-    document.removeEventListener("mouseup", handleDragEnd);
-    document.removeEventListener("touchmove", handleDragMove);
-    document.removeEventListener("touchend", handleDragEnd);
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+    document.removeEventListener('touchmove', handleDragMove);
+    document.removeEventListener('touchend', handleDragEnd);
   }
 
   // Attach drag listeners
-  scrollThumb.addEventListener("mousedown", handleDragStart);
-  scrollThumb.addEventListener("touchstart", handleDragStart, {
+  scrollThumb.addEventListener('mousedown', handleDragStart);
+  scrollThumb.addEventListener('touchstart', handleDragStart, {
     passive: false,
   });
 
   // === Track click to jump ===
-  scrollTrack.addEventListener("click", (e) => {
+  scrollTrack.addEventListener('click', (e) => {
     if (e.target === scrollThumb) return;
 
     const trackRect = scrollTrack.getBoundingClientRect();
@@ -171,12 +169,12 @@ export function initCustomChatScrollbar() {
     const clickRatio = clickY / trackHeight;
     messagesContainer.scrollTo({
       top: clickRatio * maxScroll,
-      behavior: "smooth",
+      behavior: 'smooth',
     });
   });
 
   // === Resize observer for thumb updates ===
-  if (typeof ResizeObserver !== "undefined") {
+  if (typeof ResizeObserver !== 'undefined') {
     const resizeObserver = new ResizeObserver(() => {
       updateThumbPosition();
     });
@@ -184,7 +182,7 @@ export function initCustomChatScrollbar() {
   }
 
   // === Mutation observer for content changes ===
-  if (typeof MutationObserver !== "undefined") {
+  if (typeof MutationObserver !== 'undefined') {
     messagesObserver = new MutationObserver(() => {
       requestAnimationFrame(updateThumbPosition);
     });
@@ -207,7 +205,7 @@ export function initCustomChatScrollbar() {
  * Destroy the custom scrollbar (when exiting chat mode)
  */
 export function destroyCustomChatScrollbar() {
-  const scrollTrack = document.querySelector(".chat-scroll-track");
+  const scrollTrack = document.querySelector('.chat-scroll-track');
   if (scrollTrack) {
     scrollTrack.remove();
   }
@@ -232,7 +230,7 @@ export function updateChatScrollbar() {
 }
 
 // Auto-cleanup on resize (desktop mode)
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
   if (window.innerWidth > 900) {
     destroyCustomChatScrollbar();
   }

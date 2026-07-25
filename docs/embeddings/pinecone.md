@@ -63,11 +63,14 @@ Cada questão indexada no Pinecone possui:
 }
 ```
 
-### O Campo `full_json`
+### O Campo `full_json` e a Função `sanitizarPayloadParaPinecone()`
 
 Este é o campo mais valioso e mais problemático. Armazenar o JSON completo da questão nos metadados do Pinecone permite que uma busca vetorial retorne a questão inteira sem precisar fazer uma segunda chamada ao Firebase. Isso economiza latência e reads do Firestore.
 
-Porém, o Pinecone impõe um **limite de 40KB** por vetor (incluindo metadados). Questões complexas (muitas alternativas, explicações longas, imagens descritas) podem exceder esse limite. Nesses casos, `has_full_json` é setado `false` e o frontend sabe que precisa buscar a questão no Firebase.
+Para evitar erros de requisição HTTP 400 no Pinecone REST API decorrentes do limite rígido de 40 KB por vetor, o módulo executa a função **`sanitizarPayloadParaPinecone()`**:
+1. Busca recursivamente strings em Base64 / Data URLs de imagens e as substitui pela constante `'[base64_image_omitted]'`.
+2. Mede o tamanho em bytes do payload sanitizado.
+3. Se ultrapassar o teto de segurança de **38 KB**, remove a propriedade `full_json` e define `has_full_json: false`. O frontend detecta a flag e realiza o fetch transparente via Firebase Firestore.
 
 ## Fluxo de Busca (Query)
 

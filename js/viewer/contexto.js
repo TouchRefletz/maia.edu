@@ -1,4 +1,4 @@
-import { getProxyPdfUrl } from "../api/worker.js";
+import { getProxyPdfUrl } from '../api/worker.js';
 
 /**
  * Prepara o ambiente: configura worker, limpa tela anterior,
@@ -8,11 +8,11 @@ export async function inicializarContextoViewer(args) {
   // 1. Configuração do Worker (só se não tiver)
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 
   // 2. Remove a tela de Upload anterior
-  const uploadContainer = document.getElementById("pdfUploadContainer");
+  const uploadContainer = document.getElementById('pdfUploadContainer');
   if (uploadContainer) uploadContainer.remove();
 
   // Resolve "Auto-Detect" titles to the slug to prevent displaying generic title and database name clashes
@@ -42,10 +42,7 @@ export async function inicializarContextoViewer(args) {
   if (args.originalPdfUrl) {
     window.__pdfOriginalUrl = args.originalPdfUrl;
     window.__pdfDownloadUrl = args.originalPdfUrl;
-    console.log(
-      "[Contexto] URL original definida via argumentos:",
-      args.originalPdfUrl
-    );
+    console.log('[Contexto] URL original definida via argumentos:', args.originalPdfUrl);
   }
 
   // 5. Tentar obter link original do manifesto (se tiver slug) - Só se ainda não tivermos
@@ -57,21 +54,17 @@ export async function inicializarContextoViewer(args) {
       if (res.ok) {
         const manifest = await res.json();
         // Manifesto pode ser array ou objeto com 'results'
-        const items = Array.isArray(manifest)
-          ? manifest
-          : manifest.results || [];
+        const items = Array.isArray(manifest) ? manifest : manifest.results || [];
 
         // Encontrar item da PROVA com link_origem
-        const provaItem = items.find(
-          (i) => i.tipo === "prova" || i.link_origem
-        );
+        const provaItem = items.find((i) => i.tipo === 'prova' || i.link_origem);
 
         if (provaItem?.link_origem) {
           window.__pdfOriginalUrl = provaItem.link_origem;
           window.__pdfDownloadUrl = provaItem.link_origem;
           console.log(
-            "[Contexto] Link original do PDF encontrado no manifesto:",
-            window.__pdfOriginalUrl
+            '[Contexto] Link original do PDF encontrado no manifesto:',
+            window.__pdfOriginalUrl,
           );
         } else {
           // Fallback: tentar encontrar URL hospedada do HuggingFace
@@ -87,17 +80,14 @@ export async function inicializarContextoViewer(args) {
         }
       }
     } catch (e) {
-      console.warn(
-        "[Contexto] Não foi possível obter link original do manifesto:",
-        e.message
-      );
+      console.warn('[Contexto] Não foi possível obter link original do manifesto:', e.message);
     }
   }
 
   // Helper simples para lidar com File/Blob vs String URL
   const getUrl = (fileOrUrl) => {
     if (!fileOrUrl) return null;
-    if (typeof fileOrUrl === "string") {
+    if (typeof fileOrUrl === 'string') {
       return getProxyPdfUrl(fileOrUrl);
     }
     return URL.createObjectURL(fileOrUrl);
@@ -106,15 +96,11 @@ export async function inicializarContextoViewer(args) {
   window.__pdfUrls.prova = getUrl(args.fileProva);
 
   // [FIX] Se fileProva for um File (não string), salva para uso do PdfEmbedRenderer
-  if (
-    args.fileProva &&
-    typeof args.fileProva !== "string" &&
-    args.fileProva instanceof File
-  ) {
+  if (args.fileProva && typeof args.fileProva !== 'string' && args.fileProva instanceof File) {
     window.__pdfLocalFile = args.fileProva;
     // Dispara evento para notificar componentes React
-    window.dispatchEvent(new CustomEvent("pdfLocalFileLoaded"));
-    console.log("[Contexto] Arquivo local definido:", args.fileProva.name);
+    window.dispatchEvent(new CustomEvent('pdfLocalFileLoaded'));
+    console.log('[Contexto] Arquivo local definido:', args.fileProva.name);
   }
 
   // Retorna a URL inicial para quem chamou usar

@@ -35,9 +35,7 @@ export const configurarNavegacaoEdicao = (container, gabarito) => {
   }
 
   // --- 3. Cancelar Edição do GABARITO (Reseta tudo) ---
-  const btnCancelarEdicaoGabarito = container.querySelector(
-    '#btnCancelarEdicaoGabarito'
-  );
+  const btnCancelarEdicaoGabarito = container.querySelector('#btnCancelarEdicaoGabarito');
   if (btnCancelarEdicaoGabarito) {
     btnCancelarEdicaoGabarito.onclick = () => {
       renderizarQuestaoFinal(window.ultimoGabaritoExtraido || gabarito);
@@ -66,9 +64,7 @@ export const processarSalvamentoGabarito = (container, questao) => {
       .toUpperCase();
 
   // 1. Campos Básicos
-  const respostaNova = normLetra(
-    container.querySelector('#editGabaritoResposta')?.value
-  );
+  const respostaNova = normLetra(container.querySelector('#editGabaritoResposta')?.value);
   const respostaModeloNova = container.querySelector('#editGabaritoRespostaModelo')?.value;
   const justNova = container.querySelector('#editGabaritoJust')?.value || '';
   const confRaw = container.querySelector('#editGabaritoConfianca')?.value;
@@ -80,7 +76,7 @@ export const processarSalvamentoGabarito = (container, questao) => {
     container,
     questao,
     respostaNova,
-    normLetra
+    normLetra,
   );
   const complexidade = extrairComplexidade(container);
   const coerencia = extrairCoerencia(container);
@@ -89,7 +85,8 @@ export const processarSalvamentoGabarito = (container, questao) => {
   const observacoes = extrairLinhas(container, '#editGabaritoObs');
 
   // 3. Montagem do Objeto Final
-  const base = window.__ultimoGabaritoExtraido || (typeof gabarito !== 'undefined' ? gabarito : {}) || {};
+  const base =
+    window.__ultimoGabaritoExtraido || (typeof gabarito !== 'undefined' ? gabarito : {}) || {};
   // Clone seguro (deep copy)
   const novo =
     typeof structuredClone === 'function'
@@ -114,8 +111,7 @@ export const processarSalvamentoGabarito = (container, questao) => {
   // 4. Atualização Global e Renderização
   window.__ultimoGabaritoExtraido = novo;
 
-  if (typeof customAlert === 'function')
-    customAlert('✅ Gabarito atualizado!', 2000);
+  if (typeof customAlert === 'function') customAlert('✅ Gabarito atualizado!', 2000);
 
   // Chama a função principal de renderização (certifique-se que ela existe no escopo global)
   if (typeof renderizarQuestaoFinal === 'function') {
@@ -128,48 +124,36 @@ export const processarSalvamentoGabarito = (container, questao) => {
  */
 export const extrairPassosDoEditor = (container) => {
   const passos = [];
-  container
-    .querySelectorAll('#editGabaritoPassos .step-edit-row')
-    .forEach((row) => {
-      const origem =
-        row.querySelector('.passo-origem')?.value || 'gerado_pela_ia';
-      const fontematerial = row.querySelector('.passo-fonte')?.value || '';
-      const evidencia = row.querySelector('.passo-evidencia')?.value || '';
+  container.querySelectorAll('#editGabaritoPassos .step-edit-row').forEach((row) => {
+    const origem = row.querySelector('.passo-origem')?.value || 'gerado_pela_ia';
+    const fontematerial = row.querySelector('.passo-fonte')?.value || '';
+    const evidencia = row.querySelector('.passo-evidencia')?.value || '';
 
-      const estruturaPasso = [];
-      row
-        .querySelectorAll('.step-drag-container .structure-item')
-        .forEach((item) => {
-          const tipo = item.dataset.type;
-          const conteudo = item.querySelector('.item-content')?.value || '';
-          estruturaPasso.push({ tipo, conteudo });
-        });
-
-      if (estruturaPasso.length > 0) {
-        const passoTextoSimples = estruturaPasso
-          .map((b) => b.conteudo)
-          .join(' ');
-        passos.push({
-          passo: passoTextoSimples,
-          estrutura: estruturaPasso,
-          origem,
-          fontematerial,
-          evidencia,
-        });
-      }
+    const estruturaPasso = [];
+    row.querySelectorAll('.step-drag-container .structure-item').forEach((item) => {
+      const tipo = item.dataset.type;
+      const conteudo = item.querySelector('.item-content')?.value || '';
+      estruturaPasso.push({ tipo, conteudo });
     });
+
+    if (estruturaPasso.length > 0) {
+      const passoTextoSimples = estruturaPasso.map((b) => b.conteudo).join(' ');
+      passos.push({
+        passo: passoTextoSimples,
+        estrutura: estruturaPasso,
+        origem,
+        fontematerial,
+        evidencia,
+      });
+    }
+  });
   return passos;
 };
 
 /**
  * Lê a análise de cada alternativa e compara com a resposta correta.
  */
-export const extrairAnaliseAlternativas = (
-  container,
-  questao,
-  respostaNova,
-  normLetra
-) => {
+export const extrairAnaliseAlternativas = (container, questao, respostaNova, normLetra) => {
   const motivos = {};
   container.querySelectorAll('.gabarito-motivo').forEach((t) => {
     const letra = normLetra(t.dataset.letra);
@@ -198,8 +182,7 @@ export const extrairComplexidade = (container) => {
     fatores[k] = chk.checked;
   });
 
-  const justificativa =
-    container.querySelector('#editComplexidadeJust')?.value || '';
+  const justificativa = container.querySelector('#editComplexidadeJust')?.value || '';
 
   return {
     fatores: fatores,
@@ -212,12 +195,8 @@ export const extrairComplexidade = (container) => {
  */
 export const extrairCoerencia = (container) => {
   return {
-    alternativa_correta_existe: !!container.querySelector(
-      '#editCoerenciaAltExiste'
-    )?.checked,
-    tem_analise_para_todas: !!container.querySelector(
-      '#editCoerenciaTodasAnalise'
-    )?.checked,
+    alternativa_correta_existe: !!container.querySelector('#editCoerenciaAltExiste')?.checked,
+    tem_analise_para_todas: !!container.querySelector('#editCoerenciaTodasAnalise')?.checked,
     observacoes: extrairLinhas(container, '#editCoerenciaObs'),
   };
 };
@@ -230,18 +209,14 @@ export const extrairCreditos = (container) => {
 
   return {
     origemresolucao: container.querySelector('#editCredOrigem')?.value || '',
-    materialidentificado: !!container.querySelector('#editCredMatIdentificado')
-      ?.checked,
+    materialidentificado: !!container.querySelector('#editCredMatIdentificado')?.checked,
     confiancaidentificacao: valConf === '' ? null : Number(valConf),
     material: container.querySelector('#editCredMaterial')?.value || '',
     autorouinstituicao: container.querySelector('#editCredAutor')?.value || '',
     ano: container.querySelector('#editCredAno')?.value || '',
     comoidentificou: container.querySelector('#editCredComo')?.value || '',
-    precisacreditogenerico: !!container.querySelector(
-      '#editCredPrecisaGenerico'
-    )?.checked,
-    textocreditosugerido:
-      container.querySelector('#editCredTextoSugerido')?.value || '',
+    precisacreditogenerico: !!container.querySelector('#editCredPrecisaGenerico')?.checked,
+    textocreditosugerido: container.querySelector('#editCredTextoSugerido')?.value || '',
   };
 };
 

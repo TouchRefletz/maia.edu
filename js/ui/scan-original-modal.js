@@ -9,12 +9,12 @@ export function gerarHtmlModalScanOriginal() {
   // o código legado inserir a string retornada abaixo no DOM.
   setTimeout(() => {
     const mountNode = document.getElementById(mountId);
-    
+
     // Verifica se o elemento existe e se já não foi renderizado (segurança)
     if (mountNode && !mountNode.hasAttribute('data-react-rendered')) {
       const root = createRoot(mountNode);
       root.render(React.createElement(ScanOriginalModal));
-      
+
       // Marca como renderizado para evitar duplicidade se a função for chamada múltiplas vezes
       mountNode.setAttribute('data-react-rendered', 'true');
     }

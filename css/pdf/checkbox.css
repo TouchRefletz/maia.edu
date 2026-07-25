@@ -9,7 +9,7 @@
   padding: var(--space-4) 0;
 }
 
-.checkbox-group input[type='checkbox'] {
+.checkbox-group input[type="checkbox"] {
   width: 18px;
   height: 18px;
   accent-color: var(--color-primary);

@@ -1,13 +1,17 @@
-﻿# Primitives e Tipografia
+# Primitivas CSS e Tipografia Base (`css/primitives.md`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+Primitives+e+Tipografia&labels=docs)
+O arquivo `css/primitives.css` estabelece o reset CSS universal, regras de tipografia e utilitários globais do repositório **maia.api**.
 
-## Visao Geral
-Pagina de documentacao para `css/primitives + typography`.
+---
 
-## Arquivo: `css/primitives + typography`
+## 📐 Regras Globais
 
-## Referencias Cruzadas
+- **Box Sizing Universal**: `*, *::before, *::after { box-sizing: border-box; }`.
+- **Pilha de Fontes Moderna**: Prioriza Inter e Outfit para texto corrido e títulos, com fallback sans-serif legível em qualquer SO.
+- **Utilitários de Layout**: Classes flex e grid responsivas de uso rápido (`.u-flex-center`, `.u-grid-2col`, `.u-text-ellipsis`).
+
+---
+
+## 🔗 Referências Cruzadas
 - [Design Tokens](/css/design-tokens)
-- [Arquitetura](/guia/arquitetura)
-
+- [Animações CSS](/css/animacoes)

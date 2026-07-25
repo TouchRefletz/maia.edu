@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import type React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderLatexIn } from '../../libs/loader.js';
 import { safe } from '../../normalize/primitives.js';
 import { customAlert } from '../../ui/GlobalAlertsLogic';
-// @ts-ignore - JS module
+// @ts-expect-error - JS module
 import { showConfirmModalWithCheckbox } from '../../ui/modal-confirm.js';
 import { getActiveTab } from '../../ui/sidebar-tabs.js';
 import { PainelGabarito, PainelQuestao } from './RenderComponents';
@@ -40,7 +41,10 @@ interface JsonReviewModalProps {
 
 // --- FUNÇÕES DE LÓGICA (Portadas do JS original) ---
 
-function resolverImagensPrioritarias(backupGlobal: string[] | undefined, originalLimpas: string[] | undefined): string[] {
+function resolverImagensPrioritarias(
+  backupGlobal: string[] | undefined,
+  originalLimpas: string[] | undefined,
+): string[] {
   return backupGlobal && backupGlobal.length > 0 ? backupGlobal : originalLimpas || [];
 }
 
@@ -55,7 +59,7 @@ function prepararObjetoGabarito(g: any) {
 
   const imgsReais = resolverImagensPrioritarias(
     window.__BACKUP_IMGS_G,
-    window.__imagensLimpas?.gabarito_original
+    window.__imagensLimpas?.gabarito_original,
   );
 
   if (imgsReais.length > 0) {
@@ -72,14 +76,18 @@ function prepararObjetoQuestao(q: any) {
   const questaoGlobal = window.__ultimaQuestaoExtraida;
   let imgsReais: any[] = [];
 
-  if (questaoGlobal && Array.isArray(questaoGlobal.fotos_originais) && questaoGlobal.fotos_originais.length > 0) {
-      imgsReais = questaoGlobal.fotos_originais;
+  if (
+    questaoGlobal &&
+    Array.isArray(questaoGlobal.fotos_originais) &&
+    questaoGlobal.fotos_originais.length > 0
+  ) {
+    imgsReais = questaoGlobal.fotos_originais;
   } else {
-      // Fallback para sistema antigo
-      imgsReais = resolverImagensPrioritarias(
-        window.__BACKUP_IMGS_Q,
-        window.__imagensLimpas?.questao_original
-      );
+    // Fallback para sistema antigo
+    imgsReais = resolverImagensPrioritarias(
+      window.__BACKUP_IMGS_Q,
+      window.__imagensLimpas?.questao_original,
+    );
   }
 
   if (imgsReais.length > 0) {
@@ -101,9 +109,9 @@ function gerarJsonFinalLogic(q: any, g: any, tituloMaterial: string) {
   const payloadFinal = {
     [chaveProva]: {
       [chaveQuestao]: {
-        meta: { 
+        meta: {
           timestamp: new Date().toISOString(),
-          source_url: window.__pdfOriginalUrl || undefined
+          source_url: window.__pdfOriginalUrl || undefined,
         },
         dados_questao: questaoFinal,
         dados_gabarito: gabaritoLimpo,
@@ -125,7 +133,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
   htmlQuestaoSide,
   htmlGabaritoSide,
   onClose,
-  onConfirm
+  onConfirm,
 }) => {
   const [currentQ, setCurrentQ] = useState<any>(q);
   const [currentG, setCurrentG] = useState<any>(g);
@@ -173,7 +181,7 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
       'Declaro que possuo os direitos autorais ou autorização para compartilhar este conteúdo, e assumo total responsabilidade legal sobre o material enviado.',
       '🚀 Confirmar Envio',
       'Cancelar',
-      true // isPositiveAction
+      true, // isPositiveAction
     );
 
     if (!confirmed) {
@@ -202,32 +210,60 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
       className="final-modal-overlay visible"
       id="finalModalReactRoot"
       style={{
-        position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999,
-        background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex',
-        justifyContent: 'center', alignItems: 'center'
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.9)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
       }}
     >
       <div
         className="final-modal-content"
         style={{
-          background: 'var(--color-background)', border: '1px solid var(--color-border)',
-          maxWidth: '1500px', width: '95%', height: '95vh', display: 'flex',
-          flexDirection: 'column', boxShadow: '0 0 40px rgba(0,0,0,0.5)'
+          background: 'var(--color-background)',
+          border: '1px solid var(--color-border)',
+          maxWidth: '1500px',
+          width: '95%',
+          height: '95vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 0 40px rgba(0,0,0,0.5)',
         }}
       >
         {/* HEADER */}
-        <div style={{
-          background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)',
-          padding: '15px 25px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
+        <div
+          style={{
+            background: 'var(--color-surface)',
+            borderBottom: '1px solid var(--color-border)',
+            padding: '15px 25px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <img src="logo.png" style={{ height: '32px' }} alt="Logo" />
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-text)', lineHeight: 1.2 }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  color: 'var(--color-text)',
+                  lineHeight: 1.2,
+                }}
+              >
                 Revisão Final & Exportação
               </h2>
               <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
-                Material base: <strong style={{ color: 'var(--color-primary)' }}>{safe(tituloMaterial)}</strong>
+                Material base:{' '}
+                <strong style={{ color: 'var(--color-primary)' }}>{safe(tituloMaterial)}</strong>
               </div>
             </div>
           </div>
@@ -236,11 +272,20 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
               className="btn btn--sm btn--outline"
               onClick={() => setIsAuditOpen(true)}
               title="Auditar erros de digitação e alucinações de IA"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', borderColor: '#3b82f6', color: '#60a5fa' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: '#3b82f6',
+                color: '#60a5fa',
+              }}
             >
               <span>🧹</span> Auditar Texto & Alucinações
             </button>
-            <button className="btn btn--sm btn--outline js-ver-originais" title="Ver prints originais">
+            <button
+              className="btn btn--sm btn--outline js-ver-originais"
+              title="Ver prints originais"
+            >
               👁️ Originais
             </button>
             <button
@@ -280,31 +325,81 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
         )}
 
         {/* BODY */}
-        <div className="modal-body" style={{ background: 'var(--color-background)', padding: '25px', overflowY: 'auto', flex: 1 }}>
-          <div className="review-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '30px', height: '100%' }}>
+        <div
+          className="modal-body"
+          style={{
+            background: 'var(--color-background)',
+            padding: '25px',
+            overflowY: 'auto',
+            flex: 1,
+          }}
+        >
+          <div
+            className="review-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+              gap: '30px',
+              height: '100%',
+            }}
+          >
             {/* Coluna Questão */}
             <div
               className="review-col"
-              style={{ background: 'var(--color-surface)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', maxHeight: '100%' }}
+              style={{
+                background: 'var(--color-surface)',
+                padding: '20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border)',
+                overflowY: 'auto',
+                maxHeight: '100%',
+              }}
             >
-                {/* Renderização Direta do Componente React (Alive) */}
-                <PainelQuestao q={currentQ} tituloMaterial={tituloMaterial} imagensFinais={imagensFinais} />
+              {/* Renderização Direta do Componente React (Alive) */}
+              <PainelQuestao
+                q={currentQ}
+                tituloMaterial={tituloMaterial}
+                imagensFinais={imagensFinais}
+              />
             </div>
-            
+
             {/* Coluna Gabarito */}
             <div
               className="review-col"
-              style={{ background: 'var(--color-surface)', padding: '20px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', overflowY: 'auto', maxHeight: '100%' }}
+              style={{
+                background: 'var(--color-surface)',
+                padding: '20px',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border)',
+                overflowY: 'auto',
+                maxHeight: '100%',
+              }}
             >
-                {/* Renderização Direta do Componente React (Alive) */}
-                <PainelGabarito g={currentG} imagensFinais={imagensFinais} explicacaoArray={explicacaoArray} />
+              {/* Renderização Direta do Componente React (Alive) */}
+              <PainelGabarito
+                g={currentG}
+                imagensFinais={imagensFinais}
+                explicacaoArray={explicacaoArray}
+              />
             </div>
           </div>
 
           {/* JSON Debug Area */}
-          <div className="json-debug-area" style={{ marginTop: '30px', background: '#0f172a', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+          <div
+            className="json-debug-area"
+            style={{
+              marginTop: '30px',
+              background: '#0f172a',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '1px solid var(--color-border)',
+            }}
+          >
             <details>
-              <summary className="json-debug-header" style={{ cursor: 'pointer', padding: '10px', color: '#fff' }}>
+              <summary
+                className="json-debug-header"
+                style={{ cursor: 'pointer', padding: '10px', color: '#fff' }}
+              >
                 <span>📦 JSON Payload Final (Clique para expandir)</span>
               </summary>
               <div style={{ position: 'relative' }}>
@@ -318,7 +413,15 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
                 <pre
                   className="json-dump"
                   id="finalJsonOutput"
-                  style={{ padding: '20px', margin: 0, maxHeight: '300px', overflow: 'auto', fontSize: '11px', lineHeight: 1.4, color: '#a5b4fc' }}
+                  style={{
+                    padding: '20px',
+                    margin: 0,
+                    maxHeight: '300px',
+                    overflow: 'auto',
+                    fontSize: '11px',
+                    lineHeight: 1.4,
+                    color: '#a5b4fc',
+                  }}
                 >
                   {jsonString}
                 </pre>
@@ -328,8 +431,19 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
         </div>
 
         {/* FOOTER */}
-        <div style={{ background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', padding: '20px', display: 'flex', justifyContent: 'flex-end', gap: '15px' }}>
-          <button className="btn btn--secondary" onClick={onClose}>Cancelar</button>
+        <div
+          style={{
+            background: 'var(--color-surface)',
+            borderTop: '1px solid var(--color-border)',
+            padding: '20px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '15px',
+          }}
+        >
+          <button className="btn btn--secondary" onClick={onClose}>
+            Cancelar
+          </button>
           <button
             id="btnConfirmarEnvioFinal"
             className="btn btn--primary"
@@ -349,16 +463,16 @@ const JsonReviewModal: React.FC<JsonReviewModalProps> = ({
 export function mountJsonReviewModal(
   container: HTMLElement,
   data: {
-    q: any,
-    g: any,
-    tituloMaterial: string,
-    imagensFinais: any,
-    explicacaoArray: any[],
-    htmlQuestaoSide?: string, // Depreciado
-    htmlGabaritoSide?: string, // Depreciado
+    q: any;
+    g: any;
+    tituloMaterial: string;
+    imagensFinais: any;
+    explicacaoArray: any[];
+    htmlQuestaoSide?: string; // Depreciado
+    htmlGabaritoSide?: string; // Depreciado
     // Callback para disparar o evento original caso exista algum listener global
-    onConfirmCallback?: () => void
-  }
+    onConfirmCallback?: () => void;
+  },
 ) {
   const root = createRoot(container);
 
@@ -376,7 +490,7 @@ export function mountJsonReviewModal(
     // Chama a função de envio para Firebase passando os dados auditados/atualizados
     const { enviarDadosParaFirebase } = await import('../../firebase/envio.js');
     await (enviarDadosParaFirebase as any)(updatedQ, updatedG);
-    
+
     // Callback opcional
     if (data.onConfirmCallback) data.onConfirmCallback();
   };
@@ -392,6 +506,6 @@ export function mountJsonReviewModal(
       htmlGabaritoSide={data.htmlGabaritoSide}
       onClose={handleClose}
       onConfirm={handleConfirm}
-    />
+    />,
   );
 }

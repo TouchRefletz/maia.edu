@@ -1,25 +1,25 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
-import { renderPageHighRes } from "../viewer/pdf-core.js";
+import { gerarConteudoEmJSONComImagemStream } from '../api/worker.js';
+import { renderPageHighRes } from '../viewer/pdf-core.js';
 
 // Schema para detecção de imagens (mesmo do crop-tool.html)
 const imageDetectionSchema = {
-  type: "object",
+  type: 'object',
   properties: {
     crops: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          x: { type: "integer", description: "X coordinate (0-1000)" },
-          y: { type: "integer", description: "Y coordinate (0-1000)" },
-          w: { type: "integer", description: "Width (0-1000)" },
-          h: { type: "integer", description: "Height (0-1000)" },
+          x: { type: 'integer', description: 'X coordinate (0-1000)' },
+          y: { type: 'integer', description: 'Y coordinate (0-1000)' },
+          w: { type: 'integer', description: 'Width (0-1000)' },
+          h: { type: 'integer', description: 'Height (0-1000)' },
         },
-        required: ["x", "y", "w", "h"],
+        required: ['x', 'y', 'w', 'h'],
       },
     },
   },
-  required: ["crops"],
+  required: ['crops'],
 };
 
 // Prompt para detecção de imagens visuais (mesmo do crop-tool.html)
@@ -44,12 +44,7 @@ Focus ONLY on visual content that does not fall into the above categories. Retur
  * Verifica se dois retângulos se intersectam
  */
 function rectsIntersect(a, b) {
-  return !(
-    a.x + a.w <= b.x ||
-    b.x + b.w <= a.x ||
-    a.y + a.h <= b.y ||
-    b.y + b.h <= a.y
-  );
+  return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
 
 /**
@@ -77,42 +72,38 @@ function clipToBounds(crop, bounds) {
  * @param {Object} callbacks - Callbacks opcionais { onStatus, onThought, signal }
  * @returns {Promise<{success: boolean, crops?: Array, error?: string}>}
  */
-export async function extractImagesFromRegion(
-  pageNum,
-  questionBounds,
-  callbacks = {}
-) {
+export async function extractImagesFromRegion(pageNum, questionBounds, callbacks = {}) {
   const { onStatus, onThought, signal } = callbacks;
 
   try {
     // 1. Renderiza página em alta resolução
-    onStatus?.("Renderizando página...");
+    onStatus?.('Renderizando página...');
     const imageBase64 = await renderPageHighRes(pageNum);
 
     if (!imageBase64) {
-      return { success: false, error: "Falha ao renderizar página" };
+      return { success: false, error: 'Falha ao renderizar página' };
     }
 
     // 2. Envia para Gemini
-    onStatus?.("Analisando com IA...");
+    onStatus?.('Analisando com IA...');
 
     const result = await gerarConteudoEmJSONComImagemStream(
       IMAGE_DETECTION_PROMPT,
       imageDetectionSchema,
       [imageBase64],
-      "image/png",
+      'image/png',
       {
         onStatus,
         onThought,
         signal,
       },
       {
-        model: window.selectedModelExtractorImageDetect || "models/gemini-3.5-flash",
-      }
+        model: window.selectedModelExtractorImageDetect || 'models/gemini-3.5-flash',
+      },
     );
 
     if (!result || !result.crops) {
-      return { success: false, error: "Resposta inválida da IA" };
+      return { success: false, error: 'Resposta inválida da IA' };
     }
 
     // 3. Filtra crops que intersectam com os bounds da questão
@@ -124,7 +115,7 @@ export async function extractImagesFromRegion(
     if (validCrops.length === 0) {
       return {
         success: false,
-        error: "Nenhuma imagem encontrada dentro da questão",
+        error: 'Nenhuma imagem encontrada dentro da questão',
       };
     }
 
@@ -135,10 +126,10 @@ export async function extractImagesFromRegion(
       firstCrop: validCrops[0],
     };
   } catch (e) {
-    if (e.name === "AbortError") {
-      return { success: false, error: "Extração cancelada" };
+    if (e.name === 'AbortError') {
+      return { success: false, error: 'Extração cancelada' };
     }
-    console.error("[AI Image Extractor]", e);
+    console.error('[AI Image Extractor]', e);
     return { success: false, error: e.message };
   }
 }

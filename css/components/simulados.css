@@ -726,9 +726,15 @@
   font-weight: var(--font-weight-bold);
 }
 
-.simulados-summary-val.correct { color: var(--color-success); }
-.simulados-summary-val.incorrect { color: var(--color-error); }
-.simulados-summary-val.pending { color: var(--color-warning); }
+.simulados-summary-val.correct {
+  color: var(--color-success);
+}
+.simulados-summary-val.incorrect {
+  color: var(--color-error);
+}
+.simulados-summary-val.pending {
+  color: var(--color-warning);
+}
 
 .simulados-summary-lbl {
   font-size: var(--font-size-xs);

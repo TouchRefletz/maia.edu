@@ -22,12 +22,12 @@ export function configurarTabs(container, gabarito) {
   // Verificamos se já foi renderizado para evitar recriar a root múltiplas vezes
   if (!mountNode.hasAttribute('data-react-initialized')) {
     const root = createRoot(mountNode);
-    
+
     root.render(
       React.createElement(TabsManager, {
         container: container,
-        hasGabarito: gabarito
-      })
+        hasGabarito: gabarito,
+      }),
     );
 
     // Marca como inicializado

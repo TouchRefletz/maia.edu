@@ -103,84 +103,382 @@ export const JUDGE_RUBRIC = ``;
 
 export function getJudgeResponseSchema(isInterdisciplinary = false) {
   const criteriosProperties = {
-    declaracao_gabarito_indica_letra: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    presenca_formatacao_negrito: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    divisao_minima_paragrafos: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    presenca_titulo_ou_cabecalho: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    uso_de_listas_ou_topicos: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    ausencia_de_tags_corrompidas: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    presenca_de_conclusao_clara: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    citacao_direta_texto_apoio: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    mencao_ao_comando_pergunta: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    isolamento_dados_quantitativos: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    ausencia_extrapolacao_hipotetica: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    parafrase_fiel_das_premissas: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    mencao_a_fontes_ou_rodape: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    leitura_de_elementos_visuais: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    passo_a_passo_cronologico: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    linguagem_acessivel_ensino_medio: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    presenca_de_exemplos_praticos: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    ausencia_de_redundancia_vazia: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    definicao_de_termos_chave: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    segmentacao_funcional_do_texto: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    recurso_visual_de_destaque: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    analise_isolada_distrator_A: { type: "object", properties: { evidencia: { type: "string", description: "Evidência literal." }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    analise_isolada_distrator_B: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    analise_isolada_distrator_C: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    analise_isolada_distrator_restante: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    conexao_causal_premissa_conclusao: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    ausencia_de_saltos_logicos: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    ausencia_de_raciocinio_circular: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    aplicacao_nominal_arcabouco_teorico: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    mecanismo_do_erro_nos_distratores: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    independencia_da_memoria_parametrica: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    metodologia_de_resolucao_explicita: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    otimizacao_semantica_para_interface: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-    recurso_didatico_avancado_analogia: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] }
+    declaracao_gabarito_indica_letra: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    presenca_formatacao_negrito: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    divisao_minima_paragrafos: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    presenca_titulo_ou_cabecalho: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    uso_de_listas_ou_topicos: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    ausencia_de_tags_corrompidas: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    presenca_de_conclusao_clara: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    citacao_direta_texto_apoio: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    mencao_ao_comando_pergunta: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    isolamento_dados_quantitativos: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    ausencia_extrapolacao_hipotetica: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    parafrase_fiel_das_premissas: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    mencao_a_fontes_ou_rodape: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    leitura_de_elementos_visuais: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    passo_a_passo_cronologico: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    linguagem_acessivel_ensino_medio: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    presenca_de_exemplos_praticos: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    ausencia_de_redundancia_vazia: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    definicao_de_termos_chave: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    segmentacao_funcional_do_texto: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    recurso_visual_de_destaque: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    analise_isolada_distrator_A: {
+      type: 'object',
+      properties: {
+        evidencia: { type: 'string', description: 'Evidência literal.' },
+        presente: { type: 'boolean' },
+      },
+      required: ['evidencia', 'presente'],
+    },
+    analise_isolada_distrator_B: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    analise_isolada_distrator_C: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    analise_isolada_distrator_restante: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    conexao_causal_premissa_conclusao: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    ausencia_de_saltos_logicos: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    ausencia_de_raciocinio_circular: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    aplicacao_nominal_arcabouco_teorico: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    mecanismo_do_erro_nos_distratores: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    independencia_da_memoria_parametrica: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    metodologia_de_resolucao_explicita: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    otimizacao_semantica_para_interface: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
+    recurso_didatico_avancado_analogia: {
+      type: 'object',
+      properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+      required: ['evidencia', 'presente'],
+    },
   };
 
   const requiredCriterios = [
-    "declaracao_gabarito_indica_letra", "presenca_formatacao_negrito", "divisao_minima_paragrafos",
-    "presenca_titulo_ou_cabecalho", "uso_de_listas_ou_topicos", "ausencia_de_tags_corrompidas",
-    "presenca_de_conclusao_clara", "citacao_direta_texto_apoio", "mencao_ao_comando_pergunta",
-    "isolamento_dados_quantitativos", "ausencia_extrapolacao_hipotetica", "parafrase_fiel_das_premissas",
-    "mencao_a_fontes_ou_rodape", "leitura_de_elementos_visuais", "passo_a_passo_cronologico",
-    "linguagem_acessivel_ensino_medio", "presenca_de_exemplos_praticos", "ausencia_de_redundancia_vazia",
-    "definicao_de_termos_chave", "segmentacao_funcional_do_texto", "recurso_visual_de_destaque",
-    "analise_isolada_distrator_A", "analise_isolada_distrator_B", "analise_isolada_distrator_C",
-    "analise_isolada_distrator_restante", "conexao_causal_premissa_conclusao", "ausencia_de_saltos_logicos",
-    "ausencia_de_raciocinio_circular", "aplicacao_nominal_arcabouco_teorico", "mecanismo_do_erro_nos_distratores",
-    "independencia_da_memoria_parametrica", "metodologia_de_resolucao_explicita", "otimizacao_semantica_para_interface",
-    "recurso_didatico_avancado_analogia"
+    'declaracao_gabarito_indica_letra',
+    'presenca_formatacao_negrito',
+    'divisao_minima_paragrafos',
+    'presenca_titulo_ou_cabecalho',
+    'uso_de_listas_ou_topicos',
+    'ausencia_de_tags_corrompidas',
+    'presenca_de_conclusao_clara',
+    'citacao_direta_texto_apoio',
+    'mencao_ao_comando_pergunta',
+    'isolamento_dados_quantitativos',
+    'ausencia_extrapolacao_hipotetica',
+    'parafrase_fiel_das_premissas',
+    'mencao_a_fontes_ou_rodape',
+    'leitura_de_elementos_visuais',
+    'passo_a_passo_cronologico',
+    'linguagem_acessivel_ensino_medio',
+    'presenca_de_exemplos_praticos',
+    'ausencia_de_redundancia_vazia',
+    'definicao_de_termos_chave',
+    'segmentacao_funcional_do_texto',
+    'recurso_visual_de_destaque',
+    'analise_isolada_distrator_A',
+    'analise_isolada_distrator_B',
+    'analise_isolada_distrator_C',
+    'analise_isolada_distrator_restante',
+    'conexao_causal_premissa_conclusao',
+    'ausencia_de_saltos_logicos',
+    'ausencia_de_raciocinio_circular',
+    'aplicacao_nominal_arcabouco_teorico',
+    'mecanismo_do_erro_nos_distratores',
+    'independencia_da_memoria_parametrica',
+    'metodologia_de_resolucao_explicita',
+    'otimizacao_semantica_para_interface',
+    'recurso_didatico_avancado_analogia',
   ];
 
   if (isInterdisciplinary) {
     const interdisciplinaresProperties = {
-      mencao_nominal_disciplinas: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      presenca_conectivos_interdisciplinares: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      indicacao_natureza_mista: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      mapeamento_premissas_area_A: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      mapeamento_premissas_area_B: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      identificacao_objeto_ponte: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      linguagem_acessivel_interface: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      recurso_didatico_analogia_cruzada: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      segmentacao_funcional_da_ponte: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      ausencia_de_justaposicao_vazia: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      mecanismo_do_erro_interdisciplinar: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      ausencia_de_saltos_logicos_na_interface: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      nexo_causal_interdisciplinar_formal: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      fusao_conceitual_resolutiva: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      ausencia_de_alucinacao_cientifica_cruzada: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] },
-      independencia_da_memoria_parametrica_cruzada: { type: "object", properties: { evidencia: { type: "string" }, presente: { type: "boolean" } }, required: ["evidencia", "presente"] }
+      mencao_nominal_disciplinas: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      presenca_conectivos_interdisciplinares: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      indicacao_natureza_mista: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      mapeamento_premissas_area_A: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      mapeamento_premissas_area_B: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      identificacao_objeto_ponte: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      linguagem_acessivel_interface: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      recurso_didatico_analogia_cruzada: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      segmentacao_funcional_da_ponte: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      ausencia_de_justaposicao_vazia: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      mecanismo_do_erro_interdisciplinar: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      ausencia_de_saltos_logicos_na_interface: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      nexo_causal_interdisciplinar_formal: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      fusao_conceitual_resolutiva: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      ausencia_de_alucinacao_cientifica_cruzada: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
+      independencia_da_memoria_parametrica_cruzada: {
+        type: 'object',
+        properties: { evidencia: { type: 'string' }, presente: { type: 'boolean' } },
+        required: ['evidencia', 'presente'],
+      },
     };
 
     const interdisciplinaresRequired = [
-      "mencao_nominal_disciplinas", "presenca_conectivos_interdisciplinares", "indicacao_natureza_mista",
-      "mapeamento_premissas_area_A", "mapeamento_premissas_area_B", "identificacao_objeto_ponte",
-      "linguagem_acessivel_interface", "recurso_didatico_analogia_cruzada", "segmentacao_funcional_da_ponte",
-      "ausencia_de_justaposicao_vazia", "mecanismo_do_erro_interdisciplinar", "ausencia_de_saltos_logicos_na_interface",
-      "nexo_causal_interdisciplinar_formal", "fusao_conceitual_resolutiva", "ausencia_de_alucinacao_cientifica_cruzada",
-      "independencia_da_memoria_parametrica_cruzada"
+      'mencao_nominal_disciplinas',
+      'presenca_conectivos_interdisciplinares',
+      'indicacao_natureza_mista',
+      'mapeamento_premissas_area_A',
+      'mapeamento_premissas_area_B',
+      'identificacao_objeto_ponte',
+      'linguagem_acessivel_interface',
+      'recurso_didatico_analogia_cruzada',
+      'segmentacao_funcional_da_ponte',
+      'ausencia_de_justaposicao_vazia',
+      'mecanismo_do_erro_interdisciplinar',
+      'ausencia_de_saltos_logicos_na_interface',
+      'nexo_causal_interdisciplinar_formal',
+      'fusao_conceitual_resolutiva',
+      'ausencia_de_alucinacao_cientifica_cruzada',
+      'independencia_da_memoria_parametrica_cruzada',
     ];
 
     Object.assign(criteriosProperties, interdisciplinaresProperties);
@@ -188,16 +486,16 @@ export function getJudgeResponseSchema(isInterdisciplinary = false) {
   }
 
   return {
-    type: "object",
+    type: 'object',
     properties: {
       criterios: {
-        type: "object",
+        type: 'object',
         properties: criteriosProperties,
-        required: requiredCriterios
+        required: requiredCriterios,
       },
-      comentario_geral: { type: "string" }
+      comentario_geral: { type: 'string' },
     },
-    required: ["criterios", "comentario_geral"]
+    required: ['criterios', 'comentario_geral'],
   };
 }
 
@@ -211,7 +509,7 @@ Materiais de entrada:
 
 Instruções adicionais da questão:
 Questão: ${enunciado}
-A questão é do tipo: ${isInterdisciplinary ? "FUVEST/INTERDISCIPLINAR" : "ENEM PADRÃO"}.
+A questão é do tipo: ${isInterdisciplinary ? 'FUVEST/INTERDISCIPLINAR' : 'ENEM PADRÃO'}.
 `;
 }
 
@@ -219,62 +517,62 @@ A questão é do tipo: ${isInterdisciplinary ? "FUVEST/INTERDISCIPLINAR" : "ENEM
  * Pesos ocultos para questões padrão (itens 1 a 34).
  */
 export const PESOS_PADRAO = {
-  "declaracao_gabarito_indica_letra": 1,
-  "presenca_formatacao_negrito": 1,
-  "divisao_minima_paragrafos": 1,
-  "presenca_titulo_ou_cabecalho": 1,
-  "uso_de_listas_ou_topicos": 1,
-  "ausencia_de_tags_corrompidas": 1,
-  "presenca_de_conclusao_clara": 1,
-  "citacao_direta_texto_apoio": 2,
-  "mencao_ao_comando_pergunta": 2,
-  "isolamento_dados_quantitativos": 2,
-  "ausencia_extrapolacao_hipotetica": 2,
-  "parafrase_fiel_das_premissas": 2,
-  "mencao_a_fontes_ou_rodape": 2,
-  "leitura_de_elementos_visuais": 2,
-  "passo_a_passo_cronologico": 3,
-  "linguagem_acessivel_ensino_medio": 3,
-  "presenca_de_exemplos_praticos": 3,
-  "ausencia_de_redundancia_vazia": 3,
-  "definicao_de_termos_chave": 3,
-  "segmentacao_funcional_do_texto": 3,
-  "recurso_visual_de_destaque": 3,
-  "analise_isolada_distrator_A": 4,
-  "analise_isolada_distrator_B": 4,
-  "analise_isolada_distrator_C": 4,
-  "analise_isolada_distrator_restante": 4,
-  "conexao_causal_premissa_conclusao": 4,
-  "ausencia_de_saltos_logicos": 4,
-  "ausencia_de_raciocinio_circular": 4,
-  "aplicacao_nominal_arcabouco_teorico": 5,
-  "mecanismo_do_erro_nos_distratores": 5,
-  "independencia_da_memoria_parametrica": 5,
-  "metodologia_de_resolucao_explicita": 5,
-  "otimizacao_semantica_para_interface": 5,
-  "recurso_didatico_avancado_analogia": 5
+  declaracao_gabarito_indica_letra: 1,
+  presenca_formatacao_negrito: 1,
+  divisao_minima_paragrafos: 1,
+  presenca_titulo_ou_cabecalho: 1,
+  uso_de_listas_ou_topicos: 1,
+  ausencia_de_tags_corrompidas: 1,
+  presenca_de_conclusao_clara: 1,
+  citacao_direta_texto_apoio: 2,
+  mencao_ao_comando_pergunta: 2,
+  isolamento_dados_quantitativos: 2,
+  ausencia_extrapolacao_hipotetica: 2,
+  parafrase_fiel_das_premissas: 2,
+  mencao_a_fontes_ou_rodape: 2,
+  leitura_de_elementos_visuais: 2,
+  passo_a_passo_cronologico: 3,
+  linguagem_acessivel_ensino_medio: 3,
+  presenca_de_exemplos_praticos: 3,
+  ausencia_de_redundancia_vazia: 3,
+  definicao_de_termos_chave: 3,
+  segmentacao_funcional_do_texto: 3,
+  recurso_visual_de_destaque: 3,
+  analise_isolada_distrator_A: 4,
+  analise_isolada_distrator_B: 4,
+  analise_isolada_distrator_C: 4,
+  analise_isolada_distrator_restante: 4,
+  conexao_causal_premissa_conclusao: 4,
+  ausencia_de_saltos_logicos: 4,
+  ausencia_de_raciocinio_circular: 4,
+  aplicacao_nominal_arcabouco_teorico: 5,
+  mecanismo_do_erro_nos_distratores: 5,
+  independencia_da_memoria_parametrica: 5,
+  metodologia_de_resolucao_explicita: 5,
+  otimizacao_semantica_para_interface: 5,
+  recurso_didatico_avancado_analogia: 5,
 };
 
 /**
  * Pesos ocultos para questões interdisciplinares (itens 35 a 50).
  */
 export const PESOS_INTERDISCIPLINARES = {
-  "mencao_nominal_disciplinas": 1,
-  "presenca_conectivos_interdisciplinares": 1,
-  "indicacao_natureza_mista": 1,
-  "mapeamento_premissas_area_A": 2,
-  "mapeamento_premissas_area_B": 2,
-  "identificacao_objeto_ponte": 2,
-  "linguagem_acessivel_interface": 3,
-  "recurso_didatico_analogia_cruzada": 3,
-  "segmentacao_funcional_da_ponte": 3,
-  "ausencia_de_justaposicao_vazia": 4,
-  "mecanismo_do_erro_interdisciplinar": 4,
-  "ausencia_de_saltos_logicos_na_interface": 4,
-  "nexo_causal_interdisciplinar_formal": 5,
-  "fusao_conceitual_resolutiva": 5,
-  "ausencia_de_alucinacao_cientifica_cruzada": 5,
-  "independencia_da_memoria_parametrica_cruzada": 5
+  mencao_nominal_disciplinas: 1,
+  presenca_conectivos_interdisciplinares: 1,
+  indicacao_natureza_mista: 1,
+  mapeamento_premissas_area_A: 2,
+  mapeamento_premissas_area_B: 2,
+  identificacao_objeto_ponte: 2,
+  linguagem_acessivel_interface: 3,
+  recurso_didatico_analogia_cruzada: 3,
+  segmentacao_funcional_da_ponte: 3,
+  ausencia_de_justaposicao_vazia: 4,
+  mecanismo_do_erro_interdisciplinar: 4,
+  ausencia_de_saltos_logicos_na_interface: 4,
+  nexo_causal_interdisciplinar_formal: 5,
+  fusao_conceitual_resolutiva: 5,
+  ausencia_de_alucinacao_cientifica_cruzada: 5,
+  independencia_da_memoria_parametrica_cruzada: 5,
 };
 
 /**
@@ -284,14 +582,20 @@ export function calcularNotaBlinded(criteriosJSON, isInterdisciplinary = false) 
   let pontuacaoTotal = 0;
 
   for (const chave in PESOS_PADRAO) {
-    if (criteriosJSON[chave] && (criteriosJSON[chave].presente === true || criteriosJSON[chave].presente === "true")) {
+    if (
+      criteriosJSON[chave] &&
+      (criteriosJSON[chave].presente === true || criteriosJSON[chave].presente === 'true')
+    ) {
       pontuacaoTotal += PESOS_PADRAO[chave];
     }
   }
 
   if (isInterdisciplinary) {
     for (const chave in PESOS_INTERDISCIPLINARES) {
-      if (criteriosJSON[chave] && (criteriosJSON[chave].presente === true || criteriosJSON[chave].presente === "true")) {
+      if (
+        criteriosJSON[chave] &&
+        (criteriosJSON[chave].presente === true || criteriosJSON[chave].presente === 'true')
+      ) {
         pontuacaoTotal += PESOS_INTERDISCIPLINARES[chave];
       }
     }
@@ -310,65 +614,71 @@ export function processarAvaliacaoJuiz(avaliacaoJSON, isInterdisciplinary = fals
   }
 
   const criterios = avaliacaoJSON.criterios;
-  const check = (key) => (criterios[key] && (criterios[key].presente === true || criterios[key].presente === "true")) ? 1 : 0;
+  const check = (key) =>
+    criterios[key] && (criterios[key].presente === true || criterios[key].presente === 'true')
+      ? 1
+      : 0;
 
   // Calculo dos grupos A a E
-  const grupoA = 
-    check("declaracao_gabarito_indica_letra") * 1 +
-    check("presenca_formatacao_negrito") * 1 +
-    check("divisao_minima_paragrafos") * 1 +
-    check("presenca_titulo_ou_cabecalho") * 1 +
-    check("uso_de_listas_ou_topicos") * 1 +
-    check("ausencia_de_tags_corrompidas") * 1 +
-    check("presenca_de_conclusao_clara") * 1;
+  const grupoA =
+    check('declaracao_gabarito_indica_letra') * 1 +
+    check('presenca_formatacao_negrito') * 1 +
+    check('divisao_minima_paragrafos') * 1 +
+    check('presenca_titulo_ou_cabecalho') * 1 +
+    check('uso_de_listas_ou_topicos') * 1 +
+    check('ausencia_de_tags_corrompidas') * 1 +
+    check('presenca_de_conclusao_clara') * 1;
 
-  const grupoB = 
-    check("citacao_direta_texto_apoio") * 2 +
-    check("mencao_ao_comando_pergunta") * 2 +
-    check("isolamento_dados_quantitativos") * 2 +
-    check("ausencia_extrapolacao_hipotetica") * 2 +
-    check("parafrase_fiel_das_premissas") * 2 +
-    check("mencao_a_fontes_ou_rodape") * 2 +
-    check("leitura_de_elementos_visuais") * 2;
+  const grupoB =
+    check('citacao_direta_texto_apoio') * 2 +
+    check('mencao_ao_comando_pergunta') * 2 +
+    check('isolamento_dados_quantitativos') * 2 +
+    check('ausencia_extrapolacao_hipotetica') * 2 +
+    check('parafrase_fiel_das_premissas') * 2 +
+    check('mencao_a_fontes_ou_rodape') * 2 +
+    check('leitura_de_elementos_visuais') * 2;
 
-  const grupoC = 
-    check("passo_a_passo_cronologico") * 3 +
-    check("linguagem_acessivel_ensino_medio") * 3 +
-    check("presenca_de_exemplos_praticos") * 3 +
-    check("ausencia_de_redundancia_vazia") * 3 +
-    check("definicao_de_termos_chave") * 3 +
-    check("segmentacao_funcional_do_texto") * 3 +
-    check("recurso_visual_de_destaque") * 3;
+  const grupoC =
+    check('passo_a_passo_cronologico') * 3 +
+    check('linguagem_acessivel_ensino_medio') * 3 +
+    check('presenca_de_exemplos_praticos') * 3 +
+    check('ausencia_de_redundancia_vazia') * 3 +
+    check('definicao_de_termos_chave') * 3 +
+    check('segmentacao_funcional_do_texto') * 3 +
+    check('recurso_visual_de_destaque') * 3;
 
-  const grupoD = 
-    check("analise_isolada_distrator_A") * 4 +
-    check("analise_isolada_distrator_B") * 4 +
-    check("analise_isolada_distrator_C") * 4 +
-    check("analise_isolada_distrator_restante") * 4 +
-    check("conexao_causal_premissa_conclusao") * 4 +
-    check("ausencia_de_saltos_logicos") * 4 +
-    check("ausencia_de_raciocinio_circular") * 4;
+  const grupoD =
+    check('analise_isolada_distrator_A') * 4 +
+    check('analise_isolada_distrator_B') * 4 +
+    check('analise_isolada_distrator_C') * 4 +
+    check('analise_isolada_distrator_restante') * 4 +
+    check('conexao_causal_premissa_conclusao') * 4 +
+    check('ausencia_de_saltos_logicos') * 4 +
+    check('ausencia_de_raciocinio_circular') * 4;
 
-  const grupoE = 
-    check("aplicacao_nominal_arcabouco_teorico") * 5 +
-    check("mecanismo_do_erro_nos_distratores") * 5 +
-    check("independencia_da_memoria_parametrica") * 5 +
-    check("metodologia_de_resolucao_explicita") * 5 +
-    check("otimizacao_semantica_para_interface") * 5 +
-    check("recurso_didatico_avancado_analogia") * 5;
+  const grupoE =
+    check('aplicacao_nominal_arcabouco_teorico') * 5 +
+    check('mecanismo_do_erro_nos_distratores') * 5 +
+    check('independencia_da_memoria_parametrica') * 5 +
+    check('metodologia_de_resolucao_explicita') * 5 +
+    check('otimizacao_semantica_para_interface') * 5 +
+    check('recurso_didatico_avancado_analogia') * 5;
 
   const notasGrupo = {
     grupo_a: grupoA,
     grupo_b: grupoB,
     grupo_c: grupoC,
     grupo_d: grupoD,
-    grupo_e: grupoE
+    grupo_e: grupoE,
   };
 
   if (isInterdisciplinary) {
     let grupoF = 0;
     for (const chave in PESOS_INTERDISCIPLINARES) {
-      if (criterios[chave] && (criterios[chave].presente === true || criterios[chave].presente === "true")) {
+      if (
+        criterios[chave] &&
+        (criterios[chave].presente === true || criterios[chave].presente === 'true')
+      ) {
         grupoF += PESOS_INTERDISCIPLINARES[chave];
       }
     }
@@ -383,43 +693,74 @@ export function processarAvaliacaoJuiz(avaliacaoJSON, isInterdisciplinary = fals
 
 // MULTI-PART CRITERIA DEFINITIONS FOR GEMMA
 const CRITERIOS_PART1 = [
-  "declaracao_gabarito_indica_letra", "presenca_formatacao_negrito", "divisao_minima_paragrafos",
-  "presenca_titulo_ou_cabecalho", "uso_de_listas_ou_topicos", "ausencia_de_tags_corrompidas",
-  "presenca_de_conclusao_clara", "citacao_direta_texto_apoio", "mencao_ao_comando_pergunta",
-  "isolamento_dados_quantitativos", "ausencia_extrapolacao_hipotetica", "parafrase_fiel_das_premissas",
-  "mencao_a_fontes_ou_rodape", "leitura_de_elementos_visuais"
+  'declaracao_gabarito_indica_letra',
+  'presenca_formatacao_negrito',
+  'divisao_minima_paragrafos',
+  'presenca_titulo_ou_cabecalho',
+  'uso_de_listas_ou_topicos',
+  'ausencia_de_tags_corrompidas',
+  'presenca_de_conclusao_clara',
+  'citacao_direta_texto_apoio',
+  'mencao_ao_comando_pergunta',
+  'isolamento_dados_quantitativos',
+  'ausencia_extrapolacao_hipotetica',
+  'parafrase_fiel_das_premissas',
+  'mencao_a_fontes_ou_rodape',
+  'leitura_de_elementos_visuais',
 ];
 
 const CRITERIOS_PART2 = [
-  "passo_a_passo_cronologico", "linguagem_acessivel_ensino_medio", "presenca_de_exemplos_praticos",
-  "ausencia_de_redundancia_vazia", "definicao_de_termos_chave", "segmentacao_funcional_do_texto",
-  "recurso_visual_de_destaque"
+  'passo_a_passo_cronologico',
+  'linguagem_acessivel_ensino_medio',
+  'presenca_de_exemplos_praticos',
+  'ausencia_de_redundancia_vazia',
+  'definicao_de_termos_chave',
+  'segmentacao_funcional_do_texto',
+  'recurso_visual_de_destaque',
 ];
 
 const CRITERIOS_PART3 = [
-  "analise_isolada_distrator_A", "analise_isolada_distrator_B", "analise_isolada_distrator_C",
-  "analise_isolada_distrator_restante", "conexao_causal_premissa_conclusao", "ausencia_de_saltos_logicos",
-  "ausencia_de_raciocinio_circular"
+  'analise_isolada_distrator_A',
+  'analise_isolada_distrator_B',
+  'analise_isolada_distrator_C',
+  'analise_isolada_distrator_restante',
+  'conexao_causal_premissa_conclusao',
+  'ausencia_de_saltos_logicos',
+  'ausencia_de_raciocinio_circular',
 ];
 
 const CRITERIOS_PART4_BASE = [
-  "aplicacao_nominal_arcabouco_teorico", "mecanismo_do_erro_nos_distratores", "independencia_da_memoria_parametrica",
-  "metodologia_de_resolucao_explicita", "otimizacao_semantica_para_interface", "recurso_didatico_avancado_analogia"
+  'aplicacao_nominal_arcabouco_teorico',
+  'mecanismo_do_erro_nos_distratores',
+  'independencia_da_memoria_parametrica',
+  'metodologia_de_resolucao_explicita',
+  'otimizacao_semantica_para_interface',
+  'recurso_didatico_avancado_analogia',
 ];
 
 const CRITERIOS_PART4_FUVEST = [
-  "mencao_nominal_disciplinas", "presenca_conectivos_interdisciplinares", "indicacao_natureza_mista",
-  "mapeamento_premissas_area_A", "mapeamento_premissas_area_B", "identificacao_objeto_ponte",
-  "linguagem_acessivel_interface", "recurso_didatico_analogia_cruzada", "segmentacao_funcional_da_ponte",
-  "ausencia_de_justaposicao_vazia", "mecanismo_do_erro_interdisciplinar", "ausencia_de_saltos_logicos_na_interface",
-  "nexo_causal_interdisciplinar_formal", "fusao_conceitual_resolutiva", "ausencia_de_alucinacao_cientifica_cruzada",
-  "independencia_da_memoria_parametrica_cruzada"
+  'mencao_nominal_disciplinas',
+  'presenca_conectivos_interdisciplinares',
+  'indicacao_natureza_mista',
+  'mapeamento_premissas_area_A',
+  'mapeamento_premissas_area_B',
+  'identificacao_objeto_ponte',
+  'linguagem_acessivel_interface',
+  'recurso_didatico_analogia_cruzada',
+  'segmentacao_funcional_da_ponte',
+  'ausencia_de_justaposicao_vazia',
+  'mecanismo_do_erro_interdisciplinar',
+  'ausencia_de_saltos_logicos_na_interface',
+  'nexo_causal_interdisciplinar_formal',
+  'fusao_conceitual_resolutiva',
+  'ausencia_de_alucinacao_cientifica_cruzada',
+  'independencia_da_memoria_parametrica_cruzada',
 ];
 
 export function getJudgeResponseSchemaForPart(part, isInterdisciplinary = false) {
   const fullSchema = getJudgeResponseSchema(isInterdisciplinary);
   const fullProps = fullSchema.properties.criterios.properties;
-  
+
   let keys = [];
   if (part === 1) {
     keys = CRITERIOS_PART1;
@@ -442,16 +783,16 @@ export function getJudgeResponseSchemaForPart(part, isInterdisciplinary = false)
   }
 
   return {
-    type: "object",
+    type: 'object',
     properties: {
       criterios: {
-        type: "object",
+        type: 'object',
         properties: partProps,
-        required: keys
+        required: keys,
       },
-      comentario_geral: { type: "string" }
+      comentario_geral: { type: 'string' },
     },
-    required: ["criterios", "comentario_geral"]
+    required: ['criterios', 'comentario_geral'],
   };
 }
 
@@ -470,7 +811,7 @@ IMPORTANTE:
 ### CRITÉRIOS DE AVALIAÇÃO DA PARTE ${part} (CHECKLIST BINÁRIO)
 `;
 
-  let body = "";
+  let body = '';
   if (part === 1) {
     body = `
 [GRUPO A - ESTRUTURA E ESTÉTICA BÁSICA]
@@ -561,4 +902,3 @@ ADAPTAÇÃO ARQUITETURAL PARA CÓDIGO (RETORNO EM JSON):
 Você deve retornar estritamente um objeto JSON válido, sem blocos markdown ou texto adicional, com o formato especificado no response_schema.
 `;
 }
-

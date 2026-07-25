@@ -1,97 +1,87 @@
-import { ChatStorageService } from "../services/chat-storage.js";
-import * as MemoryService from "../services/memory-service.js";
-import { criarCardTecnico } from "../banco/card-template.js";
-import { gerarHtmlPainelFiltros } from "../banco/filtros-ui.js";
+import { formatFriendlyError, resolveLinkOnDemand } from '../api/worker.js';
+import { criarCardTecnico } from '../banco/card-template.js';
+import { gerarHtmlPainelFiltros } from '../banco/filtros-ui.js';
+import { carregarBancoDados, configurarObserverScroll } from '../banco/paginacao-e-carregamento.js';
 import {
-  carregarBancoDados,
-  configurarObserverScroll,
-} from "../banco/paginacao-e-carregamento.js";
-import {
-  runChatPipeline,
-  generateSilentScaffoldingStep,
   generatePersonaSimulation,
-} from "../chat/index.js";
-import {
-  getMetodologiasByCategory,
-  getMetodologia,
-} from "../chat/metodologias-config.js";
-import { ScaffoldingService } from "../chat/services/scaffolding-service.js"; // Import ScaffoldingService
-import { renderLatexIn } from "../libs/loader";
-import { auth, db, bancoState, logoutUser, onAuthStateChanged } from "../main.js";
-import { generateChatHtmlString } from "../render/ChatRender";
-import { hydrateAllChatContent } from "../render/hydration.js";
-import { findBestQuestion } from "../services/question-service.js";
-import {
-  getIsListening,
-  startListening,
-  stopListening,
-} from "../services/speech-to-text.js";
+  generateSilentScaffoldingStep,
+  runChatPipeline,
+} from '../chat/index.js';
+import { getMetodologia, getMetodologiasByCategory } from '../chat/metodologias-config.js';
+import { ScaffoldingService } from '../chat/services/scaffolding-service.js'; // Import ScaffoldingService
+import { renderLatexIn } from '../libs/loader';
+import { auth, bancoState, db, logoutUser, onAuthStateChanged } from '../main.js';
+import { safeMarkdown } from '../normalize/primitives.js';
+import { generateChatHtmlString } from '../render/ChatRender';
+import { hydrateAllChatContent } from '../render/hydration.js';
+import { ChatStorageService } from '../services/chat-storage.js';
+import * as MemoryService from '../services/memory-service.js';
+import { findBestQuestion } from '../services/question-service.js';
+import { getIsListening, startListening, stopListening } from '../services/speech-to-text.js';
+import { getTheme, toggleTheme, updateThemeIcon } from '../services/theme-service.js';
 import {
   construirSkeletonLoader,
   criarElementoCardPensamento,
   splitThought,
-} from "../sidebar/thoughts-base.js";
-import { customAlert } from "../ui/GlobalAlertsLogic";
-import { openAddQuestionsModal } from "../ui/add-questions-modal.js";
+} from '../sidebar/thoughts-base.js';
+import { mountApiKeyModal } from '../ui/ApiKeyModal.tsx';
+import { openAddQuestionsModal } from '../ui/add-questions-modal.js';
 import {
   setupChipClickHandlers,
   startSuggestionRotation,
   stopSuggestionRotation,
-} from "../ui/dynamic-suggestions.js";
-import { openLoginModal } from "../ui/login-modal.js";
-import { showConfirmModal } from "../ui/modal-confirm.js";
-import { gerarHtmlModalScanOriginal } from "../ui/scan-original-modal.js";
-import { checkAndRestoreFloatingTerminal } from "../upload/search-logic.js";
-import { mountApiKeyModal } from "../ui/ApiKeyModal.tsx";
-import { mountModelSelectorModal, IA_MODELS } from "../ui/ModelSelectorModal.tsx";
+} from '../ui/dynamic-suggestions.js';
+import { customAlert } from '../ui/GlobalAlertsLogic';
+import { openLoginModal } from '../ui/login-modal.js';
+import { IA_MODELS, mountModelSelectorModal } from '../ui/ModelSelectorModal.tsx';
+import { showConfirmModal } from '../ui/modal-confirm.js';
+import { gerarHtmlModalScanOriginal } from '../ui/scan-original-modal.js';
+import { destroyTopScrollSync, initTopScrollSync } from '../ui/top-scroll-sync.js';
+import { checkAndRestoreFloatingTerminal } from '../upload/search-logic.js';
+import '../../css/responsivity/top-scrollbar.css';
 import {
-  getTheme,
-  toggleTheme,
-  updateThemeIcon,
-} from "../services/theme-service.js";
-import { safeMarkdown } from "../normalize/primitives.js";
-import { resolveLinkOnDemand, formatFriendlyError } from "../api/worker.js";
-import {
-  initTopScrollSync,
-  destroyTopScrollSync,
-} from "../ui/top-scroll-sync.js";
-import "../../css/responsivity/top-scrollbar.css";
-import {
-  initCustomChatScrollbar,
   destroyCustomChatScrollbar,
+  initCustomChatScrollbar,
   updateChatScrollbar,
-} from "../ui/custom-chat-scrollbar.js";
+} from '../ui/custom-chat-scrollbar.js';
 import {
-  initQuestionsTopScrollSync,
   destroyQuestionsTopScrollSync,
-} from "../ui/questions-top-scroll-sync.js";
-import "../../css/responsivity/questions-top-scrollbar.css";
-import "../../css/responsivity/questions-responsivity.css";
+  initQuestionsTopScrollSync,
+} from '../ui/questions-top-scroll-sync.js';
+import '../../css/responsivity/questions-top-scrollbar.css';
+import '../../css/responsivity/questions-responsivity.css';
 
 let activeGenerationController = null;
 window.isAuthFirstResolved = false;
 
 window.chatDebugLogs = [];
 window.downloadMessageDebug = (msgIndex) => {
-  const log = window.chatDebugLogs.find(l => l.msgIndex === msgIndex);
+  const log = window.chatDebugLogs.find((l) => l.msgIndex === msgIndex);
   if (!log) {
-    alert("Log de depuração não encontrado para esta mensagem.");
+    alert('Log de depuração não encontrado para esta mensagem.');
     return;
   }
   const seen = new WeakSet();
-  const safeJson = JSON.stringify(log, (key, value) => {
-    if (typeof value === "object" && value !== null) {
-      if (seen.has(value)) return "[Circular]";
-      seen.add(value);
-    }
-    return value;
-  }, 2);
-  const blob = new Blob([safeJson], { type: "application/json;charset=utf-8;" });
+  const safeJson = JSON.stringify(
+    log,
+    (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) return '[Circular]';
+        seen.add(value);
+      }
+      return value;
+    },
+    2,
+  );
+  const blob = new Blob([safeJson], { type: 'application/json;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute("href", url);
-  const formattedTime = log.timestamp.replace(/[:.]/g, "-");
-  downloadAnchor.setAttribute("download", `maia_debug_${log.use_maia_architecture ? 'com' : 'sem'}_arq_${formattedTime}.json`);
+  downloadAnchor.setAttribute('href', url);
+  const formattedTime = log.timestamp.replace(/[:.]/g, '-');
+  downloadAnchor.setAttribute(
+    'download',
+    `maia_debug_${log.use_maia_architecture ? 'com' : 'sem'}_arq_${formattedTime}.json`,
+  );
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
@@ -101,23 +91,23 @@ window.downloadMessageDebug = (msgIndex) => {
 window.toggleMessageDebugMenu = (btn, event) => {
   event.stopPropagation();
   // Close all other menus first
-  document.querySelectorAll(".debug-dropdown-menu").forEach(menu => {
+  document.querySelectorAll('.debug-dropdown-menu').forEach((menu) => {
     if (menu !== btn.nextElementSibling) {
-      menu.style.display = "none";
+      menu.style.display = 'none';
     }
   });
   const menu = btn.nextElementSibling;
   if (menu) {
-    const isVisible = menu.style.display === "block";
-    menu.style.display = isVisible ? "none" : "block";
+    const isVisible = menu.style.display === 'block';
+    menu.style.display = isVisible ? 'none' : 'block';
   }
 };
 
 // Adiciona listener global no document para fechar o menu ao clicar fora
-if (typeof document !== "undefined") {
-  document.addEventListener("click", () => {
-    document.querySelectorAll(".debug-dropdown-menu").forEach(menu => {
-      menu.style.display = "none";
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.debug-dropdown-menu').forEach((menu) => {
+      menu.style.display = 'none';
     });
   });
 }
@@ -127,8 +117,8 @@ if (typeof document !== "undefined") {
  * Limpa o body, reconstrói o HTML e liga os listeners locais
  */
 function renderInitialUI() {
-  document.body.innerHTML = "";
-  document.getElementById("pdfViewerContainer")?.remove();
+  document.body.innerHTML = '';
+  document.getElementById('pdfViewerContainer')?.remove();
   bancoState.ultimoKeyCarregada = null;
   bancoState.todasQuestoesCache = [];
 
@@ -332,11 +322,11 @@ function renderInitialUI() {
                                                 </div>
                                             `,
                                               )
-                                              .join("")}
+                                              .join('')}
                                         </div>
                                     `,
                                       )
-                                      .join("")}
+                                      .join('')}
                                 </div>
                             </div>
                             <!-- Item 4: Pesquisa (Ativar Deep Search) -->
@@ -390,57 +380,123 @@ function renderInitialUI() {
                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.6;"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </button>
 
-                        <!-- Menu Modo Rico -->
-                        <div class="chat-model-menu" id="chatModeMenu" style="min-width: 240px;">
-                            <div class="model-menu-header" style="padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 8px; font-weight: 600; font-size: 0.8rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Modo de execução da IA</div>
-                            
-                            <!-- Toggle de Arquitetura Maia.edu no Topo -->
-                            <div style="padding: 4px 12px 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; user-select: none;">
-                                <span id="toggleMaiaLabel" style="color: var(--color-text); font-weight: 600; font-size: 0.85rem; white-space: nowrap;">Com Arquitetura Maia.edu</span>
-                                <label id="toggleMaiaContainer" style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
-                                    <input type="checkbox" id="toggleMaiaArchitecture" checked style="display: none;">
-                                    <div id="toggleMaiaSlider" style="position: relative; width: 36px; height: 20px; background-color: var(--color-primary); border-radius: 10px; transition: background-color 0.2s;">
-                                        <div id="toggleMaiaKnob" style="position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; background-color: #ffffff; border-radius: 50%; transition: left 0.2s;"></div>
-                                    </div>
-                                </label>
+                        <!-- Menu Modo Rico & Arquitetura (Flyout Flutuante à Direita) -->
+                        <div class="chat-model-menu" id="chatModeMenu">
+                            <div class="model-menu-header" style="padding: 6px 10px 8px 10px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; font-weight: 600; font-size: 0.72rem; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+                                <span>Configurações da IA</span>
                             </div>
 
-                            <div style="height: 1px; background: var(--color-border); margin-bottom: 8px;"></div>
-
-                            <!-- Container de Opções Condicionais -->
-                            <div id="chatModeOptionsContainer" style="transition: opacity 0.2s;">
-                                <!-- Item 3: Automático -->
-                                <div class="model-menu-item selected" data-mode="automatico">
-                                    <div class="model-item-content">
-                                        <span class="model-item-title">Automático</span>
-                                        <span class="model-item-desc">A IA escolhe o melhor modo para cada tarefa</span>
+                            <!-- Lista Primária de 2 Opções -->
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                
+                                <!-- Opção Primária 1: Arquitetura Maia.edu -->
+                                <div class="menu-flyout-item" id="itemMenuArquitetura">
+                                    <div class="flyout-item-inner">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(59, 130, 246, 0.1); color: var(--color-primary);">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; text-align: left;">
+                                                <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text); white-space: nowrap;">Arquitetura Maia.edu</span>
+                                                <span id="subtitleArquiteturaMenu" style="font-size: 0.72rem; color: var(--color-text-secondary);">Bloom (V2)</span>
+                                            </div>
+                                        </div>
+                                        <svg class="flyout-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-secondary); margin-left: 12px;"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                     </div>
-                                    <div class="model-item-check">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+                                    <!-- Submenu Flyout da Arquitetura -->
+                                    <div class="flyout-subpanel" id="subpanelArquitetura">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px 8px 6px; margin-bottom: 2px;">
+                                            <span id="toggleMaiaLabel" style="color: var(--color-text); font-weight: 600; font-size: 0.82rem; white-space: nowrap; text-align: left;">Com Arquitetura Maia.edu</span>
+                                            <label id="toggleMaiaContainer" style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+                                                <input type="checkbox" id="toggleMaiaArchitecture" checked style="display: none;">
+                                                <div id="toggleMaiaSlider" style="position: relative; width: 36px; height: 20px; background-color: var(--color-primary); border-radius: 10px; transition: background-color 0.2s;">
+                                                    <div id="toggleMaiaKnob" style="position: absolute; top: 2px; left: 18px; width: 16px; height: 16px; background-color: #ffffff; border-radius: 50%; transition: left 0.2s;"></div>
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        <div id="maiaVersionSelectorContainer" style="display: flex; flex-direction: column; gap: 6px; transition: opacity 0.2s;">
+                                            <div class="arch-card selected" id="cardVersionBloom" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: left;">
+                                                <div style="display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start;">
+                                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text); text-align: left;">Bloom (V2)</span>
+                                                        <span style="font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: var(--color-primary); color: #ffffff;">2 ETAPAS</span>
+                                                    </div>
+                                                    <span style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.2; text-align: left;">Conteúdo didático profundo -> Layout em blocos</span>
+                                                </div>
+                                                <div class="arch-card-check" id="checkVersionBloom" style="color: #38bdf8;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                </div>
+                                            </div>
+
+                                            <div class="arch-card" id="cardVersionVygotsky" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: left;">
+                                                <div style="display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start;">
+                                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                                        <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text); text-align: left;">Vygotsky (V1)</span>
+                                                        <span style="font-size: 0.65rem; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: var(--color-border); color: var(--color-text-secondary);">1 ETAPA</span>
+                                                    </div>
+                                                    <span style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.2; text-align: left;">Geração direta de resposta e layout juntos</span>
+                                                </div>
+                                                <div class="arch-card-check" id="checkVersionVygotsky" style="display: none; color: #38bdf8;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Item 2: Rápido -->
-                                <div class="model-menu-item" data-mode="rapido">
-                                    <div class="model-item-content">
-                                        <span class="model-item-title">Rápido</span>
-                                        <span class="model-item-desc">Excelente para um estudo rápido e eficaz</span>
+                                <!-- Opção Primária 2: Modo de Estudo -->
+                                <div class="menu-flyout-item" id="itemMenuModo">
+                                    <div class="flyout-item-inner">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                            </div>
+                                            <div style="display: flex; flex-direction: column; text-align: left;">
+                                                <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-text); white-space: nowrap; text-align: left;">Modo de Estudo</span>
+                                                <span id="subtitleModoMenu" style="font-size: 0.72rem; color: var(--color-text-secondary); text-align: left;">Automático</span>
+                                            </div>
+                                        </div>
+                                        <svg class="flyout-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-text-secondary); margin-left: 12px;"><polyline points="9 18 15 12 9 6"></polyline></svg>
                                     </div>
-                                    <div class="model-item-check">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+                                    <!-- Submenu Flyout dos Modos -->
+                                    <div class="flyout-subpanel" id="subpanelModos">
+                                        <div id="chatModeOptionsContainer" style="display: flex; flex-direction: column; gap: 4px;">
+                                            <div class="model-menu-item selected" data-mode="automatico" style="padding: 10px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left;">
+                                                <div class="model-item-content" style="text-align: left; align-items: flex-start;">
+                                                    <span class="model-item-title" style="font-size: 0.85rem; font-weight: 600; color: var(--color-text); text-align: left;">Automático</span>
+                                                    <span class="model-item-desc" style="font-size: 0.75rem; color: var(--color-text-secondary); display: block; text-align: left;">A IA escolhe o melhor modo</span>
+                                                </div>
+                                                <div class="model-item-check" style="color: #38bdf8;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                </div>
+                                            </div>
+
+                                            <div class="model-menu-item" data-mode="rapido" style="padding: 10px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left;">
+                                                <div class="model-item-content" style="text-align: left; align-items: flex-start;">
+                                                    <span class="model-item-title" style="font-size: 0.85rem; font-weight: 600; color: var(--color-text); text-align: left;">Rápido</span>
+                                                    <span class="model-item-desc" style="font-size: 0.75rem; color: var(--color-text-secondary); display: block; text-align: left;">Estudo rápido e eficaz</span>
+                                                </div>
+                                                <div class="model-item-check" style="display: none; color: #38bdf8;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                </div>
+                                            </div>
+
+                                            <div class="model-menu-item" data-mode="raciocinio" style="padding: 10px 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; text-align: left;">
+                                                <div class="model-item-content" style="text-align: left; align-items: flex-start;">
+                                                    <span class="model-item-title" style="font-size: 0.85rem; font-weight: 600; color: var(--color-text); text-align: left;">Raciocínio</span>
+                                                    <span class="model-item-desc" style="font-size: 0.75rem; color: var(--color-text-secondary); display: block; text-align: left;">Análises detalhadas e refutações</span>
+                                                </div>
+                                                <div class="model-item-check" style="display: none; color: #38bdf8;">
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- Item 1: Raciocínio -->
-                                <div class="model-menu-item" data-mode="raciocinio">
-                                    <div class="model-item-content">
-                                        <span class="model-item-title">Raciocínio</span>
-                                        <span class="model-item-desc">Respostas com menos alucinações ou incoerências</span>
-                                    </div>
-                                    <div class="model-item-check">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="check-svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -499,57 +555,68 @@ function renderInitialUI() {
   document.body.innerHTML = html;
 
   // === LÓGICA DOS MENUS (PLUS e MODO) ===
-  const plusBtn = document.getElementById("chatPlusBtn");
-  const plusMenu = document.getElementById("chatActionMenu");
+  const plusBtn = document.getElementById('chatPlusBtn');
+  const plusMenu = document.getElementById('chatActionMenu');
 
-  const modeBtn = document.getElementById("chatModeBtn");
-  const modeMenu = document.getElementById("chatModeMenu");
+  const modeBtn = document.getElementById('chatModeBtn');
+  const modeMenu = document.getElementById('chatModeMenu');
 
-  const specificModelBtn = document.getElementById("chatSpecificModelBtn");
+  const specificModelBtn = document.getElementById('chatSpecificModelBtn');
 
   // Definir modelo padrão por padrão inicial (granularizado em 7 etapas)
   const defaultModels = {
-    chat: "models/gemini-3.5-flash",
-    router: "models/gemma-4-31b-it",
-    memory: "models/gemma-4-31b-it",
-    search: "models/gemini-3.5-flash",
-    corrector: "models/gemini-3.5-flash",
-    scaffolding: "models/gemini-3-flash-preview",
-    title: "models/gemma-4-31b-it"
+    chat: 'models/gemini-3.5-flash',
+    router: 'models/gemma-4-31b-it',
+    memory: 'models/gemma-4-31b-it',
+    search: 'models/gemini-3.5-flash',
+    corrector: 'models/gemini-3.5-flash',
+    scaffolding: 'models/gemini-3-flash-preview',
+    title: 'models/gemma-4-31b-it',
   };
 
-  window.selectedModelChat = localStorage.getItem("selectedModelChat") || defaultModels.chat;
-  window.selectedModelRouter = localStorage.getItem("selectedModelRouter") || defaultModels.router;
-  window.selectedModelMemory = localStorage.getItem("selectedModelMemory") || defaultModels.memory;
-  window.selectedModelSearch = localStorage.getItem("selectedModelSearch") || defaultModels.search;
-  window.selectedModelCorrector = localStorage.getItem("selectedModelCorrector") || defaultModels.corrector;
-  window.selectedModelScaffolding = localStorage.getItem("selectedModelScaffolding") || defaultModels.scaffolding;
-  window.selectedModelTitle = localStorage.getItem("selectedModelTitle") || defaultModels.title;
+  window.selectedModelChat = localStorage.getItem('selectedModelChat') || defaultModels.chat;
+  window.selectedModelRouter = localStorage.getItem('selectedModelRouter') || defaultModels.router;
+  window.selectedModelMemory = localStorage.getItem('selectedModelMemory') || defaultModels.memory;
+  window.selectedModelSearch = localStorage.getItem('selectedModelSearch') || defaultModels.search;
+  window.selectedModelCorrector =
+    localStorage.getItem('selectedModelCorrector') || defaultModels.corrector;
+  window.selectedModelScaffolding =
+    localStorage.getItem('selectedModelScaffolding') || defaultModels.scaffolding;
+  window.selectedModelTitle = localStorage.getItem('selectedModelTitle') || defaultModels.title;
 
   // Extrator de questões (granularizado em 7 etapas)
-  window.selectedModelScannerDetect = localStorage.getItem("selectedModelScannerDetect") || "models/gemini-3.5-flash";
-  window.selectedModelScannerAudit = localStorage.getItem("selectedModelScannerAudit") || "models/gemini-3.5-flash";
-  window.selectedModelScannerCorrect = localStorage.getItem("selectedModelScannerCorrect") || "models/gemini-3.5-flash";
-  window.selectedModelExtractorOcr = localStorage.getItem("selectedModelExtractorOcr") || "models/gemini-3.5-flash";
-  window.selectedModelExtractorSearch = localStorage.getItem("selectedModelExtractorSearch") || "models/gemini-3.5-flash";
-  window.selectedModelExtractorGabarito = localStorage.getItem("selectedModelExtractorGabarito") || "models/gemini-3.5-flash";
-  window.selectedModelExtractorImageDetect = localStorage.getItem("selectedModelExtractorImageDetect") || "models/gemini-3.5-flash";
+  window.selectedModelScannerDetect =
+    localStorage.getItem('selectedModelScannerDetect') || 'models/gemini-3.5-flash';
+  window.selectedModelScannerAudit =
+    localStorage.getItem('selectedModelScannerAudit') || 'models/gemini-3.5-flash';
+  window.selectedModelScannerCorrect =
+    localStorage.getItem('selectedModelScannerCorrect') || 'models/gemini-3.5-flash';
+  window.selectedModelExtractorOcr =
+    localStorage.getItem('selectedModelExtractorOcr') || 'models/gemini-3.5-flash';
+  window.selectedModelExtractorSearch =
+    localStorage.getItem('selectedModelExtractorSearch') || 'models/gemini-3.5-flash';
+  window.selectedModelExtractorGabarito =
+    localStorage.getItem('selectedModelExtractorGabarito') || 'models/gemini-3.5-flash';
+  window.selectedModelExtractorImageDetect =
+    localStorage.getItem('selectedModelExtractorImageDetect') || 'models/gemini-3.5-flash';
 
   // Getter/Setter compatível para selectedSpecificModel
-  Object.defineProperty(window, "selectedSpecificModel", {
+  Object.defineProperty(window, 'selectedSpecificModel', {
     get() {
       return window.selectedModelChat;
     },
     set(val) {
       window.selectedModelChat = val;
-      localStorage.setItem("selectedModelChat", val);
+      localStorage.setItem('selectedModelChat', val);
     },
-    configurable: true
+    configurable: true,
   });
 
   function updatePlusMenuMaxHeight() {
     if (!plusBtn || !plusMenu) return;
-    const isChatMode = document.querySelector(".maia-ai-container")?.classList.contains("chat-mode");
+    const isChatMode = document
+      .querySelector('.maia-ai-container')
+      ?.classList.contains('chat-mode');
     const rect = plusBtn.getBoundingClientRect();
     let maxHeight;
     if (isChatMode) {
@@ -565,88 +632,105 @@ function renderInitialUI() {
   }
 
   // Update on resize
-  window.addEventListener("resize", () => {
-    if (plusMenu && plusMenu.classList.contains("active")) {
+  window.addEventListener('resize', () => {
+    if (plusMenu && plusMenu.classList.contains('active')) {
       updatePlusMenuMaxHeight();
     }
   });
 
   function closeAllMenus() {
-    plusMenu?.classList.remove("active");
-    modeMenu?.classList.remove("active");
+    plusMenu?.classList.remove('active');
+    modeMenu?.classList.remove('active');
   }
 
   // Toggle Menu Plus
   if (plusBtn && plusMenu) {
-    plusBtn.addEventListener("click", (e) => {
+    plusBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const isActive = plusMenu.classList.contains("active");
+      const isActive = plusMenu.classList.contains('active');
       closeAllMenus(); // Fecha outros primeiro
       if (!isActive) {
         updatePlusMenuMaxHeight();
-        plusMenu.classList.add("active");
+        plusMenu.classList.add('active');
       }
     });
   }
 
   // Toggle Menu Mode
   if (modeBtn && modeMenu) {
-    modeBtn.addEventListener("click", (e) => {
+    modeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const isActive = modeMenu.classList.contains("active");
+      const isActive = modeMenu.classList.contains('active');
       closeAllMenus();
-      if (!isActive) modeMenu.classList.add("active");
+      if (!isActive) modeMenu.classList.add('active');
     });
   }
 
   // Gerenciamento e renderização do badge do modelo
   function updateModelChip() {
-    const chip = document.getElementById("modelChip");
-    const label = document.getElementById("modelChipLabel");
-    const icon = document.getElementById("modelChipIcon");
-    const subtext = document.getElementById("chatSpecificModelText");
+    const chip = document.getElementById('modelChip');
+    const label = document.getElementById('modelChipLabel');
+    const icon = document.getElementById('modelChipIcon');
+    const subtext = document.getElementById('chatSpecificModelText');
 
     const defaultModels = {
-      chat: "models/gemini-3.5-flash",
-      router: "models/gemma-4-31b-it",
-      memory: "models/gemma-4-31b-it",
-      search: "models/gemini-3.5-flash",
-      corrector: "models/gemini-3.5-flash",
-      title: "models/gemma-4-31b-it"
+      chat: 'models/gemini-3.5-flash',
+      router: 'models/gemma-4-31b-it',
+      memory: 'models/gemma-4-31b-it',
+      search: 'models/gemini-3.5-flash',
+      corrector: 'models/gemini-3.5-flash',
+      title: 'models/gemma-4-31b-it',
     };
 
     const isChatCustom = (window.selectedModelChat || defaultModels.chat) !== defaultModels.chat;
-    const isRouterCustom = (window.selectedModelRouter || defaultModels.router) !== defaultModels.router;
-    const isMemoryCustom = (window.selectedModelMemory || defaultModels.memory) !== defaultModels.memory;
-    const isSearchCustom = (window.selectedModelSearch || defaultModels.search) !== defaultModels.search;
-    const isCorrectorCustom = (window.selectedModelCorrector || defaultModels.corrector) !== defaultModels.corrector;
-    const isTitleCustom = (window.selectedModelTitle || defaultModels.title) !== defaultModels.title;
+    const isRouterCustom =
+      (window.selectedModelRouter || defaultModels.router) !== defaultModels.router;
+    const isMemoryCustom =
+      (window.selectedModelMemory || defaultModels.memory) !== defaultModels.memory;
+    const isSearchCustom =
+      (window.selectedModelSearch || defaultModels.search) !== defaultModels.search;
+    const isCorrectorCustom =
+      (window.selectedModelCorrector || defaultModels.corrector) !== defaultModels.corrector;
+    const isTitleCustom =
+      (window.selectedModelTitle || defaultModels.title) !== defaultModels.title;
 
-    const isAnyCustom = isChatCustom || isRouterCustom || isMemoryCustom || isSearchCustom || isCorrectorCustom || isTitleCustom;
+    const isAnyCustom =
+      isChatCustom ||
+      isRouterCustom ||
+      isMemoryCustom ||
+      isSearchCustom ||
+      isCorrectorCustom ||
+      isTitleCustom;
 
     const chatModelId = window.selectedModelChat || defaultModels.chat;
-    let modelObj = IA_MODELS.find(m => m.id === chatModelId);
-    if (!modelObj && chatModelId && chatModelId.startsWith("puter/")) {
-      modelObj = { title: chatModelId.replace("puter/", "Puter: ") };
+    let modelObj = IA_MODELS.find((m) => m.id === chatModelId);
+    if (!modelObj && chatModelId && chatModelId.startsWith('puter/')) {
+      modelObj = { title: chatModelId.replace('puter/', 'Puter: ') };
     }
     if (!modelObj) {
-      modelObj = { title: "Gemini 3.5 Flash" };
+      modelObj = { title: 'Gemini 3.5 Flash' };
     }
 
     if (subtext) {
-      subtext.textContent = isAnyCustom ? "Personalizado" : modelObj.title;
+      subtext.textContent = isAnyCustom ? 'Personalizado' : modelObj.title;
     }
 
     if (chip && label && icon) {
       if (!isAnyCustom) {
-        chip.style.display = "none";
+        chip.style.display = 'none';
       } else {
-        chip.style.display = "flex";
+        chip.style.display = 'flex';
 
         // Caso 1: Apenas o Chat é personalizado
-        if (isChatCustom && !isRouterCustom && !isMemoryCustom && !isSearchCustom && !isCorrectorCustom) {
+        if (
+          isChatCustom &&
+          !isRouterCustom &&
+          !isMemoryCustom &&
+          !isSearchCustom &&
+          !isCorrectorCustom
+        ) {
           label.textContent = modelObj.title;
-          if (chatModelId.startsWith("github/")) {
+          if (chatModelId.startsWith('github/')) {
             icon.innerHTML = `
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#10a37f" xmlns="http://www.w3.org/2000/svg" style="display: block; flex-shrink: 0;">
                 <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>
@@ -668,8 +752,8 @@ function renderInitialUI() {
           }
         } else {
           // Caso 2: Múltiplas etapas personalizadas (ou etapas de fundo personalizadas)
-          label.textContent = "Modelos Personalizados";
-          
+          label.textContent = 'Modelos Personalizados';
+
           // Mostra os dois logotipos side-by-side no slot de ícone
           icon.innerHTML = `
             <div style="display: flex; align-items: center; gap: 4px;">
@@ -700,196 +784,301 @@ function renderInitialUI() {
 
   // Abertura do Popup Modal de Modelos de IA
   if (specificModelBtn) {
-    specificModelBtn.addEventListener("click", (e) => {
+    specificModelBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeAllMenus();
       mountModelSelectorModal(
-        window.selectedSpecificModel || "models/gemini-3.5-flash",
+        window.selectedSpecificModel || 'models/gemini-3.5-flash',
         (modelId) => {
           window.selectedSpecificModel = modelId;
           updateModelChip();
-          console.log("Modelo específico alterado para:", window.selectedSpecificModel);
-        }
+          console.log('Modelo específico alterado para:', window.selectedSpecificModel);
+        },
       );
     });
   }
 
   // Botão de fechar/redefinir no chip do modelo (volta para o padrão de fábrica de todos os modelos)
-  const modelChipClose = document.getElementById("modelChipClose");
+  const modelChipClose = document.getElementById('modelChipClose');
   if (modelChipClose) {
-    modelChipClose.addEventListener("click", (e) => {
+    modelChipClose.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.selectedModelChat = "models/gemini-3.5-flash";
-      window.selectedModelRouter = "models/gemma-4-31b-it";
-      window.selectedModelMemory = "models/gemma-4-31b-it";
-      window.selectedModelSearch = "models/gemini-3.5-flash";
-      window.selectedModelCorrector = "models/gemini-3.5-flash";
-      window.selectedModelTitle = "models/gemma-4-31b-it";
+      window.selectedModelChat = 'models/gemini-3.5-flash';
+      window.selectedModelRouter = 'models/gemma-4-31b-it';
+      window.selectedModelMemory = 'models/gemma-4-31b-it';
+      window.selectedModelSearch = 'models/gemini-3.5-flash';
+      window.selectedModelCorrector = 'models/gemini-3.5-flash';
+      window.selectedModelTitle = 'models/gemma-4-31b-it';
 
-      localStorage.setItem("selectedModelChat", "models/gemini-3.5-flash");
-      localStorage.setItem("selectedModelRouter", "models/gemma-4-31b-it");
-      localStorage.setItem("selectedModelMemory", "models/gemma-4-31b-it");
-      localStorage.setItem("selectedModelSearch", "models/gemini-3.5-flash");
-      localStorage.setItem("selectedModelCorrector", "models/gemini-3.5-flash");
-      localStorage.setItem("selectedModelTitle", "models/gemma-4-31b-it");
+      localStorage.setItem('selectedModelChat', 'models/gemini-3.5-flash');
+      localStorage.setItem('selectedModelRouter', 'models/gemma-4-31b-it');
+      localStorage.setItem('selectedModelMemory', 'models/gemma-4-31b-it');
+      localStorage.setItem('selectedModelSearch', 'models/gemini-3.5-flash');
+      localStorage.setItem('selectedModelCorrector', 'models/gemini-3.5-flash');
+      localStorage.setItem('selectedModelTitle', 'models/gemma-4-31b-it');
 
       updateModelChip();
-      console.log("Todos os modelos redefinidos para os padrões de fábrica");
+      console.log('Todos os modelos redefinidos para os padrões de fábrica');
     });
   }
 
   // Sincronização da interface baseada na arquitetura ativa
   function syncMaiaArchitectureUI(checked) {
     window.useMaiaArchitecture = checked;
-    localStorage.setItem("useMaiaArchitecture", checked);
+    localStorage.setItem('useMaiaArchitecture', checked);
 
-    const toggleCheckbox = document.getElementById("toggleMaiaArchitecture");
-    const toggleSlider = document.getElementById("toggleMaiaSlider");
-    const toggleKnob = document.getElementById("toggleMaiaKnob");
-    const toggleLabel = document.getElementById("toggleMaiaLabel");
-    const modeOptionsContainer = document.getElementById("chatModeOptionsContainer");
-    const currentModeText = document.getElementById("currentModeText");
-    const metodologiaTrigger = document.getElementById("metodologiaTrigger");
-    const chatSearchToggleBtn = document.getElementById("chatSearchToggleBtn");
+    const toggleCheckbox = document.getElementById('toggleMaiaArchitecture');
+    const toggleSlider = document.getElementById('toggleMaiaSlider');
+    const toggleKnob = document.getElementById('toggleMaiaKnob');
+    const toggleLabel = document.getElementById('toggleMaiaLabel');
+    const versionSelectorContainer = document.getElementById('maiaVersionSelectorContainer');
+    const modeOptionsContainer = document.getElementById('chatModeOptionsContainer');
+    const currentModeText = document.getElementById('currentModeText');
+    const metodologiaTrigger = document.getElementById('metodologiaTrigger');
+    const chatSearchToggleBtn = document.getElementById('chatSearchToggleBtn');
+
+    const itemModo = document.getElementById('itemMenuModo');
+    const subtitleArquitetura = document.getElementById('subtitleArquiteturaMenu');
+    const subtitleModo = document.getElementById('subtitleModoMenu');
+    const subpanelModos = document.getElementById('subpanelModos');
 
     if (toggleCheckbox) toggleCheckbox.checked = checked;
 
     if (checked) {
-      if (toggleSlider) toggleSlider.style.backgroundColor = "var(--color-primary)";
-      if (toggleKnob) toggleKnob.style.left = "18px";
-      if (toggleLabel) toggleLabel.textContent = "Com Arquitetura Maia.edu";
-      if (modeOptionsContainer) {
-        modeOptionsContainer.style.opacity = "1";
-        modeOptionsContainer.style.pointerEvents = "auto";
+      if (toggleSlider) toggleSlider.style.backgroundColor = 'var(--color-primary)';
+      if (toggleKnob) toggleKnob.style.left = '18px';
+      if (toggleLabel) toggleLabel.textContent = 'Com Arquitetura Maia.edu';
+      if (versionSelectorContainer) {
+        versionSelectorContainer.style.opacity = '1';
+        versionSelectorContainer.style.pointerEvents = 'auto';
       }
-      
+      if (modeOptionsContainer) {
+        modeOptionsContainer.style.opacity = '1';
+        modeOptionsContainer.style.pointerEvents = 'auto';
+      }
+      if (itemModo) {
+        itemModo.classList.remove('disabled-flyout-item');
+      }
+
       // Restaura o nome amigável do modo selecionado
-      const selectedItem = document.querySelector("#chatModeOptionsContainer .model-menu-item.selected");
-      const friendlyName = selectedItem ? (selectedItem.querySelector(".model-item-title")?.textContent || "Automático") : "Automático";
+      const selectedItem = document.querySelector(
+        '#chatModeOptionsContainer .model-menu-item.selected',
+      );
+      const friendlyName = selectedItem
+        ? selectedItem.querySelector('.model-item-title')?.textContent || 'Automático'
+        : 'Automático';
       if (currentModeText) currentModeText.textContent = friendlyName;
+      if (subtitleModo) subtitleModo.textContent = friendlyName;
+
+      const savedArch = localStorage.getItem('maiaArchitectureVersion') || 'bloom';
+      if (subtitleArquitetura) {
+        subtitleArquitetura.textContent = savedArch === 'vygotsky' ? 'Vygotsky (V1)' : 'Bloom (V2)';
+      }
 
       // Exibe Metodologia e Pesquisa
-      if (metodologiaTrigger) metodologiaTrigger.style.display = "flex";
-      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = "flex";
+      if (metodologiaTrigger) metodologiaTrigger.style.display = 'flex';
+      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = 'flex';
     } else {
-      if (toggleSlider) toggleSlider.style.backgroundColor = "var(--color-border)";
-      if (toggleKnob) toggleKnob.style.left = "2px";
-      if (toggleLabel) toggleLabel.textContent = "Sem Arquitetura Maia.edu";
-      if (modeOptionsContainer) {
-        modeOptionsContainer.style.opacity = "0.4";
-        modeOptionsContainer.style.pointerEvents = "none";
+      if (toggleSlider) toggleSlider.style.backgroundColor = 'var(--color-border)';
+      if (toggleKnob) toggleKnob.style.left = '2px';
+      if (toggleLabel) toggleLabel.textContent = 'Sem Arquitetura Maia.edu';
+      if (versionSelectorContainer) {
+        versionSelectorContainer.style.opacity = '0.35';
+        versionSelectorContainer.style.pointerEvents = 'none';
       }
-      
-      if (currentModeText) currentModeText.textContent = "Sem Arquitetura";
+      if (modeOptionsContainer) {
+        modeOptionsContainer.style.opacity = '0.35';
+        modeOptionsContainer.style.pointerEvents = 'none';
+      }
+      if (itemModo) {
+        itemModo.classList.add('disabled-flyout-item');
+      }
+
+      if (currentModeText) currentModeText.textContent = 'Sem Arquitetura';
+      if (subtitleArquitetura) subtitleArquitetura.textContent = 'Desativada';
+      if (subtitleModo) subtitleModo.textContent = 'Desativado';
 
       // Oculta Metodologia e Pesquisa
-      if (metodologiaTrigger) metodologiaTrigger.style.display = "none";
-      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = "none";
+      if (metodologiaTrigger) metodologiaTrigger.style.display = 'none';
+      if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = 'none';
     }
 
-    if (typeof window.syncBlockExtractionVisibility === "function") {
+    if (typeof window.syncBlockExtractionVisibility === 'function') {
       window.syncBlockExtractionVisibility();
     }
   }
 
   // Toggle de Arquitetura Maia.edu
-  const toggleCheckbox = document.getElementById("toggleMaiaArchitecture");
+  const toggleCheckbox = document.getElementById('toggleMaiaArchitecture');
   if (toggleCheckbox) {
-    const savedState = localStorage.getItem("useMaiaArchitecture");
-    const initialState = savedState !== "false";
+    const savedState = localStorage.getItem('useMaiaArchitecture');
+    const initialState = savedState !== 'false';
     syncMaiaArchitectureUI(initialState);
 
-    toggleCheckbox.addEventListener("change", () => {
+    toggleCheckbox.addEventListener('change', () => {
       syncMaiaArchitectureUI(toggleCheckbox.checked);
     });
   }
 
+  // A visibilidade dos subpainéis flyout à direita é controlada 100% via CSS puro aninhado (.menu-flyout-item:hover > .flyout-subpanel)
+  // garantindo animação de opacidade fluida sem travamentos, cintilações ou atrasos de temporizador.
+
+  // Controle da Versão da Arquitetura Maia.edu (Bloom vs Vygotsky)
+  function setMaiaArchitectureVersion(version) {
+    const norm = version === 'vygotsky' || version === 'v1' ? 'vygotsky' : 'bloom';
+    window.maiaArchitectureVersion = norm;
+    localStorage.setItem('maiaArchitectureVersion', norm);
+
+    const cardBloom = document.getElementById('cardVersionBloom');
+    const cardVygotsky = document.getElementById('cardVersionVygotsky');
+    const checkBloom = document.getElementById('checkVersionBloom');
+    const checkVygotsky = document.getElementById('checkVersionVygotsky');
+    const subtitleArquitetura = document.getElementById('subtitleArquiteturaMenu');
+
+    if (subtitleArquitetura && window.useMaiaArchitecture !== false) {
+      subtitleArquitetura.textContent = norm === 'vygotsky' ? 'Vygotsky (V1)' : 'Bloom (V2)';
+      subtitleArquitetura.classList.remove('mode-text-switch');
+      void subtitleArquitetura.offsetWidth; // Reflow trigger
+      subtitleArquitetura.classList.add('mode-text-switch');
+    }
+
+    if (cardBloom && cardVygotsky) {
+      cardBloom.classList.remove('selected', 'just-selected');
+      cardVygotsky.classList.remove('selected', 'just-selected');
+
+      if (norm === 'bloom') {
+        cardBloom.classList.add('selected', 'just-selected');
+        if (checkBloom) checkBloom.style.display = 'flex';
+        if (checkVygotsky) checkVygotsky.style.display = 'none';
+        setTimeout(() => cardBloom.classList.remove('just-selected'), 350);
+      } else {
+        cardVygotsky.classList.add('selected', 'just-selected');
+        if (checkVygotsky) checkVygotsky.style.display = 'flex';
+        if (checkBloom) checkBloom.style.display = 'none';
+        setTimeout(() => cardVygotsky.classList.remove('just-selected'), 350);
+      }
+    }
+  }
+
+  const cardBloom = document.getElementById('cardVersionBloom');
+  const cardVygotsky = document.getElementById('cardVersionVygotsky');
+  if (cardBloom) {
+    cardBloom.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setMaiaArchitectureVersion('bloom');
+    });
+  }
+  if (cardVygotsky) {
+    cardVygotsky.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setMaiaArchitectureVersion('vygotsky');
+    });
+  }
+
+  const savedArchVersion = localStorage.getItem('maiaArchitectureVersion') || 'bloom';
+  setMaiaArchitectureVersion(savedArchVersion);
+
   // Toggle de Bloqueio de Extração de Questões (Admin Only)
   function syncBlockExtractionUI(checked) {
     window.blockQuestionExtraction = checked;
-    localStorage.setItem("blockQuestionExtraction", checked);
-    const blockCheckbox = document.getElementById("toggleBlockExtraction");
-    const blockSlider = document.getElementById("toggleBlockExtractionSlider");
-    const blockKnob = document.getElementById("toggleBlockExtractionKnob");
+    localStorage.setItem('blockQuestionExtraction', checked);
+    const blockCheckbox = document.getElementById('toggleBlockExtraction');
+    const blockSlider = document.getElementById('toggleBlockExtractionSlider');
+    const blockKnob = document.getElementById('toggleBlockExtractionKnob');
 
     if (blockCheckbox) blockCheckbox.checked = checked;
 
     if (checked) {
-      if (blockSlider) blockSlider.style.backgroundColor = "var(--color-primary)";
-      if (blockKnob) blockKnob.style.left = "18px";
+      if (blockSlider) blockSlider.style.backgroundColor = 'var(--color-primary)';
+      if (blockKnob) blockKnob.style.left = '18px';
     } else {
-      if (blockSlider) blockSlider.style.backgroundColor = "var(--color-border)";
-      if (blockKnob) blockKnob.style.left = "2px";
+      if (blockSlider) blockSlider.style.backgroundColor = 'var(--color-border)';
+      if (blockKnob) blockKnob.style.left = '2px';
     }
   }
 
-  window.syncBlockExtractionVisibility = function() {
-    const wrapper = document.getElementById("chatBlockExtractionWrapper");
+  window.syncBlockExtractionVisibility = () => {
+    const wrapper = document.getElementById('chatBlockExtractionWrapper');
     if (!wrapper) return;
     if (window.isAdmin && window.useMaiaArchitecture !== false) {
-      wrapper.style.display = "flex";
+      wrapper.style.display = 'flex';
     } else {
-      wrapper.style.display = "none";
+      wrapper.style.display = 'none';
     }
   };
 
-  const blockCheckbox = document.getElementById("toggleBlockExtraction");
+  const blockCheckbox = document.getElementById('toggleBlockExtraction');
   if (blockCheckbox) {
-    const savedState = localStorage.getItem("blockQuestionExtraction");
-    const initialState = savedState === "true";
+    const savedState = localStorage.getItem('blockQuestionExtraction');
+    const initialState = savedState === 'true';
     syncBlockExtractionUI(initialState);
 
-    blockCheckbox.addEventListener("change", () => {
+    blockCheckbox.addEventListener('change', () => {
       syncBlockExtractionUI(blockCheckbox.checked);
     });
   }
 
   // Listeners de seleção de Modo (Orientação)
   if (modeMenu) {
-    modeMenu.querySelectorAll(".model-menu-item").forEach((item) => {
-      item.addEventListener("click", (e) => {
+    modeMenu.querySelectorAll('.model-menu-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
         e.stopPropagation();
         if (window.useMaiaArchitecture === false) {
-          // Se estiver sem arquitetura, não permite mudar de modo
           return;
         }
         const modeVal = item.dataset.mode;
-        const friendlyName = item.querySelector(".model-item-title")?.textContent || modeVal;
+        const friendlyName = item.querySelector('.model-item-title')?.textContent || modeVal;
 
-        modeMenu.querySelectorAll(".model-menu-item").forEach((i) => i.classList.remove("selected"));
-        item.classList.add("selected");
+        modeMenu.querySelectorAll('.model-menu-item').forEach((i) => {
+          i.classList.remove('selected', 'just-selected');
+        });
+        item.classList.add('selected', 'just-selected');
+        setTimeout(() => item.classList.remove('just-selected'), 350);
 
-        const textSpan = document.getElementById("currentModeText");
-        if (textSpan) textSpan.textContent = friendlyName;
+        const textSpan = document.getElementById('currentModeText');
+        const subtitleModo = document.getElementById('subtitleModoMenu');
+
+        if (textSpan) {
+          textSpan.textContent = friendlyName;
+          textSpan.classList.remove('mode-text-switch');
+          void textSpan.offsetWidth; // Reflow
+          textSpan.classList.add('mode-text-switch');
+        }
+        if (subtitleModo) {
+          subtitleModo.textContent = friendlyName;
+          subtitleModo.classList.remove('mode-text-switch');
+          void subtitleModo.offsetWidth; // Reflow
+          subtitleModo.classList.add('mode-text-switch');
+        }
 
         window.selectedChatMode = modeVal;
-        console.log("Modo alterado para:", window.selectedChatMode);
-        closeAllMenus();
+        console.log('Modo alterado para:', window.selectedChatMode);
+        // Não fecha o menu automaticamente ao selecionar opção!
       });
     });
   }
 
   // Fechar ao clicar fora
-  document.addEventListener("click", () => {
+  document.addEventListener('click', () => {
     closeAllMenus();
   });
 
   // Listener dentro dos menus para evitar fechar ao clicar neles (exceto botões)
   [plusMenu, modeMenu].forEach((menu) => {
-    menu?.addEventListener("click", (e) => {
+    menu?.addEventListener('click', (e) => {
       e.stopPropagation();
     });
   });
 
   // === SISTEMA DE METODOLOGIAS ===
-  window.selectedMetodologia = "automatico"; // Default
+  window.selectedMetodologia = 'automatico'; // Default
 
-  const metodologiaTrigger = document.getElementById("metodologiaTrigger");
-  const metodologiaSubmenu = document.getElementById("metodologiaSubmenu");
-  const metodologiaChip = document.getElementById("metodologiaChip");
-  const metodologiaChipLabel = document.getElementById("metodologiaChipLabel");
-  const metodologiaChipIcon = document.getElementById("metodologiaChipIcon");
-  const metodologiaChipClose = document.getElementById("metodologiaChipClose");
+  const metodologiaTrigger = document.getElementById('metodologiaTrigger');
+  const metodologiaSubmenu = document.getElementById('metodologiaSubmenu');
+  const metodologiaChip = document.getElementById('metodologiaChip');
+  const metodologiaChipLabel = document.getElementById('metodologiaChipLabel');
+  const metodologiaChipIcon = document.getElementById('metodologiaChipIcon');
+  const metodologiaChipClose = document.getElementById('metodologiaChipClose');
 
   // Hover para abrir sub-menu com bridge de tolerância (impede fechamento no gap)
   if (metodologiaTrigger && metodologiaSubmenu) {
@@ -915,60 +1104,60 @@ function renderInitialUI() {
       metodologiaSubmenu.style.top = `${topPos}px`;
     };
 
-    metodologiaTrigger.addEventListener("mouseenter", () => {
+    metodologiaTrigger.addEventListener('mouseenter', () => {
       clearTimeout(submenuTimeout);
       updateSubmenuPosition();
-      metodologiaSubmenu.classList.add("active");
+      metodologiaSubmenu.classList.add('active');
     });
 
-    metodologiaTrigger.addEventListener("mouseleave", (e) => {
+    metodologiaTrigger.addEventListener('mouseleave', (e) => {
       // Se estiver se movendo diretamente para o submenu, não agenda fechamento imediato
       if (e.relatedTarget && metodologiaSubmenu.contains(e.relatedTarget)) {
         return;
       }
       submenuTimeout = setTimeout(() => {
-        if (!metodologiaSubmenu.matches(":hover") && !metodologiaTrigger.matches(":hover")) {
-          metodologiaSubmenu.classList.remove("active");
+        if (!metodologiaSubmenu.matches(':hover') && !metodologiaTrigger.matches(':hover')) {
+          metodologiaSubmenu.classList.remove('active');
         }
       }, 300); // 300ms de tolerância
     });
 
-    metodologiaSubmenu.addEventListener("mouseenter", () => {
+    metodologiaSubmenu.addEventListener('mouseenter', () => {
       clearTimeout(submenuTimeout);
     });
 
-    metodologiaSubmenu.addEventListener("mouseleave", (e) => {
+    metodologiaSubmenu.addEventListener('mouseleave', (e) => {
       // Se estiver voltando diretamente para o trigger, não agenda fechamento imediato
       if (e.relatedTarget && metodologiaTrigger.contains(e.relatedTarget)) {
         return;
       }
       submenuTimeout = setTimeout(() => {
-        if (!metodologiaSubmenu.matches(":hover") && !metodologiaTrigger.matches(":hover")) {
-          metodologiaSubmenu.classList.remove("active");
+        if (!metodologiaSubmenu.matches(':hover') && !metodologiaTrigger.matches(':hover')) {
+          metodologiaSubmenu.classList.remove('active');
         }
       }, 300); // 300ms de tolerância
     });
 
     // Se o mouse entrar em qualquer outro item do menu principal, fecha imediatamente o submenu!
     if (plusMenu) {
-      plusMenu.querySelectorAll(".model-menu-item").forEach((item) => {
+      plusMenu.querySelectorAll('.model-menu-item').forEach((item) => {
         if (item !== metodologiaTrigger) {
-          item.addEventListener("mouseenter", () => {
-            metodologiaSubmenu.classList.remove("active");
+          item.addEventListener('mouseenter', () => {
+            metodologiaSubmenu.classList.remove('active');
           });
         }
       });
 
-      plusMenu.addEventListener("scroll", () => {
-        if (metodologiaSubmenu.classList.contains("active")) {
+      plusMenu.addEventListener('scroll', () => {
+        if (metodologiaSubmenu.classList.contains('active')) {
           updateSubmenuPosition();
         }
       });
     }
 
     // Seleção de item
-    metodologiaSubmenu.querySelectorAll(".metodologia-item").forEach((item) => {
-      item.addEventListener("click", (e) => {
+    metodologiaSubmenu.querySelectorAll('.metodologia-item').forEach((item) => {
+      item.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = item.dataset.metodologiaId;
         const label = item.dataset.metodologiaLabel;
@@ -980,60 +1169,60 @@ function renderInitialUI() {
         if (metodologiaChip) {
           metodologiaChipLabel.textContent = label;
           metodologiaChipIcon.textContent = icon;
-          metodologiaChip.style.display = "flex";
-          metodologiaChip.classList.add("chip-enter");
-          setTimeout(() => metodologiaChip.classList.remove("chip-enter"), 300);
+          metodologiaChip.style.display = 'flex';
+          metodologiaChip.classList.add('chip-enter');
+          setTimeout(() => metodologiaChip.classList.remove('chip-enter'), 300);
         }
 
-        console.log("Metodologia selecionada:", id);
+        console.log('Metodologia selecionada:', id);
         closeAllMenus();
-        metodologiaSubmenu.classList.remove("active");
+        metodologiaSubmenu.classList.remove('active');
       });
     });
   }
 
   // Fechar chip (resetar para automático)
   if (metodologiaChipClose) {
-    metodologiaChipClose.addEventListener("click", (e) => {
+    metodologiaChipClose.addEventListener('click', (e) => {
       e.stopPropagation();
-      window.selectedMetodologia = "automatico";
+      window.selectedMetodologia = 'automatico';
       if (metodologiaChip) {
-        metodologiaChip.style.display = "none";
+        metodologiaChip.style.display = 'none';
       }
-      console.log("Metodologia resetada para: automatico");
+      console.log('Metodologia resetada para: automatico');
     });
   }
 
   // === SISTEMA DE PESQUISA (RESEARCH) ===
   window.researchEnabled = false;
-  const searchToggleBtn = document.getElementById("chatSearchToggleBtn");
-  const researchChip = document.getElementById("researchChip");
-  const researchChipClose = document.getElementById("researchChipClose");
+  const searchToggleBtn = document.getElementById('chatSearchToggleBtn');
+  const researchChip = document.getElementById('researchChip');
+  const researchChipClose = document.getElementById('researchChipClose');
 
   if (searchToggleBtn) {
-    searchToggleBtn.addEventListener("click", (e) => {
+    searchToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       window.researchEnabled = !window.researchEnabled;
 
       if (researchChip) {
-        researchChip.style.display = window.researchEnabled ? "flex" : "none";
+        researchChip.style.display = window.researchEnabled ? 'flex' : 'none';
         if (window.researchEnabled) {
-          researchChip.classList.add("chip-enter");
-          setTimeout(() => researchChip.classList.remove("chip-enter"), 300);
+          researchChip.classList.add('chip-enter');
+          setTimeout(() => researchChip.classList.remove('chip-enter'), 300);
         }
       }
 
-      console.log("Pesquisa ativada:", window.researchEnabled);
+      console.log('Pesquisa ativada:', window.researchEnabled);
       closeAllMenus();
     });
   }
 
   if (researchChipClose) {
-    researchChipClose.addEventListener("click", (e) => {
+    researchChipClose.addEventListener('click', (e) => {
       e.stopPropagation();
       window.researchEnabled = false;
-      if (researchChip) researchChip.style.display = "none";
-      console.log("Pesquisa desativada");
+      if (researchChip) researchChip.style.display = 'none';
+      console.log('Pesquisa desativada');
     });
   }
 
@@ -1041,20 +1230,20 @@ function renderInitialUI() {
   checkAndRestoreFloatingTerminal();
 
   // === MICROFONE (Speech-to-Text) ===
-  const micBtn = document.getElementById("chatMicBtn");
-  const chatTextarea = document.querySelector(".chat-input-field");
+  const micBtn = document.getElementById('chatMicBtn');
+  const chatTextarea = document.querySelector('.chat-input-field');
 
   if (micBtn && chatTextarea) {
     // Guarda texto base (antes de começar a gravar) para live preview
-    let baseText = "";
+    let baseText = '';
 
-    micBtn.addEventListener("click", (e) => {
+    micBtn.addEventListener('click', (e) => {
       e.stopPropagation();
 
       if (getIsListening()) {
         // Para a gravação
         stopListening();
-        micBtn.classList.remove("recording");
+        micBtn.classList.remove('recording');
         return;
       }
 
@@ -1065,11 +1254,11 @@ function renderInitialUI() {
       const started = startListening({
         onResult: (text, isFinal) => {
           // Mostra ao vivo: base + texto sendo falado
-          const needsSpace = baseText.length > 0 && !baseText.endsWith(" ");
-          chatTextarea.value = baseText + (needsSpace ? " " : "") + text;
+          const needsSpace = baseText.length > 0 && !baseText.endsWith(' ');
+          chatTextarea.value = baseText + (needsSpace ? ' ' : '') + text;
 
           // Dispara evento para ajustar altura
-          chatTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+          chatTextarea.dispatchEvent(new Event('input', { bubbles: true }));
 
           if (isFinal) {
             // Atualiza base para próxima frase
@@ -1077,10 +1266,10 @@ function renderInitialUI() {
           }
         },
         onEnd: () => {
-          micBtn.classList.remove("recording");
+          micBtn.classList.remove('recording');
         },
         onError: (errorMsg) => {
-          micBtn.classList.remove("recording");
+          micBtn.classList.remove('recording');
           if (errorMsg) {
             customAlert(errorMsg);
           }
@@ -1088,7 +1277,7 @@ function renderInitialUI() {
       });
 
       if (started) {
-        micBtn.classList.add("recording");
+        micBtn.classList.add('recording');
       }
     });
   }
@@ -1100,76 +1289,75 @@ function renderInitialUI() {
 
   // === SISTEMA DE ANEXO DE ARQUIVOS ===
   const attachedFiles = []; // Array para guardar arquivos anexados
-  const fileInput = document.getElementById("chatFileInput");
-  const attachmentsContainer = document.getElementById("chatAttachments");
-  const uploadBtn = document.getElementById("chatUploadFilesBtn");
-  const inputWrapper = document.getElementById("chatInputWrapper");
+  const fileInput = document.getElementById('chatFileInput');
+  const attachmentsContainer = document.getElementById('chatAttachments');
+  const uploadBtn = document.getElementById('chatUploadFilesBtn');
+  const inputWrapper = document.getElementById('chatInputWrapper');
 
   // Função para obter ícone baseado no tipo do arquivo
   function getFileIcon(file) {
-    const ext = file.name.split(".").pop().toLowerCase();
+    const ext = file.name.split('.').pop().toLowerCase();
     const icons = {
       // Documentos
-      pdf: "📄",
-      doc: "📝",
-      docx: "📝",
-      txt: "📃",
+      pdf: '📄',
+      doc: '📝',
+      docx: '📝',
+      txt: '📃',
       // Imagens
-      png: "🖼️",
-      jpg: "🖼️",
-      jpeg: "🖼️",
-      gif: "🖼️",
-      webp: "🖼️",
-      svg: "🖼️",
-      bmp: "🖼️",
+      png: '🖼️',
+      jpg: '🖼️',
+      jpeg: '🖼️',
+      gif: '🖼️',
+      webp: '🖼️',
+      svg: '🖼️',
+      bmp: '🖼️',
       // Áudio
-      mp3: "🎵",
-      wav: "🎵",
-      ogg: "🎵",
-      aac: "🎵",
-      flac: "🎵",
+      mp3: '🎵',
+      wav: '🎵',
+      ogg: '🎵',
+      aac: '🎵',
+      flac: '🎵',
       // Vídeo
-      mp4: "🎬",
-      webm: "🎬",
-      mov: "🎬",
-      avi: "🎬",
-      mkv: "🎬",
+      mp4: '🎬',
+      webm: '🎬',
+      mov: '🎬',
+      avi: '🎬',
+      mkv: '🎬',
       // Código
-      js: "💻",
-      ts: "💻",
-      py: "💻",
-      java: "💻",
-      cpp: "💻",
-      c: "💻",
-      html: "🌐",
-      css: "🎨",
-      json: "📋",
-      xml: "📋",
-      md: "📖",
+      js: '💻',
+      ts: '💻',
+      py: '💻',
+      java: '💻',
+      cpp: '💻',
+      c: '💻',
+      html: '🌐',
+      css: '🎨',
+      json: '📋',
+      xml: '📋',
+      md: '📖',
     };
-    return icons[ext] || "📎";
+    return icons[ext] || '📎';
   }
 
   // Moved formatFileSize to outer scope (shared)
 
   // Função para criar chip visual do arquivo
   function createAttachmentChip(file, index) {
-    const chip = document.createElement("div");
-    chip.className = "attachment-chip";
+    const chip = document.createElement('div');
+    chip.className = 'attachment-chip';
     chip.dataset.index = index;
 
     // Detecta se é arquivo de questão (padrão: NomeProva_ID.json)
-    const isQuestionFile =
-      file.type === "application/json" && file.name.endsWith(".json");
+    const isQuestionFile = file.type === 'application/json' && file.name.endsWith('.json');
 
     // Preview de imagem se for imagem
-    const isImage = file.type.startsWith("image/");
-    let previewHtml = "";
+    const isImage = file.type.startsWith('image/');
+    let previewHtml = '';
     let displayName = file.name;
 
     if (isImage) {
       const url = URL.createObjectURL(file);
-      chip.classList.add("attachment-chip--image-only"); // Class for pure image look
+      chip.classList.add('attachment-chip--image-only'); // Class for pure image look
 
       chip.innerHTML = `
         <img src="${url}" alt="Image" class="attachment-preview-full">
@@ -1177,18 +1365,16 @@ function renderInitialUI() {
       `;
 
       // Handler para remover (Image Only)
-      chip
-        .querySelector(".attachment-remove-overlay")
-        .addEventListener("click", (e) => {
-          e.stopPropagation();
-          removeAttachment(index);
-        });
+      chip.querySelector('.attachment-remove-overlay').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeAttachment(index);
+      });
 
       return chip; // Return early for images
     } else if (isQuestionFile) {
       // Ícone especial para questões e oculta o .json
       previewHtml = `<span class="attachment-icon">📚</span>`;
-      displayName = file.name.replace(/\.json$/, "");
+      displayName = file.name.replace(/\.json$/, '');
     } else {
       previewHtml = `<span class="attachment-icon">${getFileIcon(file)}</span>`;
     }
@@ -1204,7 +1390,7 @@ function renderInitialUI() {
     `;
 
     // Handler para remover (Standard)
-    chip.querySelector(".attachment-remove").addEventListener("click", (e) => {
+    chip.querySelector('.attachment-remove').addEventListener('click', (e) => {
       e.stopPropagation();
       removeAttachment(index);
     });
@@ -1216,9 +1402,7 @@ function renderInitialUI() {
   function addFiles(files) {
     for (const file of files) {
       // Verifica se já existe
-      const exists = attachedFiles.some(
-        (f) => f.name === file.name && f.size === file.size,
-      );
+      const exists = attachedFiles.some((f) => f.name === file.name && f.size === file.size);
       if (!exists) {
         attachedFiles.push(file);
       }
@@ -1234,14 +1418,14 @@ function renderInitialUI() {
 
   // Função para renderizar todos os anexos
   function renderAttachments() {
-    attachmentsContainer.innerHTML = "";
+    attachmentsContainer.innerHTML = '';
 
     if (attachedFiles.length === 0) {
-      attachmentsContainer.style.display = "none";
+      attachmentsContainer.style.display = 'none';
       return;
     }
 
-    attachmentsContainer.style.display = "flex";
+    attachmentsContainer.style.display = 'flex';
     attachedFiles.forEach((file, index) => {
       const chip = createAttachmentChip(file, index);
       attachmentsContainer.appendChild(chip);
@@ -1250,7 +1434,7 @@ function renderInitialUI() {
 
   // Handler para botão "Enviar Arquivos"
   if (uploadBtn && fileInput) {
-    uploadBtn.addEventListener("click", (e) => {
+    uploadBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       fileInput.click();
       closeAllMenus();
@@ -1259,18 +1443,18 @@ function renderInitialUI() {
 
   // Handler para input file
   if (fileInput) {
-    fileInput.addEventListener("change", (e) => {
+    fileInput.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         addFiles(e.target.files);
-        fileInput.value = ""; // Reset para permitir mesmo arquivo novamente
+        fileInput.value = ''; // Reset para permitir mesmo arquivo novamente
       }
     });
   }
 
   // Handler para botão "Adicionar Questões"
-  const addQuestionsBtn = document.getElementById("chatAddQuestionsBtn");
+  const addQuestionsBtn = document.getElementById('chatAddQuestionsBtn');
   if (addQuestionsBtn) {
-    addQuestionsBtn.addEventListener("click", (e) => {
+    addQuestionsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeAllMenus();
       openAddQuestionsModal();
@@ -1278,40 +1462,42 @@ function renderInitialUI() {
   }
 
   // Handler para botão "Prompt Apêndice A" (Admin Only)
-  const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+  const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
   if (apendiceAPromptBtn) {
-    apendiceAPromptBtn.addEventListener("click", (e) => {
+    apendiceAPromptBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       closeAllMenus();
-      
-      const inputField = document.querySelector(".chat-input-field");
+
+      const inputField = document.querySelector('.chat-input-field');
       if (inputField) {
-        const lockedText = "Considere a seguinte questão de vestibular anexada a essa solicitação. Resolva-a de maneira a não somente indicar a alternativa correta, mas também justificar de forma estruturada cada etapa do raciocínio utilizado até a resposta final.";
-        
+        const lockedText =
+          'Considere a seguinte questão de vestibular anexada a essa solicitação. Resolva-a de maneira a não somente indicar a alternativa correta, mas também justificar de forma estruturada cada etapa do raciocínio utilizado até a resposta final.';
+
         if (inputField.readOnly && inputField.value === lockedText) {
           // Unlock
           inputField.readOnly = false;
-          inputField.value = "";
-          inputField.placeholder = "O que vamos estudar hoje?";
-          apendiceAPromptBtn.querySelector(".model-item-title").textContent = "Prompt Apêndice A";
-          customAlert("🔓 Prompt do Apêndice A removido e entrada desbloqueada.");
+          inputField.value = '';
+          inputField.placeholder = 'O que vamos estudar hoje?';
+          apendiceAPromptBtn.querySelector('.model-item-title').textContent = 'Prompt Apêndice A';
+          customAlert('🔓 Prompt do Apêndice A removido e entrada desbloqueada.');
         } else {
           // Lock
           inputField.value = lockedText;
           inputField.readOnly = true;
-          inputField.placeholder = "Prompt travado para o Apêndice A.";
+          inputField.placeholder = 'Prompt travado para o Apêndice A.';
           // Auto-resize
           inputField.style.height = '';
           inputField.style.height = inputField.scrollHeight + 'px';
-          apendiceAPromptBtn.querySelector(".model-item-title").textContent = "🔓 Desbloquear Input";
-          customAlert("🔒 Prompt do Apêndice A inserido e entrada travada.");
+          apendiceAPromptBtn.querySelector('.model-item-title').textContent =
+            '🔓 Desbloquear Input';
+          customAlert('🔒 Prompt do Apêndice A inserido e entrada travada.');
         }
       }
     });
   }
 
   // Listener para questões selecionadas do modal
-  window.addEventListener("questions-selected", (e) => {
+  window.addEventListener('questions-selected', (e) => {
     const { questions } = e.detail || {};
     if (questions && questions.length > 0) {
       // Adiciona questões como arquivos JSON anexados
@@ -1322,15 +1508,15 @@ function renderInitialUI() {
   // Função para adicionar questões como arquivos JSON anexados
   function addQuestionsAsFiles(questions) {
     questions.forEach((q) => {
-      const nomeProva = q.prova.replace(/_/g, " ");
+      const nomeProva = q.prova.replace(/_/g, ' ');
       const fileName = `${nomeProva}_${q.id}.json`;
 
       // Cria blob JSON com os dados completos da questão
       const jsonContent = JSON.stringify(q.fullData, null, 2);
-      const blob = new Blob([jsonContent], { type: "application/json" });
+      const blob = new Blob([jsonContent], { type: 'application/json' });
 
       // Cria objeto File
-      const file = new File([blob], fileName, { type: "application/json" });
+      const file = new File([blob], fileName, { type: 'application/json' });
 
       // Adiciona à lista de arquivos anexados (usando a função addFiles já existente)
       addFiles([file]);
@@ -1340,7 +1526,7 @@ function renderInitialUI() {
   // === DRAG AND DROP ===
   if (inputWrapper) {
     // Previne comportamento padrão
-    ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
       inputWrapper.addEventListener(eventName, (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1348,21 +1534,21 @@ function renderInitialUI() {
     });
 
     // Highlight ao arrastar
-    ["dragenter", "dragover"].forEach((eventName) => {
+    ['dragenter', 'dragover'].forEach((eventName) => {
       inputWrapper.addEventListener(eventName, () => {
-        inputWrapper.classList.add("drag-over");
+        inputWrapper.classList.add('drag-over');
       });
     });
 
     // Remove highlight
-    ["dragleave", "drop"].forEach((eventName) => {
+    ['dragleave', 'drop'].forEach((eventName) => {
       inputWrapper.addEventListener(eventName, () => {
-        inputWrapper.classList.remove("drag-over");
+        inputWrapper.classList.remove('drag-over');
       });
     });
 
     // Handler de drop
-    inputWrapper.addEventListener("drop", (e) => {
+    inputWrapper.addEventListener('drop', (e) => {
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         addFiles(files);
@@ -1371,9 +1557,9 @@ function renderInitialUI() {
   }
 
   // === BOTÃO ENVIAR / TRANSIÇÃO PARA MODO CONVERSA ===
-  const sendBtn = document.querySelector(".chat-send-btn");
+  const sendBtn = document.querySelector('.chat-send-btn');
   if (sendBtn && chatTextarea) {
-    sendBtn.addEventListener("click", (e) => {
+    sendBtn.addEventListener('click', (e) => {
       e.preventDefault();
 
       // [STOP LOGIC] Se já estiver gerando, interrompe
@@ -1394,7 +1580,7 @@ function renderInitialUI() {
       window.currentChatAbortController = activeGenerationController;
 
       // Muda ícone para Stop (Quadrado Preenchido e Branco) e adiciona classe stop-mode
-      sendBtn.classList.add("stop-mode");
+      sendBtn.classList.add('stop-mode');
       // Ícone: Rect com fill current color (que será branco via CSS .stop-mode) e sem stroke
       sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>`;
 
@@ -1415,21 +1601,21 @@ function renderInitialUI() {
     });
 
     // Também enviar ao pressionar Enter (sem Shift)
-    chatTextarea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+    chatTextarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendBtn.click();
       }
     });
 
     // === PASTE EVENT HANDLER ===
-    chatTextarea.addEventListener("paste", (e) => {
+    chatTextarea.addEventListener('paste', (e) => {
       const items = (e.clipboardData || e.originalEvent.clipboardData).items;
       const filesToUpload = [];
 
-      for (let index in items) {
+      for (const index in items) {
         const item = items[index];
-        if (item.kind === "file") {
+        if (item.kind === 'file') {
           const blob = item.getAsFile();
           if (blob) {
             filesToUpload.push(blob);
@@ -1479,17 +1665,17 @@ export function gerarTelaInicial() {
       const currentUid = user && !user.isAnonymous ? user.uid : null;
       if (currentUid && window.__lastSyncedUid !== currentUid) {
         window.__lastSyncedUid = currentUid;
-        console.log("Usuário logado detectado. Iniciando sync...");
+        console.log('Usuário logado detectado. Iniciando sync...');
         ChatStorageService.syncPendingToCloud();
         ChatStorageService.syncFromCloud(user.uid).then(() => {
-          console.log("Chats baixados da nuvem.");
+          console.log('Chats baixados da nuvem.');
         });
         MemoryService.syncPendingToCloud(); // If implemented
       }
     });
 
     // Custom Event for manual updates (e.g. after linking account)
-    window.addEventListener("auth-changed", () => {
+    window.addEventListener('auth-changed', () => {
       renderUserButton(auth.currentUser);
       verificarAdminEShowSidebar(auth.currentUser);
     });
@@ -1503,7 +1689,7 @@ export function gerarTelaInicial() {
  * (Movido para escopo do módulo para ser acessível pelos listeners globais)
  */
 export function renderUserButton(user) {
-  const userSection = document.getElementById("navUserSection");
+  const userSection = document.getElementById('navUserSection');
   if (!userSection) return;
 
   // Check if anonymous
@@ -1521,27 +1707,27 @@ export function renderUserButton(user) {
         </button>
       `;
 
-    const loginBtn = userSection.querySelector(".js-open-login");
+    const loginBtn = userSection.querySelector('.js-open-login');
     if (loginBtn) {
-      loginBtn.addEventListener("click", () => openLoginModal());
+      loginBtn.addEventListener('click', () => openLoginModal());
     }
 
     // Theme Toggle Listener (Anonymous)
-    const themeBtn = userSection.querySelector(".js-toggle-theme");
+    const themeBtn = userSection.querySelector('.js-toggle-theme');
     if (themeBtn) {
       updateThemeIcon(getTheme());
-      themeBtn.addEventListener("click", () => toggleTheme());
+      themeBtn.addEventListener('click', () => toggleTheme());
     }
     // === DYNAMIC LOGOUT ALERT LOGIC ===
-    const chatInputWrapper = document.getElementById("chatInputWrapper");
-    let logoutAlert = document.getElementById("logoutAlertContainer");
+    const chatInputWrapper = document.getElementById('chatInputWrapper');
+    let logoutAlert = document.getElementById('logoutAlertContainer');
 
     // 1. Create and Insert if logic demands (Not logged in AND auth resolved)
     if (window.isAuthFirstResolved && !logoutAlert && chatInputWrapper) {
-      logoutAlert = document.createElement("div");
-      logoutAlert.id = "logoutAlertContainer";
-      logoutAlert.className = "logout-alert-container";
-      logoutAlert.style.display = "block"; // Show immediately
+      logoutAlert = document.createElement('div');
+      logoutAlert.id = 'logoutAlertContainer';
+      logoutAlert.className = 'logout-alert-container';
+      logoutAlert.style.display = 'block'; // Show immediately
 
       logoutAlert.innerHTML = `
             <div class="logout-alert-content">
@@ -1569,34 +1755,32 @@ export function renderUserButton(user) {
       chatInputWrapper.parentNode.insertBefore(logoutAlert, chatInputWrapper);
 
       // Attach Listeners
-      const alertLoginBtn = logoutAlert.querySelector(".js-open-login-alert");
+      const alertLoginBtn = logoutAlert.querySelector('.js-open-login-alert');
       if (alertLoginBtn) {
-        alertLoginBtn.addEventListener("click", () => openLoginModal());
+        alertLoginBtn.addEventListener('click', () => openLoginModal());
       }
 
-      const closeAlertBtn = logoutAlert.querySelector("#closeLogoutAlert");
+      const closeAlertBtn = logoutAlert.querySelector('#closeLogoutAlert');
       if (closeAlertBtn) {
-        closeAlertBtn.addEventListener("click", () => {
+        closeAlertBtn.addEventListener('click', () => {
           logoutAlert.remove(); // Completely remove from DOM
         });
       }
     } else if (logoutAlert) {
       // Ensure visible if it exists
-      logoutAlert.style.display = "block";
+      logoutAlert.style.display = 'block';
     }
   } else {
     // Logged in user - REMOVE ALERT if exists
-    const logoutAlert = document.getElementById("logoutAlertContainer");
+    const logoutAlert = document.getElementById('logoutAlertContainer');
     if (logoutAlert) {
       logoutAlert.remove();
     }
     // Logged in user
-    const displayName =
-      user.displayName || (user.email ? user.email.split("@")[0] : "Viajante");
+    const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Viajante');
 
     const photoURL =
-      user.photoURL ||
-      "https://ui-avatars.com/api/?name=" + encodeURIComponent(displayName);
+      user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName);
 
     userSection.innerHTML = `
         <div class="user-profile-dropdown" style="position: relative; flex: 1; min-width: 0;">
@@ -1604,7 +1788,7 @@ export function renderUserButton(user) {
               <img src="${photoURL}" alt="User" class="nav-user-avatar" style="width: 32px; height: 32px; flex-shrink: 0; border: 2px solid var(--color-border);">
               <div style="display: flex; flex-direction: column; overflow: hidden; line-height: 1.2;">
                   <span style="font-weight: 700; font-size: 0.85rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(displayName)}</span>
-                  <span style="font-size: 0.7rem; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(user.email || "")}</span>
+                  <span style="font-size: 0.7rem; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(user.email || '')}</span>
               </div>
             </button>
             
@@ -1627,53 +1811,53 @@ export function renderUserButton(user) {
       `;
 
     // Profile Dropdown Logic
-    const profileBtn = document.getElementById("userProfileBtn");
-    const dropdown = document.getElementById("userDropdownMenu");
+    const profileBtn = document.getElementById('userProfileBtn');
+    const dropdown = document.getElementById('userDropdownMenu');
 
     // Theme Toggle Listener (Logged In)
-    const themeBtn = userSection.querySelector(".js-toggle-theme");
+    const themeBtn = userSection.querySelector('.js-toggle-theme');
     if (themeBtn) {
       updateThemeIcon(getTheme());
-      themeBtn.addEventListener("click", () => toggleTheme());
+      themeBtn.addEventListener('click', () => toggleTheme());
     }
 
     if (profileBtn && dropdown) {
-      profileBtn.addEventListener("click", (e) => {
+      profileBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        dropdown.classList.toggle("visible");
+        dropdown.classList.toggle('visible');
       });
 
       // Close on click outside
-      document.addEventListener("click", (e) => {
+      document.addEventListener('click', (e) => {
         if (!dropdown.contains(e.target) && !profileBtn.contains(e.target)) {
-          dropdown.classList.remove("visible");
+          dropdown.classList.remove('visible');
         }
       });
 
       // Puter Limits
-      const puterLimitsBtn = dropdown.querySelector(".js-puter-limits-btn");
+      const puterLimitsBtn = dropdown.querySelector('.js-puter-limits-btn');
       if (puterLimitsBtn) {
-        puterLimitsBtn.addEventListener("click", () => {
-          dropdown.classList.remove("visible");
+        puterLimitsBtn.addEventListener('click', () => {
+          dropdown.classList.remove('visible');
           showPuterLimitsModal();
         });
       }
 
       // Logout
-      const logoutBtn = dropdown.querySelector(".js-logout-btn");
+      const logoutBtn = dropdown.querySelector('.js-logout-btn');
       if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-          const { showConfirmModal } = await import("../ui/modal-confirm.js"); // lazy import
+        logoutBtn.addEventListener('click', async () => {
+          const { showConfirmModal } = await import('../ui/modal-confirm.js'); // lazy import
           const confirmed = await showConfirmModal(
-            "Deseja realmente sair?",
-            "Seus chats locais permanecerão, mas a sincronização será pausada.",
-            "Sair",
-            "Cancelar",
+            'Deseja realmente sair?',
+            'Seus chats locais permanecerão, mas a sincronização será pausada.',
+            'Sair',
+            'Cancelar',
           );
 
           if (confirmed) {
             await logoutUser();
-            dropdown.classList.remove("visible");
+            dropdown.classList.remove('visible');
           }
         });
       }
@@ -1681,11 +1865,11 @@ export function renderUserButton(user) {
   }
 
   // Config API Key Listener (Re-attach inside render)
-  const apiKeyBtns = userSection.querySelectorAll(".js-config-api");
+  const apiKeyBtns = userSection.querySelectorAll('.js-config-api');
   if (apiKeyBtns) {
-    apiKeyBtns.forEach((btn) =>
-      btn.addEventListener("click", () => mountApiKeyModal()),
-    );
+    apiKeyBtns.forEach((btn) => {
+      btn.addEventListener('click', () => mountApiKeyModal());
+    });
   }
 }
 
@@ -1693,10 +1877,11 @@ export function renderUserButton(user) {
  * Mostra o modal com limites de uso da conta Puter.js
  */
 async function showPuterLimitsModal() {
-  const { showGenericModal } = await import("../ui/modal-generic.js");
-  
-  const contentEl = document.createElement("div");
-  contentEl.style.cssText = "color: var(--color-text); font-family: sans-serif; display: flex; flex-direction: column; gap: 16px;";
+  const { showGenericModal } = await import('../ui/modal-generic.js');
+
+  const contentEl = document.createElement('div');
+  contentEl.style.cssText =
+    'color: var(--color-text); font-family: sans-serif; display: flex; flex-direction: column; gap: 16px;';
   contentEl.innerHTML = `
     <div style="text-align: center; padding: 20px 0;">
       <div style="border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--color-primary, #4e82ee); border-radius: 50%; width: 30px; height: 30px; animation: puter-limits-spin 1s linear infinite; margin: 0 auto 12px;"></div>
@@ -1708,16 +1893,16 @@ async function showPuterLimitsModal() {
   `;
 
   showGenericModal({
-    title: "🔒 Limites da sua conta Puter.js",
+    title: '🔒 Limites da sua conta Puter.js',
     content: contentEl,
-    maxWidth: "500px"
+    maxWidth: '500px',
   });
 
   try {
-    if (typeof window.puter === "undefined") {
+    if (typeof window.puter === 'undefined') {
       await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://js.puter.com/v2/";
+        const script = document.createElement('script');
+        script.src = 'https://js.puter.com/v2/';
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);
@@ -1735,24 +1920,24 @@ async function showPuterLimitsModal() {
           </button>
         </div>
       `;
-      document.getElementById("btnPuterModalLogin")?.addEventListener("click", async () => {
+      document.getElementById('btnPuterModalLogin')?.addEventListener('click', async () => {
         try {
           await puter.auth.signIn();
           // Fechar modal atual e reabrir
-          const overlay = document.querySelector(".custom-generic-overlay");
+          const overlay = document.querySelector('.custom-generic-overlay');
           if (overlay && document.body.contains(overlay)) {
             document.body.removeChild(overlay);
           }
           showPuterLimitsModal();
         } catch (e) {
-          console.error("Erro ao autenticar com Puter:", e);
+          console.error('Erro ao autenticar com Puter:', e);
         }
       });
       return;
     }
 
     const usage = await puter.auth.getMonthlyUsage();
-    console.log("Usage retrieved from Puter:", usage);
+    console.log('Usage retrieved from Puter:', usage);
 
     let allowance = 0;
     let remaining = 0;
@@ -1782,16 +1967,20 @@ async function showPuterLimitsModal() {
     const pctUsed = allowance > 0 ? Math.min(100, Math.round((used / allowance) * 100)) : 0;
     const pctRemaining = 100 - pctUsed;
 
-    let allowanceInfoHtml = "";
+    let allowanceInfoHtml = '';
     if (usage.allowanceInfo && Array.isArray(usage.allowanceInfo)) {
       allowanceInfoHtml = `
         <div style="margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px;">
           <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text);">Detalhamento por Serviço</h4>
           <div style="display: flex; flex-direction: column; gap: 8px;">
-            ${usage.allowanceInfo.map(info => {
-              const infoUsed = Math.max(0, (info.allowance || 0) - (info.remaining || 0));
-              const infoPct = info.allowance > 0 ? Math.min(100, Math.round((infoUsed / info.allowance) * 100)) : 0;
-              return `
+            ${usage.allowanceInfo
+              .map((info) => {
+                const infoUsed = Math.max(0, (info.allowance || 0) - (info.remaining || 0));
+                const infoPct =
+                  info.allowance > 0
+                    ? Math.min(100, Math.round((infoUsed / info.allowance) * 100))
+                    : 0;
+                return `
                 <div style="font-size: 0.8rem; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--color-border);">
                   <div style="display: flex; justify-content: space-between; font-weight: 600; text-transform: capitalize; margin-bottom: 4px;">
                     <span>${info.service_name || info.name || 'Serviço'}</span>
@@ -1806,7 +1995,8 @@ async function showPuterLimitsModal() {
                   </div>
                 </div>
               `;
-            }).join('')}
+              })
+              .join('')}
           </div>
         </div>
       `;
@@ -1819,20 +2009,24 @@ async function showPuterLimitsModal() {
         mistral: 'Mistral',
         cohere: 'Cohere',
         alibaba: 'Alibaba',
-        microsoft: 'Microsoft'
+        microsoft: 'Microsoft',
       };
 
       const formatServiceKey = (key) => {
         const parts = key.split(':');
         if (parts.length >= 3) {
           const provKey = parts[0].toLowerCase();
-          const provider = providerMap[provKey] || (parts[0].charAt(0).toUpperCase() + parts[0].slice(1));
-          const model = parts[1].split('-').map(w => {
-            const lw = w.toLowerCase();
-            if (lw === 'vl') return 'VL';
-            if (lw === 'gpt') return 'GPT';
-            return w.charAt(0).toUpperCase() + w.slice(1);
-          }).join(' ');
+          const provider =
+            providerMap[provKey] || parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          const model = parts[1]
+            .split('-')
+            .map((w) => {
+              const lw = w.toLowerCase();
+              if (lw === 'vl') return 'VL';
+              if (lw === 'gpt') return 'GPT';
+              return w.charAt(0).toUpperCase() + w.slice(1);
+            })
+            .join(' ');
           let type = parts[2].replace(/_/g, ' ');
           type = type.charAt(0).toUpperCase() + type.slice(1);
           if (parts[2] === 'prompt_tokens') type = 'Entrada (Prompt)';
@@ -1866,8 +2060,9 @@ async function showPuterLimitsModal() {
           <div style="margin-top: 16px; border-top: 1px solid var(--color-border); padding-top: 16px;">
             <h4 style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: var(--color-text);">Detalhamento por Modelo</h4>
             <div style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px;">
-              ${items.map(item => {
-                return `
+              ${items
+                .map((item) => {
+                  return `
                   <div style="font-size: 0.8rem; background: rgba(255,255,255,0.02); padding: 10px 14px; border-radius: 10px; border: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 6px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                       <span style="font-weight: 600; color: var(--color-text); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 65%;" title="${item.name}">${item.name}</span>
@@ -1880,7 +2075,8 @@ async function showPuterLimitsModal() {
                     </div>
                   </div>
                 `;
-              }).join('')}
+                })
+                .join('')}
             </div>
           </div>
         `;
@@ -1922,22 +2118,21 @@ async function showPuterLimitsModal() {
         </p>
       </div>
     `;
-
   } catch (e) {
-    console.error("Erro ao carregar limites do Puter:", e);
+    console.error('Erro ao carregar limites do Puter:', e);
     contentEl.innerHTML = `
       <div style="text-align: center; padding: 10px 0; color: #f87171;">
         <span style="font-size: 2rem;">⚠️</span>
         <p style="margin: 10px 0 0 0; font-size: 0.9rem; font-weight: 600;">Não foi possível obter os limites da conta</p>
-        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">${e.message || "Erro de conexão com o Puter API"}</p>
+        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--color-text-secondary);">${e.message || 'Erro de conexão com o Puter API'}</p>
         <button id="btnPuterModalRetry" class="btn btn--outline" style="margin-top: 12px; padding: 6px 12px; font-size: 0.8rem;">
           Tentar Novamente
         </button>
       </div>
     `;
-    document.getElementById("btnPuterModalRetry")?.addEventListener("click", () => {
+    document.getElementById('btnPuterModalRetry')?.addEventListener('click', () => {
       // Fechar modal atual e reabrir
-      const overlay = document.querySelector(".custom-generic-overlay");
+      const overlay = document.querySelector('.custom-generic-overlay');
       if (overlay && document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
@@ -1950,15 +2145,15 @@ async function showPuterLimitsModal() {
  * Carrega e renderiza a lista de chats na sidebar
  */
 export async function loadSidebarChats() {
-  const list = document.getElementById("navChatList");
+  const list = document.getElementById('navChatList');
   if (!list) return;
 
   // Dynamic import to avoid cycle
-  const { ChatStorageService } = await import("../services/chat-storage.js");
+  const { ChatStorageService } = await import('../services/chat-storage.js');
 
   // Handler para update (evita duplicar listener)
   if (!window._chatListListener) {
-    window.addEventListener("chat-list-updated", () => loadSidebarChats());
+    window.addEventListener('chat-list-updated', () => loadSidebarChats());
     window._chatListListener = true;
   }
 
@@ -1971,7 +2166,7 @@ export async function loadSidebarChats() {
     </button>
   `;
 
-  let historyHtml = "";
+  let historyHtml = '';
 
   if (chats.length === 0) {
     historyHtml = `<div style="padding: 10px 16px; font-size: 0.8rem; color: var(--color-text-secondary); font-style: italic;">Nenhum chat recente</div>`;
@@ -1985,16 +2180,14 @@ export async function loadSidebarChats() {
             <span class="nav-icon" style="font-size: 1rem;">💬</span>
             <span class="nav-label" style="overflow: hidden;">
                 <span class="nav-title" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${
-                  c.title || "Novo Chat"
+                  c.title || 'Novo Chat'
                 }</span>
-                <span class="nav-desc">${new Date(
-                  c.updatedAt,
-                ).toLocaleDateString()}</span>
+                <span class="nav-desc">${new Date(c.updatedAt).toLocaleDateString()}</span>
             </span>
         </button>
     `,
       )
-      .join("");
+      .join('');
   }
 
   list.innerHTML = newChatHtml + historyHtml;
@@ -2003,7 +2196,7 @@ export async function loadSidebarChats() {
 /**
  * Inicia um novo chat (reseta a aplicação sem reload)
  */
-window.startNewChat = function () {
+window.startNewChat = () => {
   // Abort active generation if any
   if (activeGenerationController) {
     activeGenerationController.abort();
@@ -2027,7 +2220,7 @@ window.startNewChat = function () {
 /**
  * Carrega um chat do histórico e exibe na tela
  */
-window.loadChat = async function (chatId) {
+window.loadChat = async (chatId) => {
   // Clear debug logs from previous sessions
   window.chatDebugLogs = [];
 
@@ -2038,7 +2231,7 @@ window.loadChat = async function (chatId) {
   }
 
   // Dynamic import to avoid cycle
-  const { ChatStorageService } = await import("../services/chat-storage.js");
+  const { ChatStorageService } = await import('../services/chat-storage.js');
 
   const chat = await ChatStorageService.getChat(chatId);
   if (!chat) return;
@@ -2046,7 +2239,7 @@ window.loadChat = async function (chatId) {
   window.currentChatId = chatId;
 
   // Se o container principal não existir (ex: estamos no Banco de Questões), reconstrói a tela inicial primeiro
-  const container = document.querySelector(".maia-ai-container");
+  const container = document.querySelector('.maia-ai-container');
   if (!container) {
     renderInitialUI();
   }
@@ -2055,35 +2248,34 @@ window.loadChat = async function (chatId) {
   transicionarParaModoConversa(null, []);
 
   // 2. Limpa mensagens existentes (transicionarParaModoConversa limpa se for primeira msg, mas aqui já estamos no modo)
-  const messagesContainer = document.getElementById("chatMessages");
-  if (messagesContainer) messagesContainer.innerHTML = "";
+  const messagesContainer = document.getElementById('chatMessages');
+  if (messagesContainer) messagesContainer.innerHTML = '';
 
   // Helper local para loadChat
   function createHistoricalAccordion() {
-    const accordion = document.createElement("div");
-    accordion.className = "steps-accordion"; // Fechado por padrão no histórico
+    const accordion = document.createElement('div');
+    accordion.className = 'steps-accordion'; // Fechado por padrão no histórico
     accordion._stepCount = 0;
 
-    const header = document.createElement("div");
-    header.className = "steps-accordion-header";
+    const header = document.createElement('div');
+    header.className = 'steps-accordion-header';
     header.innerHTML = `
       <span class="steps-accordion-count">Concluiu 0 etapas</span>
       <span class="steps-accordion-chevron">${ACCORDION_CHEVRON_SVG}</span>
     `;
 
-    const body = document.createElement("div");
-    body.className = "steps-accordion-body";
+    const body = document.createElement('div');
+    body.className = 'steps-accordion-body';
 
-    header.addEventListener("click", () => accordion.classList.toggle("open"));
+    header.addEventListener('click', () => accordion.classList.toggle('open'));
     accordion.appendChild(header);
     accordion.appendChild(body);
 
-    const systemMsg = document.createElement("div");
-    systemMsg.className = "chat-message chat-message--system visible";
-    const msgContent = document.createElement("div");
-    msgContent.className = "chat-message-content";
-    msgContent.style.cssText =
-      "padding:0; background:transparent; box-shadow:none;";
+    const systemMsg = document.createElement('div');
+    systemMsg.className = 'chat-message chat-message--system visible';
+    const msgContent = document.createElement('div');
+    msgContent.className = 'chat-message-content';
+    msgContent.style.cssText = 'padding:0; background:transparent; box-shadow:none;';
     msgContent.appendChild(accordion);
     systemMsg.appendChild(msgContent);
 
@@ -2091,7 +2283,7 @@ window.loadChat = async function (chatId) {
       accordion,
       body,
       systemMsg,
-      headerCount: header.querySelector(".steps-accordion-count"),
+      headerCount: header.querySelector('.steps-accordion-count'),
     };
   }
 
@@ -2106,11 +2298,10 @@ window.loadChat = async function (chatId) {
       const body = currentHistoricalAccordion.body;
       const onlyStep = body ? body.firstElementChild : null;
       if (onlyStep && currentHistoricalAccordion.systemMsg) {
-        currentHistoricalAccordion.systemMsg.innerHTML = "";
-        const content = document.createElement("div");
-        content.className = "chat-message-content";
-        content.style.cssText =
-          "padding:0; background:transparent; box-shadow:none;";
+        currentHistoricalAccordion.systemMsg.innerHTML = '';
+        const content = document.createElement('div');
+        content.className = 'chat-message-content';
+        content.style.cssText = 'padding:0; background:transparent; box-shadow:none;';
         content.appendChild(onlyStep);
         currentHistoricalAccordion.systemMsg.appendChild(content);
       }
@@ -2129,69 +2320,67 @@ window.loadChat = async function (chatId) {
     )
       return;
 
-    if (msg.role === "user") {
+    if (msg.role === 'user') {
       finalizeHistoricalAccordion(); // Reinicia agrupamento para novo ciclo
 
       // Render User Message
-      const userMessage = document.createElement("div");
-      userMessage.className = "chat-message chat-message--user visible";
+      const userMessage = document.createElement('div');
+      userMessage.className = 'chat-message chat-message--user visible';
       userMessage.dataset.msgIndex = index; // Para persistência de Scaffolding
 
       // Recria anexos se houver
-      let filesHtml = "";
+      let filesHtml = '';
       if (msg.attachments && msg.attachments.length > 0) {
-        const fileCards = msg.attachments
-          .map((f) => renderFileAttachment(f))
-          .join("");
+        const fileCards = msg.attachments.map((f) => renderFileAttachment(f)).join('');
         filesHtml = `<div class="message-files">${fileCards}</div>`;
       }
       userMessage.innerHTML = `<div class="chat-message-content">${filesHtml}<p>${escapeHtml(msg.content)}</p></div>`;
       messagesContainer.appendChild(userMessage);
-    } else if (msg.role === "system") {
+    } else if (msg.role === 'system') {
       // [RENDER SYSTEM EVENTS] Memória, Modo, etc.
       let renderedContent = null;
-      let phaseId = "generation";
+      let phaseId = 'generation';
 
-      if (msg.content && msg.content.type === "memory_found") {
+      if (msg.content && msg.content.type === 'memory_found') {
         const { title, facts, summary } = msg.content;
-        phaseId = "memory";
-        const contentDiv = document.createElement("div");
+        phaseId = 'memory';
+        const contentDiv = document.createElement('div');
         const factsList = Array.isArray(facts)
           ? facts
               .map((f) => {
                 const similarity = f.score
                   ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
-                  : "";
-                return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
+                  : '';
+                return `<li style="margin-bottom:4px;">${f.conteudo || 'Conteúdo indisponível'}${similarity}</li>`;
               })
-              .join("")
-          : "";
+              .join('')
+          : '';
 
         contentDiv.innerHTML = `
                 <div style="margin-bottom:12px;">
                     <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
-                    <div style="font-style:italic; background:var(--color-bg-tertiary); padding:8px; border-radius:6px;">"${summary || "Nenhum resumo gerado."}"</div>
+                    <div style="font-style:italic; background:var(--color-bg-tertiary); padding:8px; border-radius:6px;">"${summary || 'Nenhum resumo gerado.'}"</div>
                 </div>
-                ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
+                ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ''}
             `;
         renderedContent = createExpandableStatusGlobal(
-          title || "Memórias recuperadas",
+          title || 'Memórias recuperadas',
           contentDiv,
           phaseId,
         );
-      } else if (msg.content && msg.content.type === "mode_selected") {
+      } else if (msg.content && msg.content.type === 'mode_selected') {
         const { mode, reason, confidence } = msg.content;
-        phaseId = "mode";
+        phaseId = 'mode';
         const modeNames = {
-          rapido: "Rápido",
-          raciocinio: "Raciocínio",
-          automatico: "Automático",
+          rapido: 'Rápido',
+          raciocinio: 'Raciocínio',
+          automatico: 'Automático',
         };
 
-        const contentDiv = document.createElement("div");
+        const contentDiv = document.createElement('div');
         contentDiv.innerHTML = `
                 <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
-                <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
+                <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || 'N/A'}</div>
                 <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
             `;
         renderedContent = createExpandableStatusGlobal(
@@ -2199,36 +2388,36 @@ window.loadChat = async function (chatId) {
           contentDiv,
           phaseId,
         );
-      } else if (msg.content && msg.content.type === "research_results") {
+      } else if (msg.content && msg.content.type === 'research_results') {
         const { report, sources } = msg.content;
-        phaseId = "research";
-        const contentDiv = document.createElement("div");
+        phaseId = 'research';
+        const contentDiv = document.createElement('div');
         contentDiv.innerHTML = `
                 <div class="research-report-preview markdown-content" style="max-height: 200px; overflow: hidden; position: relative; margin-bottom: 12px; font-size: 0.9em; line-height: 1.5; color: var(--color-text-secondary);">
-                    ${safeMarkdown(report || "")}
+                    ${safeMarkdown(report || '')}
                     <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60px; background: linear-gradient(transparent, var(--color-bg-tertiary));"></div>
                 </div>
                 <div style="font-weight: 600; margin-bottom: 8px;">${sources?.length || 0} fontes utilizadas na pesquisa.</div>
                 <button class="maia-btn maia-btn--premium maia-btn--premium-sm" onclick="window.showResearchReport(this)" 
-                        data-report="${encodeURIComponent(report || "")}" 
+                        data-report="${encodeURIComponent(report || '')}" 
                         data-sources="${encodeURIComponent(JSON.stringify(sources || []))}">
                     <span style="font-size: 1.1em; margin-right: 4px;">📂</span> Ver Relatório Completo
                 </button>
 
             `;
         renderedContent = createExpandableStatusGlobal(
-          "Pesquisa profunda concluída",
+          'Pesquisa profunda concluída',
           contentDiv,
           phaseId,
         );
-      } else if (msg.content && msg.content.type === "extraction_triggered") {
-        phaseId = "extraction";
-        const contentDiv = document.createElement("div");
+      } else if (msg.content && msg.content.type === 'extraction_triggered') {
+        phaseId = 'extraction';
+        const contentDiv = document.createElement('div');
         contentDiv.innerHTML = `
-          <div style="font-size:13px; line-height:1.5;">${msg.content.message || "Extração de questões solicitada para completar lacunas no banco de dados."}</div>
+          <div style="font-size:13px; line-height:1.5;">${msg.content.message || 'Extração de questões solicitada para completar lacunas no banco de dados.'}</div>
         `;
         renderedContent = createExpandableStatusGlobal(
-          "🔍 Extração de questões solicitada",
+          '🔍 Extração de questões solicitada',
           contentDiv,
           phaseId,
         );
@@ -2242,30 +2431,29 @@ window.loadChat = async function (chatId) {
         currentHistoricalAccordion.body.appendChild(renderedContent);
         currentHistoricalAccordion.accordion._stepCount++;
         const total = currentHistoricalAccordion.accordion._stepCount;
-        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
+        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? 's' : ''}`;
       }
-    } else if (msg.role === "model" || msg.role === "ai") {
+    } else if (msg.role === 'model' || msg.role === 'ai') {
       // Render AI Message
-      const aiMessage = document.createElement("div");
-      const isMaiaMessage = msg.content && typeof msg.content === "object" && msg.content._debugLog ? msg.content._debugLog.use_maia_architecture : true;
-      aiMessage.className = `chat-message chat-message--ai visible${isMaiaMessage ? "" : " no-maia"}`;
+      const aiMessage = document.createElement('div');
+      const isMaiaMessage =
+        msg.content && typeof msg.content === 'object' && msg.content._debugLog
+          ? msg.content._debugLog.use_maia_architecture
+          : true;
+      aiMessage.className = `chat-message chat-message--ai visible${isMaiaMessage ? '' : ' no-maia'}`;
       aiMessage.id = `msg-${index}`; // ID estável
       aiMessage.dataset.msgIndex = index; // Para persistência de Scaffolding
 
       // [RENDER THOUGHTS] Se houver pensamentos salvos
-      if (
-        msg.content &&
-        msg.content._thoughts &&
-        Array.isArray(msg.content._thoughts)
-      ) {
+      if (msg.content && msg.content._thoughts && Array.isArray(msg.content._thoughts)) {
         if (!currentHistoricalAccordion) {
           currentHistoricalAccordion = createHistoricalAccordion();
           messagesContainer.appendChild(currentHistoricalAccordion.systemMsg);
         }
 
-        const contentDiv = document.createElement("div");
-        const list = document.createElement("div");
-        list.className = "chat-thoughts-list";
+        const contentDiv = document.createElement('div');
+        const list = document.createElement('div');
+        list.className = 'chat-thoughts-list';
 
         msg.content._thoughts.forEach((thoughtText) => {
           const { title, body } = splitThought(thoughtText);
@@ -2275,24 +2463,24 @@ window.loadChat = async function (chatId) {
         contentDiv.appendChild(list);
 
         const genStep = createExpandableStatusGlobal(
-          "Raciocínio concluído",
+          'Raciocínio concluído',
           contentDiv,
-          "generation",
+          'generation',
         );
         currentHistoricalAccordion.body.appendChild(genStep);
         currentHistoricalAccordion.accordion._stepCount++;
         const total = currentHistoricalAccordion.accordion._stepCount;
-        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
+        currentHistoricalAccordion.headerCount.textContent = `Concluiu ${total} etapa${total !== 1 ? 's' : ''}`;
       }
 
       finalizeHistoricalAccordion(); // Reinicia agrupamento
 
-      const contentContainer = document.createElement("div");
-      contentContainer.className = "chat-message-content";
+      const contentContainer = document.createElement('div');
+      contentContainer.className = 'chat-message-content';
 
       // msg.content deve ser o objeto estruturado {layout, conteudo} ou string legado
-      let htmlContent = "";
-      if (typeof msg.content === "object") {
+      let htmlContent = '';
+      if (typeof msg.content === 'object') {
         htmlContent = generateChatHtmlString(msg.content);
       } else {
         htmlContent = `<p>${msg.content}</p>`; // Fallback legacy
@@ -2301,45 +2489,77 @@ window.loadChat = async function (chatId) {
       contentContainer.innerHTML = htmlContent;
       aiMessage.appendChild(contentContainer);
 
-      // Se existir log de depuração anexado no histórico, salva e exibe botão de download
-      if (typeof msg.content === "object" && msg.content._debugLog) {
-        const debugLogCopy = { ...msg.content._debugLog, msgIndex: index };
-        window.chatDebugLogs.push(debugLogCopy);
-        
-        const debugBtnHtml = `
-          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
-            <div style="position: relative; display: inline-block;">
-              <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
-              </button>
-              <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 160px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
-                <button onclick="window.downloadMessageDebug(${index})" style="width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='rgba(var(--color-primary-rgb), 0.08)'" onmouseout="this.style.backgroundColor='transparent'">
-                  <span>🐞</span> Baixar Debug JSON
+      // Restaura a resposta preliminar e log de depuração do histórico
+      const prelimText =
+        typeof msg.content === 'object' && msg.content
+          ? msg.content._preliminaryText || msg._preliminaryText
+          : null;
+
+      if (prelimText) {
+        aiMessage._preliminaryText = prelimText;
+      }
+
+      if (typeof msg.content === 'object' && msg.content && (msg.content._debugLog || prelimText)) {
+        if (msg.content._debugLog) {
+          const debugLogCopy = { ...msg.content._debugLog, msgIndex: index };
+          window.chatDebugLogs.push(debugLogCopy);
+        }
+
+        let debugMenu = contentContainer.querySelector('.debug-dropdown-menu');
+        if (!debugMenu) {
+          const debugBtnHtml = `
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
+              <div style="position: relative; display: inline-block;">
+                <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
                 </button>
+                <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 200px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
+                </div>
               </div>
             </div>
-          </div>
-        `;
-        contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+          `;
+          contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+          debugMenu = contentContainer.querySelector('.debug-dropdown-menu');
+        }
+
+        if (debugMenu) {
+          debugMenu.innerHTML = '';
+          if (prelimText) {
+            const prelimBtn = document.createElement('button');
+            prelimBtn.onclick = () => window.openBloomPreliminaryModal(index);
+            prelimBtn.style.cssText =
+              'width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;';
+            prelimBtn.onmouseover = () =>
+              (prelimBtn.style.backgroundColor = 'rgba(var(--color-primary-rgb), 0.08)');
+            prelimBtn.onmouseout = () => (prelimBtn.style.backgroundColor = 'transparent');
+            prelimBtn.innerHTML = `<span>⚡</span> Ver Resposta Preliminar (JSON)`;
+            debugMenu.appendChild(prelimBtn);
+          }
+
+          if (msg.content._debugLog) {
+            const debugBtn = document.createElement('button');
+            debugBtn.onclick = () => window.downloadMessageDebug(index);
+            debugBtn.style.cssText =
+              'width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;';
+            debugBtn.onmouseover = () =>
+              (debugBtn.style.backgroundColor = 'rgba(var(--color-primary-rgb), 0.08)');
+            debugBtn.onmouseout = () => (debugBtn.style.backgroundColor = 'transparent');
+            debugBtn.innerHTML = `<span>🐞</span> Baixar Debug JSON`;
+            debugMenu.appendChild(debugBtn);
+          }
+        }
       }
 
       messagesContainer.appendChild(aiMessage);
 
       // Hidratação
       hydrateAllChatContent(contentContainer);
-      const staticSelectors = [
-        ".q-header",
-        ".q-options",
-        ".q-footer",
-        ".static-render-target",
-      ];
-      setTimeout(() => {
-        staticSelectors.forEach((sel) => {
-          contentContainer
-            .querySelectorAll(sel)
-            .forEach((el) => renderLatexIn(el));
-        });
-      }, 0);
+      if (typeof renderLatexIn === 'function') {
+        renderLatexIn(contentContainer);
+      }
+      contentContainer.querySelectorAll('pre code').forEach((el) => {
+        if (window.hljs) window.hljs.highlightElement(el);
+      });
     }
   });
 
@@ -2352,8 +2572,8 @@ window.loadChat = async function (chatId) {
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
   // 6. Close sidebar on mobile
-  document.querySelector(".nav-sidebar")?.classList.remove("open");
-  document.querySelector(".nav-sidebar-overlay")?.classList.remove("visible");
+  document.querySelector('.nav-sidebar')?.classList.remove('open');
+  document.querySelector('.nav-sidebar-overlay')?.classList.remove('visible');
 
   // 7. Hydrate Scaffolding (agora passa o ID do chat para o contexto)
   hydrateScaffoldingBlocks(messagesContainer);
@@ -2369,14 +2589,14 @@ window.loadChat = async function (chatId) {
 };
 
 export function updateChatFloatingHeader(title) {
-  let header = document.getElementById("chatFloatingHeader");
+  let header = document.getElementById('chatFloatingHeader');
   if (!header) {
     // Create if not exists (in chat container)
-    const container = document.querySelector(".maia-ai-container"); // or chatMessages parent
+    const container = document.querySelector('.maia-ai-container'); // or chatMessages parent
     if (container) {
-      header = document.createElement("div");
-      header.id = "chatFloatingHeader";
-      header.className = "chat-floating-header glass-effect";
+      header = document.createElement('div');
+      header.id = 'chatFloatingHeader';
+      header.className = 'chat-floating-header glass-effect';
       container.appendChild(header);
     }
   }
@@ -2393,15 +2613,13 @@ export function updateChatFloatingHeader(title) {
 async function hydrateQuestionBlocks(containerElement) {
   if (!containerElement) return;
 
-  const placeholders = containerElement.querySelectorAll(
-    ".chat-question-placeholder",
-  ); // Select class directly
+  const placeholders = containerElement.querySelectorAll('.chat-question-placeholder'); // Select class directly
 
   // Processa sequencialmente ou paralelo? Paralelo é melhor pra UX.
   placeholders.forEach(async (placeholder) => {
     // Evita re-hidratar se já estiver processado
-    if (placeholder.dataset.processed === "true") return;
-    placeholder.dataset.processed = "true";
+    if (placeholder.dataset.processed === 'true') return;
+    placeholder.dataset.processed = 'true';
 
     try {
       const filterRaw = placeholder.dataset.filter;
@@ -2414,13 +2632,10 @@ async function hydrateQuestionBlocks(containerElement) {
 
       if (questaoEncontrada) {
         // Cria o card usando o template oficial do Banco (retorna HTMLElement)
-        const cardElement = criarCardTecnico(
-          questaoEncontrada.id,
-          questaoEncontrada.fullData,
-        );
+        const cardElement = criarCardTecnico(questaoEncontrada.id, questaoEncontrada.fullData);
 
         // Adiciona classes e estilos para garantir visualização correta no chat
-        cardElement.classList.add("chat-embedded-card");
+        cardElement.classList.add('chat-embedded-card');
 
         // Substitui o placeholder pelo card
         placeholder.replaceWith(cardElement);
@@ -2429,52 +2644,54 @@ async function hydrateQuestionBlocks(containerElement) {
         // Não rodar no card inteiro para evitar conflito com a hidratação React no .q-body e .q-resolution
         // Renderiza apenas nas partes estáticas conhecidas
         const staticSelectors = [
-          ".q-header",
-          ".q-options",
-          ".q-footer",
-          ".static-render-target", // Containers seguros (Justificativa, Relatorio)
-          ".markdown-content", // Backup: pega direto os elementos (agora suportado pelo loader)
+          '.q-header',
+          '.q-options',
+          '.q-footer',
+          '.static-render-target', // Containers seguros (Justificativa, Relatorio)
+          '.markdown-content', // Backup: pega direto os elementos (agora suportado pelo loader)
         ];
 
         // Usa setTimeout para garantir que o DOM atualizou e libs carregaram
         setTimeout(() => {
           staticSelectors.forEach((selector) => {
             const els = cardElement.querySelectorAll(selector);
-            els.forEach((el) => renderLatexIn(el));
+            els.forEach((el) => {
+              renderLatexIn(el);
+            });
           });
         }, 0);
       } else {
         placeholder.innerHTML = `<div style="color:red; padding:10px;">Questão não encontrada.</div>`;
       }
     } catch (e) {
-      console.error("Erro ao hidratar questão no chat:", e);
+      console.error('Erro ao hidratar questão no chat:', e);
       placeholder.innerHTML = `<div style="color:red; padding:10px;">Erro ao carregar questão: ${e.message}</div>`;
     }
   });
 }
 
-window.regerarUltimaMensagem = function() {
+window.regerarUltimaMensagem = () => {
   const mensagem = window.lastUserMessageText;
   const arquivos = window.lastUserMessageAttachments || [];
-  
+
   // Remove a mensagem de erro da tela antes de tentar de novo
-  const errMsg = document.querySelector(".chat-message--error");
+  const errMsg = document.querySelector('.chat-message--error');
   if (errMsg) errMsg.remove();
-  
+
   // Reinicia o AbortController
   activeGenerationController = new AbortController();
   window.currentChatAbortController = activeGenerationController;
-  
-  const sendBtn = document.querySelector(".chat-send-btn");
+
+  const sendBtn = document.querySelector('.chat-send-btn');
   if (sendBtn) {
-    sendBtn.classList.add("stop-mode");
+    sendBtn.classList.add('stop-mode');
     sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="1"></rect></svg>`;
   }
 
   // Chama a transição com a flag de retry ativa para não duplicar o balão do usuário na UI
   transicionarParaModoConversa(mensagem, arquivos, {
     signal: activeGenerationController.signal,
-    isRetry: true
+    isRetry: true,
   });
 };
 
@@ -2491,41 +2708,41 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
   // Garante que a rotação de sugestões/placeholder pare ao entrar no chat
   stopSuggestionRotation();
 
-  const container = document.querySelector(".maia-ai-container");
+  const container = document.querySelector('.maia-ai-container');
   if (!container) return;
 
   // Verifica se já está em modo conversa (container de mensagens já existe)
-  let messagesContainer = document.getElementById("chatMessages");
+  let messagesContainer = document.getElementById('chatMessages');
   const isFirstMessage = !messagesContainer;
 
   // Se é a primeira mensagem, fazer transição visual
   if (isFirstMessage) {
     // 1. Adiciona classe para iniciar transição
-    container.classList.add("chat-mode");
+    container.classList.add('chat-mode');
 
     // 2. Remove elementos da tela inicial
-    const brandHeader = document.getElementById("brandHeader");
-    const footer = document.querySelector(".maia-ai-footer");
-    const inputWrapper = document.querySelector(".chat-input-wrapper");
+    const brandHeader = document.getElementById('brandHeader');
+    const footer = document.querySelector('.maia-ai-footer');
+    const inputWrapper = document.querySelector('.chat-input-wrapper');
 
     // Remove header com logo grande e footer de sugestões
     if (brandHeader) {
-      brandHeader.style.transition = "opacity 0.4s ease, transform 0.4s ease";
-      brandHeader.style.opacity = "0";
-      brandHeader.style.transform = "translateY(-20px)";
+      brandHeader.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+      brandHeader.style.opacity = '0';
+      brandHeader.style.transform = 'translateY(-20px)';
       setTimeout(() => brandHeader.remove(), 400);
     }
 
     if (footer) {
-      footer.style.transition = "opacity 0.3s ease";
-      footer.style.opacity = "0";
+      footer.style.transition = 'opacity 0.3s ease';
+      footer.style.opacity = '0';
       setTimeout(() => footer.remove(), 300);
     }
 
     // 3. Criar container de mensagens
-    messagesContainer = document.createElement("div");
-    messagesContainer.className = "chat-messages";
-    messagesContainer.id = "chatMessages";
+    messagesContainer = document.createElement('div');
+    messagesContainer.className = 'chat-messages';
+    messagesContainer.id = 'chatMessages';
 
     // Inserir área de mensagens antes do input
     if (inputWrapper) {
@@ -2540,24 +2757,22 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
   }
 
   // 4. Criar HTML dos arquivos anexados (Design Premium)
-  let filesHtml = "";
+  let filesHtml = '';
   if (arquivos.length > 0) {
-    const fileCards = arquivos
-      .map((file) => renderFileAttachment(file))
-      .join("");
+    const fileCards = arquivos.map((file) => renderFileAttachment(file)).join('');
     filesHtml = `<div class="message-files">${fileCards}</div>`;
   }
 
   // 5. Adicionar mensagem do usuário ao container existente
   // 5. Adicionar mensagem do usuário ao container existente (apenas se houver mensagem nova e não for retry)
   if ((mensagem || arquivos.length > 0) && !options.isRetry) {
-    const userMessage = document.createElement("div");
-    userMessage.className = "chat-message chat-message--user";
+    const userMessage = document.createElement('div');
+    userMessage.className = 'chat-message chat-message--user';
     // Calculate the message index based on the current number of chat messages
-    const msgIndex = messagesContainer.querySelectorAll(".chat-message").length;
+    const msgIndex = messagesContainer.querySelectorAll('.chat-message').length;
     userMessage.dataset.msgIndex = msgIndex;
 
-    const messageContent = mensagem ? `<p>${escapeHtml(mensagem)}</p>` : "";
+    const messageContent = mensagem ? `<p>${escapeHtml(mensagem)}</p>` : '';
     userMessage.innerHTML = `
         <div class="chat-message-content">
           ${filesHtml}
@@ -2569,41 +2784,39 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
     // Animar entrada
     setTimeout(() => {
-      userMessage.classList.add("visible");
+      userMessage.classList.add('visible');
     }, 50);
 
     // === SETUP FLOATING HEADER (Initial) ===
     // Se não tem ID ainda, o título provisório é a mensagem
     if (!window.currentChatId) {
-      updateChatFloatingHeader(
-        mensagem.slice(0, 30) + (mensagem.length > 30 ? "..." : ""),
-      );
+      updateChatFloatingHeader(mensagem.slice(0, 30) + (mensagem.length > 30 ? '...' : ''));
     } else {
       // Se já tem ID, mantemos o header atual ou buscamos do storage (no loadChat já define)
     }
   }
 
   // 5. Limpar textarea
-  const chatTextarea = document.querySelector(".chat-input-field");
+  const chatTextarea = document.querySelector('.chat-input-field');
   if (chatTextarea) {
-    chatTextarea.value = "";
-    chatTextarea.style.height = "";
-    chatTextarea.placeholder = "Continuar conversa...";
+    chatTextarea.value = '';
+    chatTextarea.style.height = '';
+    chatTextarea.placeholder = 'Continuar conversa...';
   }
 
   // 7. Mostrar indicador de carregamento (logo girando)
   // [MODIFICADO] Só mostra loading e chama pipeline se tiver nova mensagem/arquivo
   if (mensagem || (arquivos && arquivos.length > 0)) {
-    const loadingIndicator = document.createElement("div");
-    loadingIndicator.className = "chat-loading-container";
-    loadingIndicator.id = "chatLoading";
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'chat-loading-container';
+    loadingIndicator.id = 'chatLoading';
 
     // Decide initial text based on current selection
-    let loadingText = "Iniciando modelo";
-    const currentMode = window.selectedChatMode || "automatico";
+    let loadingText = 'Iniciando modelo';
+    const currentMode = window.selectedChatMode || 'automatico';
 
-    if (currentMode === "automatico") {
-      loadingText = "Decidindo modo de execução";
+    if (currentMode === 'automatico') {
+      loadingText = 'Decidindo modo de execução';
     }
 
     loadingIndicator.innerHTML = `
@@ -2614,13 +2827,15 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     // 8. Executar pipeline de chat com router
-    const selectedMode = window.selectedChatMode || "automatico";
-    const geminiKey = sessionStorage.getItem("GOOGLE_GENAI_API_KEY") || sessionStorage.getItem("geminiApiKey");
-    const githubKey = sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey");
-    const groqKey = sessionStorage.getItem("GROQ_API_KEY");
-    const vertexProjectId = sessionStorage.getItem("VERTEX_PROJECT_ID");
-    const vertexLocation = sessionStorage.getItem("VERTEX_LOCATION");
-    const vertexCredentials = sessionStorage.getItem("VERTEX_CREDENTIALS");
+    const selectedMode = window.selectedChatMode || 'automatico';
+    const geminiKey =
+      sessionStorage.getItem('GOOGLE_GENAI_API_KEY') || sessionStorage.getItem('geminiApiKey');
+    const githubKey =
+      sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey');
+    const groqKey = sessionStorage.getItem('GROQ_API_KEY');
+    const vertexProjectId = sessionStorage.getItem('VERTEX_PROJECT_ID');
+    const vertexLocation = sessionStorage.getItem('VERTEX_LOCATION');
+    const vertexCredentials = sessionStorage.getItem('VERTEX_CREDENTIALS');
 
     // [REMOVIDO] createExpandableStatus local - agora usamos a global
 
@@ -2635,15 +2850,15 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       chatId: window.currentChatId, // Passa ID atual (null se novo)
       history: extractChatHistory(), // Passa histórico recuperado do DOM (contexto imediato)
       signal: options.signal, // Pass AbortSignal passed from Send Button
-      selectedMetodologia: window.selectedMetodologia || "automatico", // Metodologia ativa
-      selectedSpecificModel: window.selectedSpecificModel || "models/gemini-3.5-flash", // Modelo selecionado pelo usuário
+      selectedMetodologia: window.selectedMetodologia || 'automatico', // Metodologia ativa
+      selectedSpecificModel: window.selectedSpecificModel || 'models/gemini-3.5-flash', // Modelo selecionado pelo usuário
 
       // Callbacks de Persistência
       onChatCreated: (chat) => {
         window.currentChatId = chat.id;
-        console.log("Chat criado:", chat.id);
+        console.log('Chat criado:', chat.id);
         // Atualiza UI se necessário
-        window.history.pushState({}, "", `?chat=${chat.id}`); // Opcional: URL amigável
+        window.history.pushState({}, '', `?chat=${chat.id}`); // Opcional: URL amigável
       },
       onTitleUpdated: (id, newTitle) => {
         if (window.currentChatId === id) {
@@ -2654,7 +2869,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       // Variável de contexto de fase (closure)
       // Substitui o this.currentPhase problemático
       get currentPhase() {
-        return window._currentChatPhase || "generation";
+        return window._currentChatPhase || 'generation';
       },
       set currentPhase(v) {
         window._currentChatPhase = v;
@@ -2662,50 +2877,38 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
       // Atualizações de status
       onProcessingStatus: (type, data) => {
-        const messagesContainer = document.getElementById("chatMessages");
+        const messagesContainer = document.getElementById('chatMessages');
         if (!messagesContainer) return;
 
-        if (type === "loading") {
-          const loadingEl = document.getElementById("chatLoading");
+        if (type === 'loading') {
+          const loadingEl = document.getElementById('chatLoading');
           if (loadingEl) {
-            const textEl = loadingEl.querySelector(".chat-loading-text");
+            const textEl = loadingEl.querySelector('.chat-loading-text');
             if (textEl) {
               textEl.innerHTML = `${data}<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
             }
           }
 
-          if (data.includes("Recuperando informações")) {
-            window._currentChatPhase = "memory";
-            getOrCreatePhaseContainer(
-              messagesContainer,
-              "memory",
-              "Recuperando informações...",
-            );
-          } else if (data.includes("Escolhendo modo")) {
-            window._currentChatPhase = "mode";
-            getOrCreatePhaseContainer(
-              messagesContainer,
-              "mode",
-              "Escolhendo modo de execução...",
-            );
-          } else if (data.includes("Realizando pesquisa")) {
-            window._currentChatPhase = "research";
-            getOrCreatePhaseContainer(
-              messagesContainer,
-              "research",
-              "Pesquisando na web...",
-            );
+          if (data.includes('Recuperando informações')) {
+            window._currentChatPhase = 'memory';
+            getOrCreatePhaseContainer(messagesContainer, 'memory', 'Recuperando informações...');
+          } else if (data.includes('Escolhendo modo')) {
+            window._currentChatPhase = 'mode';
+            getOrCreatePhaseContainer(messagesContainer, 'mode', 'Escolhendo modo de execução...');
+          } else if (data.includes('Realizando pesquisa')) {
+            window._currentChatPhase = 'research';
+            getOrCreatePhaseContainer(messagesContainer, 'research', 'Pesquisando na web...');
           }
           return;
         }
 
-        if (type === "system_msg") return;
+        if (type === 'system_msg') return;
 
-        if (type === "memory_found") {
+        if (type === 'memory_found') {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "memory",
-            "Consultando contexto...",
+            'memory',
+            'Consultando contexto...',
           );
 
           const { title, facts, summary } = data;
@@ -2714,69 +2917,69 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 .map((f) => {
                   const similarity = f.score
                     ? ` <span style="opacity:0.6; font-size:0.8em">(${(f.score * 100).toFixed(0)}%)</span>`
-                    : "";
-                  return `<li style="margin-bottom:4px;">${f.conteudo || "Conteúdo indisponível"}${similarity}</li>`;
+                    : '';
+                  return `<li style="margin-bottom:4px;">${f.conteudo || 'Conteúdo indisponível'}${similarity}</li>`;
                 })
-                .join("")
-            : "";
+                .join('')
+            : '';
 
           const bodyHtml = `
             <div style="margin-bottom:12px;">
                 <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
-                <div style="font-style:italic; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">"${summary || "Nenhum resumo gerado."}"</div>
+                <div style="font-style:italic; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">"${summary || 'Nenhum resumo gerado.'}"</div>
             </div>
-            ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ""}
+            ${factsList ? `<div><div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Fatos Originais Recuperados (${facts.length}):</div><ul style="padding-left:20px; margin-top:0;">${factsList}</ul></div>` : ''}
           `;
 
           concludePhaseContainer(
             container,
             thoughtListEl,
-            title || "Memórias recuperadas",
+            title || 'Memórias recuperadas',
             bodyHtml,
           );
-          window._currentChatPhase = "generation"; // reset
-        } else if (type === "extraction_triggered") {
+          window._currentChatPhase = 'generation'; // reset
+        } else if (type === 'extraction_triggered') {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "extraction",
-            "Verificando base de dados...",
+            'extraction',
+            'Verificando base de dados...',
           );
           const { title, message: msg } = data;
 
-          const bodyHtml = `<div style="font-size:13px; line-height:1.5;">${msg || ""}</div>`;
+          const bodyHtml = `<div style="font-size:13px; line-height:1.5;">${msg || ''}</div>`;
           concludePhaseContainer(
             container,
             thoughtListEl,
-            title || "🔍 Extração solicitada",
+            title || '🔍 Extração solicitada',
             bodyHtml,
           );
-        } else if (type === "memory_saving") {
-          window._currentChatPhase = "saving";
+        } else if (type === 'memory_saving') {
+          window._currentChatPhase = 'saving';
           getOrCreatePhaseContainer(
             messagesContainer,
-            "saving",
-            data?.title || "🧠 Salvando memórias...",
+            'saving',
+            data?.title || '🧠 Salvando memórias...',
           );
-        } else if (type === "memory_saved") {
+        } else if (type === 'memory_saved') {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "saving",
-            "🧠 Salvando memórias...",
+            'saving',
+            '🧠 Salvando memórias...',
           );
           concludePhaseContainer(
             container,
             thoughtListEl,
-            data?.title || "🧠 Memórias salvas",
+            data?.title || '🧠 Memórias salvas',
             null,
           );
 
           // Reset send button
           activeGenerationController = null;
-        } else if (type === "research_done") {
+        } else if (type === 'research_done') {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "research",
-            "Buscando base de conhecimento...",
+            'research',
+            'Buscando base de conhecimento...',
           );
 
           const { report, sources } = data;
@@ -2786,15 +2989,13 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 ${sources
                   .slice(0, 8)
                   .map((s) => {
-                    const domain = s.uri
-                      ? new URL(s.uri).hostname.replace("www.", "")
-                      : "Fonte";
+                    const domain = s.uri ? new URL(s.uri).hostname.replace('www.', '') : 'Fonte';
                     return `<span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(var(--color-surface-rgb), 0.8); color:var(--color-primary); border-radius:8px; border:1px solid var(--color-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${s.title}">${domain}</span>`;
                   })
-                  .join("")}
-                ${sources.length > 8 ? `<span style="font-size:11px; opacity:0.6; padding-top:6px; font-weight:600; color:var(--color-text-secondary);">+${sources.length - 8} fontes</span>` : ""}
+                  .join('')}
+                ${sources.length > 8 ? `<span style="font-size:11px; opacity:0.6; padding-top:6px; font-weight:600; color:var(--color-text-secondary);">+${sources.length - 8} fontes</span>` : ''}
                </div>`
-              : "";
+              : '';
 
           const bodyHtml = `
             <div style="margin-bottom:12px;">
@@ -2807,7 +3008,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 ${sourcesPills}
             </div>
             <div style="margin-top:14px; display:flex; gap:10px;">
-              <button class="chat-view-report-btn secondary" onclick="window.showResearchReport(this)" data-report="${encodeURIComponent(report || "")}" style="padding: 8px 16px; font-size: 0.85em; font-weight:600; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; color: var(--color-text); box-shadow: var(--chat-shadow-sm);">
+              <button class="chat-view-report-btn secondary" onclick="window.showResearchReport(this)" data-report="${encodeURIComponent(report || '')}" style="padding: 8px 16px; font-size: 0.85em; font-weight:600; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; color: var(--color-text); box-shadow: var(--chat-shadow-sm);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                 Relatório Técnico & Diagramas
               </button>
@@ -2817,104 +3018,162 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           concludePhaseContainer(
             container,
             thoughtListEl,
-            "Busca de evidências finalizada",
+            'Busca de evidências finalizada',
             bodyHtml,
           );
-          window._currentChatPhase = "generation"; // reset
+          window._currentChatPhase = 'generation'; // reset
+        } else if (type === 'bloom_step1_start') {
+          window._isBloomStep1Streaming = true;
+          window._currentBloomPreliminaryText = '';
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            'bloom_step1',
+            data?.title || 'Elaborando resposta didática (Bloom - Etapa 1/2)',
+          );
+
+          const btnHtml = `
+            <div style="margin-top:10px;">
+              <button class="btn-bloom-preliminary" onclick="window.openBloomPreliminaryModal(event)" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; font-size:12px; font-weight:600; background:rgba(var(--color-primary-rgb), 0.12); color:var(--color-primary); border:1px solid rgba(var(--color-primary-rgb), 0.25); border-radius:8px; cursor:pointer; transition:all 0.2s;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ver Resposta Preliminar
+              </button>
+            </div>
+          `;
+          thoughtListEl.innerHTML = btnHtml;
+        } else if (type === 'bloom_step1_stream') {
+          if (window.onBloomPreliminaryStream) {
+            window.onBloomPreliminaryStream(data);
+          }
+        } else if (type === 'bloom_step1_done') {
+          window._isBloomStep1Streaming = false;
+          if (data?.text) {
+            window._currentBloomPreliminaryText = data.text;
+          }
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            'bloom_step1',
+            'Elaborando resposta didática (Bloom - Etapa 1/2)',
+          );
+
+          if (thoughtListEl) thoughtListEl.innerHTML = '';
+
+          const safeText = encodeURIComponent(window._currentBloomPreliminaryText || '');
+          const bodyHtml = `
+            <div style="font-size:13px; color:var(--color-text-secondary); margin-bottom:8px;">
+              Conteúdo preliminar gerado com sucesso. Você pode visualizar a resposta formatada didaticamente ou baixar em JSON.
+            </div>
+            <div>
+              <button class="btn-bloom-preliminary" data-preliminary-text="${safeText}" onclick="window.openBloomPreliminaryModal(event)" style="display:inline-flex; align-items:center; gap:6px; padding:6px 14px; font-size:12px; font-weight:600; background:rgba(var(--color-primary-rgb), 0.12); color:var(--color-primary); border:1px solid rgba(var(--color-primary-rgb), 0.25); border-radius:8px; cursor:pointer; transition:all 0.2s;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Ver Resposta Preliminar
+              </button>
+            </div>
+          `;
+
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            data?.title || 'Resposta preliminar gerada (Bloom - Etapa 1/2)',
+            bodyHtml,
+          );
+        } else if (type === 'bloom_step2_start') {
+          getOrCreatePhaseContainer(
+            messagesContainer,
+            'bloom_step2',
+            data?.title || 'Formatando visualmente e aplicando layouts (Bloom - Etapa 2/2)',
+          );
+        } else if (type === 'bloom_step2_done') {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            'bloom_step2',
+            'Formatando visualmente e aplicando layouts (Bloom - Etapa 2/2)',
+          );
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            data?.title || 'Layouts e blocos formatados (Bloom - Etapa 2/2)',
+            null,
+          );
         }
 
         const activeInner = document.querySelector(
-          ".step-row.active .step-row-content, .chat-thoughts-inner:last-of-type",
+          '.step-row.active .step-row-content, .chat-thoughts-inner:last-of-type',
         );
-        if (
-          activeInner &&
-          activeInner.scrollHeight > activeInner.clientHeight
-        ) {
+        if (activeInner && activeInner.scrollHeight > activeInner.clientHeight) {
           activeInner.scrollTop = activeInner.scrollHeight;
         }
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       },
 
       // Notifica quando o router decide o modo
-      onModeDecided: ({
-        mode,
-        reason,
-        confidence,
-        metodologia,
-        metodologiaLabel,
-      }) => {
-        console.log(
-          `[Router] Modo decidido: ${mode} - ${reason} | Metodologia: ${metodologia}`,
-        );
+      onModeDecided: ({ mode, reason, confidence, metodologia, metodologiaLabel }) => {
+        console.log(`[Router] Modo decidido: ${mode} - ${reason} | Metodologia: ${metodologia}`);
 
         const modeNames = {
-          rapido: "Rápido",
-          raciocinio: "Raciocínio",
-          automatico: "Automático",
+          rapido: 'Rápido',
+          raciocinio: 'Raciocínio',
+          automatico: 'Automático',
         };
 
-        const loadingEl = document.getElementById("chatLoading");
+        const loadingEl = document.getElementById('chatLoading');
         if (loadingEl) {
-          const textEl = loadingEl.querySelector(".chat-loading-text");
+          const textEl = loadingEl.querySelector('.chat-loading-text');
           if (textEl) {
             textEl.innerHTML = `Iniciando modelo<span class="loading-dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
           }
         }
 
-        const messagesContainer = document.getElementById("chatMessages");
+        const messagesContainer = document.getElementById('chatMessages');
         if (messagesContainer) {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "mode",
-            "Escolhendo modo...",
+            'mode',
+            'Escolhendo modo...',
           );
           const title = `Modo ${modeNames[mode] || mode} selecionado`;
           const metodologiaInfo = metodologiaLabel
             ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);"><strong>📖 Metodologia:</strong> ${metodologiaLabel}</div>`
-            : "";
+            : '';
           const bodyHtml = `
             <div style="margin-bottom:8px;"><strong>Decisão:</strong> ${modeNames[mode] || mode}</div>
-            <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || "N/A"}</div>
+            <div style="margin-bottom:8px;"><strong>Motivo:</strong> ${reason || 'N/A'}</div>
             <div><strong>Confiança:</strong> ${(confidence * 100).toFixed(0)}%</div>
             ${metodologiaInfo}
           `;
           concludePhaseContainer(container, thoughtListEl, title, bodyHtml);
-          window._currentChatPhase = "generation"; // reset
+          window._currentChatPhase = 'generation'; // reset
         }
       },
 
       // Callback de Pensamento (Reasoning/Chain of Thought)
       onThought: (thoughtText) => {
-        const loading = document.getElementById("chatLoading");
+        const loading = document.getElementById('chatLoading');
         if (loading) loading.remove();
 
-        const messagesContainer = document.getElementById("chatMessages");
+        const messagesContainer = document.getElementById('chatMessages');
         if (!messagesContainer) return;
 
-        if (window._currentChatPhase === "vision") {
+        if (window._currentChatPhase === 'vision') {
           // Lógica especial para streaming de descrição de imagens na aba de etapas
           const currentImg = window._currentVisionImageIndex || 1;
-          
+
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
-            "vision",
-            window._lastVisionStatusText || `Descrevendo imagem ${currentImg}...`
+            'vision',
+            window._lastVisionStatusText || `Descrevendo imagem ${currentImg}...`,
           );
 
           if (window._lastVisionImageIndexForThought !== currentImg) {
             window._lastVisionImageIndexForThought = currentImg;
-            window._visionDescriptionAccumulator = "";
+            window._visionDescriptionAccumulator = '';
           }
 
-          window._visionDescriptionAccumulator = (window._visionDescriptionAccumulator || "") + thoughtText;
+          window._visionDescriptionAccumulator =
+            (window._visionDescriptionAccumulator || '') + thoughtText;
 
           let card = document.getElementById(`vision-thought-card-${currentImg}`);
           if (!card) {
-            card = criarElementoCardPensamento(`Descrição da Imagem ${currentImg}`, "");
+            card = criarElementoCardPensamento(`Descrição da Imagem ${currentImg}`, '');
             card.id = `vision-thought-card-${currentImg}`;
-            const skeletonCard = thoughtListEl?.querySelector(
-              ".maia-thought-card--skeleton",
-            );
+            const skeletonCard = thoughtListEl?.querySelector('.maia-thought-card--skeleton');
             if (skeletonCard) {
               thoughtListEl.insertBefore(card, skeletonCard);
             } else if (thoughtListEl) {
@@ -2922,13 +3181,13 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             }
           }
 
-          const bodyEl = card.querySelector(".maia-thought-body");
+          const bodyEl = card.querySelector('.maia-thought-body');
           if (bodyEl) {
             // Limpa as tags de marcação do texto para ficar legível na UI
-            let cleanText = window._visionDescriptionAccumulator
-              .replace(/\[Descrevendo imagem[^\]]*\]/gi, "")
-              .replace(/\[Gemma falhou[^\]]*\]/gi, "")
-              .replace(/\[Fim da descrição[^\]]*\]/gi, "")
+            const cleanText = window._visionDescriptionAccumulator
+              .replace(/\[Descrevendo imagem[^\]]*\]/gi, '')
+              .replace(/\[Gemma falhou[^\]]*\]/gi, '')
+              .replace(/\[Fim da descrição[^\]]*\]/gi, '')
               .trim();
             bodyEl.textContent = cleanText;
           }
@@ -2939,13 +3198,11 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           return;
         }
 
-        let phaseTitle = "Processando raciocínio...";
-        const currentPhase = window._currentChatPhase || "generation";
-        if (currentPhase === "memory")
-          phaseTitle = "Recuperando informações...";
-        if (currentPhase === "mode")
-          phaseTitle = "Escolhendo modo de execução...";
-        if (currentPhase === "saving") phaseTitle = "Salvando memórias...";
+        let phaseTitle = 'Processando raciocínio...';
+        const currentPhase = window._currentChatPhase || 'generation';
+        if (currentPhase === 'memory') phaseTitle = 'Recuperando informações...';
+        if (currentPhase === 'mode') phaseTitle = 'Escolhendo modo de execução...';
+        if (currentPhase === 'saving') phaseTitle = 'Salvando memórias...';
 
         const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
           messagesContainer,
@@ -2962,9 +3219,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           container._lastThoughtSig = currentSig;
           const card = criarElementoCardPensamento(title, body);
 
-          const skeletonCard = thoughtListEl?.querySelector(
-            ".maia-thought-card--skeleton",
-          );
+          const skeletonCard = thoughtListEl?.querySelector('.maia-thought-card--skeleton');
           if (skeletonCard) {
             thoughtListEl.insertBefore(card, skeletonCard);
           } else if (thoughtListEl) {
@@ -2978,14 +3233,15 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       },
 
       onStatus: (statusText) => {
-        const isVisionStatus = statusText.toLowerCase().includes("descrevendo imagem") || 
-                               statusText.toLowerCase().includes("descrever imagem") ||
-                               statusText.toLowerCase().includes("descrevendo as imagens") ||
-                               statusText.toLowerCase().includes("gemini 3.5 para descrever") ||
-                               statusText.toLowerCase().includes("gemini 3.5 flash para descrever") ||
-                               statusText.toLowerCase().includes("erro ao descrever");
+        const isVisionStatus =
+          statusText.toLowerCase().includes('descrevendo imagem') ||
+          statusText.toLowerCase().includes('descrever imagem') ||
+          statusText.toLowerCase().includes('descrevendo as imagens') ||
+          statusText.toLowerCase().includes('gemini 3.5 para descrever') ||
+          statusText.toLowerCase().includes('gemini 3.5 flash para descrever') ||
+          statusText.toLowerCase().includes('erro ao descrever');
         if (isVisionStatus) {
-          window._currentChatPhase = "vision";
+          window._currentChatPhase = 'vision';
           window._lastVisionStatusText = statusText;
 
           // Extrai o índice da imagem atual da string de status
@@ -2999,42 +3255,40 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             }
           }
 
-          const messagesContainer = document.getElementById("chatMessages");
+          const messagesContainer = document.getElementById('chatMessages');
           if (messagesContainer) {
-            getOrCreatePhaseContainer(messagesContainer, "vision", statusText);
+            getOrCreatePhaseContainer(messagesContainer, 'vision', statusText);
           }
         }
       },
 
       // Stream de texto da resposta principal
       onStream: (responseObj) => {
-        const loading = document.getElementById("chatLoading");
+        const loading = document.getElementById('chatLoading');
         if (loading) loading.remove();
 
-        const messagesContainer = document.getElementById("chatMessages");
-        let aiMessage = document.getElementById("currentAiMessage");
+        const messagesContainer = document.getElementById('chatMessages');
+        let aiMessage = document.getElementById('currentAiMessage');
         if (!aiMessage) {
-          aiMessage = document.createElement("div");
-          const isMaiaActive = typeof window !== "undefined" && window.useMaiaArchitecture !== false;
-          aiMessage.className = `chat-message chat-message--ai visible${isMaiaActive ? "" : " no-maia"}`;
-          aiMessage.id = "currentAiMessage";
+          aiMessage = document.createElement('div');
+          const isMaiaActive =
+            typeof window !== 'undefined' && window.useMaiaArchitecture !== false;
+          aiMessage.className = `chat-message chat-message--ai visible${isMaiaActive ? '' : ' no-maia'}`;
+          aiMessage.id = 'currentAiMessage';
           // Calculate the message index based on the current number of chat messages
           // .chat-message includes both user and ai messages.
-          const msgIndex =
-            messagesContainer.querySelectorAll(".chat-message").length;
+          const msgIndex = messagesContainer.querySelectorAll('.chat-message').length;
           aiMessage.dataset.msgIndex = msgIndex;
           aiMessage.innerHTML = `<div class="chat-message-content"></div>`;
           messagesContainer.appendChild(aiMessage);
         }
 
-        const contentContainer = aiMessage.querySelector(
-          ".chat-message-content",
-        );
+        const contentContainer = aiMessage.querySelector('.chat-message-content');
         if (contentContainer) {
           const html = generateChatHtmlString(responseObj);
           contentContainer.innerHTML = html;
           renderLatexIn(contentContainer);
-          contentContainer.querySelectorAll("pre code").forEach((el) => {
+          contentContainer.querySelectorAll('pre code').forEach((el) => {
             if (window.hljs) window.hljs.highlightElement(el);
           });
           hydrateAllChatContent(contentContainer);
@@ -3055,48 +3309,80 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         const finalData = dataObj?.response || dataObj;
         console.log(`[Chat] Resposta completa.`, finalData);
 
-        const messagesContainer = document.getElementById("chatMessages");
+        const messagesContainer = document.getElementById('chatMessages');
         if (messagesContainer) {
           // Garante que o conteúdo final (incluindo fontes injetadas no pipeline) seja renderizado
-          const aiMessage = document.getElementById("currentAiMessage");
+          const aiMessage = document.getElementById('currentAiMessage');
           const msgIndex = aiMessage ? parseInt(aiMessage.dataset.msgIndex, 10) : null;
-          const contentContainer = aiMessage?.querySelector(
-            ".chat-message-content",
-          );
+          const contentContainer = aiMessage?.querySelector('.chat-message-content');
 
           if (contentContainer && finalData) {
-            console.log("[Chat] Re-renderizando mensagem final com fontes...");
+            console.log('[Chat] Re-renderizando mensagem final com fontes...');
             contentContainer.innerHTML = generateChatHtmlString(finalData);
             renderLatexIn(contentContainer);
-            contentContainer.querySelectorAll("pre code").forEach((el) => {
+            contentContainer.querySelectorAll('pre code').forEach((el) => {
               if (window.hljs) window.hljs.highlightElement(el);
             });
             hydrateAllChatContent(contentContainer);
 
-            // Se existir log de depuração anexado, salva e exibe botão de download
-            if (finalData._debugLog && msgIndex !== null) {
-              const debugLogCopy = { ...finalData._debugLog, msgIndex: msgIndex };
-              window.chatDebugLogs.push(debugLogCopy);
-              
-              const debugBtnHtml = `
-                <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
-                  <div style="position: relative; display: inline-block;">
-                    <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
-                    </button>
-                    <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 160px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
-                      <button onclick="window.downloadMessageDebug(${msgIndex})" style="width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;" onmouseover="this.style.backgroundColor='rgba(var(--color-primary-rgb), 0.08)'" onmouseout="this.style.backgroundColor='transparent'">
-                        <span>🐞</span> Baixar Debug JSON
+            // Se existir log de depuração ou resposta preliminar anexada, exibe o menu de opções
+            const prelimText = finalData._preliminaryText || window._currentBloomPreliminaryText;
+            if (aiMessage && prelimText) {
+              aiMessage._preliminaryText = prelimText;
+            }
+
+            if ((finalData._debugLog || prelimText) && msgIndex !== null) {
+              if (finalData._debugLog) {
+                const debugLogCopy = { ...finalData._debugLog, msgIndex: msgIndex };
+                window.chatDebugLogs.push(debugLogCopy);
+              }
+
+              let debugMenu = contentContainer.querySelector('.debug-dropdown-menu');
+              if (!debugMenu) {
+                const debugBtnHtml = `
+                  <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--color-border); display: flex; justify-content: flex-end; position: relative;">
+                    <div style="position: relative; display: inline-block;">
+                      <button class="action-btn" onclick="window.toggleMessageDebugMenu(this, event)" style="background: none; border: 1px solid var(--color-border); padding: 6px 10px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; background: var(--color-surface);" title="Opções">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events: none;"><circle cx="12" cy="12" r="1.5"></circle><circle cx="19" cy="12" r="1.5"></circle><circle cx="5" cy="12" r="1.5"></circle></svg>
                       </button>
+                      <div class="debug-dropdown-menu" style="display: none; position: absolute; bottom: 100%; right: 0; background-color: var(--color-surface); min-width: 200px; box-shadow: var(--chat-shadow-lg); border: 1px solid var(--color-border); border-radius: 8px; z-index: 1000; margin-bottom: 6px; padding: 4px 0;">
+                      </div>
                     </div>
                   </div>
-                </div>
-              `;
-              contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+                `;
+                contentContainer.insertAdjacentHTML('beforeend', debugBtnHtml);
+                debugMenu = contentContainer.querySelector('.debug-dropdown-menu');
+              }
+
+              if (debugMenu) {
+                if (prelimText) {
+                  const prelimBtn = document.createElement('button');
+                  prelimBtn.onclick = () => window.openBloomPreliminaryModal(msgIndex);
+                  prelimBtn.style.cssText =
+                    'width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;';
+                  prelimBtn.onmouseover = () =>
+                    (prelimBtn.style.backgroundColor = 'rgba(var(--color-primary-rgb), 0.08)');
+                  prelimBtn.onmouseout = () => (prelimBtn.style.backgroundColor = 'transparent');
+                  prelimBtn.innerHTML = `<span>⚡</span> Ver Resposta Preliminar (JSON)`;
+                  debugMenu.appendChild(prelimBtn);
+                }
+
+                if (finalData._debugLog) {
+                  const debugBtn = document.createElement('button');
+                  debugBtn.onclick = () => window.downloadMessageDebug(msgIndex);
+                  debugBtn.style.cssText =
+                    'width: 100%; text-align: left; background: none; border: none; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--color-text); cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background 0.15s;';
+                  debugBtn.onmouseover = () =>
+                    (debugBtn.style.backgroundColor = 'rgba(var(--color-primary-rgb), 0.08)');
+                  debugBtn.onmouseout = () => (debugBtn.style.backgroundColor = 'transparent');
+                  debugBtn.innerHTML = `<span>🐞</span> Baixar Debug JSON`;
+                  debugMenu.appendChild(debugBtn);
+                }
+              }
             }
           }
 
-          const loading = document.getElementById("chatLoading");
+          const loading = document.getElementById('chatLoading');
           if (loading) loading.remove();
 
           // Hidratação final obrigatória
@@ -3104,68 +3390,57 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           hydrateScaffoldingBlocks(messagesContainer);
         }
 
-        const aiMessage = document.getElementById("currentAiMessage");
+        const aiMessage = document.getElementById('currentAiMessage');
         if (aiMessage) {
-          aiMessage.removeAttribute("id");
+          aiMessage.removeAttribute('id');
         }
 
         // Limpeza e conclusão do container de geração (raciocínio)
-        const thoughtsContainer = document.getElementById(
-          "phaseContainer-generation",
-        );
+        const thoughtsContainer = document.getElementById('phaseContainer-generation');
         if (thoughtsContainer && !thoughtsContainer._cleaned) {
-          const thoughtList = thoughtsContainer.querySelector(
-            ".chat-thoughts-list",
-          );
-          concludePhaseContainer(
-            thoughtsContainer,
-            thoughtList,
-            "Raciocínio concluído",
-            null,
-          );
+          const thoughtList = thoughtsContainer.querySelector('.chat-thoughts-list');
+          concludePhaseContainer(thoughtsContainer, thoughtList, 'Raciocínio concluído', null);
           thoughtsContainer._cleaned = true;
         }
 
         // Reset do botão de envio e do controlador (Bug "Never Finishing")
         activeGenerationController = null;
-        const sendBtn = document.querySelector(".chat-send-btn");
+        const sendBtn = document.querySelector('.chat-send-btn');
         if (sendBtn) {
-          sendBtn.classList.remove("stop-mode");
+          sendBtn.classList.remove('stop-mode');
           sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
         }
 
         // Para TODOS os spinners de TODAS as fases (memory, mode, generation, saving, etc.)
-        const messagesContainerForCleanup =
-          document.getElementById("chatMessages");
+        const messagesContainerForCleanup = document.getElementById('chatMessages');
         if (messagesContainerForCleanup) {
           stopAllPhaseSpinners(messagesContainerForCleanup);
         }
 
         // Close accordion and update counter
-        const accordion = document.getElementById("stepsAccordion");
+        const accordion = document.getElementById('stepsAccordion');
         if (accordion) {
-          accordion.classList.remove("processing");
+          accordion.classList.remove('processing');
           accordion._completedCount = accordion._stepCount; // Garante contagem sincronizada ao finalizar
 
           if (accordion._completedCount <= 1 && accordion._stepCount <= 1) {
             // Unwrap phase if there's only 1 step
             setTimeout(() => {
-              const body = accordion.querySelector(".steps-accordion-body");
+              const body = accordion.querySelector('.steps-accordion-body');
               const firstStep = body ? body.firstElementChild : null;
-              const wrapper = accordion.closest(".chat-message--system");
+              const wrapper = accordion.closest('.chat-message--system');
               if (firstStep && wrapper) {
-                wrapper.innerHTML = "";
-                const content = document.createElement("div");
-                content.className = "chat-message-content";
-                content.style.cssText =
-                  "padding:0; background:transparent; box-shadow:none;";
+                wrapper.innerHTML = '';
+                const content = document.createElement('div');
+                content.className = 'chat-message-content';
+                content.style.cssText = 'padding:0; background:transparent; box-shadow:none;';
                 content.appendChild(firstStep);
                 wrapper.appendChild(content);
               }
             }, 800);
           } else {
             setTimeout(() => {
-              accordion.classList.remove("open");
+              accordion.classList.remove('open');
             }, 800);
             // Force final counter update
             updateAccordionCounter(accordion);
@@ -3182,38 +3457,34 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         window._lastVisionImageIndexForThought = null;
         window._visionDescriptionAccumulator = null;
 
-        console.warn("[Chat] Pipeline Error/Abort:", error);
+        console.warn('[Chat] Pipeline Error/Abort:', error);
 
-        const messagesContainer = document.getElementById("chatMessages");
+        const messagesContainer = document.getElementById('chatMessages');
 
         // --- LÓGICA DE RETRY AUTOMÁTICO DE REDE ---
         // DEVE VIR ANTES DO AbortError, pois quando cai a rede, forçamos um abort()
         // que joga um AbortError genérico (dependendo do browser).
         if (
-          error.message === "NETWORK_ERROR" ||
+          error.message === 'NETWORK_ERROR' ||
           !navigator.onLine ||
-          (error.name === "AbortError" && !navigator.onLine)
+          (error.name === 'AbortError' && !navigator.onLine)
         ) {
           if (!messagesContainer) return;
 
           stopAllPhaseSpinners(document);
-          const loading = document.getElementById("chatLoading");
+          const loading = document.getElementById('chatLoading');
           if (loading) loading.remove();
 
           // Retira completamente a mensagem parcial / pensamentos bugados
-          const currentAiMsg = document.getElementById("currentAiMessage");
+          const currentAiMsg = document.getElementById('currentAiMessage');
           if (currentAiMsg) {
             currentAiMsg.remove();
           }
 
           // Retira as caixas de "Recuperando informações", "Modo selecionado", etc.
           // que foram geradas para essa requisição que falhou (tudo após a última mensagem do usuárió)
-          const allSystemMsgs = [
-            ...messagesContainer.querySelectorAll(".chat-message--system"),
-          ];
-          const lastUserMsg = [
-            ...messagesContainer.querySelectorAll(".chat-message--user"),
-          ].pop();
+          const allSystemMsgs = [...messagesContainer.querySelectorAll('.chat-message--system')];
+          const lastUserMsg = [...messagesContainer.querySelectorAll('.chat-message--user')].pop();
 
           if (lastUserMsg) {
             let nextElement = lastUserMsg.nextElementSibling;
@@ -3221,19 +3492,14 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
               const toRemove = nextElement;
               nextElement = nextElement.nextElementSibling;
 
-              const isAiMsg =
-                toRemove.classList &&
-                toRemove.classList.contains("chat-message--ai");
+              const isAiMsg = toRemove.classList && toRemove.classList.contains('chat-message--ai');
               const isSystemMsg =
-                toRemove.classList &&
-                toRemove.classList.contains("chat-message--system");
+                toRemove.classList && toRemove.classList.contains('chat-message--system');
               const isLoading =
-                toRemove.classList &&
-                toRemove.classList.contains("chat-loading-container");
+                toRemove.classList && toRemove.classList.contains('chat-loading-container');
               const isThoughtContainer =
-                toRemove.classList &&
-                toRemove.classList.contains("chat-thought-container");
-              const isStepsAccordion = toRemove.id === "stepsAccordionWrapper";
+                toRemove.classList && toRemove.classList.contains('chat-thought-container');
+              const isStepsAccordion = toRemove.id === 'stepsAccordionWrapper';
 
               if (
                 isSystemMsg ||
@@ -3241,23 +3507,23 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 isAiMsg ||
                 isThoughtContainer ||
                 isStepsAccordion ||
-                toRemove.id === "currentAiMessage"
+                toRemove.id === 'currentAiMessage'
               ) {
                 toRemove.remove();
               }
             }
           } else {
             // Fallback robusto se a user msg não for detectada perfeitamente
-            const phaseContainers = document.querySelectorAll(
-              '[id^="phaseContainer-"]',
-            );
+            const phaseContainers = document.querySelectorAll('[id^="phaseContainer-"]');
             phaseContainers.forEach((container) => {
-              const systemMsg = container.closest(".chat-message--system");
+              const systemMsg = container.closest('.chat-message--system');
               if (systemMsg) systemMsg.remove();
               else container.remove();
             });
-            const orphanedAi = document.querySelectorAll(".chat-message--ai");
-            orphanedAi.forEach((ai) => ai.remove());
+            const orphanedAi = document.querySelectorAll('.chat-message--ai');
+            orphanedAi.forEach((ai) => {
+              ai.remove();
+            });
           }
 
           // Salva os dados pendentes para retry automático no evento "online"
@@ -3269,15 +3535,15 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           };
 
           // Remove mensagem provisória anterior se houver
-          const oldWaitMsg = document.getElementById("networkWaitMsg");
+          const oldWaitMsg = document.getElementById('networkWaitMsg');
           if (oldWaitMsg) oldWaitMsg.remove();
 
           // Estilo exato solicitado pelo usuário
-          const waitMessage = document.createElement("div");
-          waitMessage.id = "networkWaitMsg";
-          waitMessage.className = "chat-loading-container";
+          const waitMessage = document.createElement('div');
+          waitMessage.id = 'networkWaitMsg';
+          waitMessage.className = 'chat-loading-container';
           waitMessage.style.cssText =
-            "flex-direction: column;gap: 8px;text-align: left;justify-content: left;align-items: baseline;";
+            'flex-direction: column;gap: 8px;text-align: left;justify-content: left;align-items: baseline;';
           waitMessage.innerHTML = `
             <div style="display: flex;flex-direction: column;/* align-items: center; */justify-content: center;gap: 4px;text-align: center;">
               <strong style="color: var(--color-warning, #f59e0b);font-size: 1.05em;text-align: left;">⚠️ Conexão perdida</strong>
@@ -3291,9 +3557,9 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
 
           activeGenerationController = null;
           // Voltar o botão para estado normal
-          const sendBtn = document.querySelector(".chat-send-btn");
+          const sendBtn = document.querySelector('.chat-send-btn');
           if (sendBtn) {
-            sendBtn.classList.remove("stop-mode");
+            sendBtn.classList.remove('stop-mode');
             sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
           }
           return;
@@ -3301,11 +3567,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         // --- FIM LÓGICA DE REDE ---
 
         // --- LÓGICA DE ABORT MANUAL (Stop Generation) ---
-        if (
-          error.name === "AbortError" ||
-          error.message?.includes("aborted") ||
-          error.aborted
-        ) {
+        if (error.name === 'AbortError' || error.message?.includes('aborted') || error.aborted) {
           handleGenerationAbortUI();
           return;
         }
@@ -3315,21 +3577,21 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
         // Para TODOS os spinners (safety net em caso de erro)
         stopAllPhaseSpinners(document);
 
-        const sendBtn = document.querySelector(".chat-send-btn");
+        const sendBtn = document.querySelector('.chat-send-btn');
         if (sendBtn) {
-          sendBtn.classList.remove("stop-mode");
+          sendBtn.classList.remove('stop-mode');
           sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
         }
 
-        const loading = document.getElementById("chatLoading");
+        const loading = document.getElementById('chatLoading');
         if (loading) loading.remove();
 
         if (!messagesContainer) return;
 
         const friendlyDetail = formatFriendlyError(error.message);
-        const errorMessage = document.createElement("div");
-        errorMessage.className = "chat-message chat-message--error visible";
-        errorMessage.style.cssText = "margin: 16px 0; width: 100%;";
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'chat-message chat-message--error visible';
+        errorMessage.style.cssText = 'margin: 16px 0; width: 100%;';
 
         errorMessage.innerHTML = `
           <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 16px 20px; display: flex; align-items: flex-start; gap: 14px; box-shadow: var(--chat-shadow-md);">
@@ -3339,7 +3601,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 10px;">
               <div style="display: flex; flex-direction: column; gap: 2px;">
                 <span style="color: var(--color-text); font-weight: 600; font-size: 0.95rem; text-align: left;">Não foi possível gerar a sua resposta</span>
-                <span style="color: var(--color-text-secondary); font-size: 0.85rem; opacity: 0.9; text-align: left;">${friendlyDetail || "Tente novamente mais tarde."}</span>
+                <span style="color: var(--color-text-secondary); font-size: 0.85rem; opacity: 0.9; text-align: left;">${friendlyDetail || 'Tente novamente mais tarde.'}</span>
               </div>
               <button onclick="window.regerarUltimaMensagem()" style="align-self: flex-start; background: var(--color-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s, transform 0.1s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.2);" onmouseover="this.style.opacity='0.95'" onmouseout="this.style.opacity='1'" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-top: -1px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
@@ -3366,6 +3628,8 @@ const STEP_ICONS = {
   extraction: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
   research: `<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><path d="M11 8v6M8 11h6" opacity=".5"/></svg>`,
   vision: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>`,
+  bloom_step1: `<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+  bloom_step2: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`,
 };
 
 const STEP_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -3379,25 +3643,25 @@ const ACCORDION_CHEVRON_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" f
  */
 export function createExpandableStatusGlobal(title, contentEl) {
   // Cria um step-row standalone (para uso em loadChat onde não temos o accordion pai)
-  const stepRow = document.createElement("div");
-  stepRow.className = "step-row";
+  const stepRow = document.createElement('div');
+  stepRow.className = 'step-row';
 
-  const header = document.createElement("div");
-  header.className = "step-row-header";
+  const header = document.createElement('div');
+  header.className = 'step-row-header';
 
   // Icon (check completed)
-  const iconEl = document.createElement("div");
-  iconEl.className = "step-row-icon completed";
+  const iconEl = document.createElement('div');
+  iconEl.className = 'step-row-icon completed';
   iconEl.innerHTML = STEP_CHECK_SVG;
 
   // Title
-  const titleEl = document.createElement("span");
-  titleEl.className = "step-row-title";
+  const titleEl = document.createElement('span');
+  titleEl.className = 'step-row-title';
   titleEl.textContent = title;
 
   // Chevron
-  const chevronEl = document.createElement("div");
-  chevronEl.className = "step-row-chevron";
+  const chevronEl = document.createElement('div');
+  chevronEl.className = 'step-row-chevron';
   chevronEl.innerHTML = STEP_CHEVRON_SVG;
 
   header.appendChild(iconEl);
@@ -3405,19 +3669,26 @@ export function createExpandableStatusGlobal(title, contentEl) {
   header.appendChild(chevronEl);
 
   // Content
-  const content = document.createElement("div");
-  content.className = "step-row-content";
-  const body = document.createElement("div");
-  body.className = "step-row-body";
+  const content = document.createElement('div');
+  content.className = 'step-row-content';
+  const body = document.createElement('div');
+  body.className = 'step-row-body';
   body.appendChild(contentEl);
   content.appendChild(body);
 
-  header.addEventListener("click", () => {
-    stepRow.classList.toggle("open");
+  header.addEventListener('click', () => {
+    if (stepRow.classList.contains('no-content')) return;
+    stepRow.classList.toggle('open');
   });
 
   stepRow.appendChild(header);
   stepRow.appendChild(content);
+
+  updateStepRowExpandability(stepRow);
+
+  if (typeof renderLatexIn === 'function') {
+    renderLatexIn(content);
+  }
 
   return stepRow;
 }
@@ -3430,24 +3701,24 @@ export function createExpandableStatusGlobal(title, contentEl) {
 function stopAllPhaseSpinners(scope) {
   const root = scope || document;
   // New design spinners
-  root.querySelectorAll(".step-row-icon.processing").forEach((icon) => {
-    icon.classList.remove("processing");
-    icon.classList.add("completed");
+  root.querySelectorAll('.step-row-icon.processing').forEach((icon) => {
+    icon.classList.remove('processing');
+    icon.classList.add('completed');
     icon.innerHTML = STEP_CHECK_SVG;
   });
   // Also mark steps as non-active
-  root.querySelectorAll(".step-row.active").forEach((row) => {
-    row.classList.remove("active");
+  root.querySelectorAll('.step-row.active').forEach((row) => {
+    row.classList.remove('active');
   });
   // Legacy spinners
-  const spinners = root.querySelectorAll(".summary-logo-spinner");
+  const spinners = root.querySelectorAll('.summary-logo-spinner');
   spinners.forEach((spinner) => {
-    spinner.classList.remove("summary-logo-spinner");
-    spinner.classList.add("summary-logo-static");
-    spinner.style.animation = "none";
-    spinner.style.opacity = "1";
-    spinner.style.width = "18px";
-    spinner.style.height = "18px";
+    spinner.classList.remove('summary-logo-spinner');
+    spinner.classList.add('summary-logo-static');
+    spinner.style.animation = 'none';
+    spinner.style.opacity = '1';
+    spinner.style.width = '18px';
+    spinner.style.height = '18px';
   });
 }
 
@@ -3456,19 +3727,19 @@ function stopAllPhaseSpinners(scope) {
  * All phase containers (steps) go inside this.
  */
 function getOrCreateStepsAccordion(messagesContainer) {
-  let accordion = document.getElementById("stepsAccordion");
+  let accordion = document.getElementById('stepsAccordion');
   if (accordion) return accordion;
 
   // Create accordion
-  accordion = document.createElement("div");
-  accordion.className = "steps-accordion processing open";
-  accordion.id = "stepsAccordion";
+  accordion = document.createElement('div');
+  accordion.className = 'steps-accordion processing open';
+  accordion.id = 'stepsAccordion';
   accordion._stepCount = 0;
   accordion._completedCount = 0;
 
   // Header
-  const header = document.createElement("div");
-  header.className = "steps-accordion-header";
+  const header = document.createElement('div');
+  header.className = 'steps-accordion-header';
   header.innerHTML = `
     <img src="/monocromatic_logo.png" class="monochrome-spinner accordion-spinner" style="width:14px; height:14px; margin-right:4px;" alt="maia">
     <span class="steps-accordion-count">Processando etapas</span>
@@ -3476,40 +3747,73 @@ function getOrCreateStepsAccordion(messagesContainer) {
   `;
 
   // Body
-  const body = document.createElement("div");
-  body.className = "steps-accordion-body";
+  const body = document.createElement('div');
+  body.className = 'steps-accordion-body';
 
-  header.addEventListener("click", () => {
-    accordion.classList.toggle("open");
+  header.addEventListener('click', () => {
+    accordion.classList.toggle('open');
   });
 
   accordion.appendChild(header);
   accordion.appendChild(body);
 
   // Wrap in system message
-  const systemMsg = document.createElement("div");
-  systemMsg.className = "chat-message chat-message--system visible";
-  systemMsg.id = "stepsAccordionWrapper";
-  const msgContent = document.createElement("div");
-  msgContent.className = "chat-message-content";
-  msgContent.style.cssText =
-    "padding:0; background:transparent; box-shadow:none;";
+  const systemMsg = document.createElement('div');
+  systemMsg.className = 'chat-message chat-message--system visible';
+  systemMsg.id = 'stepsAccordionWrapper';
+  const msgContent = document.createElement('div');
+  msgContent.className = 'chat-message-content';
+  msgContent.style.cssText = 'padding:0; background:transparent; box-shadow:none;';
   msgContent.appendChild(accordion);
   systemMsg.appendChild(msgContent);
 
   // Insert before loading or AI message
-  const loadingEl = document.getElementById("chatLoading");
-  const aiMsg = document.getElementById("currentAiMessage");
+  const loadingEl = document.getElementById('chatLoading');
+  const aiMsg = document.getElementById('currentAiMessage');
   const insertBefore = loadingEl || aiMsg;
   if (insertBefore) messagesContainer.insertBefore(systemMsg, insertBefore);
   else messagesContainer.appendChild(systemMsg);
 
   // Remove loading indicator since we have the accordion now
-  const chatLoading = document.getElementById("chatLoading");
+  const chatLoading = document.getElementById('chatLoading');
   if (chatLoading) chatLoading.remove();
 
   return accordion;
 }
+
+/**
+ * Atualiza o estado de expansão de uma linha de etapa (step-row).
+ * Se a etapa não contiver conteúdo visível (cards, texto ou botões), oculta a seta chevron e desabilita o dropdown.
+ */
+function updateStepRowExpandability(stepRow) {
+  if (!stepRow) return;
+  const content = stepRow.querySelector('.step-row-content');
+  const chevron = stepRow.querySelector('.step-row-chevron');
+  if (!content) return;
+
+  const realChildren = Array.from(content.children).filter(
+    (child) =>
+      !child.classList.contains('maia-thought-card--skeleton') &&
+      !child.classList.contains('loading-status-area'),
+  );
+
+  const hasRealContent = realChildren.some((child) => {
+    return (
+      child.children.length > 0 ||
+      (child.textContent && child.textContent.trim().length > 0)
+    );
+  });
+
+  if (hasRealContent) {
+    stepRow.classList.remove('no-content');
+    if (chevron) chevron.style.display = 'flex';
+  } else {
+    stepRow.classList.add('no-content');
+    stepRow.classList.remove('open');
+    if (chevron) chevron.style.display = 'none';
+  }
+}
+window.updateStepRowExpandability = updateStepRowExpandability;
 
 /**
  * Creates or retrieves a phase-specific step row inside the accordion.
@@ -3519,17 +3823,16 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
 
   if (stepRow) {
     if (initialTitle) {
-      const titleEl = stepRow.querySelector(".step-row-title");
+      const titleEl = stepRow.querySelector('.step-row-title');
       if (titleEl) {
         titleEl.textContent = initialTitle;
       }
     }
+    updateStepRowExpandability(stepRow);
     return {
       container: stepRow,
-      inner: stepRow.querySelector(".step-row-content"),
-      thoughtListEl:
-        stepRow._refs?.thoughtListEl ||
-        stepRow.querySelector(".chat-thoughts-list"),
+      inner: stepRow.querySelector('.step-row-content'),
+      thoughtListEl: stepRow._refs?.thoughtListEl || stepRow.querySelector('.chat-thoughts-list'),
     };
   }
 
@@ -3537,22 +3840,22 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   stopAllPhaseSpinners(messagesContainer);
 
   const accordion = getOrCreateStepsAccordion(messagesContainer);
-  const body = accordion.querySelector(".steps-accordion-body");
+  const body = accordion.querySelector('.steps-accordion-body');
 
   // Create step row
-  stepRow = document.createElement("div");
-  stepRow.className = "step-row active";
+  stepRow = document.createElement('div');
+  stepRow.className = 'step-row active';
   stepRow.id = `phaseContainer-${phaseId}`;
 
   // Header
-  const header = document.createElement("div");
-  header.className = "step-row-header";
+  const header = document.createElement('div');
+  header.className = 'step-row-header';
 
   // Icon (static SVG while processing, turns to check mark when done)
-  const iconEl = document.createElement("div");
-  iconEl.className = "step-row-icon processing";
+  const iconEl = document.createElement('div');
+  iconEl.className = 'step-row-icon processing';
 
-  if (phaseId === "generation") {
+  if (phaseId === 'generation') {
     iconEl.innerHTML = `<img src="/monocromatic_logo.png" class="monochrome-spinner" alt="pensando">`;
   } else {
     const iconSvg = STEP_ICONS[phaseId] || STEP_ICONS.generation;
@@ -3560,13 +3863,13 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   }
 
   // Title
-  const titleEl = document.createElement("span");
-  titleEl.className = "step-row-title";
+  const titleEl = document.createElement('span');
+  titleEl.className = 'step-row-title';
   titleEl.textContent = initialTitle;
 
   // Chevron
-  const chevronEl = document.createElement("div");
-  chevronEl.className = "step-row-chevron";
+  const chevronEl = document.createElement('div');
+  chevronEl.className = 'step-row-chevron';
   chevronEl.innerHTML = STEP_CHEVRON_SVG;
 
   header.appendChild(iconEl);
@@ -3574,18 +3877,19 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   header.appendChild(chevronEl);
 
   // Content area
-  const content = document.createElement("div");
-  content.className = "step-row-content";
-  const thoughtListEl = document.createElement("div");
-  thoughtListEl.className = "chat-thoughts-list";
+  const content = document.createElement('div');
+  content.className = 'step-row-content';
+  const thoughtListEl = document.createElement('div');
+  thoughtListEl.className = 'chat-thoughts-list';
   content.appendChild(thoughtListEl);
 
   // Store ref
   stepRow._refs = { thoughtListEl };
 
-  // Click to expand this step
-  header.addEventListener("click", () => {
-    stepRow.classList.toggle("open");
+  // Click to expand this step (desabilitado se não houver conteúdo)
+  header.addEventListener('click', () => {
+    if (stepRow.classList.contains('no-content')) return;
+    stepRow.classList.toggle('open');
   });
 
   stepRow.appendChild(header);
@@ -3596,6 +3900,8 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
   // Update counter
   accordion._stepCount = (accordion._stepCount || 0) + 1;
   updateAccordionCounter(accordion);
+
+  updateStepRowExpandability(stepRow);
 
   return {
     container: stepRow,
@@ -3608,127 +3914,120 @@ function getOrCreatePhaseContainer(messagesContainer, phaseId, initialTitle) {
  * Updates the accordion header counter text.
  */
 function updateAccordionCounter(accordion) {
-  const countEl = accordion.querySelector(".steps-accordion-count");
+  const countEl = accordion.querySelector('.steps-accordion-count');
   if (!countEl) return;
 
   const total = accordion._stepCount || 0;
   const completed = accordion._completedCount || 0;
 
-  const spinner = accordion.querySelector(".accordion-spinner");
+  const spinner = accordion.querySelector('.accordion-spinner');
 
   if (completed >= total && total > 0) {
-    countEl.textContent = `Concluiu ${total} etapa${total !== 1 ? "s" : ""}`;
-    if (spinner) spinner.style.display = "none";
+    countEl.textContent = `Concluiu ${total} etapa${total !== 1 ? 's' : ''}`;
+    if (spinner) spinner.style.display = 'none';
   } else {
     countEl.textContent = `Processando etapas`;
-    if (spinner) spinner.style.display = "inline-block";
+    if (spinner) spinner.style.display = 'inline-block';
   }
 }
 
 /**
  * Concludes a phase container by stopping its spinner and appending the result.
  */
-function concludePhaseContainer(
-  container,
-  thoughtListEl,
-  newTitle,
-  resultHtml,
-) {
+function concludePhaseContainer(container, thoughtListEl, newTitle, resultHtml) {
   // Update title
-  const titleEl = container.querySelector(".step-row-title");
+  const titleEl = container.querySelector('.step-row-title');
   if (titleEl) titleEl.textContent = newTitle;
 
   // Also update legacy summary-text if present
-  const summaryText = container.querySelector(".summary-text");
+  const summaryText = container.querySelector('.summary-text');
   if (summaryText) summaryText.textContent = newTitle;
 
   // Stop spinner → show check
-  const iconEl = container.querySelector(".step-row-icon");
+  const iconEl = container.querySelector('.step-row-icon');
   if (iconEl) {
-    iconEl.classList.remove("processing");
-    iconEl.classList.add("completed");
+    iconEl.classList.remove('processing');
+    iconEl.classList.add('completed');
     iconEl.innerHTML = STEP_CHECK_SVG;
   }
 
   // Legacy spinner
-  const spinner = container.querySelector(".summary-logo-spinner");
+  const spinner = container.querySelector('.summary-logo-spinner');
   if (spinner) {
-    spinner.classList.remove("summary-logo-spinner");
-    spinner.classList.add("summary-logo-static");
-    spinner.style.animation = "none";
-    spinner.style.opacity = "1";
-    spinner.style.width = "18px";
-    spinner.style.height = "18px";
+    spinner.classList.remove('summary-logo-spinner');
+    spinner.classList.add('summary-logo-static');
+    spinner.style.animation = 'none';
+    spinner.style.opacity = '1';
+    spinner.style.width = '18px';
+    spinner.style.height = '18px';
   }
 
   // Remove active state
-  container.classList.remove("active");
+  container.classList.remove('active');
 
   // Remove skeletons
-  container
-    .querySelectorAll(".maia-thought-card--skeleton")
-    .forEach((s) => s.remove());
-  const loadStatus = container.querySelector(".loading-status-area");
+  container.querySelectorAll('.maia-thought-card--skeleton').forEach((s) => {
+    s.remove();
+  });
+  const loadStatus = container.querySelector('.loading-status-area');
   if (loadStatus) loadStatus.remove();
 
   // Create result content
   if (resultHtml && thoughtListEl) {
-    const bodyDiv = document.createElement("div");
-    bodyDiv.className = "step-row-body";
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'step-row-body';
     bodyDiv.innerHTML = resultHtml;
     thoughtListEl.appendChild(bodyDiv);
   }
 
   // Update accordion counter
-  const accordion = document.getElementById("stepsAccordion");
+  const accordion = document.getElementById('stepsAccordion');
   if (accordion) {
     accordion._completedCount = (accordion._completedCount || 0) + 1;
     updateAccordionCounter(accordion);
   }
+
+  updateStepRowExpandability(container);
 }
 
 /**
  * Escapa HTML para prevenir XSS
  */
 function escapeHtml(text) {
-  const div = document.createElement("div");
+  const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-window.testNewDesign = function () {
-  const msgContainer = document.getElementById("chatMessages");
+window.testNewDesign = () => {
+  const msgContainer = document.getElementById('chatMessages');
   if (!msgContainer) {
     console.log(
-      "Mude para uma aba de chat vazio primeiro ou envie uma mensagem isolada para ver o container!",
+      'Mude para uma aba de chat vazio primeiro ou envie uma mensagem isolada para ver o container!',
     );
     return;
   }
-  msgContainer.innerHTML = ""; // Prepare for test
+  msgContainer.innerHTML = ''; // Prepare for test
 
   // Inject a fake current ai message structure
-  let aiMessage = document.getElementById("currentAiMessage");
+  let aiMessage = document.getElementById('currentAiMessage');
   if (!aiMessage) {
-    aiMessage = document.createElement("div");
-    aiMessage.className = "chat-message chat-message--ai visible";
-    aiMessage.id = "currentAiMessage";
+    aiMessage = document.createElement('div');
+    aiMessage.className = 'chat-message chat-message--ai visible';
+    aiMessage.id = 'currentAiMessage';
     aiMessage.innerHTML = `<div class="chat-message-content"></div>`;
     msgContainer.appendChild(aiMessage);
   }
 
-  console.log("Iniciando mock de processamento...");
+  console.log('Iniciando mock de processamento...');
 
   // Fake phase 1: Memory
-  const memPhase = getOrCreatePhaseContainer(
-    msgContainer,
-    "memory",
-    "Recuperando informações",
-  );
+  const memPhase = getOrCreatePhaseContainer(msgContainer, 'memory', 'Recuperando informações');
   setTimeout(() => {
     concludePhaseContainer(
       memPhase.container,
       memPhase.thoughtListEl,
-      "Memórias recuperadas",
+      'Memórias recuperadas',
       `
       <div style="margin-bottom:12px;">
           <div style="font-weight:600; margin-bottom:4px; color:var(--color-text);">Resumo Contextual Gerado:</div>
@@ -3749,15 +4048,15 @@ window.testNewDesign = function () {
   setTimeout(() => {
     const modePhase = getOrCreatePhaseContainer(
       msgContainer,
-      "mode",
-      "Escolhendo modo de execução",
+      'mode',
+      'Escolhendo modo de execução',
     );
 
     setTimeout(() => {
       concludePhaseContainer(
         modePhase.container,
         modePhase.thoughtListEl,
-        "Modo Automático selecionado",
+        'Modo Automático selecionado',
         `
         <div style="margin-bottom:8px;"><strong>Decisão:</strong> Automático</div>
         <div style="margin-bottom:8px;"><strong>Motivo:</strong> Requisição complexa demandando análise técnica.</div>
@@ -3777,25 +4076,25 @@ window.testNewDesign = function () {
   setTimeout(() => {
     const genPhase = getOrCreatePhaseContainer(
       msgContainer,
-      "generation",
-      "Processando raciocínio...",
+      'generation',
+      'Processando raciocínio...',
     );
 
     // Mock thought cards
     const thoughtRows = [
       {
-        t: "Analisando formato",
-        b: "A resposta deve conter citações exatas dos documentos recuperados e explicar com termos acessíveis.",
+        t: 'Analisando formato',
+        b: 'A resposta deve conter citações exatas dos documentos recuperados e explicar com termos acessíveis.',
       },
       {
-        t: "Cruzando dados",
-        b: "Comparando o conceito de Cloroplasto do documento A com o processo C3 do documento B.",
+        t: 'Cruzando dados',
+        b: 'Comparando o conceito de Cloroplasto do documento A com o processo C3 do documento B.',
       },
       {
-        t: "Verificando base de dados",
-        b: "Tentando extrair relatórios adicionais.",
+        t: 'Verificando base de dados',
+        b: 'Tentando extrair relatórios adicionais.',
       },
-      { t: "Montando rascunho", b: "A síntese da resposta está quase pronta." },
+      { t: 'Montando rascunho', b: 'A síntese da resposta está quase pronta.' },
     ];
 
     let tIndex = 0;
@@ -3805,24 +4104,24 @@ window.testNewDesign = function () {
         concludePhaseContainer(
           genPhase.container,
           genPhase.thoughtListEl,
-          "Raciocínio concluído",
-          "",
+          'Raciocínio concluído',
+          '',
         );
 
         // Finalize accordion manually for the test
-        const accordion = document.getElementById("stepsAccordion");
+        const accordion = document.getElementById('stepsAccordion');
         if (accordion) {
-          accordion.classList.remove("processing");
-          setTimeout(() => accordion.classList.remove("open"), 800);
-          accordion.removeAttribute("id");
+          accordion.classList.remove('processing');
+          setTimeout(() => accordion.classList.remove('open'), 800);
+          accordion.removeAttribute('id');
         }
 
-        aiMessage.querySelector(".chat-message-content").innerHTML = `
+        aiMessage.querySelector('.chat-message-content').innerHTML = `
           <div class="chat-block chat-text visible">
             E aqui estaria a resposta final da inteligência artificial gerada no bloco.
           </div>
         `;
-        aiMessage.removeAttribute("id");
+        aiMessage.removeAttribute('id');
       } else {
         const { t, b } = thoughtRows[tIndex++];
         const card = criarElementoCardPensamento(t, b);
@@ -3845,7 +4144,7 @@ export async function iniciarModoEstudante() {
   stopSuggestionRotation();
 
   // 1. Limpa a tela
-  document.body.innerHTML = "";
+  document.body.innerHTML = '';
 
   // 2. Monta o HTML Principal
   const htmlFiltros = gerarHtmlPainelFiltros();
@@ -3892,7 +4191,7 @@ export async function iniciarModoRevisao() {
   stopSuggestionRotation();
 
   // 1. Limpa a tela e reseta estados
-  document.body.innerHTML = "";
+  document.body.innerHTML = '';
   bancoState.ultimoKeyCarregada = null;
   bancoState.todasQuestoesCache = [];
 
@@ -3959,10 +4258,10 @@ export async function iniciarModoRevisao() {
 
 function configuringMobileHeader(container) {
   // Se já existe, não recria
-  if (container.querySelector(".review-mobile-header")) return;
+  if (container.querySelector('.review-mobile-header')) return;
 
-  const header = document.createElement("div");
-  header.className = "review-mobile-header mobile-only";
+  const header = document.createElement('div');
+  header.className = 'review-mobile-header mobile-only';
   header.innerHTML = `
         <div class="review-drag-handle"></div>
         <div class="review-mobile-title">Detalhes da Questão</div>
@@ -3975,16 +4274,14 @@ function configuringMobileHeader(container) {
   container.insertBefore(header, container.firstChild);
 
   // Evento Fechar
-  header
-    .querySelector("#btnCloseReviewMobile")
-    .addEventListener("click", fecharPainelMobile);
+  header.querySelector('#btnCloseReviewMobile').addEventListener('click', fecharPainelMobile);
 
   // Swipe Down to Close (Simples)
   let startY = 0;
-  header.addEventListener("touchstart", (e) => {
+  header.addEventListener('touchstart', (e) => {
     startY = e.touches[0].clientY;
   });
-  header.addEventListener("touchmove", (e) => {
+  header.addEventListener('touchmove', (e) => {
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - startY;
     if (deltaY > 50) {
@@ -3995,14 +4292,14 @@ function configuringMobileHeader(container) {
 }
 
 function fecharPainelMobile() {
-  const panel = document.querySelector(".review-detail-panel");
-  const backdrop = document.getElementById("reviewBackdrop");
+  const panel = document.querySelector('.review-detail-panel');
+  const backdrop = document.getElementById('reviewBackdrop');
 
-  if (panel) panel.classList.remove("open");
+  if (panel) panel.classList.remove('open');
   if (backdrop) {
-    backdrop.classList.remove("visible");
+    backdrop.classList.remove('visible');
     setTimeout(() => {
-      backdrop.style.display = "none";
+      backdrop.style.display = 'none';
     }, 300);
   }
 }
@@ -4011,34 +4308,32 @@ function abrirPainelMobile() {
   // Só abre se for mobile
   if (window.innerWidth > 900) return;
 
-  const panel = document.querySelector(".review-detail-panel");
-  const backdrop = document.getElementById("reviewBackdrop");
+  const panel = document.querySelector('.review-detail-panel');
+  const backdrop = document.getElementById('reviewBackdrop');
 
   // Garante que header existe
   if (panel) configuringMobileHeader(panel);
 
-  if (panel) panel.classList.add("open");
+  if (panel) panel.classList.add('open');
   if (backdrop) {
-    backdrop.style.display = "block";
+    backdrop.style.display = 'block';
     // Timeout para permitir transição de opacidade
-    setTimeout(() => backdrop.classList.add("visible"), 10);
+    setTimeout(() => backdrop.classList.add('visible'), 10);
   }
 }
 
 function configurarComportamentoMobileRevisao() {
   // Listener de Resize
-  window.addEventListener("resize", () => {
+  window.addEventListener('resize', () => {
     // Se mudou para desktop e tem questão selecionada, garante layout resetado
     // O CSS media query já cuida da maioria, mas classes .open podem atrapalhar?
     // Na verdade .open no desktop não faz nada pois transform não é aplicado, mas é bom limpar.
     if (window.innerWidth > 900) {
-      const panel = document.querySelector(".review-detail-panel");
-      if (panel) panel.classList.remove("open");
+      const panel = document.querySelector('.review-detail-panel');
+      if (panel) panel.classList.remove('open');
     } else {
       // Se mudou para mobile e TEM questão selecionada (renderizada), abre o painel
-      const conteudoRenderizado = document.getElementById(
-        "reviewQuestaoContent",
-      );
+      const conteudoRenderizado = document.getElementById('reviewQuestaoContent');
       // Se tem conteúdo (filhos), supomos que tem questão
       if (conteudoRenderizado && conteudoRenderizado.children.length > 0) {
         abrirPainelMobile();
@@ -4047,9 +4342,9 @@ function configurarComportamentoMobileRevisao() {
   });
 
   // Backdrop Click
-  const backdrop = document.getElementById("reviewBackdrop");
+  const backdrop = document.getElementById('reviewBackdrop');
   if (backdrop) {
-    backdrop.addEventListener("click", fecharPainelMobile);
+    backdrop.addEventListener('click', fecharPainelMobile);
   }
 }
 
@@ -4057,11 +4352,11 @@ function configurarComportamentoMobileRevisao() {
  * Configura o listener de busca na revisão
  */
 function configurarBuscaRevisao() {
-  const searchInput = document.getElementById("reviewSearchInput");
+  const searchInput = document.getElementById('reviewSearchInput');
   if (!searchInput) return;
 
   let debounceTimer;
-  searchInput.addEventListener("input", (e) => {
+  searchInput.addEventListener('input', (e) => {
     const term = e.target.value.trim();
 
     clearTimeout(debounceTimer);
@@ -4074,7 +4369,7 @@ function configurarBuscaRevisao() {
       } else {
         // Voltar ao Modo Paginação Normal
         bancoState.modoPesquisa = false;
-        bancoState.termoPesquisa = "";
+        bancoState.termoPesquisa = '';
         resetarListaRevisao();
         carregarQuestoesRevisao();
       }
@@ -4086,21 +4381,22 @@ function resetarListaRevisao() {
   bancoState.ultimoKeyCarregada = null;
   bancoState.todasQuestoesCache = [];
   bancoState.carregandoMais = false;
-  document.getElementById("reviewList").innerHTML = "";
-  document.getElementById("reviewSentinela").style.display = "block";
+  document.getElementById('reviewList').innerHTML = '';
+  document.getElementById('reviewSentinela').style.display = 'block';
 }
 
 async function realizarBuscaRevisao(termo) {
-  const listContainer = document.getElementById("reviewList");
-  const sentinela = document.getElementById("reviewSentinela");
+  const listContainer = document.getElementById('reviewList');
+  const sentinela = document.getElementById('reviewSentinela');
 
-  listContainer.innerHTML = ""; // Limpa visualmente
-  sentinela.style.display = "block"; // Mostra loading
+  listContainer.innerHTML = ''; // Limpa visualmente
+  sentinela.style.display = 'block'; // Mostra loading
 
   try {
-    const { get, ref, query, orderByKey, startAt, endAt, limitToFirst } =
-      await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-    const { db } = await import("../main.js");
+    const { get, ref, query, orderByKey, startAt, endAt, limitToFirst } = await import(
+      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+    );
+    const { db } = await import('../main.js');
 
     // Normalização "Smart Search":
     // O banco é Case-Sensitive. Buscamos variações comuns para tentar "adivinhar" o que o usuário quer.
@@ -4113,12 +4409,10 @@ async function realizarBuscaRevisao(termo) {
     variacoes.add(termo.toUpperCase()); // 2. UPPERCASE
     variacoes.add(termo.toLowerCase()); // 4. Lowercase
     if (termo.length > 0) {
-      variacoes.add(
-        termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase(),
-      ); // 3. Capitalized
+      variacoes.add(termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase()); // 3. Capitalized
     }
 
-    const dbRef = ref(db, "questoes");
+    const dbRef = ref(db, 'questoes');
 
     // Cria array de Promises (buscas paralelas)
     const promessasBusca = Array.from(variacoes).map(async (termoBusca) => {
@@ -4126,7 +4420,7 @@ async function realizarBuscaRevisao(termo) {
         dbRef,
         orderByKey(),
         startAt(termoBusca),
-        endAt(termoBusca + "\uf8ff"),
+        endAt(termoBusca + '\uf8ff'),
         limitToFirst(20), // Limite menor por variação para não sobrecarregar
       );
       return get(consulta);
@@ -4147,7 +4441,7 @@ async function realizarBuscaRevisao(termo) {
       }
     });
 
-    sentinela.style.display = "none"; // Esconde loading
+    sentinela.style.display = 'none'; // Esconde loading
 
     if (resultadosUnicos.size > 0) {
       // Converte de volta para array e ordena alfabeticamente
@@ -4156,7 +4450,7 @@ async function realizarBuscaRevisao(termo) {
       );
 
       listaProvas.forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === "object") {
+        if (mapQuestoes && typeof mapQuestoes === 'object') {
           Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
             if (!fullData.dados_questao) return;
             fullData._firebaseId = idQuestao;
@@ -4171,8 +4465,8 @@ async function realizarBuscaRevisao(termo) {
       listContainer.innerHTML = `<p style="padding:20px; text-align:center; color:gray;">Nenhum resultado encontrado para "${termo}" (e variações).</p>`;
     }
   } catch (e) {
-    console.error("Erro na busca:", e);
-    sentinela.style.display = "none";
+    console.error('Erro na busca:', e);
+    sentinela.style.display = 'none';
     listContainer.innerHTML = `<p style="padding:20px; color:red;">Erro ao buscar: ${e.message}</p>`;
   }
 }
@@ -4188,11 +4482,12 @@ async function carregarQuestoesRevisao() {
   bancoState.carregandoMais = true;
 
   try {
-    const { get, ref, query, orderByKey, limitToLast, endBefore } =
-      await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-    const { db, TAMANHO_PAGINA } = await import("../main.js");
+    const { get, ref, query, orderByKey, limitToLast, endBefore } = await import(
+      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+    );
+    const { db, TAMANHO_PAGINA } = await import('../main.js');
 
-    const dbRef = ref(db, "questoes");
+    const dbRef = ref(db, 'questoes');
     let consulta;
 
     if (!bancoState.ultimoKeyCarregada) {
@@ -4214,10 +4509,10 @@ async function carregarQuestoesRevisao() {
       const novoCursor = listaProvas[listaProvas.length - 1][0];
       bancoState.ultimoKeyCarregada = novoCursor;
 
-      const container = document.getElementById("reviewList");
+      const container = document.getElementById('reviewList');
 
       listaProvas.forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === "object") {
+        if (mapQuestoes && typeof mapQuestoes === 'object') {
           Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
             if (!fullData.dados_questao) return;
 
@@ -4236,15 +4531,14 @@ async function carregarQuestoesRevisao() {
       });
     } else {
       // Fim dos dados
-      const sentinela = document.getElementById("reviewSentinela");
+      const sentinela = document.getElementById('reviewSentinela');
       if (sentinela) {
-        sentinela.innerHTML =
-          '<p style="color:var(--color-text-secondary);">Fim das questões.</p>';
+        sentinela.innerHTML = '<p style="color:var(--color-text-secondary);">Fim das questões.</p>';
       }
     }
   } catch (e) {
-    console.error("Erro ao carregar questões para revisão:", e);
-    const sentinela = document.getElementById("reviewSentinela");
+    console.error('Erro ao carregar questões para revisão:', e);
+    const sentinela = document.getElementById('reviewSentinela');
     if (sentinela) {
       sentinela.innerHTML = `<p style="color:var(--color-error);">Erro: ${e.message}</p>`;
     }
@@ -4263,10 +4557,10 @@ let hasUnsavedChanges = false;
 export async function confirmExitingReview() {
   if (hasUnsavedChanges) {
     const confirmed = await showConfirmModal(
-      "Alterações não salvas",
-      "Você tem revisões marcadas que não foram enviadas. Tem certeza que deseja sair? As alterações serão perdidas.",
-      "Sair sem salvar",
-      "Cancelar",
+      'Alterações não salvas',
+      'Você tem revisões marcadas que não foram enviadas. Tem certeza que deseja sair? As alterações serão perdidas.',
+      'Sair sem salvar',
+      'Cancelar',
       false, // Warning color
     );
     return confirmed;
@@ -4281,30 +4575,30 @@ function criarItemListaRevisao(id, fullData, nomeProva) {
   const q = fullData.dados_questao || {};
   const meta = fullData.meta || {};
   const identificacao = q.identificacao || id;
-  const origem = meta.material_origem || nomeProva.replace(/_/g, " ");
-  const materias = (q.materias_possiveis || []).slice(0, 2).join(", ");
+  const origem = meta.material_origem || nomeProva.replace(/_/g, ' ');
+  const materias = (q.materias_possiveis || []).slice(0, 2).join(', ');
 
-  const item = document.createElement("div");
-  item.className = "review-item";
+  const item = document.createElement('div');
+  item.className = 'review-item';
   item.dataset.id = id;
   item.innerHTML = `
     <div class="review-item-id">${identificacao}</div>
     <div class="review-item-origem">${origem}</div>
-    ${materias ? `<div class="review-item-materias">${materias}</div>` : ""}
+    ${materias ? `<div class="review-item-materias">${materias}</div>` : ''}
   `;
 
   // Click handler
-  item.addEventListener("click", async () => {
+  item.addEventListener('click', async () => {
     // Verifica se já está selecionado
-    if (item.classList.contains("selected")) return;
+    if (item.classList.contains('selected')) return;
 
     // Checks for unsaved changes before switching
     if (hasUnsavedChanges) {
       const confirmed = await showConfirmModal(
-        "Alterações não salvas",
-        "Você tem revisões marcadas que não foram enviadas. Tem certeza que deseja trocar de questão? As alterações serão perdidas.",
-        "Trocar sem salvar",
-        "Cancelar",
+        'Alterações não salvas',
+        'Você tem revisões marcadas que não foram enviadas. Tem certeza que deseja trocar de questão? As alterações serão perdidas.',
+        'Trocar sem salvar',
+        'Cancelar',
         false, // Warning color
       );
       if (!confirmed) return;
@@ -4314,11 +4608,11 @@ function criarItemListaRevisao(id, fullData, nomeProva) {
     hasUnsavedChanges = false;
 
     // Remove seleção anterior
-    document.querySelectorAll(".review-item.selected").forEach((el) => {
-      el.classList.remove("selected");
+    document.querySelectorAll('.review-item.selected').forEach((el) => {
+      el.classList.remove('selected');
     });
     // Marca como selecionado
-    item.classList.add("selected");
+    item.classList.add('selected');
     // Renderiza a questão
     await renderizarQuestaoRevisao(fullData);
 
@@ -4340,7 +4634,7 @@ function criarItemListaRevisao(id, fullData, nomeProva) {
  * Painel direito: Imagens originais do scan
  */
 async function renderizarQuestaoRevisao(fullData) {
-  const container = document.getElementById("reviewDetail");
+  const container = document.getElementById('reviewDetail');
   if (!container) return;
 
   const q = fullData.dados_questao || {};
@@ -4355,7 +4649,7 @@ async function renderizarQuestaoRevisao(fullData) {
   const questaoPath =
     fullData._chaveProva && fullData._firebaseId
       ? `${fullData._chaveProva}/${fullData._firebaseId}`
-      : fullData._firebaseId || "unknown";
+      : fullData._firebaseId || 'unknown';
 
   // --- [NOVO] VERIFICAÇÃO DE REVISÃO ANTERIOR ---
   container.innerHTML = `
@@ -4365,8 +4659,9 @@ async function renderizarQuestaoRevisao(fullData) {
       </div>`;
 
   try {
-    const { verificarJaRevisou, registrarRevisaoUsuario } =
-      await import("../review/review-save.js");
+    const { verificarJaRevisou, registrarRevisaoUsuario } = await import(
+      '../review/review-save.js'
+    );
     const jaRevisou = await verificarJaRevisou(questaoPath);
 
     if (jaRevisou) {
@@ -4377,18 +4672,17 @@ async function renderizarQuestaoRevisao(fullData) {
     // Se não revisou, prossegue com renderização normal...
 
     // Importa os módulos necessários
-    const { mountQuestaoTabs } = await import("../render/questao-tabs.js");
-    const { ensureLibsLoaded, renderLatexIn } =
-      await import("../libs/loader.tsx");
+    const { mountQuestaoTabs } = await import('../render/questao-tabs.js');
+    const { ensureLibsLoaded, renderLatexIn } = await import('../libs/loader.tsx');
 
     await ensureLibsLoaded();
 
     // Limpa o container
-    container.innerHTML = "";
+    container.innerHTML = '';
 
     // Cria o layout lado a lado
-    const splitView = document.createElement("div");
-    splitView.className = "review-side-by-side";
+    const splitView = document.createElement('div');
+    splitView.className = 'review-side-by-side';
     splitView.innerHTML = `
       <div class="review-questao-panel">
         <h3 style="margin: 0 0 15px 0; color: var(--color-primary);">📄 Questão/Gabarito</h3>
@@ -4403,24 +4697,23 @@ async function renderizarQuestaoRevisao(fullData) {
     container.appendChild(splitView);
 
     // === PAINEL ESQUERDO: Questão + Gabarito (modo revisão com botões ✅❌) ===
-    const questaoContainer = document.getElementById("reviewQuestaoContent");
+    const questaoContainer = document.getElementById('reviewQuestaoContent');
 
     // Handler para quando o usuário envia a revisão
     const handleReviewSubmit = async (reviewData) => {
       // Confirmação com usuário
       const confirmed = await showConfirmModal(
-        "Confirmar Revisão",
-        "Confirmar o envio da sua revisão? Você não poderá alterar sua avaliação depois.",
-        "Confirmar Envio",
-        "Cancelar",
+        'Confirmar Revisão',
+        'Confirmar o envio da sua revisão? Você não poderá alterar sua avaliação depois.',
+        'Confirmar Envio',
+        'Cancelar',
         true, // POSITIVE ACTION (Blue/Green)
       );
 
       if (!confirmed) return;
 
       try {
-        const { enviarTodasRevisoes } =
-          await import("../review/review-save.js");
+        const { enviarTodasRevisoes } = await import('../review/review-save.js');
 
         await enviarTodasRevisoes(questaoPath, reviewData);
         await registrarRevisaoUsuario(questaoPath);
@@ -4430,20 +4723,20 @@ async function renderizarQuestaoRevisao(fullData) {
 
         // Feedback visual imediato e bloqueio
         renderSuccessState(container);
-        customAlert("✅ Revisão enviada com sucesso!");
+        customAlert('✅ Revisão enviada com sucesso!');
       } catch (error) {
-        console.error("[Revisão] Erro detalhado:", error);
+        console.error('[Revisão] Erro detalhado:', error);
 
-        let msg = "❌ Erro ao enviar revisão: " + error.message;
+        let msg = '❌ Erro ao enviar revisão: ' + error.message;
 
         // Tratamento específico para erro de permissão comum
-        if (error.message && error.message.includes("PERMISSION_DENIED")) {
+        if (error.message && error.message.includes('PERMISSION_DENIED')) {
           msg =
-            "⛔ PERMISSÃO NEGADA pelo Firebase.\n\n" +
-            "O banco de dados recusou a gravação. Verifique:\n" +
+            '⛔ PERMISSÃO NEGADA pelo Firebase.\n\n' +
+            'O banco de dados recusou a gravação. Verifique:\n' +
             "1. Se as regras (Rules) do Realtime Database permitem escrita em '/revisoes'.\n" +
-            "2. Se a Autenticação Anônima está ativada no console do Firebase.\n" +
-            "3. Se o ID da questão contém caracteres inválidos.";
+            '2. Se a Autenticação Anônima está ativada no console do Firebase.\n' +
+            '3. Se o ID da questão contém caracteres inválidos.';
         }
 
         customAlert(msg);
@@ -4464,12 +4757,10 @@ async function renderizarQuestaoRevisao(fullData) {
     renderLatexIn(questaoContainer);
 
     // === PAINEL DIREITO: Imagens Originais do Scan ===
-    const originaisContainer = document.getElementById(
-      "reviewOriginaisContent",
-    );
+    const originaisContainer = document.getElementById('reviewOriginaisContent');
     await renderizarImagensOriginais(originaisContainer, q);
   } catch (e) {
-    console.error("Erro ao inicializar revisão:", e);
+    console.error('Erro ao inicializar revisão:', e);
     container.innerHTML = `<p style="color:red">Erro ao carregar revisão: ${e.message}</p>`;
   }
 }
@@ -4509,41 +4800,41 @@ async function renderizarImagensOriginais(container, questao) {
   }
 
   // Importa o React e o PdfEmbedRenderer para renderizar as imagens
-  const React = await import("react");
-  const { createRoot } = await import("react-dom/client");
-  const { PdfEmbedRenderer } = await import("../ui/PdfEmbedRenderer.tsx");
+  const React = await import('react');
+  const { createRoot } = await import('react-dom/client');
+  const { PdfEmbedRenderer } = await import('../ui/PdfEmbedRenderer.tsx');
 
   // Cria elemento para React
-  const reactContainer = document.createElement("div");
-  reactContainer.className = "review-originais-list";
+  const reactContainer = document.createElement('div');
+  reactContainer.className = 'review-originais-list';
   container.appendChild(reactContainer);
 
   // Cria componente para renderizar as imagens
   const ImagensOriginais = () => {
     return React.createElement(
-      "div",
-      { style: { display: "flex", flexDirection: "column", gap: "15px" } },
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', gap: '15px' } },
       fotosOriginais.map((item, index) => {
         // Se for string (legado), renderiza img normal
-        if (typeof item === "string") {
-          if (item === "filled") {
+        if (typeof item === 'string') {
+          if (item === 'filled') {
             return React.createElement(
-              "div",
-              { key: index, style: { color: "gray", padding: "10px" } },
-              "Imagem sem dados de visualização",
+              'div',
+              { key: index, style: { color: 'gray', padding: '10px' } },
+              'Imagem sem dados de visualização',
             );
           }
-          return React.createElement("img", {
+          return React.createElement('img', {
             key: index,
             src: item,
-            className: "img-content",
+            className: 'img-content',
             alt: `Imagem ${index + 1}`,
-            style: { maxWidth: "100%", borderRadius: "8px" },
+            style: { maxWidth: '100%', borderRadius: '8px' },
           });
         }
 
         // Se for objeto (novo sistema PDF), usa o PdfEmbedRenderer
-        if (typeof item === "object" && item !== null) {
+        if (typeof item === 'object' && item !== null) {
           return React.createElement(PdfEmbedRenderer, {
             key: index,
             pdfUrl: item.pdf_url,
@@ -4578,7 +4869,7 @@ async function renderizarImagensOriginais(container, questao) {
  * Configura scroll infinito para a lista de revisão
  */
 function configurarScrollRevisao() {
-  const sentinela = document.getElementById("reviewSentinela");
+  const sentinela = document.getElementById('reviewSentinela');
   if (!sentinela) return;
 
   const observer = new IntersectionObserver(
@@ -4587,7 +4878,7 @@ function configurarScrollRevisao() {
         carregarQuestoesRevisao();
       }
     },
-    { rootMargin: "100px" },
+    { rootMargin: '100px' },
   );
 
   observer.observe(sentinela);
@@ -4600,21 +4891,19 @@ function configurarScrollRevisao() {
  * @param {HTMLElement} container - Container onde buscar os placeholders
  */
 export function hydrateScaffoldingBlocks(container) {
-  const placeholders = container.querySelectorAll(
-    ".chat-scaffolding-placeholder:not(.hydrated)",
-  );
+  const placeholders = container.querySelectorAll('.chat-scaffolding-placeholder:not(.hydrated)');
 
   placeholders.forEach((placeholder) => {
-    placeholder.classList.add("hydrated");
+    placeholder.classList.add('hydrated');
 
     // 1. Extração de Dados Iniciais
-    const contentRaw = placeholder.getAttribute("data-content");
-    const propsRaw = placeholder.getAttribute("data-props");
+    const contentRaw = placeholder.getAttribute('data-content');
+    const propsRaw = placeholder.getAttribute('data-props');
     let props = {};
     try {
       props = JSON.parse(propsRaw);
     } catch (e) {
-      console.warn("Erro ao parsear props do scaffolding:", e);
+      console.warn('Erro ao parsear props do scaffolding:', e);
     }
 
     // 2. Setup do Container de Slides
@@ -4635,9 +4924,7 @@ export function hydrateScaffoldingBlocks(container) {
     initializeScaffoldingComponent(placeholder, {
       question: contentRaw, // A "pergunta" inicial
       enunciado: contentRaw, // [FIX] Garante que o campo novo também tenha valor
-      msgIndex: parseInt(
-        placeholder.closest(".chat-message")?.dataset.msgIndex,
-      ), // [PERSISTENCE]
+      msgIndex: parseInt(placeholder.closest('.chat-message')?.dataset.msgIndex), // [PERSISTENCE]
       chatId: window.currentChatId, // [PERSISTENCE]
       ...props,
     });
@@ -4648,7 +4935,7 @@ export function hydrateScaffoldingBlocks(container) {
  * HTML Template para um Slide de Scaffolding
  */
 function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
-  const isFinished = props.status === "concluido";
+  const isFinished = props.status === 'concluido';
 
   if (isFinished) {
     return `
@@ -4660,10 +4947,10 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
                 <!-- Final Explanation / Adaptive Reasoning -->
                 <div class="passoContext" style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 8px; border-left: 3px solid var(--color-success);">
                      <h3 style="margin-top:0; font-size:1em; color:var(--color-success);">🎯 Resumo & Explicação Final</h3>
-                     <p>${props.explicacao || props.raciocinio_adaptativo || "Agora você está pronto para responder a questão principal."}</p>
+                     <p>${props.explicacao || props.raciocinio_adaptativo || 'Agora você está pronto para responder a questão principal.'}</p>
                 </div>
                 <div class="passoButton" style="display: flex; gap: 12px; flex-wrap: wrap;">
-                     ${stepNumber > 1 ? `<button class="guessButton backPassoButton" style="flex: 1; min-width: 140px; background: transparent; border: 1px solid var(--color-border);">← Ver Passos Anteriores</button>` : ""}
+                     ${stepNumber > 1 ? `<button class="guessButton backPassoButton" style="flex: 1; min-width: 140px; background: transparent; border: 1px solid var(--color-border);">← Ver Passos Anteriores</button>` : ''}
                      <button class="guessButton finishButton" style="flex: 2; min-width: 180px;">Ir para Questão Principal 🚀</button>
                 </div>
             </div>
@@ -4671,11 +4958,12 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
   }
 
   // Previne "undefined" usando fallback seguro
-  const textoEnunciado =
-    pergunta || props.enunciado || props.conteudo || "Carregando pergunta...";
+  const textoEnunciado = pergunta || props.enunciado || props.conteudo || 'Carregando pergunta...';
 
-  const isAnswered = props.status === "respondido" || props.didSucceed !== undefined || isFinished;
-  const toggleBtnHtml = isAnswered ? "" : `
+  const isAnswered = props.status === 'respondido' || props.didSucceed !== undefined || isFinished;
+  const toggleBtnHtml = isAnswered
+    ? ''
+    : `
     <button class="persona-toggle-btn">
         👥 Simular Personas
     </button>
@@ -4705,21 +4993,21 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
                         </div>
                         <span style="font-size:0.9em; opacity:0.9; font-style: italic;">${props.raciocinio_adaptativo}</span>
                     </div>`
-                        : ""
+                        : ''
                     }
 
 
-                    <p class="explanation-text">${props.explicacao || props.feedback_v || "Veja a dica abaixo."}</p>
+                    <p class="explanation-text">${props.explicacao || props.feedback_v || 'Veja a dica abaixo.'}</p>
                     
                     <!-- Stats for Nerds (Hidden by default until revealed) -->
                     <div class="scaffolding-stats-container" style="margin-top:16px; padding-top:16px; border-top:1px dashed var(--color-border); font-size:0.85em; color:var(--color-text-secondary);">
                          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                            <span>🎯 Precisão do Passo: <strong class="stat-score">${props.resultadoPasso ? (props.resultadoPasso * 100).toFixed(0) + "%" : "-"}</strong></span>
-                            <span>🧠 Confiança: <strong class="stat-confidence">${props.taxaDeCerteza ? (props.taxaDeCerteza * 100).toFixed(0) + "%" : "-"}</strong></span>
+                            <span>🎯 Precisão do Passo: <strong class="stat-score">${props.resultadoPasso ? (props.resultadoPasso * 100).toFixed(0) + '%' : '-'}</strong></span>
+                            <span>🧠 Confiança: <strong class="stat-confidence">${props.taxaDeCerteza ? (props.taxaDeCerteza * 100).toFixed(0) + '%' : '-'}</strong></span>
                          </div>
                          <div style="display:flex; justify-content:space-between;">
-                            <span>⏱️ Tempo: <strong class="stat-time">${props.tempoGasto ? props.tempoGasto + "s" : "-"}</strong></span>
-                            <span>📈 Proficiência: <strong class="stat-proficiency">${props.proficiencia ? (props.proficiencia * 100).toFixed(0) + "%" : "-"}</strong></span>
+                            <span>⏱️ Tempo: <strong class="stat-time">${props.tempoGasto ? props.tempoGasto + 's' : '-'}</strong></span>
+                            <span>📈 Proficiência: <strong class="stat-proficiency">${props.proficiencia ? (props.proficiencia * 100).toFixed(0) + '%' : '-'}</strong></span>
                          </div>
                     </div>
                 </div>
@@ -4737,13 +5025,13 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
             </div>
 
             <div class="passoButton">
-                ${stepNumber > 1 ? `<button class="backPassoButton" style="background:transparent; border:1px solid var(--color-border); color:var(--color-text);">↩ Voltar</button>` : ""}
+                ${stepNumber > 1 ? `<button class="backPassoButton" style="background:transparent; border:1px solid var(--color-border); color:var(--color-text);">↩ Voltar</button>` : ''}
                 <button class="nextPassoButton" style="display:none; background:transparent; border:1px solid var(--color-border); color:var(--color-text); margin-right: 8px;">Avançar ↪</button>
                 
                 ${
                   props.dica
                     ? `<button class="hintPassoButton" style="background:transparent; border:1px solid var(--color-warning); color:var(--color-warning); margin-right: 8px;">💡 Dica</button>`
-                    : ""
+                    : ''
                 }
 
                 <button class="newPassoButton">Não sei</button>
@@ -4756,7 +5044,7 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
                 ? `<div class="dica-container" style="display:none; margin-top: 15px; padding: 10px; background: rgba(255, 193, 7, 0.1); border-left: 3px solid var(--color-warning); color: var(--color-text-secondary); font-size: 0.9em;">
                      <strong>💡 Dica:</strong> ${props.dica}
                    </div>`
-                : ""
+                : ''
             }
         </div>
     `;
@@ -4766,38 +5054,31 @@ function renderScaffoldingSlideContent(pergunta, props, stepNumber) {
  * Lógica Central do Componente de Scaffolding (State Machine)
  */
 async function initializeScaffoldingComponent(containerElement, initialProps) {
-  const slidesWrapper = containerElement.querySelector(
-    ".scaffolding-slides-wrapper",
-  );
+  const slidesWrapper = containerElement.querySelector('.scaffolding-slides-wrapper');
 
   // [PERSISTENCE] Restore State
   const savedState = initialProps.savedState || {};
   let currentStepIndex = savedState.currentStepIndex || 1;
-  let stepHistory = savedState.stepHistory || []; // { contexto: {pergunta, explicacao}, stats: {acertou, proficiencia...} }
-  let accumulatedStats = savedState.accumulatedStats || []; // Para cálculo de médias
+  const stepHistory = savedState.stepHistory || []; // { contexto: {pergunta, explicacao}, stats: {acertou, proficiencia...} }
+  const accumulatedStats = savedState.accumulatedStats || []; // Para cálculo de médias
 
   // [PERSISTENCE] Helper to Save State
   const saveState = async () => {
-    if (
-      !initialProps.chatId ||
-      initialProps.msgIndex === undefined ||
-      isNaN(initialProps.msgIndex)
-    )
+    if (!initialProps.chatId || initialProps.msgIndex === undefined || isNaN(initialProps.msgIndex))
       return;
 
     try {
-      const { ChatStorageService } =
-        await import("../services/chat-storage.js");
+      const { ChatStorageService } = await import('../services/chat-storage.js');
       const chat = await ChatStorageService.getChat(initialProps.chatId);
 
       if (chat && chat.messages && chat.messages[initialProps.msgIndex]) {
-        let msgContent = chat.messages[initialProps.msgIndex].content;
+        const msgContent = chat.messages[initialProps.msgIndex].content;
 
         // Traverse to find scaffolding block
         let scaffoldingBlock = null;
 
         // 1. Check Root (Legacy/Simple)
-        if (msgContent.tipo === "scaffolding") {
+        if (msgContent.tipo === 'scaffolding') {
           scaffoldingBlock = msgContent;
         }
         // 2. Check Sections (New Schema)
@@ -4805,9 +5086,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
           for (const section of msgContent.sections) {
             // Check direct content
             if (section.conteudo && Array.isArray(section.conteudo)) {
-              const found = section.conteudo.find(
-                (b) => b.tipo === "scaffolding",
-              );
+              const found = section.conteudo.find((b) => b.tipo === 'scaffolding');
               if (found) {
                 scaffoldingBlock = found;
                 break;
@@ -4816,9 +5095,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             // Check slots
             if (section.slots) {
               for (const key in section.slots) {
-                const found = section.slots[key]?.find(
-                  (b) => b.tipo === "scaffolding",
-                );
+                const found = section.slots[key]?.find((b) => b.tipo === 'scaffolding');
                 if (found) {
                   scaffoldingBlock = found;
                   break;
@@ -4844,49 +5121,55 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             return {
               step_number: idx + 1,
               statement: step.contexto?.pergunta,
-              correct_answer: step.stats?.extremidadeCorreta === 100 ? "Verdadeiro" : "Falso",
-              step_generator_model: step.simulation?.modelo_passo || "models/gemini-3.5-flash",
+              correct_answer: step.stats?.extremidadeCorreta === 100 ? 'Verdadeiro' : 'Falso',
+              step_generator_model: step.simulation?.modelo_passo || 'models/gemini-3.5-flash',
               step_generation_time_ms: step.simulation?.tempo_geracao_passo_ms || null,
-              simulation_detail: (step.simulation && step.simulation.persona_used) ? {
-                persona: step.simulation.persona_used,
-                simulator_model: step.simulation.modelo_simulador,
-                simulated_answer: step.simulation.resposta_simulada,
-                simulated_certainty: step.simulation.certeza_simulada,
-                simulated_time: step.stats?.tempoGasto,
-                simulated_thought: step.simulation.pensamento_simulado,
-                response_generation_time_ms: step.simulation.tempo_geracao_resposta_ms || null
-              } : null,
+              simulation_detail:
+                step.simulation && step.simulation.persona_used
+                  ? {
+                      persona: step.simulation.persona_used,
+                      simulator_model: step.simulation.modelo_simulador,
+                      simulated_answer: step.simulation.resposta_simulada,
+                      simulated_certainty: step.simulation.certeza_simulada,
+                      simulated_time: step.stats?.tempoGasto,
+                      simulated_thought: step.simulation.pensamento_simulado,
+                      response_generation_time_ms:
+                        step.simulation.tempo_geracao_resposta_ms || null,
+                    }
+                  : null,
               evaluation: {
                 acertou: step.stats?.acertou,
                 score: step.stats?.resultadoPasso,
                 certainty: step.stats?.taxaDeCerteza,
                 time_weight: step.stats?.pesoTempo,
-                proficiency_after_step: step.stats?.proficiencia
-              }
+                proficiency_after_step: step.stats?.proficiencia,
+              },
             };
           });
 
           msgContent._debugLog = msgContent._debugLog || {};
           msgContent._debugLog.scaffolding_simulation = {
-            persona_profile: window.__currentSimulation?.selectedPersona || "manual",
+            persona_profile: window.__currentSimulation?.selectedPersona || 'manual',
             final_proficiency: stepHistory[stepHistory.length - 1]?.stats?.proficiencia || 0,
             total_steps: stepHistory.length,
-            steps: simSteps
+            steps: simSteps,
           };
 
           // Also update the global in-memory debug log so they can download it directly without refresh
-          const existingGlobalLog = window.chatDebugLogs.find(l => l.msgIndex === initialProps.msgIndex);
+          const existingGlobalLog = window.chatDebugLogs.find(
+            (l) => l.msgIndex === initialProps.msgIndex,
+          );
           if (existingGlobalLog) {
             existingGlobalLog.scaffolding_simulation = msgContent._debugLog.scaffolding_simulation;
           }
 
           chat.updatedAt = Date.now();
           await ChatStorageService.saveChat(chat);
-          console.log("[Scaffolding] Estado salvo:", currentStepIndex);
+          console.log('[Scaffolding] Estado salvo:', currentStepIndex);
         }
       }
     } catch (e) {
-      console.error("[Scaffolding] Erro ao salvar estado:", e);
+      console.error('[Scaffolding] Erro ao salvar estado:', e);
     }
   };
 
@@ -4895,12 +5178,10 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
   if (stepHistory.length > 0) {
     // Hide Step 1 if we are ahead
     if (currentStepIndex > 1) {
-      const slide1 = slidesWrapper.querySelector(
-        '.scaffolding-slide[data-step="1"]',
-      );
+      const slide1 = slidesWrapper.querySelector('.scaffolding-slide[data-step="1"]');
       if (slide1) {
-        slide1.classList.remove("active-slide");
-        slide1.style.display = "none";
+        slide1.classList.remove('active-slide');
+        slide1.style.display = 'none';
       }
     }
 
@@ -4908,20 +5189,20 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
   }
 
   // Initialize `slidesData` with Step 1
-  let slidesData = [
+  const slidesData = [
     {
       step: 1,
       content:
         initialProps.enunciado ||
         initialProps.question ||
         initialProps.conteudo ||
-        "Conteúdo indisponível",
+        'Conteúdo indisponível',
       props: initialProps,
     },
   ];
 
   // Initialize `htmlSnapshots` from saved state
-  let htmlSnapshots = savedState.htmlSnapshots || [];
+  const htmlSnapshots = savedState.htmlSnapshots || [];
 
   // Flag global: Se o scaffolding foi concluído (último step tem status: "concluido")
   // Quando true, bloqueia interação em todos passos e mostra tela final
@@ -4935,17 +5216,11 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
   // [SEMPRE] Verificar scaffoldingSteps para detectar status "concluido" e reconstruir estado
   // Precisa rodar SEMPRE que há chatId, não apenas quando stepHistory está vazio
   if (initialProps.chatId) {
-    console.log(
-      "[Scaffolding] Verificando scaffoldingSteps do chat:",
-      initialProps.chatId,
-    );
+    console.log('[Scaffolding] Verificando scaffoldingSteps do chat:', initialProps.chatId);
 
     try {
-      const { ChatStorageService } =
-        await import("../services/chat-storage.js");
-      const savedSteps = await ChatStorageService.getScaffoldingSteps(
-        initialProps.chatId,
-      );
+      const { ChatStorageService } = await import('../services/chat-storage.js');
+      const savedSteps = await ChatStorageService.getScaffoldingSteps(initialProps.chatId);
 
       if (savedSteps && savedSteps.length > 0) {
         console.log(
@@ -4954,7 +5229,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
         // Verificar se o último passo salvo é de finalização (PRIMEIRO)
         const lastSavedStep = savedSteps[savedSteps.length - 1];
-        const isLastStepFinalization = lastSavedStep?.status === "concluido";
+        const isLastStepFinalization = lastSavedStep?.status === 'concluido';
 
         console.log(
           `[Scaffolding] Último passo status: "${lastSavedStep?.status}", isFinalization: ${isLastStepFinalization}`,
@@ -4965,16 +5240,12 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
           isScaffoldingCompleted = true;
           currentStepIndex = savedSteps.length;
 
-          console.log(
-            "[Scaffolding] ✅ SCAFFOLDING CONCLUÍDO - Mostrando tela final",
-          );
+          console.log('[Scaffolding] ✅ SCAFFOLDING CONCLUÍDO - Mostrando tela final');
         }
 
         // Só reconstruir stepHistory e slidesData se estiverem vazios
         if (stepHistory.length === 0) {
-          console.log(
-            "[Scaffolding] Reconstruindo stepHistory e slidesData...",
-          );
+          console.log('[Scaffolding] Reconstruindo stepHistory e slidesData...');
 
           let lastAnsweredIndex = -1;
           let hasNextStepPending = false;
@@ -4988,7 +5259,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             if (stepData.resultado) {
               stepHistory.push(stepData.resultado);
               lastAnsweredIndex = index;
-            } else if (stepData.status !== "concluido") {
+            } else if (stepData.status !== 'concluido') {
               // Há um passo não respondido (ignora o de finalização)
               hasNextStepPending = true;
             }
@@ -4997,13 +5268,11 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             const existing = slidesData.find((s) => s.step === stepNum);
             if (existing) {
               existing.props = { ...existing.props, ...stepData };
-              existing.content =
-                stepData.enunciado || stepData.pergunta || stepData.conteudo;
+              existing.content = stepData.enunciado || stepData.pergunta || stepData.conteudo;
             } else {
               slidesData.push({
                 step: stepNum,
-                content:
-                  stepData.enunciado || stepData.pergunta || stepData.conteudo,
+                content: stepData.enunciado || stepData.pergunta || stepData.conteudo,
                 props: stepData,
               });
             }
@@ -5016,7 +5285,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
           // Verificar se o último passo salvo é de finalização
           const lastSavedStep = savedSteps[savedSteps.length - 1];
-          const isLastStepFinalization = lastSavedStep?.status === "concluido";
+          const isLastStepFinalization = lastSavedStep?.status === 'concluido';
 
           if (isLastStepFinalization) {
             // SCAFFOLDING CONCLUÍDO - Bloqueia tudo e mostra tela final
@@ -5029,16 +5298,12 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         // [IMPORTANTE] Adicionar passo de finalização ao slidesData - FORA do bloco stepHistory
         // Isso garante que o passo de finalização esteja disponível mesmo quando há savedState
         if (isScaffoldingCompleted && lastSavedStep) {
-          const existingFinal = slidesData.find(
-            (s) => s.props?.status === "concluido",
-          );
+          const existingFinal = slidesData.find((s) => s.props?.status === 'concluido');
           if (!existingFinal) {
-            console.log(
-              "[Scaffolding] Adicionando passo de finalização ao slidesData",
-            );
+            console.log('[Scaffolding] Adicionando passo de finalização ao slidesData');
             slidesData.push({
               step: savedSteps.length,
-              content: lastSavedStep.enunciado || "Treinamento Concluído",
+              content: lastSavedStep.enunciado || 'Treinamento Concluído',
               props: lastSavedStep,
             });
           }
@@ -5049,13 +5314,13 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         );
       }
     } catch (e) {
-      console.warn("[Scaffolding] Erro ao recuperar scaffoldingSteps:", e);
+      console.warn('[Scaffolding] Erro ao recuperar scaffoldingSteps:', e);
     }
   }
 
   // [MIGRATION] If snapshots are missing but history exists, generate them (Fix for Old Chats)
   if (htmlSnapshots.length === 0 && stepHistory.length > 0) {
-    console.log("[Scaffolding] Migrando histórico para Snapshots HTML...");
+    console.log('[Scaffolding] Migrando histórico para Snapshots HTML...');
 
     stepHistory.forEach((item, index) => {
       // Create a props object for the static render
@@ -5063,14 +5328,14 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         enunciado: item.contexto?.pergunta,
         explicacao: item.contexto?.explicacao,
         raciocinio_adaptativo: item.contexto?.raciocinio,
-        status: "respondido", // Internal status for visual logic
+        status: 'respondido', // Internal status for visual logic
         didSucceed: item.stats?.acertou,
-        resposta_correta: item.stats?.acertou === true ? "Verdadeiro" : "Falso", // Approximate if missing
+        resposta_correta: item.stats?.acertou === true ? 'Verdadeiro' : 'Falso', // Approximate if missing
         ...item.stats,
       };
 
       const stepNum = index + 1;
-      const content = item.contexto?.pergunta || "Questão recuperada";
+      const content = item.contexto?.pergunta || 'Questão recuperada';
       const existing = slidesData.find((s) => s.step === stepNum);
       if (existing) {
         existing.content = content;
@@ -5083,70 +5348,65 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         });
       }
 
-      const html = renderScaffoldingSlideContent(
-        staticProps.enunciado,
-        staticProps,
-        index + 1,
-      );
+      const html = renderScaffoldingSlideContent(staticProps.enunciado, staticProps, index + 1);
 
       // We need to inject the "Answered State" into this HTML string because renderScaffoldingSlideContent
       // returns the "Clean" state.
       // Easiest way: Render it, then manipulate a temporary DOM to apply the "Answered" look, then save HTML.
-      const tempDiv = document.createElement("div");
+      const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
 
       // Obter dados completos do passo salvo (se disponível via scaffoldingSteps)
-      const fullStepData =
-        slidesData.find((s) => s.step === index + 1)?.props || {};
+      const fullStepData = slidesData.find((s) => s.step === index + 1)?.props || {};
       const savedUserAnswer = fullStepData.userAnswer ?? item.userAnswer ?? 50;
       const savedStats = fullStepData.resultado?.stats || item.stats || {};
 
       // Apply "Answered" transformations directly to DOM
-      const guessRange = tempDiv.querySelector(".guessRange");
-      const submitBtn = tempDiv.querySelector(".submit-step-btn");
-      const unknownBtn = tempDiv.querySelector(".newPassoButton");
-      const hintBtn = tempDiv.querySelector(".hintPassoButton");
-      const explanationDiv = tempDiv.querySelector(".explicacao");
-      const resultHeader = tempDiv.querySelector(".result-header");
-      const dicaContainer = tempDiv.querySelector(".dica-container");
-      const inputWrapper = tempDiv.querySelector(".input-area-wrapper");
-      const backBtn = tempDiv.querySelector(".backPassoButton");
-      const nextBtn = tempDiv.querySelector(".nextPassoButton");
+      const guessRange = tempDiv.querySelector('.guessRange');
+      const submitBtn = tempDiv.querySelector('.submit-step-btn');
+      const unknownBtn = tempDiv.querySelector('.newPassoButton');
+      const hintBtn = tempDiv.querySelector('.hintPassoButton');
+      const explanationDiv = tempDiv.querySelector('.explicacao');
+      const resultHeader = tempDiv.querySelector('.result-header');
+      const dicaContainer = tempDiv.querySelector('.dica-container');
+      const inputWrapper = tempDiv.querySelector('.input-area-wrapper');
+      const backBtn = tempDiv.querySelector('.backPassoButton');
+      const nextBtn = tempDiv.querySelector('.nextPassoButton');
 
       // 1. Restaurar valor do range e desabilitar
       if (guessRange) {
-        guessRange.setAttribute("disabled", "true");
+        guessRange.setAttribute('disabled', 'true');
         guessRange.value = savedUserAnswer !== -1 ? savedUserAnswer : 50;
 
         // Atualizar visuals do range baseado no valor
-        const valueLabel = tempDiv.querySelector(".range-value-label");
+        const valueLabel = tempDiv.querySelector('.range-value-label');
         if (valueLabel) {
           const val = parseInt(savedUserAnswer);
           if (val === -1 || val === 50) {
-            valueLabel.innerText = "Não sei";
+            valueLabel.innerText = 'Não sei';
           } else if (val < 40) {
             valueLabel.innerText = `FALSO (${100 - val}% certeza)`;
           } else if (val > 60) {
             valueLabel.innerText = `VERDADEIRO (${val}% certeza)`;
           } else {
-            valueLabel.innerText = "Indeciso";
+            valueLabel.innerText = 'Indeciso';
           }
         }
       }
 
       // 2. Ocultar botões de interação (só deixa voltar/avançar)
       if (submitBtn) {
-        submitBtn.style.display = "none";
-        submitBtn.innerText = "Confirmar"; // Reset para evitar "Processando..."
+        submitBtn.style.display = 'none';
+        submitBtn.innerText = 'Confirmar'; // Reset para evitar "Processando..."
       }
-      if (unknownBtn) unknownBtn.style.display = "none";
-      if (hintBtn) hintBtn.style.display = "none";
-      if (dicaContainer) dicaContainer.style.display = "none";
-      if (inputWrapper) inputWrapper.style.opacity = "0.6";
+      if (unknownBtn) unknownBtn.style.display = 'none';
+      if (hintBtn) hintBtn.style.display = 'none';
+      if (dicaContainer) dicaContainer.style.display = 'none';
+      if (inputWrapper) inputWrapper.style.opacity = '0.6';
 
       // 3. Mostrar botão de voltar (exceto no step 1)
       if (backBtn) {
-        backBtn.style.display = index > 0 ? "inline-block" : "none";
+        backBtn.style.display = index > 0 ? 'inline-block' : 'none';
       }
 
       // 4. Mostrar botão de avançar (se há próximo passo OU tela de finalização)
@@ -5155,29 +5415,28 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         const canAdvance =
           index < stepHistory.length - 1 ||
           (isScaffoldingCompleted && index === stepHistory.length - 1);
-        nextBtn.style.display = canAdvance ? "inline-block" : "none";
+        nextBtn.style.display = canAdvance ? 'inline-block' : 'none';
       }
 
       // 5. Mostrar explicação e resultado
       const acertou = savedStats.acertou ?? item.stats?.acertou;
       if (explanationDiv) {
-        explanationDiv.style.display = "block";
+        explanationDiv.style.display = 'block';
         if (resultHeader) {
           resultHeader.innerHTML = acertou
             ? `<span style="color:var(--color-success)">✓ Correto!</span>`
             : `<span style="color:var(--color-error)">✗ Incorreto</span>`;
         }
         // Explanation text
-        const explText = tempDiv.querySelector(".explanation-text");
-        if (explText && item.contexto?.explicacao)
-          explText.innerHTML = item.contexto.explicacao;
+        const explText = tempDiv.querySelector('.explanation-text');
+        if (explText && item.contexto?.explicacao) explText.innerHTML = item.contexto.explicacao;
       }
 
       // 6. Atualizar stats no display
-      const statScoreEl = tempDiv.querySelector(".stat-score");
-      const statConfEl = tempDiv.querySelector(".stat-confidence");
-      const statTimeEl = tempDiv.querySelector(".stat-time");
-      const statProfEl = tempDiv.querySelector(".stat-proficiency");
+      const statScoreEl = tempDiv.querySelector('.stat-score');
+      const statConfEl = tempDiv.querySelector('.stat-confidence');
+      const statTimeEl = tempDiv.querySelector('.stat-time');
+      const statProfEl = tempDiv.querySelector('.stat-proficiency');
 
       if (statScoreEl && savedStats.resultadoPasso !== undefined)
         statScoreEl.innerText = `${(savedStats.resultadoPasso * 100).toFixed(0)}%`;
@@ -5197,21 +5456,19 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
   }
 
   // [FINALIZATION] Verificar se há um passo de finalização em slidesData que ainda não foi renderizado
-  const finalizationStep = slidesData.find(
-    (s) => s.props?.status === "concluido",
-  );
+  const finalizationStep = slidesData.find((s) => s.props?.status === 'concluido');
   if (finalizationStep && htmlSnapshots.length < finalizationStep.step) {
-    console.log("[Scaffolding] Gerando snapshot para tela de finalização...");
+    console.log('[Scaffolding] Gerando snapshot para tela de finalização...');
 
     const finalizationHtml = renderScaffoldingSlideContent(
-      finalizationStep.content || "Treinamento Concluído",
+      finalizationStep.content || 'Treinamento Concluído',
       finalizationStep.props,
       finalizationStep.step,
     );
 
     // Preencher gaps se necessário
     while (htmlSnapshots.length < finalizationStep.step - 1) {
-      htmlSnapshots.push(""); // Gap placeholder
+      htmlSnapshots.push(''); // Gap placeholder
     }
     htmlSnapshots.push(finalizationHtml);
 
@@ -5227,31 +5484,31 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     const lastSnapshot = htmlSnapshots[htmlSnapshots.length - 1];
     if (
       lastSnapshot &&
-      lastSnapshot.includes("finishButton") &&
-      !lastSnapshot.includes("backPassoButton")
+      lastSnapshot.includes('finishButton') &&
+      !lastSnapshot.includes('backPassoButton')
     ) {
       console.log(
-        "[Scaffolding] Removendo snapshot antigo da tela final para regenerar com botão voltar",
+        '[Scaffolding] Removendo snapshot antigo da tela final para regenerar com botão voltar',
       );
       htmlSnapshots.pop();
     }
   }
 
   htmlSnapshots.forEach((snapshotHtml, index) => {
-    const slideDiv = document.createElement("div");
-    slideDiv.className = "scaffolding-slide";
+    const slideDiv = document.createElement('div');
+    slideDiv.className = 'scaffolding-slide';
     slideDiv.dataset.step = index + 1;
     slideDiv.innerHTML = snapshotHtml;
 
     // [FIX] Limpar atributos data-listener-added que foram salvos no snapshot
     // Os listeners são perdidos quando o HTML é serializado/restaurado,
     // então precisamos removê-los para que sejam readicionados
-    slideDiv.querySelectorAll("[data-listener-added]").forEach((el) => {
+    slideDiv.querySelectorAll('[data-listener-added]').forEach((el) => {
       delete el.dataset.listenerAdded;
     });
 
     // Ocultar todos inicialmente
-    slideDiv.style.display = "none";
+    slideDiv.style.display = 'none';
 
     slidesWrapper.appendChild(slideDiv);
   });
@@ -5261,9 +5518,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
   // devemos mostrar a tela final (ou o último passo com status "concluido")
   const allStepsCompleted =
     stepHistory.length > 0 &&
-    stepHistory.some(
-      (h) => h.status === "concluido" || h.contexto?.status === "concluido",
-    );
+    stepHistory.some((h) => h.status === 'concluido' || h.contexto?.status === 'concluido');
 
   // Se savedState tem um step final, usamos ele
   const lastAnsweredStep = htmlSnapshots.length;
@@ -5279,9 +5534,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     targetStepToShow = currentStepIndex;
 
     // Buscar dados do passo de finalização em slidesData
-    const finalizationData = slidesData.find(
-      (s) => s.props?.status === "concluido",
-    );
+    const finalizationData = slidesData.find((s) => s.props?.status === 'concluido');
 
     // [FIX] Verificar se a tela de finalização JÁ existe (veio de um snapshot)
     const existingFinalizationSlide = slidesWrapper.querySelector(
@@ -5289,8 +5542,8 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     );
 
     if (finalizationData && !existingFinalizationSlide) {
-      const newSlideDiv = document.createElement("div");
-      newSlideDiv.className = "scaffolding-slide";
+      const newSlideDiv = document.createElement('div');
+      newSlideDiv.className = 'scaffolding-slide';
       newSlideDiv.dataset.step = finalizationData.step;
       newSlideDiv.innerHTML = renderScaffoldingSlideContent(
         finalizationData.content,
@@ -5298,14 +5551,14 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         finalizationData.step,
       );
       slidesWrapper.appendChild(newSlideDiv);
-      console.log("[Scaffolding] Tela de finalização renderizada");
+      console.log('[Scaffolding] Tela de finalização renderizada');
     }
   } else if (currentStepIndex > htmlSnapshots.length) {
     // Há um novo passo dinâmico a ser gerado/mostrado
     targetStepToShow = currentStepIndex;
 
-    const newSlideDiv = document.createElement("div");
-    newSlideDiv.className = "scaffolding-slide";
+    const newSlideDiv = document.createElement('div');
+    newSlideDiv.className = 'scaffolding-slide';
     newSlideDiv.dataset.step = currentStepIndex;
     newSlideDiv.innerHTML = renderScaffoldingSlideContent(
       initialProps.enunciado || initialProps.question,
@@ -5323,20 +5576,19 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     `.scaffolding-slide[data-step="${targetStepToShow}"]`,
   );
   if (targetSlide) {
-    targetSlide.classList.add("active-slide");
-    targetSlide.style.display = "block";
+    targetSlide.classList.add('active-slide');
+    targetSlide.style.display = 'block';
   }
 
   // Detectar o total de slides renderizados
-  const totalSlidesRendered =
-    slidesWrapper.querySelectorAll(".scaffolding-slide").length;
+  const totalSlidesRendered = slidesWrapper.querySelectorAll('.scaffolding-slide').length;
 
   // 4. Configurar interações em TODOS os slides (para navegação funcionar)
-  const allSlides = slidesWrapper.querySelectorAll(".scaffolding-slide");
+  const allSlides = slidesWrapper.querySelectorAll('.scaffolding-slide');
   allSlides.forEach((slideEl) => {
     const stepNum = parseInt(slideEl.dataset.step);
     const slideData = slidesData.find((s) => s.step === stepNum);
-    const isFinalizationSlide = slideEl.querySelector(".finishButton") !== null;
+    const isFinalizationSlide = slideEl.querySelector('.finishButton') !== null;
 
     // Se scaffolding está CONCLUÍDO, bloqueia TODOS os passos (exceto o de finalização)
     // NÃO permite soft exit quando concluído
@@ -5347,24 +5599,24 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       isAnsweredSlide = !isFinalizationSlide;
 
       // Limpar botões com texto "Processando..." de snapshots antigos
-      const submitBtnInSlide = slideEl.querySelector(".submit-step-btn");
+      const submitBtnInSlide = slideEl.querySelector('.submit-step-btn');
       if (submitBtnInSlide) {
-        submitBtnInSlide.style.display = "none";
-        if (submitBtnInSlide.innerText.includes("Processando")) {
-          submitBtnInSlide.innerText = "Confirmar";
+        submitBtnInSlide.style.display = 'none';
+        if (submitBtnInSlide.innerText.includes('Processando')) {
+          submitBtnInSlide.innerText = 'Confirmar';
         }
       }
 
       // Garantir que botões de navegação existam e funcionem
-      const nextBtnInSlide = slideEl.querySelector(".nextPassoButton");
-      const backBtnInSlide = slideEl.querySelector(".backPassoButton");
+      const nextBtnInSlide = slideEl.querySelector('.nextPassoButton');
+      const backBtnInSlide = slideEl.querySelector('.backPassoButton');
 
       // O último passo de história deve poder avançar para a tela final
       if (nextBtnInSlide && !isFinalizationSlide) {
-        nextBtnInSlide.style.display = "inline-block";
+        nextBtnInSlide.style.display = 'inline-block';
       }
       if (backBtnInSlide && stepNum > 1) {
-        backBtnInSlide.style.display = "inline-block";
+        backBtnInSlide.style.display = 'inline-block';
       }
     } else {
       // SOFT EXIT: Se é o último passo e NÃO é tela de finalização,
@@ -5390,7 +5642,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       if (!savedState.htmlSnapshots) savedState.htmlSnapshots = [];
       const idx = stepNum - 1;
       if (savedState.htmlSnapshots.length <= idx) {
-        console.log("[Scaffolding] Salvando snapshot da Tela Final.");
+        console.log('[Scaffolding] Salvando snapshot da Tela Final.');
         savedState.htmlSnapshots[idx] = finalHtml;
         saveState();
       }
@@ -5403,21 +5655,17 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
    * @param {Object} stepProps - Propriedades do passo
    * @param {boolean} isAnsweredSlide - Se o slide já foi respondido (só configura navegação)
    */
-  function setupSlideInteractions(
-    slideElement,
-    stepProps,
-    isAnsweredSlide = false,
-  ) {
+  function setupSlideInteractions(slideElement, stepProps, isAnsweredSlide = false) {
     if (!slideElement) return;
 
     // Button listeners (Back/Next/Hint)
-    const backBtn = slideElement.querySelector(".backPassoButton");
-    const nextBtn = slideElement.querySelector(".nextPassoButton");
+    const backBtn = slideElement.querySelector('.backPassoButton');
+    const nextBtn = slideElement.querySelector('.nextPassoButton');
 
     // Configura navegação (funciona para todos slides)
     if (backBtn && !backBtn.dataset.listenerAdded) {
-      backBtn.dataset.listenerAdded = "true";
-      backBtn.addEventListener("click", () => {
+      backBtn.dataset.listenerAdded = 'true';
+      backBtn.addEventListener('click', () => {
         // Go to previous step
         const prevStep = parseInt(slideElement.dataset.step) - 1;
         if (prevStep < 1) return;
@@ -5426,8 +5674,8 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     }
 
     if (nextBtn && !nextBtn.dataset.listenerAdded) {
-      nextBtn.dataset.listenerAdded = "true";
-      nextBtn.addEventListener("click", () => {
+      nextBtn.dataset.listenerAdded = 'true';
+      nextBtn.addEventListener('click', () => {
         const currentStep = parseInt(slideElement.dataset.step);
         const nextStep = currentStep + 1;
         changeSlide(nextStep);
@@ -5436,37 +5684,36 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
     /* Helper to switch slides */
     function changeSlide(targetStep) {
-      const slides = slidesWrapper.querySelectorAll(".scaffolding-slide");
+      const slides = slidesWrapper.querySelectorAll('.scaffolding-slide');
       slides.forEach((s) => {
-        s.style.display = "none";
-        s.classList.remove("active-slide");
+        s.style.display = 'none';
+        s.classList.remove('active-slide');
         if (parseInt(s.dataset.step) === targetStep) {
-          s.style.display = "block";
-          s.classList.add("active-slide");
+          s.style.display = 'block';
+          s.classList.add('active-slide');
         }
       });
     }
 
     // Se for slide de finalização, configura botões de sair e voltar
-    if (slideElement.querySelector(".finishButton")) {
-      const finishBtn = slideElement.querySelector(".finishButton");
+    if (slideElement.querySelector('.finishButton')) {
+      const finishBtn = slideElement.querySelector('.finishButton');
       if (!finishBtn.dataset.listenerAdded) {
-        finishBtn.dataset.listenerAdded = "true";
-        finishBtn.addEventListener("click", () => {
+        finishBtn.dataset.listenerAdded = 'true';
+        finishBtn.addEventListener('click', () => {
           // Scroll para a questão principal se existir, ou finish action
           const questionBlock = document.querySelector(
-            ".chat-question-placeholder, .chat-embedded-card",
+            '.chat-question-placeholder, .chat-embedded-card',
           );
-          if (questionBlock)
-            questionBlock.scrollIntoView({ behavior: "smooth" });
+          if (questionBlock) questionBlock.scrollIntoView({ behavior: 'smooth' });
         });
       }
 
       // [FIX] Configurar botão "Ver Passos Anteriores" na tela de finalização
-      const backBtnFinish = slideElement.querySelector(".backPassoButton");
+      const backBtnFinish = slideElement.querySelector('.backPassoButton');
       if (backBtnFinish && !backBtnFinish.dataset.listenerAdded) {
-        backBtnFinish.dataset.listenerAdded = "true";
-        backBtnFinish.addEventListener("click", () => {
+        backBtnFinish.dataset.listenerAdded = 'true';
+        backBtnFinish.addEventListener('click', () => {
           const prevStep = parseInt(slideElement.dataset.step) - 1;
           if (prevStep < 1) return;
           changeSlide(prevStep);
@@ -5478,62 +5725,60 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     // Se é slide já respondido, configura apenas a dica e sai (não reconfigura os outros controles)
     if (isAnsweredSlide) {
       // [FIX] Configurar botão de dica para slides já respondidos também
-      const hintBtnAnswered = slideElement.querySelector(".hintPassoButton");
-      const dicaContainerAnswered =
-        slideElement.querySelector(".dica-container");
-      if (
-        hintBtnAnswered &&
-        dicaContainerAnswered &&
-        !hintBtnAnswered.dataset.listenerAdded
-      ) {
-        hintBtnAnswered.dataset.listenerAdded = "true";
-        hintBtnAnswered.addEventListener("click", () => {
-          const isHidden = dicaContainerAnswered.style.display === "none";
-          dicaContainerAnswered.style.display = isHidden ? "block" : "none";
-          hintBtnAnswered.style.opacity = isHidden ? "1" : "0.7";
+      const hintBtnAnswered = slideElement.querySelector('.hintPassoButton');
+      const dicaContainerAnswered = slideElement.querySelector('.dica-container');
+      if (hintBtnAnswered && dicaContainerAnswered && !hintBtnAnswered.dataset.listenerAdded) {
+        hintBtnAnswered.dataset.listenerAdded = 'true';
+        hintBtnAnswered.addEventListener('click', () => {
+          const isHidden = dicaContainerAnswered.style.display === 'none';
+          dicaContainerAnswered.style.display = isHidden ? 'block' : 'none';
+          hintBtnAnswered.style.opacity = isHidden ? '1' : '0.7';
         });
       }
       return;
     }
 
-    const guessRange = slideElement.querySelector(".guessRange");
-    const submitBtn = slideElement.querySelector(".submit-step-btn");
-    const unknownBtn = slideElement.querySelector(".newPassoButton");
-    const explanationDiv = slideElement.querySelector(".explicacao");
-    const resultHeader = slideElement.querySelector(".result-header");
-    const inputWrapper = slideElement.querySelector(".input-area-wrapper");
+    const guessRange = slideElement.querySelector('.guessRange');
+    const submitBtn = slideElement.querySelector('.submit-step-btn');
+    const unknownBtn = slideElement.querySelector('.newPassoButton');
+    const explanationDiv = slideElement.querySelector('.explicacao');
+    const resultHeader = slideElement.querySelector('.result-header');
+    const inputWrapper = slideElement.querySelector('.input-area-wrapper');
 
-    const hintBtn = slideElement.querySelector(".hintPassoButton");
-    const dicaContainer = slideElement.querySelector(".dica-container");
-    const personaToggleBtn = slideElement.querySelector(".persona-toggle-btn");
+    const hintBtn = slideElement.querySelector('.hintPassoButton');
+    const dicaContainer = slideElement.querySelector('.dica-container');
+    const personaToggleBtn = slideElement.querySelector('.persona-toggle-btn');
 
     // Hide toggle button if slide is already answered
-    if (personaToggleBtn && (isAnsweredSlide || stepProps.status === "respondido" || stepProps.status === "concluido")) {
-      personaToggleBtn.style.display = "none";
+    if (
+      personaToggleBtn &&
+      (isAnsweredSlide || stepProps.status === 'respondido' || stepProps.status === 'concluido')
+    ) {
+      personaToggleBtn.style.display = 'none';
     }
 
     // Helper: Run simulation for this specific slide
     async function startSimulationForSlide(personaType) {
       let activePersona = personaType;
-      if (personaType === "aleatorio") {
-        const personas = ["avancado", "inseguro", "chutador"];
+      if (personaType === 'aleatorio') {
+        const personas = ['avancado', 'inseguro', 'chutador'];
         activePersona = personas[Math.floor(Math.random() * personas.length)];
       }
 
       // Create/show simulation panel
-      let simPanel = slideElement.querySelector(".simulation-panel");
+      let simPanel = slideElement.querySelector('.simulation-panel');
       if (!simPanel) {
-        simPanel = document.createElement("div");
-        simPanel.className = "simulation-panel";
-        simPanel.style.marginTop = "15px";
-        simPanel.style.borderTop = "1px solid var(--color-border)";
-        simPanel.style.paddingTop = "15px";
-        simPanel.style.background = "rgba(59, 130, 246, 0.05)";
-        simPanel.style.borderRadius = "8px";
-        simPanel.style.padding = "12px";
+        simPanel = document.createElement('div');
+        simPanel.className = 'simulation-panel';
+        simPanel.style.marginTop = '15px';
+        simPanel.style.borderTop = '1px solid var(--color-border)';
+        simPanel.style.paddingTop = '15px';
+        simPanel.style.background = 'rgba(59, 130, 246, 0.05)';
+        simPanel.style.borderRadius = '8px';
+        simPanel.style.padding = '12px';
         slideElement.appendChild(simPanel);
       }
-      simPanel.style.display = "block";
+      simPanel.style.display = 'block';
       simPanel.innerHTML = `
         <h4 style="margin:0 0 10px 0; color:var(--color-primary); display:flex; align-items:center; gap:6px; font-size: 0.9rem;">
             🤖 Simulação Autônoma: <span class="persona-badge ${activePersona}">${activePersona === 'avancado' ? '🚀 Avançado' : activePersona === 'inseguro' ? '😟 Inseguro' : '🎲 Chutador'}</span>
@@ -5544,9 +5789,9 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       `;
 
       const consoleLog = (msg) => {
-        const consoleEl = simPanel.querySelector(".simulation-console");
+        const consoleEl = simPanel.querySelector('.simulation-console');
         if (consoleEl) {
-          const div = document.createElement("div");
+          const div = document.createElement('div');
           div.innerText = msg;
           consoleEl.appendChild(div);
           consoleEl.scrollTop = consoleEl.scrollHeight;
@@ -5554,32 +5799,40 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       };
 
       // Hide other inputs
-      if (inputWrapper) inputWrapper.style.display = "none";
-      if (submitBtn) submitBtn.style.display = "none";
-      if (unknownBtn) unknownBtn.style.display = "none";
-      if (hintBtn) hintBtn.style.display = "none";
-      if (personaToggleBtn) personaToggleBtn.style.display = "none";
+      if (inputWrapper) inputWrapper.style.display = 'none';
+      if (submitBtn) submitBtn.style.display = 'none';
+      if (unknownBtn) unknownBtn.style.display = 'none';
+      if (hintBtn) hintBtn.style.display = 'none';
+      if (personaToggleBtn) personaToggleBtn.style.display = 'none';
 
       try {
-        const apiKey = sessionStorage.getItem("geminiApiKey");
-        const enunciado = stepProps.enunciado || stepProps.question || stepProps.conteudo || "";
-        const respostaCorreta = stepProps.resposta_correta || (stepProps.gabarito ? "Verdadeiro" : "Falso");
-        const dica = stepProps.dica || "";
+        const apiKey = sessionStorage.getItem('geminiApiKey');
+        const enunciado = stepProps.enunciado || stepProps.question || stepProps.conteudo || '';
+        const respostaCorreta =
+          stepProps.resposta_correta || (stepProps.gabarito ? 'Verdadeiro' : 'Falso');
+        const dica = stepProps.dica || '';
 
-        const simulationData = await generatePersonaSimulation(enunciado, respostaCorreta, dica, apiKey);
+        const simulationData = await generatePersonaSimulation(
+          enunciado,
+          respostaCorreta,
+          dica,
+          apiKey,
+        );
         const pData = simulationData[`aluno_${activePersona}`];
 
         consoleLog(`[Gemma 4] Simulação Concluída!`);
-        consoleLog(`[Gemma 4] Escolha: ${pData.resposta} | Certeza: ${pData.certeza}% | Tempo: ${pData.tempo_gasto}s`);
+        consoleLog(
+          `[Gemma 4] Escolha: ${pData.resposta} | Certeza: ${pData.certeza}% | Tempo: ${pData.tempo_gasto}s`,
+        );
         consoleLog(`[Pensamento] "${pData.pensamento}"`);
         consoleLog(`[Processando] Submetendo resposta...`);
 
         let guessValue = 50;
         const respLower = pData.resposta.toLowerCase();
-        if (respLower === "verdadeiro" || respLower === "verdado") {
-          guessValue = pData.certeza > 50 ? pData.certeza : 50 + (pData.certeza / 2);
-        } else if (respLower === "falso") {
-          guessValue = pData.certeza > 50 ? (100 - pData.certeza) : 50 - (pData.certeza / 2);
+        if (respLower === 'verdadeiro' || respLower === 'verdado') {
+          guessValue = pData.certeza > 50 ? pData.certeza : 50 + pData.certeza / 2;
+        } else if (respLower === 'falso') {
+          guessValue = pData.certeza > 50 ? 100 - pData.certeza : 50 - pData.certeza / 2;
         } else {
           guessValue = -1;
         }
@@ -5590,29 +5843,29 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             resposta: pData.resposta,
             certeza: pData.certeza,
             pensamento: pData.pensamento,
-            persona_model: "models/gemma-4-31b-it",
-            generation_time_ms: simulationData._meta?.generation_time_ms || null
+            persona_model: 'models/gemma-4-31b-it',
+            generation_time_ms: simulationData._meta?.generation_time_ms || null,
           });
         }, 1000);
       } catch (err) {
-        console.error("Erro ao simular persona:", err);
+        console.error('Erro ao simular persona:', err);
         consoleLog(`[Erro] Falha ao simular persona: ${err.message || err}`);
         consoleLog(`[Aviso] Retornando ao Modo Humano para inserir os valores manualmente...`);
-        
+
         setTimeout(() => {
-          simPanel.style.display = "none";
-          if (inputWrapper) inputWrapper.style.display = "block";
+          simPanel.style.display = 'none';
+          if (inputWrapper) inputWrapper.style.display = 'block';
           if (submitBtn) {
-            submitBtn.style.display = "inline-block";
-            submitBtn.removeAttribute("disabled");
-            submitBtn.innerText = "Confirmar";
+            submitBtn.style.display = 'inline-block';
+            submitBtn.removeAttribute('disabled');
+            submitBtn.innerText = 'Confirmar';
           }
-          if (unknownBtn) unknownBtn.style.display = "inline-block";
-          if (hintBtn && stepProps.dica) hintBtn.style.display = "inline-block";
+          if (unknownBtn) unknownBtn.style.display = 'inline-block';
+          if (hintBtn && stepProps.dica) hintBtn.style.display = 'inline-block';
           if (personaToggleBtn) {
-            personaToggleBtn.style.display = "inline-block";
-            personaToggleBtn.innerText = "👥 Simular Personas";
-            personaToggleBtn.classList.remove("active-persona");
+            personaToggleBtn.style.display = 'inline-block';
+            personaToggleBtn.innerText = '👥 Simular Personas';
+            personaToggleBtn.classList.remove('active-persona');
           }
           window.__currentSimulation = null;
         }, 3000);
@@ -5628,44 +5881,44 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
     // Manual Persona Toggle Button
     if (personaToggleBtn && !personaToggleBtn.dataset.listenerAdded) {
-      personaToggleBtn.dataset.listenerAdded = "true";
-      personaToggleBtn.addEventListener("click", () => {
-        let simPanel = slideElement.querySelector(".simulation-panel");
-        if (simPanel && simPanel.style.display !== "none") {
+      personaToggleBtn.dataset.listenerAdded = 'true';
+      personaToggleBtn.addEventListener('click', () => {
+        let simPanel = slideElement.querySelector('.simulation-panel');
+        if (simPanel && simPanel.style.display !== 'none') {
           // Hide panel and restore manual controls
-          simPanel.style.display = "none";
-          if (inputWrapper) inputWrapper.style.display = "block";
-          if (submitBtn) submitBtn.style.display = "inline-block";
-          if (unknownBtn) unknownBtn.style.display = "inline-block";
-          if (hintBtn && stepProps.dica) hintBtn.style.display = "inline-block";
-          personaToggleBtn.innerText = "👥 Simular Personas";
-          personaToggleBtn.classList.remove("active-persona");
-          personaToggleBtn.style.color = "";
-          personaToggleBtn.style.borderColor = "";
+          simPanel.style.display = 'none';
+          if (inputWrapper) inputWrapper.style.display = 'block';
+          if (submitBtn) submitBtn.style.display = 'inline-block';
+          if (unknownBtn) unknownBtn.style.display = 'inline-block';
+          if (hintBtn && stepProps.dica) hintBtn.style.display = 'inline-block';
+          personaToggleBtn.innerText = '👥 Simular Personas';
+          personaToggleBtn.classList.remove('active-persona');
+          personaToggleBtn.style.color = '';
+          personaToggleBtn.style.borderColor = '';
         } else {
           // Render selection dropdown
           if (!simPanel) {
-            simPanel = document.createElement("div");
-            simPanel.className = "simulation-panel";
-            simPanel.style.marginTop = "15px";
-            simPanel.style.borderTop = "1px solid var(--color-border)";
-            simPanel.style.paddingTop = "15px";
-            simPanel.style.background = "rgba(59, 130, 246, 0.05)";
-            simPanel.style.borderRadius = "8px";
-            simPanel.style.padding = "12px";
+            simPanel = document.createElement('div');
+            simPanel.className = 'simulation-panel';
+            simPanel.style.marginTop = '15px';
+            simPanel.style.borderTop = '1px solid var(--color-border)';
+            simPanel.style.paddingTop = '15px';
+            simPanel.style.background = 'rgba(59, 130, 246, 0.05)';
+            simPanel.style.borderRadius = '8px';
+            simPanel.style.padding = '12px';
             slideElement.appendChild(simPanel);
           }
-          simPanel.style.display = "block";
-          
-          personaToggleBtn.innerText = "👤 Modo Humano";
-          personaToggleBtn.classList.add("active-persona");
-          personaToggleBtn.style.color = "";
-          personaToggleBtn.style.borderColor = "";
-          
-          if (inputWrapper) inputWrapper.style.display = "none";
-          if (submitBtn) submitBtn.style.display = "none";
-          if (unknownBtn) unknownBtn.style.display = "none";
-          if (hintBtn) hintBtn.style.display = "none";
+          simPanel.style.display = 'block';
+
+          personaToggleBtn.innerText = '👤 Modo Humano';
+          personaToggleBtn.classList.add('active-persona');
+          personaToggleBtn.style.color = '';
+          personaToggleBtn.style.borderColor = '';
+
+          if (inputWrapper) inputWrapper.style.display = 'none';
+          if (submitBtn) submitBtn.style.display = 'none';
+          if (unknownBtn) unknownBtn.style.display = 'none';
+          if (hintBtn) hintBtn.style.display = 'none';
 
           simPanel.innerHTML = `
             <h4 style="margin:0 0 10px 0; color:var(--color-primary); font-size: 0.95rem;">👥 Simulação de Persona Gemma 4</h4>
@@ -5681,14 +5934,14 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
             <button class="btn btn--sm btn--primary start-sim-btn" style="width:100%;">Iniciar Simulação Autônoma ▶</button>
           `;
 
-          const selectEl = simPanel.querySelector(".persona-select");
-          const startBtn = simPanel.querySelector(".start-sim-btn");
-          
-          startBtn.addEventListener("click", () => {
+          const selectEl = simPanel.querySelector('.persona-select');
+          const startBtn = simPanel.querySelector('.start-sim-btn');
+
+          startBtn.addEventListener('click', () => {
             const persona = selectEl.value;
             window.__currentSimulation = {
               active: true,
-              selectedPersona: persona
+              selectedPersona: persona,
             };
             startSimulationForSlide(persona);
           });
@@ -5699,34 +5952,34 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     // [SOFT EXIT] Re-habilitar controles se estamos permitindo re-resposta
     // (Isso acontece quando o slide foi carregado de um snapshot mas é o último não-final)
     if (guessRange) {
-      guessRange.removeAttribute("disabled");
+      guessRange.removeAttribute('disabled');
     }
     if (submitBtn) {
-      submitBtn.style.display = "inline-block";
-      submitBtn.removeAttribute("disabled");
-      submitBtn.innerText = "Confirmar";
+      submitBtn.style.display = 'inline-block';
+      submitBtn.removeAttribute('disabled');
+      submitBtn.innerText = 'Confirmar';
     }
     if (unknownBtn) {
-      unknownBtn.style.display = "inline-block";
+      unknownBtn.style.display = 'inline-block';
     }
     if (hintBtn && stepProps.dica) {
-      hintBtn.style.display = "inline-block";
+      hintBtn.style.display = 'inline-block';
     }
     if (inputWrapper) {
-      inputWrapper.style.opacity = "1";
+      inputWrapper.style.opacity = '1';
     }
     // Ocultar a explicação anterior (vai ser re-mostrada ao responder novamente)
     if (explanationDiv) {
-      explanationDiv.style.display = "none";
+      explanationDiv.style.display = 'none';
     }
 
     // 1. Slider Logic (Visuals)
     function updateVisuals(value) {
       value = parseInt(value);
-      const falseLabel = slideElement.querySelector(".falseLabel");
-      const trueLabel = slideElement.querySelector(".trueLabel");
-      const valueLabel = slideElement.querySelector(".range-value-label");
-      const inputArea = slideElement.querySelector(".inputArea");
+      const falseLabel = slideElement.querySelector('.falseLabel');
+      const trueLabel = slideElement.querySelector('.trueLabel');
+      const valueLabel = slideElement.querySelector('.range-value-label');
+      const inputArea = slideElement.querySelector('.inputArea');
 
       if (!falseLabel) return; // Proteção
 
@@ -5736,33 +5989,33 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       trueLabel.style.transform = `scale(${trueFactor})`;
 
       if (value < 40) {
-        falseLabel.style.opacity = "1";
-        trueLabel.style.opacity = "0.5";
+        falseLabel.style.opacity = '1';
+        trueLabel.style.opacity = '0.5';
         valueLabel.innerText = `Acho que é FALSO (${100 - value}% de certeza)`;
         inputArea.style.borderColor = `rgba(192, 21, 47, ${0.2 + (50 - value) / 50})`;
       } else if (value > 60) {
-        trueLabel.style.opacity = "1";
-        falseLabel.style.opacity = "0.5";
+        trueLabel.style.opacity = '1';
+        falseLabel.style.opacity = '0.5';
         valueLabel.innerText = `Acho que é VERDADEIRO (${value}% de certeza)`;
         inputArea.style.borderColor = `rgba(33, 128, 141, ${0.2 + (value - 50) / 50})`;
       } else {
-        valueLabel.innerText = "Estou indeciso";
-        inputArea.style.borderColor = "var(--color-border)";
+        valueLabel.innerText = 'Estou indeciso';
+        inputArea.style.borderColor = 'var(--color-border)';
       }
     }
 
     if (guessRange) {
-      guessRange.addEventListener("input", (e) => updateVisuals(e.target.value));
+      guessRange.addEventListener('input', (e) => updateVisuals(e.target.value));
       updateVisuals(50); // Init
     }
 
     // Hint Logic
     if (hintBtn && dicaContainer && !hintBtn.dataset.listenerAdded) {
-      hintBtn.dataset.listenerAdded = "true";
-      hintBtn.addEventListener("click", () => {
-        const isHidden = dicaContainer.style.display === "none";
-        dicaContainer.style.display = isHidden ? "block" : "none";
-        hintBtn.style.opacity = isHidden ? "1" : "0.7";
+      hintBtn.dataset.listenerAdded = 'true';
+      hintBtn.addEventListener('click', () => {
+        const isHidden = dicaContainer.style.display === 'none';
+        dicaContainer.style.display = isHidden ? 'block' : 'none';
+        hintBtn.style.opacity = isHidden ? '1' : '0.7';
       });
     }
 
@@ -5772,17 +6025,16 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       if (guessRange) guessRange.disabled = true;
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerText = "Processando...";
+        submitBtn.innerText = 'Processando...';
       }
-      if (unknownBtn) unknownBtn.style.display = "none";
-      if (backBtn) backBtn.style.display = "none";
-      if (inputWrapper) inputWrapper.style.opacity = "0.6";
+      if (unknownBtn) unknownBtn.style.display = 'none';
+      if (backBtn) backBtn.style.display = 'none';
+      if (inputWrapper) inputWrapper.style.opacity = '0.6';
 
       // Calculos
       const gabaritoText =
-        stepProps.resposta_correta ||
-        (stepProps.gabarito ? "Verdadeiro" : "Falso");
-      const isVerdadeiro = gabaritoText.toLowerCase() === "verdadeiro";
+        stepProps.resposta_correta || (stepProps.gabarito ? 'Verdadeiro' : 'Falso');
+      const isVerdadeiro = gabaritoText.toLowerCase() === 'verdadeiro';
       const tempoGasto = customTime !== null ? customTime : 10;
       const tempoIdeal = stepProps.tempo_ideal || 15;
 
@@ -5795,40 +6047,36 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
       // UI Feedback (Reveal)
       if (explanationDiv) {
-        explanationDiv.style.display = "block";
-        explanationDiv.classList.add("fade-in");
+        explanationDiv.style.display = 'block';
+        explanationDiv.classList.add('fade-in');
       }
 
       const acertou = stats.taxaDeAcerto === 1;
 
       // Feedback texto específico
-      let feedbackText = stepProps.explicacao || "";
-      if (acertou && stepProps.feedback_v) feedbackText = stepProps.feedback_v; 
+      let feedbackText = stepProps.explicacao || '';
+      if (acertou && stepProps.feedback_v) feedbackText = stepProps.feedback_v;
       const userChuteBool = guessValue > 50;
-      if (userChuteBool && stepProps.feedback_v)
-        feedbackText = stepProps.feedback_v;
-      if (!userChuteBool && stepProps.feedback_f)
-        feedbackText = stepProps.feedback_f;
+      if (userChuteBool && stepProps.feedback_v) feedbackText = stepProps.feedback_v;
+      if (!userChuteBool && stepProps.feedback_f) feedbackText = stepProps.feedback_f;
 
       if (resultHeader) {
         resultHeader.innerHTML = acertou
-          ? `<span style="color:var(--color-success)">✓ Correto! Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`
-          : `<span style="color:var(--color-error)">✗ Incorreto. Era ${isVerdadeiro ? "Verdadeiro" : "Falso"}.</span>`;
+          ? `<span style="color:var(--color-success)">✓ Correto! Era ${isVerdadeiro ? 'Verdadeiro' : 'Falso'}.</span>`
+          : `<span style="color:var(--color-error)">✗ Incorreto. Era ${isVerdadeiro ? 'Verdadeiro' : 'Falso'}.</span>`;
       }
 
-      const expTextEl = slideElement.querySelector(".explanation-text");
+      const expTextEl = slideElement.querySelector('.explanation-text');
       if (expTextEl) expTextEl.innerHTML = feedbackText;
 
       // Populate Stats
-      const statScoreEl = slideElement.querySelector(".stat-score");
-      const statConfEl = slideElement.querySelector(".stat-confidence");
-      const statTimeEl = slideElement.querySelector(".stat-time");
-      const statProfEl = slideElement.querySelector(".stat-proficiency");
+      const statScoreEl = slideElement.querySelector('.stat-score');
+      const statConfEl = slideElement.querySelector('.stat-confidence');
+      const statTimeEl = slideElement.querySelector('.stat-time');
+      const statProfEl = slideElement.querySelector('.stat-proficiency');
 
-      if (statScoreEl)
-        statScoreEl.innerText = `${(stats.resultadoPasso * 100).toFixed(0)}%`;
-      if (statConfEl)
-        statConfEl.innerText = `${(stats.taxaDeCerteza * 100).toFixed(0)}%`;
+      if (statScoreEl) statScoreEl.innerText = `${(stats.resultadoPasso * 100).toFixed(0)}%`;
+      if (statConfEl) statConfEl.innerText = `${(stats.taxaDeCerteza * 100).toFixed(0)}%`;
       if (statTimeEl) statTimeEl.innerText = `${stats.tempoGasto}s`;
 
       // Calculo proficiencia acumulada
@@ -5836,14 +6084,12 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         ...accumulatedStats,
         stats,
       ]);
-      if (statProfEl)
-        statProfEl.innerText = `${(currentProf * 100).toFixed(0)}%`;
+      if (statProfEl) statProfEl.innerText = `${(currentProf * 100).toFixed(0)}%`;
 
       // Atualiza histórico local
       const stepResultData = {
         contexto: {
-          pergunta:
-            stepProps.enunciado || stepProps.question || stepProps.conteudo,
+          pergunta: stepProps.enunciado || stepProps.question || stepProps.conteudo,
           explicacao: feedbackText,
         },
         stats: {
@@ -5857,10 +6103,13 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
           certeza_simulada: simulationDetail ? simulationDetail.certeza : null,
           pensamento_simulado: simulationDetail ? simulationDetail.pensamento : null,
           modelo_simulador: simulationDetail ? simulationDetail.persona_model : null,
-          modelo_passo: stepProps._meta?.model_used || "models/gemini-3.5-flash",
+          modelo_passo: stepProps._meta?.model_used || 'models/gemini-3.5-flash',
           tempo_geracao_passo_ms: stepProps._meta?.generation_time_ms || null,
-          tempo_geracao_resposta_ms: (simulationDetail && simulationDetail.generation_time_ms) ? simulationDetail.generation_time_ms : null
-        }
+          tempo_geracao_resposta_ms:
+            simulationDetail && simulationDetail.generation_time_ms
+              ? simulationDetail.generation_time_ms
+              : null,
+        },
       };
       stepHistory.push(stepResultData);
       accumulatedStats.push(stats);
@@ -5884,8 +6133,7 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       // [PERSISTENCE] Salvar resultado do passo no array scaffoldingSteps
       // Inclui props originais + resultado (stats e contexto)
       if (initialProps.chatId) {
-        const { ChatStorageService } =
-          await import("../services/chat-storage.js");
+        const { ChatStorageService } = await import('../services/chat-storage.js');
         await ChatStorageService.addScaffoldingStep(
           initialProps.chatId,
           currentStepIndex - 1, // 0-indexed
@@ -5903,10 +6151,10 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
       // Update UI Status
       if (submitBtn) {
-        submitBtn.innerText = "Confirmado";
-        submitBtn.style.display = "none";
+        submitBtn.innerText = 'Confirmado';
+        submitBtn.style.display = 'none';
       }
-      if (backBtn) backBtn.style.display = "inline-block";
+      if (backBtn) backBtn.style.display = 'inline-block';
 
       // Gerar Próximo Passo (Silent Generation)
       await generateNextStep(stepResultData);
@@ -5915,17 +6163,15 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
       if (window.__currentSimulation && window.__currentSimulation.active) {
         const currentStep = parseInt(slideElement.dataset.step);
         const nextStep = currentStep + 1;
-        const wrapper = slideElement.closest(".scaffolding-slides-wrapper");
-        const nextSlide = wrapper.querySelector(
-          `.scaffolding-slide[data-step="${nextStep}"]`,
-        );
+        const wrapper = slideElement.closest('.scaffolding-slides-wrapper');
+        const nextSlide = wrapper.querySelector(`.scaffolding-slide[data-step="${nextStep}"]`);
 
         if (nextSlide) {
           setTimeout(() => {
-            slideElement.style.display = "none";
-            slideElement.classList.remove("active-slide");
-            nextSlide.style.display = "block";
-            nextSlide.classList.add("active-slide");
+            slideElement.style.display = 'none';
+            slideElement.classList.remove('active-slide');
+            nextSlide.style.display = 'block';
+            nextSlide.classList.add('active-slide');
           }, 1500);
         } else {
           // Simulation completed
@@ -5935,64 +6181,60 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
     };
 
     const userAnswerText = (val) => {
-      if (val === -1) return "Não sei";
+      if (val === -1) return 'Não sei';
       const bool = val > 50;
       const cert = Math.abs(val - 50) * 2;
-      return `${bool ? "VERDADEIRO" : "FALSO"} (${cert}%)`;
+      return `${bool ? 'VERDADEIRO' : 'FALSO'} (${cert}%)`;
     };
 
     if (submitBtn) {
-      submitBtn.addEventListener("click", () => handleSubmit(guessRange.value));
+      submitBtn.addEventListener('click', () => handleSubmit(guessRange.value));
     }
     if (unknownBtn) {
-      unknownBtn.addEventListener("click", () => handleSubmit(-1));
+      unknownBtn.addEventListener('click', () => handleSubmit(-1));
     }
 
     // Back Button Logic
     if (backBtn) {
-      backBtn.addEventListener("click", () => {
+      backBtn.addEventListener('click', () => {
         // Encontra slide anterior
         const currentStep = parseInt(slideElement.dataset.step);
         const prevStep = currentStep - 1;
 
         // Encontra elemento do slide anterior (já existe no DOM, apenas oculto)
-        const wrapper = slideElement.closest(".scaffolding-slides-wrapper");
-        const prevSlide = wrapper.querySelector(
-          `.scaffolding-slide[data-step="${prevStep}"]`,
-        );
+        const wrapper = slideElement.closest('.scaffolding-slides-wrapper');
+        const prevSlide = wrapper.querySelector(`.scaffolding-slide[data-step="${prevStep}"]`);
 
         if (prevSlide) {
           // Troca visibilidade
-          slideElement.style.display = "none";
-          slideElement.classList.remove("active-slide");
+          slideElement.style.display = 'none';
+          slideElement.classList.remove('active-slide');
 
-          prevSlide.style.display = "block";
-          prevSlide.classList.add("active-slide");
+          prevSlide.style.display = 'block';
+          prevSlide.classList.add('active-slide');
 
           // Mostra botão 'Avançar' no slide anterior, pois sabemos que o atual existe
-          const prevNextBtn = prevSlide.querySelector(".nextPassoButton");
-          if (prevNextBtn) prevNextBtn.style.display = "inline-block";
+          const prevNextBtn = prevSlide.querySelector('.nextPassoButton');
+          if (prevNextBtn) prevNextBtn.style.display = 'inline-block';
         }
       });
     }
 
     // Next Button Logic
     if (nextBtn) {
-      nextBtn.addEventListener("click", () => {
+      nextBtn.addEventListener('click', () => {
         const currentStep = parseInt(slideElement.dataset.step);
         const nextStep = currentStep + 1;
 
-        const wrapper = slideElement.closest(".scaffolding-slides-wrapper");
-        const nextSlide = wrapper.querySelector(
-          `.scaffolding-slide[data-step="${nextStep}"]`,
-        );
+        const wrapper = slideElement.closest('.scaffolding-slides-wrapper');
+        const nextSlide = wrapper.querySelector(`.scaffolding-slide[data-step="${nextStep}"]`);
 
         if (nextSlide) {
-          slideElement.classList.remove("active-slide");
-          slideElement.style.display = "none";
+          slideElement.classList.remove('active-slide');
+          slideElement.style.display = 'none';
 
-          nextSlide.style.display = "block";
-          nextSlide.classList.add("active-slide");
+          nextSlide.style.display = 'block';
+          nextSlide.classList.add('active-slide');
         }
       });
     }
@@ -6003,9 +6245,9 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
    */
   async function generateNextStep(lastResultData) {
     // Mostra Loading no slide atual ou um indicador
-    const currentSlide = slidesWrapper.querySelector(".active-slide");
-    const loadingIndicator = document.createElement("div");
-    loadingIndicator.style.marginTop = "15px";
+    const currentSlide = slidesWrapper.querySelector('.active-slide');
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.style.marginTop = '15px';
     loadingIndicator.innerHTML = `<span style="font-size:0.9em; color:var(--color-text-secondary)">🤖 Gerando próximo passo...</span>`;
     currentSlide.appendChild(loadingIndicator);
 
@@ -6015,14 +6257,10 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
       // 2. Gera Prompt
       // [FIX] Passa o objeto COMPLETO (initialProps) para o service, pois ele contém todo o JSON rico (dados_questao, etc)
-      const prompt = ScaffoldingService.generateStepPrompt(
-        initialProps,
-        nextBool,
-        stepHistory,
-      );
+      const prompt = ScaffoldingService.generateStepPrompt(initialProps, nextBool, stepHistory);
 
       // 3. Chama Worker (Silent)
-      const apiKey = sessionStorage.getItem("geminiApiKey"); // Pega key da sessão
+      const apiKey = sessionStorage.getItem('geminiApiKey'); // Pega key da sessão
       const nextStepJSON = await generateSilentScaffoldingStep(prompt, apiKey);
 
       // 4. Renderiza Novo Slide (mas NÃO avança automaticamente)
@@ -6033,18 +6271,14 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
         // [PERSISTENCE] Track new slide data
         slidesData.push({
           step: currentStepIndex,
-          content:
-            nextStepJSON.enunciado ||
-            nextStepJSON.pergunta ||
-            nextStepJSON.conteudo,
+          content: nextStepJSON.enunciado || nextStepJSON.pergunta || nextStepJSON.conteudo,
           props: { ...nextStepJSON, question: nextStepJSON.enunciado, _meta: nextStepJSON._meta },
         });
 
         // [PERSISTENCE] Salvar JSON resultante no array scaffoldingSteps do chat
         // O índice é 0-indexed: currentStepIndex 1 = index 0, etc.
         if (initialProps.chatId) {
-          const { ChatStorageService } =
-            await import("../services/chat-storage.js");
+          const { ChatStorageService } = await import('../services/chat-storage.js');
           await ChatStorageService.addScaffoldingStep(
             initialProps.chatId,
             currentStepIndex - 1, // 0-indexed: step 1 = index 0
@@ -6054,16 +6288,16 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
         await saveState();
 
-        const newSlideDiv = document.createElement("div");
-        newSlideDiv.className = "scaffolding-slide";
-        newSlideDiv.style.display = "none"; // Começa oculto
+        const newSlideDiv = document.createElement('div');
+        newSlideDiv.className = 'scaffolding-slide';
+        newSlideDiv.style.display = 'none'; // Começa oculto
         newSlideDiv.dataset.step = currentStepIndex;
         // Garante que o template receba dados válidos
         const conteudo =
           nextStepJSON.enunciado ||
           nextStepJSON.pergunta ||
           nextStepJSON.conteudo ||
-          "Erro ao carregar conteúdo.";
+          'Erro ao carregar conteúdo.';
 
         newSlideDiv.innerHTML = renderScaffoldingSlideContent(
           conteudo,
@@ -6075,22 +6309,22 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
 
         // NÃO esconde o atual nem mostra o novo automaticamente.
         // Apenas habilita o botão "Avançar" no slide atual.
-        const currentNextBtn = currentSlide.querySelector(".nextPassoButton");
+        const currentNextBtn = currentSlide.querySelector('.nextPassoButton');
         if (currentNextBtn) {
-          currentNextBtn.style.display = "inline-block";
+          currentNextBtn.style.display = 'inline-block';
           // Animação visual para chamar atenção?
-          currentNextBtn.classList.add("fade-in");
+          currentNextBtn.classList.add('fade-in');
         }
 
         // Setup interações no novo slide (para quando for exibido)
         setupSlideInteractions(newSlideDiv, {
           ...nextStepJSON,
           question: nextStepJSON.enunciado || nextStepJSON.pergunta,
-          _meta: nextStepJSON._meta
+          _meta: nextStepJSON._meta,
         });
       }
     } catch (err) {
-      console.error("Erro ao gerar próximo passo:", err);
+      console.error('Erro ao gerar próximo passo:', err);
       loadingIndicator.innerHTML = `<span style="color:var(--color-error)">Erro de conexão. Tente novamente.</span>`;
     }
   }
@@ -6101,33 +6335,30 @@ async function initializeScaffoldingComponent(containerElement, initialProps) {
  * @param {HTMLElement} btn - Botão que disparou a ação
  */
 async function showResearchReport(btn) {
-  const reportAttr = btn.getAttribute("data-report") || btn.dataset.report;
-  let report = "";
+  const reportAttr = btn.getAttribute('data-report') || btn.dataset.report;
+  let report = '';
 
   if (reportAttr) {
     report = decodeURIComponent(reportAttr);
   } else {
     // Fallback: tentar pegar do footer da mensagem pai
-    const footer = btn
-      .closest(".chat-message--ai")
-      ?.querySelector("[data-report]");
-    if (footer?.dataset?.report)
-      report = decodeURIComponent(footer.dataset.report);
+    const footer = btn.closest('.chat-message--ai')?.querySelector('[data-report]');
+    if (footer?.dataset?.report) report = decodeURIComponent(footer.dataset.report);
   }
 
   if (!report) {
-    customAlert("Conteúdo do relatório não encontrado.");
+    customAlert('Conteúdo do relatório não encontrado.');
     return;
   }
 
-  const { showGenericModal } = await import("../ui/modal-generic.js");
-  const container = document.createElement("div");
-  container.className = "research-report-modal-root";
+  const { showGenericModal } = await import('../ui/modal-generic.js');
+  const container = document.createElement('div');
+  container.className = 'research-report-modal-root';
   container.style.cssText =
-    "display:flex; flex-direction:column; gap:20px; width:100%; height:100%; color: var(--color-text);";
+    'display:flex; flex-direction:column; gap:20px; width:100%; height:100%; color: var(--color-text);';
 
   // Sanitização: Remove espaços iniciais antes de hashes (#) que podem quebrar o markdown
-  const sanitizedReport = report.replace(/^\s+(?=#+)/gm, "");
+  const sanitizedReport = report.replace(/^\s+(?=#+)/gm, '');
 
   // Processamento do Markdown para a aba formatada
   const reportHtml = safeMarkdown
@@ -6175,50 +6406,50 @@ async function showResearchReport(btn) {
     </div>
 
     <div class="research-report-footer" style="padding-top:10px; border-top:1px solid var(--color-border); text-align:right; font-size:0.8rem; opacity:0.6; color: var(--color-text-secondary);">
-        Maia Intelligence &bull; Protocolo de Pesquisa &bull; ${new Date().toLocaleDateString("pt-BR")}
+        Maia Intelligence &bull; Protocolo de Pesquisa &bull; ${new Date().toLocaleDateString('pt-BR')}
     </div>
   `;
 
   // Lógica de Troca de Abas
-  const tabBtns = container.querySelectorAll(".report-tab-btn");
-  const panes = container.querySelectorAll(".report-pane");
+  const tabBtns = container.querySelectorAll('.report-tab-btn');
+  const panes = container.querySelectorAll('.report-pane');
 
   tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
 
       // Update Buttons
       tabBtns.forEach((b) => {
-        b.classList.remove("active");
-        b.style.background = "transparent";
-        b.style.color = "var(--color-text-secondary)";
+        b.classList.remove('active');
+        b.style.background = 'transparent';
+        b.style.color = 'var(--color-text-secondary)';
       });
-      btn.classList.add("active");
-      btn.style.background = "var(--color-primary)";
-      btn.style.color = "white";
+      btn.classList.add('active');
+      btn.style.background = 'var(--color-primary)';
+      btn.style.color = 'white';
 
       // Update Panes
-      panes.forEach((p) => (p.style.display = "none"));
-      container.querySelector(`#pane-${tab}`).style.display = "block";
+      panes.forEach((p) => (p.style.display = 'none'));
+      container.querySelector(`#pane-${tab}`).style.display = 'block';
     });
   });
 
   // Renderização e Hidratação de elementos dinâmicos (Sem Timeout artificial para evitar flicker)
   const hydrate = async () => {
     // Mantém renderLatexIn como solicitado
-    if (typeof renderLatexIn === "function") renderLatexIn(container);
+    if (typeof renderLatexIn === 'function') renderLatexIn(container);
 
-    const contentArea = container.querySelector("#reportContentArea");
+    const contentArea = container.querySelector('#reportContentArea');
     if (contentArea) {
       // Converte blocos de código mermaid
-      const codeBlocks = contentArea.querySelectorAll("code.language-mermaid");
+      const codeBlocks = contentArea.querySelectorAll('code.language-mermaid');
       codeBlocks.forEach((code) => {
         const pre = code.parentElement;
         const chartCode = code.textContent.trim();
-        const placeholder = document.createElement("div");
-        placeholder.className = "chat-mermaid-placeholder";
+        const placeholder = document.createElement('div');
+        placeholder.className = 'chat-mermaid-placeholder';
         placeholder.dataset.chart = chartCode;
-        placeholder.style.margin = "20px 0";
+        placeholder.style.margin = '20px 0';
         pre.replaceWith(placeholder);
       });
 
@@ -6230,9 +6461,9 @@ async function showResearchReport(btn) {
   hydrate();
 
   showGenericModal({
-    title: "Relatório de Pesquisa",
+    title: 'Relatório de Pesquisa',
     content: container,
-    maxWidth: "1150px",
+    maxWidth: '1150px',
   });
 }
 
@@ -6242,29 +6473,25 @@ async function showResearchReport(btn) {
  */
 async function showSourcesModal(btn) {
   // Fix: Search for data attributes on the button OR its parents (in case of nested clicks)
-  const target = btn.closest("[data-sources]");
+  const target = btn.closest('[data-sources]');
   if (!target) return;
 
-  const sourcesAttr =
-    target.getAttribute("data-sources") || target.dataset.sources;
-  const reportAttr =
-    target.getAttribute("data-report") || target.dataset.report;
+  const sourcesAttr = target.getAttribute('data-sources') || target.dataset.sources;
+  const reportAttr = target.getAttribute('data-report') || target.dataset.report;
 
   if (!sourcesAttr) return;
 
   const sources = JSON.parse(decodeURIComponent(sourcesAttr));
-  const { showGenericModal } = await import("../ui/modal-generic.js");
+  const { showGenericModal } = await import('../ui/modal-generic.js');
 
-  const container = document.createElement("div");
-  container.className = "sources-modal-root";
+  const container = document.createElement('div');
+  container.className = 'sources-modal-root';
 
-  let sourcesHtml = sources
+  const sourcesHtml = sources
     .map((src, idx) => {
-      const urlObj = src.uri ? new URL(src.uri) : { hostname: "Fonte externa" };
+      const urlObj = src.uri ? new URL(src.uri) : { hostname: 'Fonte externa' };
       const hostname = urlObj.hostname;
-      const faviconUrl = src.uri
-        ? `https://icons.duckduckgo.com/ip3/${hostname}.ico`
-        : null;
+      const faviconUrl = src.uri ? `https://icons.duckduckgo.com/ip3/${hostname}.ico` : null;
       // Open Graph thumbnail via microlink.io (free, no key needed)
       const ogThumb = src.uri
         ? `https://t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(src.uri)}&size=128`
@@ -6278,14 +6505,14 @@ async function showSourcesModal(btn) {
       return `
       <div class="source-card-premium resolving" id="${elementId}" data-uri="${src.uri}" onclick="window.open('${src.uri}', '_blank')">
         <div class="source-card-thumb">
-          <img src="${screenshotUrl || ""}" alt="" class="source-card-thumb-img" onerror="this.onerror=null;this.src='${ogThumb || ""}';this.style.objectFit='contain';this.style.padding='20px';">
+          <img src="${screenshotUrl || ''}" alt="" class="source-card-thumb-img" onerror="this.onerror=null;this.src='${ogThumb || ''}';this.style.objectFit='contain';this.style.padding='20px';">
         </div>
         <div class="source-card-body">
           <div class="source-card-title">${src.title || hostname}</div>
-          <div class="source-card-description">${(src.snippet || src.description || "Carregando detalhes...").substring(0, 200)}</div>
+          <div class="source-card-description">${(src.snippet || src.description || 'Carregando detalhes...').substring(0, 200)}</div>
           <div class="source-card-link-wrapper">
              <div style="display:flex; align-items:center; gap:8px;">
-                ${faviconUrl ? `<img src="${faviconUrl}" class="source-card-favicon" style="width:18px; height:18px; border-radius:4px;" onerror="this.onerror=function(){this.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${hostname}&sz=64';">` : ""}
+                ${faviconUrl ? `<img src="${faviconUrl}" class="source-card-favicon" style="width:18px; height:18px; border-radius:4px;" onerror="this.onerror=function(){this.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${hostname}&sz=64';">` : ''}
                 <span class="source-card-hostname">${hostname}</span>
              </div>
              <span class="source-card-arrow">→</span>
@@ -6294,7 +6521,7 @@ async function showSourcesModal(btn) {
       </div>
     `;
     })
-    .join("");
+    .join('');
 
   container.innerHTML = `
     <div class="chat-sources-expanded-list">
@@ -6313,20 +6540,20 @@ async function showSourcesModal(btn) {
         </button>
       </div>
     `
-        : ""
+        : ''
     }
   `;
 
   // Resolução Assíncrona via Hydration Engine (Batch de 5 em 5)
   setTimeout(async () => {
-    const { hydrateSources } = await import("../render/hydration.js");
+    const { hydrateSources } = await import('../render/hydration.js');
     await hydrateSources(container);
   }, 100);
 
   showGenericModal({
     title: `Fontes Investigadas (${sources.length})`,
     content: container,
-    maxWidth: "850px",
+    maxWidth: '850px',
   });
 }
 
@@ -6339,11 +6566,11 @@ window.showSourcesModal = showSourcesModal;
  * Isso permite que 'extractChatHistory' pegue o contexto para as próximas interações do usuário.
  */
 function injectSilentHistory(pergunta, respostaUser, explicacao, acertou) {
-  const messagesContainer = document.getElementById("chatMessages");
+  const messagesContainer = document.getElementById('chatMessages');
   if (!messagesContainer) return;
 
-  const hiddenMsg = document.createElement("div");
-  hiddenMsg.className = "chat-message chat-message--system hidden-context-node";
+  const hiddenMsg = document.createElement('div');
+  hiddenMsg.className = 'chat-message chat-message--system hidden-context-node';
   // Classe 'hidden-context-node' deve ser CSS display:none, ou filtramos no extract
   // Mas 'extractChatHistory' filtra por .visible. Precisamos mudar isso ou usar strategy de Metadata.
 
@@ -6353,13 +6580,13 @@ function injectSilentHistory(pergunta, respostaUser, explicacao, acertou) {
   // O USER PEDIU: "conteúdo gerado é jogado no HISTÓRICO... oculto momentaneamente"
   // Vamos usar display:none e ajustar extractChatHistory para incluir .hidden-context-node
 
-  hiddenMsg.style.display = "none";
+  hiddenMsg.style.display = 'none';
   hiddenMsg.innerHTML = `
         <div class="chat-message-content">
             [SCAFFOLDING STEP]
             Q: ${pergunta}
             User Answer: ${respostaUser}
-            Result: ${acertou ? "Correct" : "Incorrect"}
+            Result: ${acertou ? 'Correct' : 'Incorrect'}
             Explanation: ${explicacao}
         </div>
     `;
@@ -6372,33 +6599,32 @@ function injectSilentHistory(pergunta, respostaUser, explicacao, acertou) {
  * Retorna array de objetos { role, parts: [{ text }] }
  */
 function extractChatHistory() {
-  const container = document.getElementById("chatMessages");
+  const container = document.getElementById('chatMessages');
   if (!container) return [];
 
   const history = [];
-  const msgs = container.querySelectorAll(".chat-message");
+  const msgs = container.querySelectorAll('.chat-message');
 
   msgs.forEach((msg) => {
     // Apenas mensagens visíveis e que não sejam sistema/erro/loading
     // OU mensagens de scaffolding ocultas (.hidden-context-node)
     if (
-      (msg.classList.contains("visible") ||
-        msg.classList.contains("hidden-context-node")) &&
-      !msg.classList.contains("chat-message--error") &&
-      (!msg.classList.contains("chat-message--system") ||
-        msg.classList.contains("hidden-context-node"))
+      (msg.classList.contains('visible') || msg.classList.contains('hidden-context-node')) &&
+      !msg.classList.contains('chat-message--error') &&
+      (!msg.classList.contains('chat-message--system') ||
+        msg.classList.contains('hidden-context-node'))
     ) {
-      let role = "";
-      let text = "";
+      let role = '';
+      let text = '';
 
-      if (msg.classList.contains("chat-message--user")) {
-        role = "user";
+      if (msg.classList.contains('chat-message--user')) {
+        role = 'user';
         // Pega apenas o conteúdo de texto direto, ignorando estrutura HTML complexa
-        text = msg.querySelector(".chat-message-content")?.textContent?.trim();
-      } else if (msg.classList.contains("chat-message--ai")) {
-        role = "model";
+        text = msg.querySelector('.chat-message-content')?.textContent?.trim();
+      } else if (msg.classList.contains('chat-message--ai')) {
+        role = 'model';
         // Pega o texto da resposta.
-        text = msg.querySelector(".chat-message-content")?.textContent?.trim();
+        text = msg.querySelector('.chat-message-content')?.textContent?.trim();
       }
 
       if (role && text) {
@@ -6409,7 +6635,7 @@ function extractChatHistory() {
 
   // Remove a ÚLTIMA mensagem se for do usuário (pois ela é o prompt atual)
   // Mas verificamos se de fato a última capturada foi usuário.
-  if (history.length > 0 && history[history.length - 1].role === "user") {
+  if (history.length > 0 && history[history.length - 1].role === 'user') {
     history.pop();
   }
 
@@ -6421,63 +6647,61 @@ function extractChatHistory() {
  * Centraliza toda a lógica de limpeza visual quando o usuário para a geração.
  */
 function handleGenerationAbortUI() {
-  console.log("[UI] Lidando com interrupção de geração...");
+  console.log('[UI] Lidando com interrupção de geração...');
 
   // 0. Para TODOS os spinners de fases (memory, mode, generation, saving)
   stopAllPhaseSpinners(document);
 
   // 1. Resetar Controlador Global e Botão Enviar
   activeGenerationController = null;
-  const sendBtn = document.querySelector(".chat-send-btn");
+  const sendBtn = document.querySelector('.chat-send-btn');
   if (sendBtn) {
-    sendBtn.classList.remove("stop-mode");
+    sendBtn.classList.remove('stop-mode');
     // Ícone Seta (Enviar)
     sendBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>`;
   }
 
   // 2. Tratar Loading Inicial (se ainda estiver na fase de loading)
-  const loading = document.getElementById("chatLoading");
+  const loading = document.getElementById('chatLoading');
   if (loading) {
     loading.innerHTML = `<span style="color:var(--color-text-secondary); font-style:italic;"> Geração interrompida.</span>`;
     // Remove ID para que não seja mais tratado como loader ativo, mas mantém no DOM como log
-    loading.removeAttribute("id");
+    loading.removeAttribute('id');
   }
 
   // 3. Tratar Mensagem Parcial (se já estiver streamando ou pensando)
-  const currentAiMsg = document.getElementById("currentAiMessage");
+  const currentAiMsg = document.getElementById('currentAiMessage');
   if (currentAiMsg) {
     // a. Parar spinner de pensamento/raciocínio
-    const thoughtContainer = currentAiMsg.querySelector(
-      ".chat-thought-container",
-    );
+    const thoughtContainer = currentAiMsg.querySelector('.chat-thought-container');
     if (thoughtContainer) {
-      const spinner = thoughtContainer.querySelector(".summary-logo-spinner");
-      const text = thoughtContainer.querySelector(".summary-text");
-      if (spinner) spinner.style.display = "none";
-      if (text) text.innerText = "Raciocínio interrompido.";
+      const spinner = thoughtContainer.querySelector('.summary-logo-spinner');
+      const text = thoughtContainer.querySelector('.summary-text');
+      if (spinner) spinner.style.display = 'none';
+      if (text) text.innerText = 'Raciocínio interrompido.';
 
       // Força o thought a ficar cinza/inativo visualmente?
-      thoughtContainer.style.opacity = "0.7";
+      thoughtContainer.style.opacity = '0.7';
     }
 
     // b. Adicionar mensagem de "Interrompido" no conteúdo
-    const content = currentAiMsg.querySelector(".chat-message-content");
+    const content = currentAiMsg.querySelector('.chat-message-content');
     if (content) {
       // Verifica duplicidade
-      if (!content.innerText.includes("Geração interrompida")) {
-        const stopMsg = document.createElement("p");
-        stopMsg.style.color = "var(--color-text-secondary)";
-        stopMsg.style.fontStyle = "italic";
-        stopMsg.style.marginTop = "8px";
-        stopMsg.style.borderTop = "1px dashed var(--color-border)";
-        stopMsg.style.paddingTop = "8px";
-        stopMsg.innerText = "Geração interrompida pelo usuário.";
+      if (!content.innerText.includes('Geração interrompida')) {
+        const stopMsg = document.createElement('p');
+        stopMsg.style.color = 'var(--color-text-secondary)';
+        stopMsg.style.fontStyle = 'italic';
+        stopMsg.style.marginTop = '8px';
+        stopMsg.style.borderTop = '1px dashed var(--color-border)';
+        stopMsg.style.paddingTop = '8px';
+        stopMsg.innerText = 'Geração interrompida pelo usuário.';
         content.appendChild(stopMsg);
       }
     }
 
     // c. Remover ID para que a próxima mensagem não tente reusar este div
-    currentAiMsg.removeAttribute("id");
+    currentAiMsg.removeAttribute('id');
   }
 }
 
@@ -6486,96 +6710,90 @@ window.handleGenerationAbortUI = handleGenerationAbortUI;
 
 // === NETWORK RETRY & TESTING LOGIC ===
 
-window.addEventListener("online", () => {
-  console.log("[Network] Conexão restaurada.");
+window.addEventListener('online', () => {
+  console.log('[Network] Conexão restaurada.');
   if (window.pendingChatRetry) {
-    console.log("[Network] Retomando geração pendente automaticamente...");
+    console.log('[Network] Retomando geração pendente automaticamente...');
     const { mensagem, arquivos, options } = window.pendingChatRetry;
 
-    const waitMsg = document.getElementById("networkWaitMsg");
+    const waitMsg = document.getElementById('networkWaitMsg');
     if (waitMsg) waitMsg.remove();
 
     // Dispara novamente o chat
     transicionarParaModoConversa(mensagem, arquivos, options);
 
-    customAlert("🎉 Online novamente! Tentando novamente...");
+    customAlert('🎉 Online novamente! Tentando novamente...');
 
     // Limpa estado pendente
     window.pendingChatRetry = null;
   }
 });
 
-window.addEventListener("offline", () => {
-  console.log(
-    "[Network] Conexão perdida. Forçando parada de pipelines ativas...",
-  );
+window.addEventListener('offline', () => {
+  console.log('[Network] Conexão perdida. Forçando parada de pipelines ativas...');
   if (window.currentChatAbortController) {
     try {
-      window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
+      window.currentChatAbortController.abort(new Error('NETWORK_ERROR'));
     } catch (e) {}
   }
 });
 
 // Funções para teste temporário
-let originalFetch = window.fetch;
+const originalFetch = window.fetch;
 
 window.simulateNetworkDrop = () => {
-  console.warn("⚠️ SIMULANDO REDE OFFLINE (Mock ativado)");
-  window.fetch = function () {
-    return Promise.reject(new TypeError("Failed to fetch"));
-  };
-  Object.defineProperty(navigator, "onLine", {
+  console.warn('⚠️ SIMULANDO REDE OFFLINE (Mock ativado)');
+  window.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+  Object.defineProperty(navigator, 'onLine', {
     get: () => false,
     configurable: true,
   });
-  window.dispatchEvent(new Event("offline"));
+  window.dispatchEvent(new Event('offline'));
 
   if (window.currentChatAbortController) {
-    window.currentChatAbortController.abort(new Error("NETWORK_ERROR"));
+    window.currentChatAbortController.abort(new Error('NETWORK_ERROR'));
   }
 };
 
 window.simulateNetworkRestore = () => {
-  console.warn("✅ SIMULANDO REDE ONLINE (Mock desativado)");
+  console.warn('✅ SIMULANDO REDE ONLINE (Mock desativado)');
   window.fetch = originalFetch;
-  Object.defineProperty(navigator, "onLine", {
+  Object.defineProperty(navigator, 'onLine', {
     get: () => true,
     configurable: true,
   });
-  window.dispatchEvent(new Event("online"));
+  window.dispatchEvent(new Event('online'));
 };
 
 /**
  * FUNÇÃO DE TESTE: Simula uma mensagem com arquivos para visualizar o design.
  * Pode ser chamada via console: window.testFileMessage()
  */
-window.testFileMessage = function () {
-  const messagesContainer = document.getElementById("chatMessages");
+window.testFileMessage = () => {
+  const messagesContainer = document.getElementById('chatMessages');
   if (!messagesContainer) {
-    console.warn(
-      "Container de mensagens não encontrado. Certifique-se de estar no modo chat.",
-    );
+    console.warn('Container de mensagens não encontrado. Certifique-se de estar no modo chat.');
     return;
   }
 
-  const testMsg = document.createElement("div");
-  testMsg.className = "chat-message chat-message--user visible";
+  const testMsg = document.createElement('div');
+  testMsg.className = 'chat-message chat-message--user visible';
 
-  const content = document.createElement("div");
-  content.className = "chat-message-content";
+  const content = document.createElement('div');
+  content.className = 'chat-message-content';
 
   // Mock de Arquivos usando o novo renderizador
   const mockFiles = [
-    { name: "Plano_de_Aula_2026.pdf", size: 1250000, type: "application/pdf" },
+    { name: 'Plano_de_Aula_2026.pdf', size: 1250000, type: 'application/pdf' },
     {
-      name: "brainstorm.png",
+      name: 'brainstorm.png',
       size: 450000,
-      type: "image/png",
-      url: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&h=200",
+      type: 'image/png',
+      url: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=300&h=200',
     },
   ];
 
-  const fileCards = mockFiles.map((f) => renderFileAttachment(f)).join("");
+  const fileCards = mockFiles.map((f) => renderFileAttachment(f)).join('');
   const filesHtml = `
         <div class="message-files">${fileCards}</div>
         <p>Olá! Este é um teste do novo design de anexos padronizados. Todos os cards têm o mesmo tamanho e comportamento!</p>
@@ -6587,76 +6805,72 @@ window.testFileMessage = function () {
 
   messagesContainer.scrollTo({
     top: messagesContainer.scrollHeight,
-    behavior: "smooth",
+    behavior: 'smooth',
   });
 
-  console.log("Mensagem de teste (Premium) com arquivos adicionada!");
+  console.log('Mensagem de teste (Premium) com arquivos adicionada!');
 };
 
 /**
  * HELPER: Formata tamanho do arquivo
  */
 function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 /**
  * HELPER: Abre anexo em nova aba
  */
-window.openAttachment = function (url, name) {
-  if (!url || url === "#") {
-    customAlert(
-      `Visualização não disponível para este arquivo simulado (${name}).`,
-    );
+window.openAttachment = (url, name) => {
+  if (!url || url === '#') {
+    customAlert(`Visualização não disponível para este arquivo simulado (${name}).`);
     return;
   }
-  window.open(url, "_blank");
+  window.open(url, '_blank');
 };
 
 /**
  * RENDERER: Gera HTML para cartão de anexo premium
  */
 function renderFileAttachment(file) {
-  const ext = (file.name || "").split(".").pop().toLowerCase();
-  const isImage =
-    file.type?.startsWith("image/") ||
-    ["png", "jpg", "jpeg", "webp"].includes(ext);
+  const ext = (file.name || '').split('.').pop().toLowerCase();
+  const isImage = file.type?.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
 
   const categories = {
-    pdf: "Documento PDF",
-    doc: "Documento Office",
-    docx: "Documento Office",
-    json: "Dados Estruturados",
-    js: "Script JavaScript",
-    py: "Script Python",
-    txt: "Arquivo de Texto",
-    png: "Imagem PNG",
-    jpg: "Imagem JPEG",
-    jpeg: "Imagem JPEG",
-    webp: "Imagem WebP",
+    pdf: 'Documento PDF',
+    doc: 'Documento Office',
+    docx: 'Documento Office',
+    json: 'Dados Estruturados',
+    js: 'Script JavaScript',
+    py: 'Script Python',
+    txt: 'Arquivo de Texto',
+    png: 'Imagem PNG',
+    jpg: 'Imagem JPEG',
+    jpeg: 'Imagem JPEG',
+    webp: 'Imagem WebP',
   };
 
   const icons = {
-    pdf: "📕",
-    doc: "📘",
-    docx: "📘",
-    json: "📦",
-    js: "💛",
-    py: "💙",
-    txt: "📄",
-    png: "🖼️",
-    jpg: "🖼️",
-    jpeg: "🖼️",
-    webp: "🖼️",
+    pdf: '📕',
+    doc: '📘',
+    docx: '📘',
+    json: '📦',
+    js: '💛',
+    py: '💙',
+    txt: '📄',
+    png: '🖼️',
+    jpg: '🖼️',
+    jpeg: '🖼️',
+    webp: '🖼️',
   };
 
-  const category = categories[ext] || "Arquivo";
-  const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : "";
+  const category = categories[ext] || 'Arquivo';
+  const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : '';
 
-  let iconContent = `<span class="message-file-icon">${icons[ext] || "📎"}</span>`;
-  let onClickUrl = file.url || "#";
+  let iconContent = `<span class="message-file-icon">${icons[ext] || '📎'}</span>`;
+  let onClickUrl = file.url || '#';
 
   // Se for um objeto File real (blob local)
   if (file instanceof File) {
@@ -6664,12 +6878,12 @@ function renderFileAttachment(file) {
   }
 
   if (isImage) {
-    const thumbUrl = onClickUrl !== "#" ? onClickUrl : "logo.png";
+    const thumbUrl = onClickUrl !== '#' ? onClickUrl : 'logo.png';
     iconContent = `<img src="${thumbUrl}" alt="${file.name}" class="message-file-preview">`;
   }
 
   return `
-        <div class="message-file-card" onclick="window.openAttachment('${onClickUrl}', '${(file.name || "Sem nome").replace(/'/g, "\\'")}')">
+        <div class="message-file-card" onclick="window.openAttachment('${onClickUrl}', '${(file.name || 'Sem nome').replace(/'/g, "\\'")}')">
             <div class="message-file-icon-wrapper">
                 ${iconContent}
             </div>
@@ -6690,36 +6904,73 @@ function renderFileAttachment(file) {
 export async function verificarAdminEShowSidebar(user) {
   if (!user || user.isAnonymous) {
     window.isAdmin = false;
-    document.querySelector(".js-iniciar-admin")?.remove();
-    document.querySelector(".js-iniciar-apendice-a")?.remove();
-    document.querySelector(".js-iniciar-apendice-b")?.remove();
-    
-    const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+    document.querySelector('.js-iniciar-admin')?.remove();
+    document.querySelector('.js-iniciar-apendice-a')?.remove();
+    document.querySelector('.js-iniciar-apendice-b')?.remove();
+
+    const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
     if (apendiceAPromptBtn) {
-      apendiceAPromptBtn.style.display = "none";
+      apendiceAPromptBtn.style.display = 'none';
     }
-    if (typeof window.syncBlockExtractionVisibility === "function") {
+    if (typeof window.syncBlockExtractionVisibility === 'function') {
       window.syncBlockExtractionVisibility();
     }
     return;
   }
 
   try {
-    const { ref, get } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+    const { ref, get } = await import(
+      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+    );
     const adminRef = ref(db, `admins/${user.uid}`);
     const snapshot = await get(adminRef);
     const isAdmin = snapshot.exists() && snapshot.val() === true;
 
     window.isAdmin = isAdmin;
 
-    if (isAdmin) {
-      const sidebarItems = document.querySelector(".nav-sidebar-items");
-      if (sidebarItems) {
-        const divider = sidebarItems.querySelector(".nav-divider");
-        
-        if (!document.querySelector(".js-iniciar-admin")) {
-          const btnAdmin = document.createElement("button");
-          btnAdmin.className = "nav-sidebar-item nav-item--admin js-iniciar-admin";
+    const sidebarItems = document.querySelector('.nav-sidebar-items');
+    if (sidebarItems) {
+      const divider = sidebarItems.querySelector('.nav-divider');
+
+      // Botões acessíveis a todos os usuários autenticados: Apêndice A e Apêndice B
+      if (!document.querySelector('.js-iniciar-apendice-a')) {
+        const btnApendiceA = document.createElement('button');
+        btnApendiceA.className = 'nav-sidebar-item nav-item--apendice-a js-iniciar-apendice-a';
+        btnApendiceA.innerHTML = `
+          <span class="nav-icon">🧪</span>
+          <span class="nav-label">
+            <span class="nav-title">Apêndice A</span>
+            <span class="nav-desc">Crossover de Modelos</span>
+          </span>
+        `;
+        if (divider) {
+          sidebarItems.insertBefore(btnApendiceA, divider);
+        } else {
+          sidebarItems.appendChild(btnApendiceA);
+        }
+      }
+
+      if (!document.querySelector('.js-iniciar-apendice-b')) {
+        const btnApendiceB = document.createElement('button');
+        btnApendiceB.className = 'nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b';
+        btnApendiceB.innerHTML = `
+          <span class="nav-icon">🔬</span>
+          <span class="nav-label">
+            <span class="nav-title">Apêndice B</span>
+            <span class="nav-desc">Triagem do Gemma 4</span>
+          </span>
+        `;
+        if (divider) {
+          sidebarItems.insertBefore(btnApendiceB, divider);
+        } else {
+          sidebarItems.appendChild(btnApendiceB);
+        }
+      }
+
+      if (isAdmin) {
+        if (!document.querySelector('.js-iniciar-admin')) {
+          const btnAdmin = document.createElement('button');
+          btnAdmin.className = 'nav-sidebar-item nav-item--admin js-iniciar-admin';
           btnAdmin.innerHTML = `
             <span class="nav-icon">🛠️</span>
             <span class="nav-label">
@@ -6734,43 +6985,10 @@ export async function verificarAdminEShowSidebar(user) {
           }
         }
 
-        if (!document.querySelector(".js-iniciar-apendice-a")) {
-          const btnApendiceA = document.createElement("button");
-          btnApendiceA.className = "nav-sidebar-item nav-item--apendice-a js-iniciar-apendice-a";
-          btnApendiceA.innerHTML = `
-            <span class="nav-icon">🧪</span>
-            <span class="nav-label">
-              <span class="nav-title">Apêndice A</span>
-              <span class="nav-desc">Crossover de Modelos</span>
-            </span>
-          `;
-          if (divider) {
-            sidebarItems.insertBefore(btnApendiceA, divider);
-          } else {
-            sidebarItems.appendChild(btnApendiceA);
-          }
-        }
-
-        if (!document.querySelector(".js-iniciar-apendice-b")) {
-          const btnApendiceB = document.createElement("button");
-          btnApendiceB.className = "nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b";
-          btnApendiceB.innerHTML = `
-            <span class="nav-icon">🔬</span>
-            <span class="nav-label">
-              <span class="nav-title">Apêndice B</span>
-              <span class="nav-desc">Triagem do Gemma 4</span>
-            </span>
-          `;
-          if (divider) {
-            sidebarItems.insertBefore(btnApendiceB, divider);
-          } else {
-            sidebarItems.appendChild(btnApendiceB);
-          }
-        }
-
-        if (!document.querySelector(".js-iniciar-verificar-questoes")) {
-          const btnVerificarQuestoes = document.createElement("button");
-          btnVerificarQuestoes.className = "nav-sidebar-item nav-item--verificar-questoes js-iniciar-verificar-questoes";
+        if (!document.querySelector('.js-iniciar-verificar-questoes')) {
+          const btnVerificarQuestoes = document.createElement('button');
+          btnVerificarQuestoes.className =
+            'nav-sidebar-item nav-item--verificar-questoes js-iniciar-verificar-questoes';
           btnVerificarQuestoes.innerHTML = `
             <span class="nav-icon">🔍</span>
             <span class="nav-label">
@@ -6785,27 +7003,249 @@ export async function verificarAdminEShowSidebar(user) {
           }
         }
         // Mostra o botão Prompt Apêndice A no menu +
-        const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
+        const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
         if (apendiceAPromptBtn) {
-          apendiceAPromptBtn.style.display = "flex";
+          apendiceAPromptBtn.style.display = 'flex';
+        }
+      } else {
+        document.querySelector('.js-iniciar-admin')?.remove();
+        document.querySelector('.js-iniciar-verificar-questoes')?.remove();
+
+        const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
+        if (apendiceAPromptBtn) {
+          apendiceAPromptBtn.style.display = 'none';
         }
       }
-    } else {
-      document.querySelector(".js-iniciar-admin")?.remove();
-      document.querySelector(".js-iniciar-apendice-a")?.remove();
-      document.querySelector(".js-iniciar-apendice-b")?.remove();
-      document.querySelector(".js-iniciar-verificar-questoes")?.remove();
-      
-      const apendiceAPromptBtn = document.getElementById("chatApendiceAPromptBtn");
-      if (apendiceAPromptBtn) {
-        apendiceAPromptBtn.style.display = "none";
-      }
     }
-    
-    if (typeof window.syncBlockExtractionVisibility === "function") {
+
+    if (typeof window.syncBlockExtractionVisibility === 'function') {
       window.syncBlockExtractionVisibility();
     }
   } catch (error) {
-    console.error("Erro ao verificar admin para sidebar:", error);
+    console.error('Erro ao verificar admin para sidebar:', error);
   }
 }
+
+// --- FUNÇÕES GLOBAIS DO MODAL DE RESPOSTA PRELIMINAR (BLOOM ETAPA 1) ---
+window._currentBloomPreliminaryText = '';
+window._isBloomStep1Streaming = false;
+window._bloomModalActiveTab = 'markdown';
+
+window.onBloomPreliminaryStream = (text) => {
+  if (typeof text === 'string') {
+    window._currentBloomPreliminaryText = text;
+  }
+  window._isBloomStep1Streaming = true;
+
+  const modal = document.getElementById('bloomPreliminaryModal');
+  if (modal && modal.classList.contains('visible')) {
+    window.renderBloomPreliminaryModalContent();
+  }
+};
+
+window.switchBloomModalTab = (tabName) => {
+  window._bloomModalActiveTab = tabName;
+
+  const tabMarkdown = document.getElementById('bloomTabMarkdown');
+  const tabJson = document.getElementById('bloomTabJson');
+  const viewMarkdown = document.getElementById('bloomModalMarkdownView');
+  const viewJson = document.getElementById('bloomPreliminaryJsonPre');
+
+  if (tabName === 'markdown') {
+    tabMarkdown?.classList.add('active');
+    tabJson?.classList.remove('active');
+    viewMarkdown?.classList.remove('hidden');
+    viewJson?.classList.add('hidden');
+  } else {
+    tabJson?.classList.add('active');
+    tabMarkdown?.classList.remove('active');
+    viewJson?.classList.remove('hidden');
+    viewMarkdown?.classList.add('hidden');
+  }
+
+  window.renderBloomPreliminaryModalContent();
+};
+
+window.renderBloomPreliminaryModalContent = () => {
+  const viewMarkdown = document.getElementById('bloomModalMarkdownView');
+  const jsonPre = document.getElementById('bloomPreliminaryJsonPre');
+  const raw = window._currentBloomPreliminaryText || 'Aguardando geração do conteúdo preliminar...';
+  const activeTab = window._bloomModalActiveTab || 'markdown';
+
+  // Sincroniza classes de visibilidade estritamente
+  if (activeTab === 'markdown') {
+    if (viewMarkdown) {
+      viewMarkdown.className = 'bloom-modal-markdown-view chat-message--ai no-maia markdown-content';
+    }
+    if (jsonPre) jsonPre.classList.add('hidden');
+  } else {
+    if (viewMarkdown) {
+      viewMarkdown.className = 'bloom-modal-markdown-view chat-message--ai no-maia markdown-content hidden';
+    }
+    if (jsonPre) jsonPre.classList.remove('hidden');
+  }
+
+  // 1. Renderiza no visualizador Markdown/Chat com processLatex, marked e KaTeX
+  if (viewMarkdown) {
+    viewMarkdown.setAttribute('data-raw', raw);
+
+    if (window.marked && typeof renderLatexIn === 'function') {
+      renderLatexIn(viewMarkdown);
+    } else {
+      const html = generateChatHtmlString(raw);
+      viewMarkdown.innerHTML = html;
+      if (typeof renderLatexIn === 'function') {
+        renderLatexIn(viewMarkdown);
+      }
+    }
+    viewMarkdown.querySelectorAll('pre code').forEach((el) => {
+      if (window.hljs) window.hljs.highlightElement(el);
+    });
+  }
+
+  // 2. Renderiza no visualizador JSON
+  if (jsonPre) {
+    let formatted = '';
+    try {
+      const parsed = JSON.parse(raw);
+      formatted = JSON.stringify(parsed, null, 2);
+    } catch (e) {
+      const wrapper = {
+        arquitetura: 'bloom (v2)',
+        etapa: '1/2 (gerador de conteúdo)',
+        status: window._isBloomStep1Streaming ? 'gerando (streaming...)' : 'concluído',
+        timestamp: new Date().toISOString(),
+        conteudo_preliminar: raw,
+      };
+      formatted = JSON.stringify(wrapper, null, 2);
+    }
+    jsonPre.textContent = formatted;
+  }
+};
+
+window.openBloomPreliminaryModal = (param) => {
+  let textToDisplay = window._currentBloomPreliminaryText;
+
+  if (typeof param === 'string' && param.length > 0) {
+    textToDisplay = param;
+  } else if (typeof param === 'number') {
+    const aiMsg = document.querySelector(`.chat-message[data-msg-index="${param}"]`);
+    if (aiMsg && aiMsg._preliminaryText) {
+      textToDisplay = aiMsg._preliminaryText;
+    } else if (window.currentLoadedChat?.messages?.[param]) {
+      const msg = window.currentLoadedChat.messages[param];
+      textToDisplay =
+        (typeof msg.content === 'object' && msg.content ? msg.content._preliminaryText : null) ||
+        msg._preliminaryText ||
+        textToDisplay;
+    }
+  } else if (param && param.currentTarget) {
+    const btn = param.currentTarget;
+    if (btn && btn.dataset.preliminaryText) {
+      textToDisplay = decodeURIComponent(btn.dataset.preliminaryText);
+    }
+  }
+
+  if (textToDisplay) {
+    window._currentBloomPreliminaryText = textToDisplay;
+  }
+
+  let modal = document.getElementById('bloomPreliminaryModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'bloomPreliminaryModal';
+    modal.className = 'bloom-modal-overlay';
+    modal.innerHTML = `
+      <div class="bloom-modal-container">
+        <div class="bloom-modal-header">
+          <div class="bloom-modal-header-info">
+            <div class="bloom-modal-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div>
+              <div class="bloom-modal-title">Resposta Preliminar (Bloom - Etapa 1/2)</div>
+              <div class="bloom-modal-subtitle">Conteúdo bruto gerado antes da diagramação de layout</div>
+            </div>
+          </div>
+          <div class="bloom-modal-tabs">
+            <button id="bloomTabMarkdown" class="bloom-tab-btn active" onclick="window.switchBloomModalTab('markdown')">
+              👁️ Visualizar Resposta
+            </button>
+            <button id="bloomTabJson" class="bloom-tab-btn" onclick="window.switchBloomModalTab('json')">
+              📄 Estrutura JSON
+            </button>
+          </div>
+          <div class="bloom-modal-actions">
+            <button class="bloom-modal-btn" onclick="window.copyBloomPreliminaryContent()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copiar
+            </button>
+            <button class="bloom-modal-btn primary" onclick="window.downloadBloomPreliminaryJson()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Salvar Arquivo JSON
+            </button>
+            <button class="bloom-modal-close" onclick="window.closeBloomPreliminaryModal()">&times;</button>
+          </div>
+        </div>
+        <div class="bloom-modal-body">
+          <div id="bloomModalMarkdownView" class="bloom-modal-markdown-view maia-chat-message"></div>
+          <pre id="bloomPreliminaryJsonPre" class="bloom-modal-json-pre hidden"></pre>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) window.closeBloomPreliminaryModal();
+    });
+  }
+
+  window.switchBloomModalTab(window._bloomModalActiveTab || 'markdown');
+  modal.classList.add('visible');
+};
+
+window.closeBloomPreliminaryModal = () => {
+  const modal = document.getElementById('bloomPreliminaryModal');
+  if (modal) modal.classList.remove('visible');
+};
+
+window.copyBloomPreliminaryContent = () => {
+  const activeTab = window._bloomModalActiveTab;
+  let content = '';
+
+  if (activeTab === 'markdown') {
+    content = window._currentBloomPreliminaryText || '';
+  } else {
+    const jsonPre = document.getElementById('bloomPreliminaryJsonPre');
+    content = jsonPre?.textContent || '';
+  }
+
+  navigator.clipboard
+    .writeText(content)
+    .then(() => {
+      alert(`✅ Conteúdo (${activeTab === 'markdown' ? 'Markdown' : 'JSON'}) copiado com sucesso!`);
+    })
+    .catch((err) => {
+      console.error('Erro ao copiar conteúdo:', err);
+    });
+};
+
+window.downloadBloomPreliminaryJson = () => {
+  const jsonPre = document.getElementById('bloomPreliminaryJsonPre');
+  let contentToSave = jsonPre?.textContent;
+
+  if (!contentToSave) {
+    const wrapper = {
+      arquitetura: 'bloom (v2)',
+      etapa: '1/2 (gerador de conteúdo)',
+      conteudo_preliminar: window._currentBloomPreliminaryText || '',
+    };
+    contentToSave = JSON.stringify(wrapper, null, 2);
+  }
+
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(contentToSave);
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute('href', dataStr);
+  downloadAnchor.setAttribute('download', `bloom_resposta_preliminar_${Date.now()}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+};

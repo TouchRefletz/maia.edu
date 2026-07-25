@@ -1,23 +1,14 @@
-import {
-  ref,
-  set,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { resetarParaProximaQuestao } from "../app/reset.js";
-import { CropperState } from "../cropper/cropper-state.js";
-import {
-  indexarNoPinecone,
-  processarEmbeddingSemantico,
-} from "../ia/embedding-e-pinecone.js";
-import {
-  construirDadosParaEnvio,
-  gerarIdentificadoresEnvio,
-} from "../ia/envio-textos.js";
-import { prepararPayloadComImagens } from "../ia/payload-imagens.js";
-import { db } from "../main.js";
-import { DataNormalizer } from "../normalizer/data-normalizer.js";
-import { iniciarPreparacaoEnvio } from "../render/final/json-e-modal.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { getActiveTab, removeTab, switchToHub } from "../ui/sidebar-tabs.js";
+import { ref, set } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { resetarParaProximaQuestao } from '../app/reset.js';
+import { CropperState } from '../cropper/cropper-state.js';
+import { indexarNoPinecone, processarEmbeddingSemantico } from '../ia/embedding-e-pinecone.js';
+import { construirDadosParaEnvio, gerarIdentificadoresEnvio } from '../ia/envio-textos.js';
+import { prepararPayloadComImagens } from '../ia/payload-imagens.js';
+import { db } from '../main.js';
+import { DataNormalizer } from '../normalizer/data-normalizer.js';
+import { iniciarPreparacaoEnvio } from '../render/final/json-e-modal.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { getActiveTab, removeTab, switchToHub } from '../ui/sidebar-tabs.js';
 
 export async function finalizarEnvioFirebase(
   btnEnviar,
@@ -26,7 +17,7 @@ export async function finalizarEnvioFirebase(
   payloadParaSalvar,
 ) {
   // 1. Feedback Visual
-  if (btnEnviar) btnEnviar.innerText = "💾 Salvando no Banco...";
+  if (btnEnviar) btnEnviar.innerText = '💾 Salvando no Banco...';
 
   // 2. Define o caminho e Referência
   const caminhoFinal = `questoes/${chaveProva}/${idQuestaoUnico}`;
@@ -37,18 +28,18 @@ export async function finalizarEnvioFirebase(
   await set(novaQuestaoRef, payloadParaSalvar);
 
   // 4. Logs de Sucesso
-  console.log("Sucesso! Salvo em:", caminhoFinal);
-  console.log("Payload Final:", payloadParaSalvar);
+  console.log('Sucesso! Salvo em:', caminhoFinal);
+  console.log('Payload Final:', payloadParaSalvar);
 
   // 5. Atualiza a UI da aba e fecha (Feedback Visual Solicitado)
   const activeTab = getActiveTab();
-  if (activeTab && activeTab.type === "question") {
+  if (activeTab && activeTab.type === 'question') {
     // Atualiza o estado do grupo no CropperState para "sent"
     // Isso garante que o card no Hub mostre "Salvo!" em vez de voltar para "Enviar"
     if (activeTab.groupId) {
       const group = CropperState.groups.find((g) => g.id === activeTab.groupId);
       if (group) {
-        group.status = "sent";
+        group.status = 'sent';
       }
     }
 
@@ -70,15 +61,15 @@ export async function finalizarEnvioFirebase(
 
 export function tratarErroEnvioFirebase(error, btnEnviar) {
   // 1. Log técnico para o desenvolvedor
-  console.error("Erro fatal no envio:", error);
+  console.error('Erro fatal no envio:', error);
 
   // 2. Alerta visual para o usuário
-  customAlert("❌ Falha no envio: " + (error.message || "Erro desconhecido"));
+  customAlert('❌ Falha no envio: ' + (error.message || 'Erro desconhecido'));
 
   // 3. Destrava a interface para nova tentativa
   if (btnEnviar) {
     btnEnviar.disabled = false;
-    btnEnviar.innerText = "🚀 Tentar Novamente";
+    btnEnviar.innerText = '🚀 Tentar Novamente';
   }
 }
 
@@ -90,16 +81,17 @@ export async function enviarDadosParaFirebase(overrideQ, overrideG) {
 
   try {
     // 2. CORREÇÃO: Constroi os dados PRIMEIRO para ter acesso ao tituloMaterial, questaoFinal, etc.
-    const { tituloMaterial, questaoFinal, gabaritoLimpo } =
-      construirDadosParaEnvio(q, g);
+    const { tituloMaterial, questaoFinal, gabaritoLimpo } = construirDadosParaEnvio(q, g);
 
     // 3. Agora sim podemos gerar os IDs (pois temos o tituloMaterial)
-    const { chaveProva, idQuestaoUnico, idPinecone } =
-      gerarIdentificadoresEnvio(tituloMaterial, q);
+    const { chaveProva, idQuestaoUnico, idPinecone } = gerarIdentificadoresEnvio(tituloMaterial, q);
 
     // 4. Gera Embedding (Desestrutura para pegar vetor E texto)
-    const { vetorEmbedding, textoParaVetorizar } =
-      await processarEmbeddingSemantico(btnEnviar, questaoFinal, gabaritoLimpo);
+    const { vetorEmbedding, textoParaVetorizar } = await processarEmbeddingSemantico(
+      btnEnviar,
+      questaoFinal,
+      gabaritoLimpo,
+    );
 
     // 5. Upload e Payload (Modifica payloadParaSalvar com URLs reais)
     const payloadParaSalvar = await prepararPayloadComImagens(
@@ -128,12 +120,7 @@ export async function enviarDadosParaFirebase(overrideQ, overrideG) {
     await DataNormalizer.flush();
 
     // Salva no Firebase e reseta a tela
-    await finalizarEnvioFirebase(
-      btnEnviar,
-      chaveProva,
-      idQuestaoUnico,
-      payloadParaSalvar,
-    );
+    await finalizarEnvioFirebase(btnEnviar, chaveProva, idQuestaoUnico, payloadParaSalvar);
   } catch (error) {
     tratarErroEnvioFirebase(error, btnEnviar);
   }

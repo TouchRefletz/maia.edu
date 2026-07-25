@@ -28,7 +28,7 @@ O sistema de chat do maia.edu é o módulo mais complexo da plataforma. Ele impl
 | [`ChatRender.tsx`](/chat/render) | ~900 | Renderização de blocos (TSX) |
 | [`ChatRender.js`](/chat/render) | ~600 | Renderização de blocos (JS legacy) |
 | `hydration.js` | ~680 | Pós-processamento (MathJax, Mermaid) |
-| **Services:** | | |
+| **Serviços Auxiliares** | **Linhas** | **Propósito** |
 | `scaffolding-service.js` | ~400 | Tutoria passo-a-passo |
 | `gap-detector.js` | ~200 | Detecção de lacunas de conhecimento |
 | `suggestion-generator.js` | ~300 | Geração de sugestões contextuais |

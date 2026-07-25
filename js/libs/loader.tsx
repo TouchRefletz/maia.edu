@@ -17,7 +17,7 @@ declare global {
           display: boolean;
         }>;
         throwOnError?: boolean;
-      }
+      },
     ) => void;
   }
 }
@@ -26,7 +26,7 @@ declare global {
 export function addCss(href: string): void {
   // Converte NodeList para Array para usar .some
   const links = Array.from(document.querySelectorAll('link'));
-  
+
   if (links.some((l) => l.href.includes(href))) {
     return;
   }
@@ -59,7 +59,7 @@ export function addScript(src: string): Promise<void> {
 export async function ensureLibsLoaded(): Promise<void> {
   // Evita carregamento duplicado
   if (typeof window !== 'undefined' && window.__libsLoaded) return;
-  
+
   if (typeof window !== 'undefined') {
     window.__libsLoaded = true;
   }
@@ -67,14 +67,10 @@ export async function ensureLibsLoaded(): Promise<void> {
   try {
     // 1. Carrega KaTeX (Matemática)
     addCss('https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.css');
-    await addScript(
-      'https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.js'
-    );
+    await addScript('https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/katex.min.js');
 
     // Auto-render depende do katex base
-    await addScript(
-      'https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/contrib/auto-render.min.js'
-    );
+    await addScript('https://cdn.jsdelivr.net/npm/katex@0.16.25/dist/contrib/auto-render.min.js');
 
     // 2. Carrega Marked (Markdown)
     await addScript('https://cdn.jsdelivr.net/npm/marked/marked.min.js');
@@ -97,24 +93,24 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
   // Verifica se o marked foi carregado no window
   if (window.marked) {
     const markdownElements = Array.from(rootEl.querySelectorAll('.markdown-content'));
-    
+
     // Inclui a própria raiz se ela for um container de markdown
     if (rootEl.classList.contains('markdown-content')) {
-        markdownElements.push(rootEl);
+      markdownElements.push(rootEl);
     }
-    
+
     markdownElements.forEach((el) => {
       const htmlEl = el as HTMLElement;
       let raw = htmlEl.getAttribute('data-raw') || htmlEl.innerHTML;
-      
+
       // Decodifica entidades HTML (&lt;table&gt; -> <table>) para que o marked renderize HTML nativo
       if (raw.includes('&lt;') || raw.includes('&gt;') || raw.includes('&quot;')) {
         raw = decodeEntities(raw);
       }
-      
+
       // Processa LaTeX: converte $math$ em \(math\), remove $ de números e protege moedas R$
       raw = processLatex(raw);
-      
+
       // O renderer do marked converte markdown para HTML
       htmlEl.innerHTML = window.marked!.parse(raw);
     });
@@ -125,8 +121,8 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
     window.renderMathInElement(rootEl, {
       delimiters: [
         { left: '\\[', right: '\\]', display: true }, // Bloco isolado
-        { left: '$$', right: '$$', display: true },   // Bloco isolado (alternativo)
-        { left: '\\(', right: '\\)', display: false },// Inline padrão \(...\)
+        { left: '$$', right: '$$', display: true }, // Bloco isolado (alternativo)
+        { left: '\\(', right: '\\)', display: false }, // Inline padrão \(...\)
       ],
       throwOnError: false,
     });

@@ -1,17 +1,17 @@
-import { cancelarRecorte } from "../cropper/cropper-core.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { cancelarRecorte } from '../cropper/cropper-core.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 export function limparElementosVisuais() {
   // 1. Remove o Modal Final
-  const finalModal = document.getElementById("finalModal");
+  const finalModal = document.getElementById('finalModal');
   if (finalModal) finalModal.remove();
 
   // Remove também o container do modal React (Novo)
-  const finalModalReact = document.getElementById("finalModalReactContainer");
+  const finalModalReact = document.getElementById('finalModalReactContainer');
   if (finalModalReact) finalModalReact.remove();
 
   // 2. Limpa a UI da Sidebar (Onde ficava o texto extraído)
-  const resultContainer = document.getElementById("extractionResult");
+  const resultContainer = document.getElementById('extractionResult');
   if (resultContainer) resultContainer.remove();
 }
 
@@ -35,10 +35,10 @@ export function gerenciarEstadoInterface() {
   // if (typeof esconderPainel === "function") esconderPainel(false);
 
   // Cancela modo de recorte
-  if (typeof cancelarRecorte === "function") cancelarRecorte();
+  if (typeof cancelarRecorte === 'function') cancelarRecorte();
 
   // Feedback para o usuário
-  customAlert("✅ Salvo! Pronto para a próxima questão.", 3000);
+  customAlert('✅ Salvo! Pronto para a próxima questão.', 3000);
 }
 
 /**

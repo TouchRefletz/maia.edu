@@ -1,13 +1,17 @@
-﻿# Componentes - Terminal
+# Estilização do Terminal de Logs (`css/comp-terminal.md`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+Componentes+-+Terminal&labels=docs)
+O `css/comp-terminal.css` estiliza a janela do terminal de streaming de logs e feedback visual da extração de dados e chamadas de API.
 
-## Visao Geral
-Pagina de documentacao para `css/components/terminal.css`.
+---
 
-## Arquivo: `css/components/terminal.css`
+## 🎨 Elementos Visuais
 
-## Referencias Cruzadas
-- [Terminal UI](/upload/terminal-ui)
-- [Arquitetura](/guia/arquitetura)
+- **Fonte Monoespaçada**: Utiliza a pilha `font-family: var(--font-mono)` (Fira Code, JetBrains Mono, Consolas).
+- **Esquema Dark High-Contrast**: Fundo escuro profundo (`#0d1117`), com destaques de sintaxe (logs de aviso em amarelo, erros em vermelho neon, conexões concluídas em verde emerald).
+- **Auto-Scroll Smooth**: Container com rola suave acoplado às novas linhas de log inseridas pelo `LogTranslator`.
 
+---
+
+## 🔗 Referências Cruzadas
+- [Terminal UI - Arquitetura](/upload/terminal-ui)
+- [Design Tokens](/css/design-tokens)

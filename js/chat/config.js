@@ -12,232 +12,232 @@ export const CHAT_CONFIG = {
    */
   modes: {
     automatico: {
-      id: "automatico",
-      label: "Automático",
-      description: "A IA escolhe o melhor modo para você",
+      id: 'automatico',
+      label: 'Automático',
+      description: 'A IA escolhe o melhor modo para você',
       usesRouter: true,
       model: null, // decidido pelo router
     },
     rapido: {
-      id: "rapido",
-      label: "Rápido",
-      description: "Excelente para um estudo rápido e eficaz",
+      id: 'rapido',
+      label: 'Rápido',
+      description: 'Excelente para um estudo rápido e eficaz',
       usesRouter: false,
-      model: "models/gemini-3.5-flash",
+      model: 'models/gemini-3.5-flash',
     },
     raciocinio: {
-      id: "raciocinio",
-      label: "Raciocínio",
-      description: "Obtenha respostas com menos alucinações ou incoerências",
+      id: 'raciocinio',
+      label: 'Raciocínio',
+      description: 'Obtenha respostas com menos alucinações ou incoerências',
       usesRouter: false,
-      model: "models/gemini-3.5-flash",
+      model: 'models/gemini-3.5-flash',
     },
     scaffolding: {
-      id: "scaffolding",
-      label: "Scaffolding (Beta)",
-      description: "Treinamento passo-a-passo com verdadeiro ou falso",
+      id: 'scaffolding',
+      label: 'Scaffolding (Beta)',
+      description: 'Treinamento passo-a-passo com verdadeiro ou falso',
       usesRouter: false,
-      model: "models/gemini-3.5-flash",
+      model: 'models/gemini-3.5-flash',
     },
     // Modelos Google Gemini
-    "models/gemini-3.5-flash": {
-      id: "models/gemini-3.5-flash",
-      label: "Gemini 3.5 Flash",
-      description: "Equilíbrio perfeito de velocidade e inteligência",
+    'models/gemini-3.5-flash': {
+      id: 'models/gemini-3.5-flash',
+      label: 'Gemini 3.5 Flash',
+      description: 'Equilíbrio perfeito de velocidade e inteligência',
       usesRouter: false,
-      model: "models/gemini-3.5-flash",
+      model: 'models/gemini-3.5-flash',
     },
-    "models/gemini-3-flash-preview": {
-      id: "models/gemini-3-flash-preview",
-      label: "Gemini 3 Flash (Preview)",
-      description: "Modelo flash rápido de testes",
+    'models/gemini-3-flash-preview': {
+      id: 'models/gemini-3-flash-preview',
+      label: 'Gemini 3 Flash (Preview)',
+      description: 'Modelo flash rápido de testes',
       usesRouter: false,
-      model: "models/gemini-3-flash-preview",
+      model: 'models/gemini-3-flash-preview',
     },
-    "models/gemini-3.1-flash-lite": {
-      id: "models/gemini-3.1-flash-lite",
-      label: "Gemini 3.1 Flash Lite",
-      description: "Super leve e ultra veloz",
+    'models/gemini-3.1-flash-lite': {
+      id: 'models/gemini-3.1-flash-lite',
+      label: 'Gemini 3.1 Flash Lite',
+      description: 'Super leve e ultra veloz',
       usesRouter: false,
-      model: "models/gemini-3.1-flash-lite",
+      model: 'models/gemini-3.1-flash-lite',
     },
-    "models/gemini-2.5-flash": {
-      id: "models/gemini-2.5-flash",
-      label: "Gemini 2.5 Flash",
-      description: "Modelo flash legado estável",
+    'models/gemini-2.5-flash': {
+      id: 'models/gemini-2.5-flash',
+      label: 'Gemini 2.5 Flash',
+      description: 'Modelo flash legado estável',
       usesRouter: false,
-      model: "models/gemini-2.5-flash",
+      model: 'models/gemini-2.5-flash',
     },
-    "models/gemini-2.5-flash-lite": {
-      id: "models/gemini-2.5-flash-lite",
-      label: "Gemini 2.5 Flash Lite",
-      description: "Modelo de entrada extremamente ágil",
+    'models/gemini-2.5-flash-lite': {
+      id: 'models/gemini-2.5-flash-lite',
+      label: 'Gemini 2.5 Flash Lite',
+      description: 'Modelo de entrada extremamente ágil',
       usesRouter: false,
-      model: "models/gemini-2.5-flash-lite",
+      model: 'models/gemini-2.5-flash-lite',
     },
-    "models/gemma-4-31b-it": {
-      id: "models/gemma-4-31b-it",
-      label: "Gemma 4 31B IT",
-      description: "Modelo aberto Gemma avançado",
+    'models/gemma-4-31b-it': {
+      id: 'models/gemma-4-31b-it',
+      label: 'Gemma 4 31B IT',
+      description: 'Modelo aberto Gemma avançado',
       usesRouter: false,
-      model: "models/gemma-4-31b-it",
+      model: 'models/gemma-4-31b-it',
     },
-    "models/gemma-4-26b-a4b-it": {
-      id: "models/gemma-4-26b-a4b-it",
-      label: "Gemma 4 26B a4b IT",
-      description: "Gemma com arquitetura otimizada",
+    'models/gemma-4-26b-a4b-it': {
+      id: 'models/gemma-4-26b-a4b-it',
+      label: 'Gemma 4 26B a4b IT',
+      description: 'Gemma com arquitetura otimizada',
       usesRouter: false,
-      model: "models/gemma-4-26b-a4b-it",
+      model: 'models/gemma-4-26b-a4b-it',
     },
     // Modelos Google Vertex AI
-    "vertex/gemini-3.5-flash": {
-      id: "vertex/gemini-3.5-flash",
-      label: "Gemini 3.5 Flash (Vertex)",
-      description: "Equilíbrio perfeito de velocidade e inteligência via Vertex AI",
+    'vertex/gemini-3.5-flash': {
+      id: 'vertex/gemini-3.5-flash',
+      label: 'Gemini 3.5 Flash (Vertex)',
+      description: 'Equilíbrio perfeito de velocidade e inteligência via Vertex AI',
       usesRouter: false,
-      model: "vertex/gemini-3.5-flash",
-      vertexModelId: "publishers/google/models/gemini-3.5-flash",
+      model: 'vertex/gemini-3.5-flash',
+      vertexModelId: 'publishers/google/models/gemini-3.5-flash',
     },
-    "vertex/gemini-3-flash-preview": {
-      id: "vertex/gemini-3-flash-preview",
-      label: "Gemini 3 Flash (Preview) (Vertex)",
-      description: "Modelo flash rápido de testes via Vertex AI",
+    'vertex/gemini-3-flash-preview': {
+      id: 'vertex/gemini-3-flash-preview',
+      label: 'Gemini 3 Flash (Preview) (Vertex)',
+      description: 'Modelo flash rápido de testes via Vertex AI',
       usesRouter: false,
-      model: "vertex/gemini-3-flash-preview",
-      vertexModelId: "publishers/google/models/gemini-3-flash-preview",
+      model: 'vertex/gemini-3-flash-preview',
+      vertexModelId: 'publishers/google/models/gemini-3-flash-preview',
     },
-    "vertex/gemini-3.1-flash-lite": {
-      id: "vertex/gemini-3.1-flash-lite",
-      label: "Gemini 3.1 Flash Lite (Vertex)",
-      description: "Super leve e ultra veloz via Vertex AI",
+    'vertex/gemini-3.1-flash-lite': {
+      id: 'vertex/gemini-3.1-flash-lite',
+      label: 'Gemini 3.1 Flash Lite (Vertex)',
+      description: 'Super leve e ultra veloz via Vertex AI',
       usesRouter: false,
-      model: "vertex/gemini-3.1-flash-lite",
-      vertexModelId: "publishers/google/models/gemini-3.1-flash-lite",
+      model: 'vertex/gemini-3.1-flash-lite',
+      vertexModelId: 'publishers/google/models/gemini-3.1-flash-lite',
     },
-    "vertex/gemini-2.5-flash": {
-      id: "vertex/gemini-2.5-flash",
-      label: "Gemini 2.5 Flash (Vertex)",
-      description: "Modelo flash legado estável via Vertex AI",
+    'vertex/gemini-2.5-flash': {
+      id: 'vertex/gemini-2.5-flash',
+      label: 'Gemini 2.5 Flash (Vertex)',
+      description: 'Modelo flash legado estável via Vertex AI',
       usesRouter: false,
-      model: "vertex/gemini-2.5-flash",
-      vertexModelId: "publishers/google/models/gemini-2.5-flash",
+      model: 'vertex/gemini-2.5-flash',
+      vertexModelId: 'publishers/google/models/gemini-2.5-flash',
     },
-    "vertex/gemini-2.5-flash-lite": {
-      id: "vertex/gemini-2.5-flash-lite",
-      label: "Gemini 2.5 Flash Lite (Vertex)",
-      description: "Modelo de entrada extremamente ágil via Vertex AI",
+    'vertex/gemini-2.5-flash-lite': {
+      id: 'vertex/gemini-2.5-flash-lite',
+      label: 'Gemini 2.5 Flash Lite (Vertex)',
+      description: 'Modelo de entrada extremamente ágil via Vertex AI',
       usesRouter: false,
-      model: "vertex/gemini-2.5-flash-lite",
-      vertexModelId: "publishers/google/models/gemini-2.5-flash-lite",
+      model: 'vertex/gemini-2.5-flash-lite',
+      vertexModelId: 'publishers/google/models/gemini-2.5-flash-lite',
     },
     // Modelos OpenAI (GitHub Models)
-    "github/gpt-5": {
-      id: "github/gpt-5",
-      label: "OpenAI GPT-5",
-      description: "O topo de linha atual da OpenAI",
+    'github/gpt-5': {
+      id: 'github/gpt-5',
+      label: 'OpenAI GPT-5',
+      description: 'O topo de linha atual da OpenAI',
       usesRouter: false,
-      model: "github/gpt-5",
+      model: 'github/gpt-5',
     },
-    "github/gpt-5-chat": {
-      id: "github/gpt-5-chat",
-      label: "OpenAI GPT-5 Chat (Preview)",
-      description: "gpt-5 otimizado para diálogo",
+    'github/gpt-5-chat': {
+      id: 'github/gpt-5-chat',
+      label: 'OpenAI GPT-5 Chat (Preview)',
+      description: 'gpt-5 otimizado para diálogo',
       usesRouter: false,
-      model: "github/gpt-5-chat",
+      model: 'github/gpt-5-chat',
     },
-    "github/gpt-5-mini": {
-      id: "github/gpt-5-mini",
-      label: "OpenAI GPT-5-mini",
-      description: "Versão equilibrada e otimizada do gpt-5",
+    'github/gpt-5-mini': {
+      id: 'github/gpt-5-mini',
+      label: 'OpenAI GPT-5-mini',
+      description: 'Versão equilibrada e otimizada do gpt-5',
       usesRouter: false,
-      model: "github/gpt-5-mini",
+      model: 'github/gpt-5-mini',
     },
-    "github/gpt-4.1": {
-      id: "github/gpt-4.1",
-      label: "OpenAI GPT-4.1",
-      description: "A evolução direta do GPT-4o",
+    'github/gpt-4.1': {
+      id: 'github/gpt-4.1',
+      label: 'OpenAI GPT-4.1',
+      description: 'A evolução direta do GPT-4o',
       usesRouter: false,
-      model: "github/gpt-4.1",
+      model: 'github/gpt-4.1',
     },
-    "github/gpt-4.1-mini": {
-      id: "github/gpt-4.1-mini",
-      label: "OpenAI GPT-4.1-mini",
-      description: "Evolução compacta e direta do GPT-4o-mini",
+    'github/gpt-4.1-mini': {
+      id: 'github/gpt-4.1-mini',
+      label: 'OpenAI GPT-4.1-mini',
+      description: 'Evolução compacta e direta do GPT-4o-mini',
       usesRouter: false,
-      model: "github/gpt-4.1-mini",
+      model: 'github/gpt-4.1-mini',
     },
-    "github/gpt-4o": {
-      id: "github/gpt-4o",
-      label: "OpenAI GPT-4o",
-      description: "Inteligência geral rápida e robusta",
+    'github/gpt-4o': {
+      id: 'github/gpt-4o',
+      label: 'OpenAI GPT-4o',
+      description: 'Inteligência geral rápida e robusta',
       usesRouter: false,
-      model: "github/gpt-4o",
+      model: 'github/gpt-4o',
     },
-    "github/gpt-4o-mini": {
-      id: "github/gpt-4o-mini",
-      label: "OpenAI GPT-4o-mini",
-      description: "O mais rápido da linha GPT-4",
+    'github/gpt-4o-mini': {
+      id: 'github/gpt-4o-mini',
+      label: 'OpenAI GPT-4o-mini',
+      description: 'O mais rápido da linha GPT-4',
       usesRouter: false,
-      model: "github/gpt-4o-mini",
+      model: 'github/gpt-4o-mini',
     },
-    "github/o1": {
-      id: "github/o1",
-      label: "OpenAI o1",
-      description: "Raciocínio complexo com pensamento profundo",
+    'github/o1': {
+      id: 'github/o1',
+      label: 'OpenAI o1',
+      description: 'Raciocínio complexo com pensamento profundo',
       usesRouter: false,
-      model: "github/o1",
+      model: 'github/o1',
     },
-    "github/o3": {
-      id: "github/o3",
-      label: "OpenAI o3",
-      description: "Modelo de raciocínio profundo de última geração",
+    'github/o3': {
+      id: 'github/o3',
+      label: 'OpenAI o3',
+      description: 'Modelo de raciocínio profundo de última geração',
       usesRouter: false,
-      model: "github/o3",
+      model: 'github/o3',
     },
-    "github/o3-mini": {
-      id: "github/o3-mini",
-      label: "OpenAI o3-mini",
-      description: "Raciocínio complexo em formato ágil com visão",
+    'github/o3-mini': {
+      id: 'github/o3-mini',
+      label: 'OpenAI o3-mini',
+      description: 'Raciocínio complexo em formato ágil com visão',
       usesRouter: false,
-      model: "github/o3-mini",
+      model: 'github/o3-mini',
     },
-    "github/o4-mini": {
-      id: "github/o4-mini",
-      label: "OpenAI o4-mini",
-      description: "O mais novo modelo de raciocínio compacto",
+    'github/o4-mini': {
+      id: 'github/o4-mini',
+      label: 'OpenAI o4-mini',
+      description: 'O mais novo modelo de raciocínio compacto',
       usesRouter: false,
-      model: "github/o4-mini",
+      model: 'github/o4-mini',
     },
     // Modelos Groq
-    "groq/gpt-oss-120b": {
-      id: "groq/gpt-oss-120b",
-      label: "GPT-OSS 120B (Groq)",
-      description: "Modelo Mixture of Experts ultra-veloz de raciocínio",
+    'groq/gpt-oss-120b': {
+      id: 'groq/gpt-oss-120b',
+      label: 'GPT-OSS 120B (Groq)',
+      description: 'Modelo Mixture of Experts ultra-veloz de raciocínio',
       usesRouter: false,
-      model: "groq/gpt-oss-120b",
+      model: 'groq/gpt-oss-120b',
     },
     // Vertex AI MaaS Models
-    "vertex-maas/gpt-oss-120b": {
-      id: "vertex-maas/gpt-oss-120b",
-      label: "GPT-OSS 120B (Vertex MaaS)",
-      description: "Modelo MoE ultra-veloz via Vertex AI Model Garden",
+    'vertex-maas/gpt-oss-120b': {
+      id: 'vertex-maas/gpt-oss-120b',
+      label: 'GPT-OSS 120B (Vertex MaaS)',
+      description: 'Modelo MoE ultra-veloz via Vertex AI Model Garden',
       usesRouter: false,
-      model: "vertex-maas/gpt-oss-120b",
+      model: 'vertex-maas/gpt-oss-120b',
     },
   },
 
   /**
    * Configuração do Router
    */
-  routerModel: "models/gemma-4-31b-it",
+  routerModel: 'models/gemma-4-31b-it',
 
   /**
    * Mapeamento de Complexidade para Modos
    */
   complexityToMode: {
-    BAIXA: "rapido",
-    ALTA: "raciocinio",
-    SCAFFOLDING: "scaffolding",
+    BAIXA: 'rapido',
+    ALTA: 'raciocinio',
+    SCAFFOLDING: 'scaffolding',
   },
 
   /**
@@ -281,9 +281,7 @@ export function getModeConfig(modeId) {
  * @returns {object} Parâmetros de geração
  */
 export function getGenerationParams(modeId) {
-  return (
-    CHAT_CONFIG.generationParams[modeId] || CHAT_CONFIG.generationParams.rapido
-  );
+  return CHAT_CONFIG.generationParams[modeId] || CHAT_CONFIG.generationParams.rapido;
 }
 
 /**
@@ -292,5 +290,46 @@ export function getGenerationParams(modeId) {
  * @returns {string} ID do modo correspondente
  */
 export function complexityToMode(complexity) {
-  return CHAT_CONFIG.complexityToMode[complexity] || "rapido";
+  return CHAT_CONFIG.complexityToMode[complexity] || 'rapido';
+}
+
+/**
+ * Arquiteturas de Geração do Maia.edu
+ * - BLOOM (V2): Duas etapas encadeadas (1. Gerador de Conteúdo -> 2. Adaptador de Layout em blocos)
+ * - VYGOTSKY (V1): Etapa única direta (Resposta + Layout gerados juntos em 1 requisição)
+ */
+export const ARCHITECTURE_VERSIONS = {
+  BLOOM: 'bloom', // V2 (2 etapas)
+  VYGOTSKY: 'vygotsky', // V1 (1 etapa)
+};
+
+/**
+ * Obtém a versão ativa da arquitetura (Bloom ou Vygotsky)
+ * @param {object} context - Contexto opcional da chamada da pipeline
+ * @returns {string} 'bloom' ou 'vygotsky'
+ */
+export function getArchitectureVersion(context = {}) {
+  if (context.architectureVersion) {
+    const norm = String(context.architectureVersion).toLowerCase();
+    if (norm === 'v1' || norm === 'vygotsky') return ARCHITECTURE_VERSIONS.VYGOTSKY;
+    if (norm === 'v2' || norm === 'bloom') return ARCHITECTURE_VERSIONS.BLOOM;
+  }
+
+  if (typeof window !== 'undefined' && window.maiaArchitectureVersion) {
+    const norm = String(window.maiaArchitectureVersion).toLowerCase();
+    if (norm === 'v1' || norm === 'vygotsky') return ARCHITECTURE_VERSIONS.VYGOTSKY;
+    if (norm === 'v2' || norm === 'bloom') return ARCHITECTURE_VERSIONS.BLOOM;
+  }
+
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem('maiaArchitectureVersion');
+    if (saved) {
+      const norm = String(saved).toLowerCase();
+      if (norm === 'v1' || norm === 'vygotsky') return ARCHITECTURE_VERSIONS.VYGOTSKY;
+      if (norm === 'v2' || norm === 'bloom') return ARCHITECTURE_VERSIONS.BLOOM;
+    }
+  }
+
+  // Padrão do Maia.edu: Arquitetura Bloom (V2)
+  return ARCHITECTURE_VERSIONS.BLOOM;
 }

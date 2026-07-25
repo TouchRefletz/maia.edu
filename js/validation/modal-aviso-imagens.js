@@ -3,34 +3,32 @@ export function mostrarModalAvisoImagens(
   preenchidos,
   onConfirm,
   onCancel,
-  reportDetalhado = null
+  reportDetalhado = null,
 ) {
   const faltam = esperados - preenchidos;
-  const idModal = "missingImagesModal";
+  const idModal = 'missingImagesModal';
 
   // Remove anterior se existir
   document.getElementById(idModal)?.remove();
 
-  let mensagemDetalhada = "";
+  let mensagemDetalhada = '';
 
   if (reportDetalhado) {
     const { faltamQuestao, faltamGabarito } = reportDetalhado;
     const partes = [];
-    if (faltamQuestao > 0)
-      partes.push(`<strong>${faltamQuestao}</strong> na Questão`);
-    if (faltamGabarito > 0)
-      partes.push(`<strong>${faltamGabarito}</strong> no Gabarito`);
+    if (faltamQuestao > 0) partes.push(`<strong>${faltamQuestao}</strong> na Questão`);
+    if (faltamGabarito > 0) partes.push(`<strong>${faltamGabarito}</strong> no Gabarito`);
 
     if (partes.length > 0) {
       mensagemDetalhada = `<div style="margin-top: 10px; font-size: 0.9em; color: var(--color-text-secondary);">
-            Detalhamento: Faltam ${partes.join(" e ")}.
+            Detalhamento: Faltam ${partes.join(' e ')}.
           </div>`;
     }
   }
 
-  const overlay = document.createElement("div");
+  const overlay = document.createElement('div');
   overlay.id = idModal;
-  overlay.className = "modal-overlay"; // Usa a mesma classe do seu CSS existente
+  overlay.className = 'modal-overlay'; // Usa a mesma classe do seu CSS existente
   overlay.innerHTML = `
 
     <div class="modal-content" style="max-width: 450px; border-top: 4px solid var(--color-error);">
@@ -62,7 +60,7 @@ export function mostrarModalAvisoImagens(
   document.body.appendChild(overlay);
 
   // Lógica dos botões
-  const btnCancel = document.getElementById("btnCancelImg");
+  const btnCancel = document.getElementById('btnCancelImg');
 
   const close = () => overlay.remove();
 

@@ -11,11 +11,11 @@ export function initMobileViewportHandler() {
 
   const handleResize = () => {
     // Check if we are in chat mode
-    const container = document.querySelector(".maia-ai-container.chat-mode");
+    const container = document.querySelector('.maia-ai-container.chat-mode');
     if (!container) return; // Only active in chat mode
 
-    const inputWrapper = document.querySelector(".chat-input-wrapper");
-    const messages = document.querySelector(".chat-messages");
+    const inputWrapper = document.querySelector('.chat-input-wrapper');
+    const messages = document.querySelector('.chat-messages');
 
     // Detect if keyboard is likely open (viewport height significantly smaller than screen height)
     // Note: interactive-widget=resizes-content handles the layout resize,
@@ -35,24 +35,24 @@ export function initMobileViewportHandler() {
         // With resizes-content, bottom:0 should be fine.
         // We add a small delay to allow layout to settle
         requestAnimationFrame(() => {
-          if (document.activeElement?.classList.contains("chat-input-field")) {
-            document.activeElement.scrollIntoView({ block: "nearest" });
+          if (document.activeElement?.classList.contains('chat-input-field')) {
+            document.activeElement.scrollIntoView({ block: 'nearest' });
           }
         });
       }
     }
   };
 
-  viewport.addEventListener("resize", handleResize);
-  viewport.addEventListener("scroll", handleResize);
+  viewport.addEventListener('resize', handleResize);
+  viewport.addEventListener('scroll', handleResize);
 
-  console.log("[MobileViewport] Initialized handler");
+  console.log('[MobileViewport] Initialized handler');
 }
 
 // Auto-initialize if imported as side-effect
-if (typeof window !== "undefined") {
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initMobileViewportHandler);
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMobileViewportHandler);
   } else {
     initMobileViewportHandler();
   }

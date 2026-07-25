@@ -1,6 +1,6 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import ReactDOMServer from "react-dom/server";
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import ReactDOMServer from 'react-dom/server';
 import {
   AcoesGabaritoView,
   DetalhesTecnicos,
@@ -10,8 +10,8 @@ import {
   OpcoesGabarito,
   PassosExplicacao,
   prepararDadosGabarito as prepararDadosGabaritoTSX,
-} from "./GabaritoCard.tsx";
-import QuestaoTabs from "./QuestaoTabs.tsx";
+} from './GabaritoCard.tsx';
+import QuestaoTabs from './QuestaoTabs.tsx';
 
 export function mountQuestaoTabs(container, questao, gabarito, options = {}) {
   if (!container) return;
@@ -56,27 +56,21 @@ export function prepararDadosGabarito(gabarito, questao) {
  * mantendo a compatibilidade com o sistema legado que espera innerHTML.
  */
 export function renderCartaoGabarito(dados) {
-  return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(GabaritoCardView, { dados }),
-  );
+  return ReactDOMServer.renderToStaticMarkup(React.createElement(GabaritoCardView, { dados }));
 }
 
 /**
  * Renderiza os botões de ação (Editar/Finalizar).
  */
 export function renderAcoesGabarito() {
-  return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(AcoesGabaritoView),
-  );
+  return ReactDOMServer.renderToStaticMarkup(React.createElement(AcoesGabaritoView));
 }
 
 /**
  * Renderiza o formulário de edição completo.
  */
 export function renderFormularioEditor(dados) {
-  return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(GabaritoEditorView, { dados }),
-  );
+  return ReactDOMServer.renderToStaticMarkup(React.createElement(GabaritoEditorView, { dados }));
 }
 
 // --- Sub-funções de Renderização Visual (Legado) ---
@@ -89,11 +83,7 @@ export function _renderMetaGabarito(confianca, creditos) {
   );
 }
 
-export function _renderOpcoesGabarito(
-  questao,
-  respostaLetra,
-  alternativasAnalisadas,
-) {
+export function _renderOpcoesGabarito(questao, respostaLetra, alternativasAnalisadas) {
   return ReactDOMServer.renderToStaticMarkup(
     React.createElement(OpcoesGabarito, {
       questao,
@@ -110,9 +100,7 @@ export function _renderPassosExplicacao(explicacaoArray) {
 }
 
 export function _renderDetalhesTecnicos(dados) {
-  return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(DetalhesTecnicos, { dados }),
-  );
+  return ReactDOMServer.renderToStaticMarkup(React.createElement(DetalhesTecnicos, { dados }));
 }
 
 // As sub-funções do editor (_renderEditorPassos, etc) eram usadas apenas internamente

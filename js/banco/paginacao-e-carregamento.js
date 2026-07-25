@@ -1,12 +1,9 @@
-import {
-  get,
-  ref,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { ensureLibsLoaded, renderLatexIn } from "../libs/loader.tsx";
-import { TAMANHO_PAGINA, bancoState, db } from "../main.js";
-import { criarCardTecnico } from "./card-template.js";
-import { popularFiltrosDinamicos } from "./filtros-dinamicos.js";
-import { capturarValoresFiltros, itemAtendeFiltros } from "./filtros-ui.js";
+import { get, ref } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { ensureLibsLoaded, renderLatexIn } from '../libs/loader.tsx';
+import { bancoState, db, TAMANHO_PAGINA } from '../main.js';
+import { criarCardTecnico } from './card-template.js';
+import { popularFiltrosDinamicos } from './filtros-dinamicos.js';
+import { capturarValoresFiltros, itemAtendeFiltros } from './filtros-ui.js';
 
 export function processarDadosSnapshot(data) {
   // 1. Inverte para mostrar as mais recentes primeiro
@@ -14,7 +11,7 @@ export function processarDadosSnapshot(data) {
   const questoesProcessadas = [];
 
   listaProvas.forEach(([nomeProva, mapQuestoes]) => {
-    if (mapQuestoes && typeof mapQuestoes === "object") {
+    if (mapQuestoes && typeof mapQuestoes === 'object') {
       Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
         // Validação básica
         if (!fullData.dados_questao) return;
@@ -22,7 +19,7 @@ export function processarDadosSnapshot(data) {
         // Injeta metadados (Nome da prova)
         if (!fullData.meta) fullData.meta = {};
         if (!fullData.meta.material_origem) {
-          fullData.meta.material_origem = nomeProva.replace(/_/g, " ");
+          fullData.meta.material_origem = nomeProva.replace(/_/g, ' ');
         }
 
         // ID composto único para o DOM (evita conflito entre provas com mesma questão)
@@ -30,11 +27,11 @@ export function processarDadosSnapshot(data) {
 
         // Adiciona na lista plana com a mesma estrutura esperada pelos filtros
         questoesProcessadas.push({
-          key: domId,          // Key para filtros e DOM
-          id: idQuestao,       // ID original do Firebase
-          prova: nomeProva,    // Nome da prova
-          domId: domId,        // ID único para DOM elements
-          ...fullData,         // Conteúdo original da questão
+          key: domId, // Key para filtros e DOM
+          id: idQuestao, // ID original do Firebase
+          prova: nomeProva, // Nome da prova
+          domId: domId, // ID único para DOM elements
+          ...fullData, // Conteúdo original da questão
         });
       });
     }
@@ -52,7 +49,7 @@ export function renderizarLoteQuestoes(listaQuestoes, container) {
     container.appendChild(card);
 
     // Renderiza LaTeX (Matemática)
-    if (typeof renderLatexIn === "function") {
+    if (typeof renderLatexIn === 'function') {
       renderLatexIn(card);
     }
   });
@@ -60,14 +57,15 @@ export function renderizarLoteQuestoes(listaQuestoes, container) {
 
 // Helper para buscar status da sentinela localmente
 export function atualizarStatusSentinelaLocal() {
-  const s = document.getElementById("sentinelaScroll");
+  const s = document.getElementById('sentinelaScroll');
   if (!s) return;
 
   const total = bancoState.questoesFiltradas.length;
   const rendered = bancoState.renderedCount;
 
   if (total === 0) {
-    s.innerHTML = '<p style="color:var(--color-warning); font-weight: 500;">Nenhuma questão encontrada com esses filtros.</p>';
+    s.innerHTML =
+      '<p style="color:var(--color-warning); font-weight: 500;">Nenhuma questão encontrada com esses filtros.</p>';
   } else if (rendered >= total) {
     s.innerHTML = `<p style="color:var(--color-text-secondary); font-size: 0.9rem;">Fim do banco de questões (${total} visíveis).</p>`;
     if (bancoState.observadorScroll) {
@@ -86,21 +84,20 @@ export function atualizarStatusSentinelaLocal() {
 }
 
 // Helper genérico legado para exibir mensagens de status
-export function atualizarStatusSentinela(status, mensagem = "") {
-  const s = document.getElementById("sentinelaScroll");
+export function atualizarStatusSentinela(status, mensagem = '') {
+  const s = document.getElementById('sentinelaScroll');
   if (!s) return;
 
-  if (status === "fim") {
-    s.innerHTML =
-      '<p style="color:var(--color-text-secondary);">Fim do banco de questões.</p>';
+  if (status === 'fim') {
+    s.innerHTML = '<p style="color:var(--color-text-secondary);">Fim do banco de questões.</p>';
     if (bancoState.observadorScroll) bancoState.observadorScroll.disconnect();
-  } else if (status === "erro") {
+  } else if (status === 'erro') {
     s.innerHTML = `<p style="color:var(--color-error);">Erro: ${mensagem}</p>`;
   }
 }
 
 export function configurarObserverScroll() {
-  const sentinela = document.getElementById("sentinelaScroll");
+  const sentinela = document.getElementById('sentinelaScroll');
 
   // Cria o observer
   bancoState.observadorScroll = new IntersectionObserver(
@@ -110,7 +107,7 @@ export function configurarObserverScroll() {
         carregarBancoDados();
       }
     },
-    { rootMargin: "300px" },
+    { rootMargin: '300px' },
   );
 
   // Começa a observar
@@ -121,9 +118,10 @@ export function configurarObserverScroll() {
 async function hidratarStatusRevisao(listaQuestoes) {
   if (!listaQuestoes || listaQuestoes.length === 0) return;
 
-  const { get, ref, child } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-  const { db } = await import("../main.js");
+  const { get, ref, child } = await import(
+    'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+  );
+  const { db } = await import('../main.js');
 
   const promises = listaQuestoes.map(async (item) => {
     const path = `revisoes/${item.prova}/${item.id}/status`;
@@ -133,7 +131,7 @@ async function hidratarStatusRevisao(listaQuestoes) {
         item.reviewStatus = snap.val();
       }
     } catch (e) {
-      console.warn("Erro ao buscar status revisão:", path, e);
+      console.warn('Erro ao buscar status revisão:', path, e);
     }
   });
 
@@ -144,9 +142,10 @@ async function hidratarStatusRevisao(listaQuestoes) {
 async function hidratarStatusApendiceB(listaQuestoes) {
   if (!listaQuestoes || listaQuestoes.length === 0) return;
 
-  const { get, ref, child } =
-    await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-  const { db } = await import("../main.js");
+  const { get, ref, child } = await import(
+    'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+  );
+  const { db } = await import('../main.js');
 
   window.bancoState = window.bancoState || {};
   window.bancoState.apendiceBStatusMap = window.bancoState.apendiceBStatusMap || {};
@@ -160,17 +159,145 @@ async function hidratarStatusApendiceB(listaQuestoes) {
       if (snap.exists()) {
         const statusMap = snap.val();
         Object.entries(statusMap).forEach(([idQuestao, val]) => {
-          if (val && val.status === "rodado") {
+          if (val && val.status === 'rodado') {
             window.bancoState.apendiceBStatusMap[`${prova}/${idQuestao}`] = true;
           }
         });
       }
     } catch (e) {
-      console.warn("Erro ao buscar status Apêndice B:", path, e);
+      console.warn('Erro ao buscar status Apêndice B:', path, e);
     }
   });
 
   await Promise.all(promises);
+}
+
+// Helper para casar uma questão do experimento JSON com um item do cache
+function matchExperimentoQuestao(expQ, item) {
+  if (!expQ || !item) return false;
+  const expIdLower = String(expQ.id || '').toLowerCase();
+  const qIdStr = String(item.id || item.key || '').toLowerCase();
+  const provaStr = String(item.prova || '').toLowerCase();
+  const fullData = item;
+  const gabarito = fullData.dados_gabarito || {};
+  const creditos = gabarito.creditos || {};
+  const textoRef = gabarito.texto_referencia || '';
+
+  if (qIdStr.includes(expIdLower) || expIdLower.includes(qIdStr)) return true;
+
+  const expYearMatch = expIdLower.match(/\d{4}/);
+  const expYear = expYearMatch ? expYearMatch[0] : '';
+  const selYear =
+    String(creditos.ano || '').trim() ||
+    (provaStr.match(/\d{4}/) ? provaStr.match(/\d{4}/)[0] : '');
+  if (expYear && selYear && expYear !== selYear) return false;
+
+  let selNum = null;
+  const azulMatch = textoRef.match(/\*\*Caderno Azul:\*\* Questão (\d+)/i);
+  if (azulMatch) {
+    selNum = parseInt(azulMatch[1], 10);
+  } else {
+    const partsSel = qIdStr.split('_');
+    for (const part of partsSel) {
+      const m = part.match(/Q?(\d+)/i);
+      if (m) {
+        selNum = parseInt(m[1], 10);
+        break;
+      }
+    }
+  }
+
+  const partsExp = expIdLower.split('_');
+  let expNum = null;
+  for (let i = 1; i < partsExp.length; i++) {
+    const m = partsExp[i].match(/Q?(\d+)/i);
+    if (m) {
+      expNum = parseInt(m[1], 10);
+      break;
+    }
+  }
+
+  if (selNum !== null && expNum !== null && selNum !== expNum) return false;
+
+  const isIngSel = qIdStr.includes('ing');
+  const isIngExp = expIdLower.includes('ing');
+  if (isIngSel !== isIngExp) return false;
+
+  const isEspSel = qIdStr.includes('esp');
+  const isEspExp = expIdLower.includes('esp');
+  if (isEspSel !== isEspExp) return false;
+
+  return true;
+}
+
+// Ingestão dinâmica e em lote do status do Projeto Científico
+async function hidratarStatusProjetoCientifico(listaQuestoes) {
+  if (!listaQuestoes || listaQuestoes.length === 0) return;
+
+  const { get, ref, child, update } = await import(
+    'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+  );
+  const { db } = await import('../main.js');
+
+  if (!bancoState.projetoCientificoMap) {
+    bancoState.projetoCientificoMap = {};
+  }
+
+  if (!bancoState._projMapLoaded) {
+    try {
+      const snap = await get(child(ref(db), 'projeto_cientifico'));
+      if (snap.exists()) {
+        const val = snap.val();
+        Object.entries(val).forEach(([provaKey, qMap]) => {
+          if (qMap && typeof qMap === 'object') {
+            Object.entries(qMap).forEach(([idKey, isProj]) => {
+              if (isProj) {
+                bancoState.projetoCientificoMap[`${provaKey}/${idKey}`] = true;
+              }
+            });
+          }
+        });
+      }
+
+      // Se ainda não houver mapa salvo no Firebase, preenche automaticamente com as 50 questões do projeto
+      if (Object.keys(bancoState.projetoCientificoMap).length === 0) {
+        try {
+          const res = await fetch('../../experiments/questoes_experimento.json');
+          if (res.ok) {
+            const expJson = await res.json();
+            const exp50 = expJson.filter((q) => q.grupo === 'Linguagens' || q.grupo === 'Humanas');
+            const updatesToSave = {};
+
+            listaQuestoes.forEach((item) => {
+              const matchesExp = exp50.some((expQ) => matchExperimentoQuestao(expQ, item));
+              if (matchesExp) {
+                const mapKey = `${item.prova}/${item.id}`;
+                bancoState.projetoCientificoMap[mapKey] = true;
+                updatesToSave[`projeto_cientifico/${item.prova}/${item.id}`] = true;
+              }
+            });
+
+            if (Object.keys(updatesToSave).length > 0) {
+              update(ref(db), updatesToSave).catch((e) =>
+                console.warn('Erro ao salvar semente do projeto_cientifico:', e),
+              );
+            }
+          }
+        } catch (errJson) {
+          console.warn('Erro ao carregar questoes_experimento.json:', errJson);
+        }
+      }
+
+      bancoState._projMapLoaded = true;
+    } catch (e) {
+      console.warn('Erro ao carregar projeto_cientifico:', e);
+    }
+  }
+
+  listaQuestoes.forEach((item) => {
+    const key = `${item.prova}/${item.id}`;
+    item.isProjetoCientifico = !!bancoState.projetoCientificoMap[key];
+  });
 }
 
 /**
@@ -185,11 +312,11 @@ export async function carregarBancoDados() {
   try {
     await ensureLibsLoaded();
 
-    const container = document.getElementById("bankStream");
+    const container = document.getElementById('bankStream');
 
     // 1. Carrega todo o banco do Firebase de uma única vez na inicialização
     if (!bancoState.dbCarregado) {
-      const s = document.getElementById("sentinelaScroll");
+      const s = document.getElementById('sentinelaScroll');
       if (s) {
         s.innerHTML = `
           <div class="spinner" style="margin: 20px auto;"></div>
@@ -197,7 +324,7 @@ export async function carregarBancoDados() {
         `;
       }
 
-      const dbRef = ref(db, "questoes");
+      const dbRef = ref(db, 'questoes');
       const snapshot = await get(dbRef);
 
       if (snapshot.exists()) {
@@ -207,7 +334,7 @@ export async function carregarBancoDados() {
         bancoState.renderedCount = 0;
 
         // Inicializa filtros com base no banco COMPLETO!
-        if (typeof popularFiltrosDinamicos === "function") {
+        if (typeof popularFiltrosDinamicos === 'function') {
           popularFiltrosDinamicos();
         }
       } else {
@@ -216,10 +343,13 @@ export async function carregarBancoDados() {
       }
     }
 
+    // Garante que o mapa do Projeto Científico esteja carregado antes de filtrar
+    await hidratarStatusProjetoCientifico(bancoState.todasQuestoesCache);
+
     // 2. Filtra localmente com base nos filtros atuais selecionados na tela
     const filtros = capturarValoresFiltros();
     bancoState.questoesFiltradas = bancoState.todasQuestoesCache.filter((item) =>
-      itemAtendeFiltros(item, filtros)
+      itemAtendeFiltros(item, filtros),
     );
 
     // 3. Determina o lote a ser renderizado a partir do cache filtrado
@@ -232,6 +362,7 @@ export async function carregarBancoDados() {
       await Promise.all([
         hidratarStatusRevisao(loteParaRenderizar),
         hidratarStatusApendiceB(loteParaRenderizar),
+        hidratarStatusProjetoCientifico(loteParaRenderizar),
       ]);
 
       // 3.2 Renderiza o lote suavemente no container DOM
@@ -242,10 +373,9 @@ export async function carregarBancoDados() {
 
     // 4. Atualiza a mensagem e estado da sentinela de scroll
     atualizarStatusSentinelaLocal();
-
   } catch (e) {
-    console.error("Erro ao carregar banco:", e);
-    atualizarStatusSentinela("erro", e.message);
+    console.error('Erro ao carregar banco:', e);
+    atualizarStatusSentinela('erro', e.message);
   } finally {
     bancoState.carregandoMais = false;
   }

@@ -1,8 +1,8 @@
-import { pipeline } from "@xenova/transformers";
-import { gerarEmbedding, queryPineconeWorker } from "../../api/worker.js";
+import { pipeline } from '@xenova/transformers';
+import { gerarEmbedding, queryPineconeWorker } from '../../api/worker.js';
 
 // Configurações de Threshold
-const PINECONE_MIN_SCORE = 0.20; // Abaixo disso é lixo sem discussão
+const PINECONE_MIN_SCORE = 0.2; // Abaixo disso é lixo sem discussão
 const PINECONE_TRUST_SCORE = 0.85; // Acima disso é estudo sem discussão
 
 // Singleton para o modelo local (Lazy Loading)
@@ -18,16 +18,16 @@ async function getChromeAISession() {
   try {
     if (window.ai && window.ai.languageModel) {
       const capabilities = await window.ai.languageModel.capabilities();
-      if (capabilities.available !== "no") {
+      if (capabilities.available !== 'no') {
         chromeAISession = await window.ai.languageModel.create({
           systemPrompt:
-            "Você é um classificador de intenção rigoroso para um aplicativo de estudos. Sua única função é dizer se uma mensagem do usuário é sobre estudos/acadêmico ou não.",
+            'Você é um classificador de intenção rigoroso para um aplicativo de estudos. Sua única função é dizer se uma mensagem do usuário é sobre estudos/acadêmico ou não.',
         });
         return chromeAISession;
       }
     }
   } catch (e) {
-    console.warn("[Guardrail] Chrome AI não disponível:", e.message);
+    console.warn('[Guardrail] Chrome AI não disponível:', e.message);
   }
   return null;
 }
@@ -38,16 +38,16 @@ async function getChromeAISession() {
 async function getTransformersClassifier() {
   if (classifierInstance) return classifierInstance;
 
-  console.log("[Guardrail] Carregando modelo local Transformers.js...");
+  console.log('[Guardrail] Carregando modelo local Transformers.js...');
   try {
     // Usamos um modelo minúsculo de NLI/Classification
     classifierInstance = await pipeline(
-      "zero-shot-classification",
-      "Xenova/mobilebert-uncased-mnli"
+      'zero-shot-classification',
+      'Xenova/mobilebert-uncased-mnli',
     );
     return classifierInstance;
   } catch (e) {
-    console.error("[Guardrail] Erro ao carregar Transformers.js:", e);
+    console.error('[Guardrail] Erro ao carregar Transformers.js:', e);
     return null;
   }
 }
@@ -71,9 +71,9 @@ Resposta (Apenas S ou N):`;
     const result = response.trim().toUpperCase();
 
     console.log(`[Guardrail] Chrome AI Judge: ${result}`);
-    return result.includes("S");
+    return result.includes('S');
   } catch (e) {
-    console.warn("[Guardrail] Erro no Chrome AI Judge:", e);
+    console.warn('[Guardrail] Erro no Chrome AI Judge:', e);
     return null;
   }
 }
@@ -86,22 +86,23 @@ async function judgeWithTransformers(message) {
   if (!classifier) return true; // Se tudo falhar, deixamos passar (fail-open)
 
   try {
-    const labels = ["acadêmico e estudos", "literatura e artes", "conversa casual", "lixo, games e apostas"];
+    const labels = [
+      'acadêmico e estudos',
+      'literatura e artes',
+      'conversa casual',
+      'lixo, games e apostas',
+    ];
     const result = await classifier(message, labels);
 
     const bestLabel = result.labels[0];
     const score = result.scores[0];
 
-    console.log(
-      `[Guardrail] Transformers Judge: ${bestLabel} (Confiança: ${score.toFixed(
-        2
-      )})`
-    );
+    console.log(`[Guardrail] Transformers Judge: ${bestLabel} (Confiança: ${score.toFixed(2)})`);
 
-    const validLabels = ["acadêmico e estudos", "literatura e artes"];
+    const validLabels = ['acadêmico e estudos', 'literatura e artes'];
     return validLabels.includes(bestLabel) && score > 0.35;
   } catch (e) {
-    console.error("[Guardrail] Erro no Transformers Judge:", e);
+    console.error('[Guardrail] Erro no Transformers Judge:', e);
     return true;
   }
 }
@@ -114,11 +115,11 @@ export async function validateStudyContext(message) {
 
   // 1. Check básico de saudações e comandos
   const cleanMsg = message.trim().toLowerCase();
-  
+
   if (
     message.trim().split(/\s+/).length <= 2 &&
     /^(oi|ola|olá|tudo bem\??|bom dia|boa tarde|boa noite|ajuda|clear|limpar)$/i.test(
-      message.trim()
+      message.trim(),
     )
   ) {
     return { isValid: true };
@@ -126,16 +127,43 @@ export async function validateStudyContext(message) {
 
   // 1.1 Heurística de palavras acadêmicas (Whitelist rápida)
   const academicKeywords = [
-    "enem", "fuvest", "unicamp", "vestibular", "vunesp", "materia", "matéria",
-    "explic", "entendi", "como funciona", "quem foi", "o que é", "porque",
-    "biologia", "quimica", "física", "história", "geografia", "literatura",
-    "sociologia", "filosofia", "gramatica", "redação", "livro", "obra", "autor", 
-    "resumo", "analise", "análise", "exercicio", "questão", "gabarito"
+    'enem',
+    'fuvest',
+    'unicamp',
+    'vestibular',
+    'vunesp',
+    'materia',
+    'matéria',
+    'explic',
+    'entendi',
+    'como funciona',
+    'quem foi',
+    'o que é',
+    'porque',
+    'biologia',
+    'quimica',
+    'física',
+    'história',
+    'geografia',
+    'literatura',
+    'sociologia',
+    'filosofia',
+    'gramatica',
+    'redação',
+    'livro',
+    'obra',
+    'autor',
+    'resumo',
+    'analise',
+    'análise',
+    'exercicio',
+    'questão',
+    'gabarito',
   ];
-  
-  if (academicKeywords.some(key => cleanMsg.includes(key))) {
-    console.log("[Guardrail] Whitelist acadêmica detectada.");
-    return { isValid: true, reason: "keyword_whitelist" };
+
+  if (academicKeywords.some((key) => cleanMsg.includes(key))) {
+    console.log('[Guardrail] Whitelist acadêmica detectada.');
+    return { isValid: true, reason: 'keyword_whitelist' };
   }
 
   try {
@@ -143,7 +171,7 @@ export async function validateStudyContext(message) {
     const vetor = await gerarEmbedding(message);
     if (!vetor) return { isValid: true };
 
-    const resultados = await queryPineconeWorker(vetor, 1, {}, "default");
+    const resultados = await queryPineconeWorker(vetor, 1, {}, 'default');
     let pineconeScore = 0;
 
     if (resultados?.matches?.length > 0) {
@@ -151,16 +179,16 @@ export async function validateStudyContext(message) {
       console.log(`[Guardrail] Pinecone Score: ${pineconeScore.toFixed(4)}`);
 
       if (pineconeScore < PINECONE_MIN_SCORE) {
-        return { isValid: false, score: pineconeScore, reason: "low_vector_score" };
+        return { isValid: false, score: pineconeScore, reason: 'low_vector_score' };
       }
 
       if (pineconeScore > PINECONE_TRUST_SCORE) {
-        return { isValid: true, reason: "high_vector_score" };
+        return { isValid: true, reason: 'high_vector_score' };
       }
     }
 
     // 3. Camada de Juiz Local (Zona Cinzenta)
-    console.log("[Guardrail] ⚖️ Entrando em zona cinzenta. Acionando Juiz Local...");
+    console.log('[Guardrail] ⚖️ Entrando em zona cinzenta. Acionando Juiz Local...');
 
     // Tenta Chrome AI primeiro
     const chromeResult = await judgeWithChromeAI(message);
@@ -168,7 +196,7 @@ export async function validateStudyContext(message) {
       return {
         isValid: chromeResult,
         score: pineconeScore,
-        reason: chromeResult ? "chrome_ai_passed" : "chrome_ai_rejected",
+        reason: chromeResult ? 'chrome_ai_passed' : 'chrome_ai_rejected',
       };
     }
 
@@ -177,10 +205,10 @@ export async function validateStudyContext(message) {
     return {
       isValid: transResult,
       score: pineconeScore,
-      reason: transResult ? "transformers_passed" : "transformers_rejected",
+      reason: transResult ? 'transformers_passed' : 'transformers_rejected',
     };
   } catch (e) {
-    console.error("[Guardrail] Erro no pipeline de validação:", e);
-    return { isValid: true, reason: "error_bypass" };
+    console.error('[Guardrail] Erro no pipeline de validação:', e);
+    return { isValid: true, reason: 'error_bypass' };
   }
 }

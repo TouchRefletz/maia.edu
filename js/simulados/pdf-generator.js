@@ -3,8 +3,8 @@
  * Cria leiautes de vestibular para provas Objetivas (ENEM/FUVEST) e Dissertativas
  */
 
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { getProxyPdfUrl } from "../api/worker.js";
+import { getProxyPdfUrl } from '../api/worker.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 // Helper para converter PDF crop para Data URL (Base64)
 // Helper para converter PDF crop para Data URL (Base64) com suporte a cache, crops específicos e fundo branco
@@ -17,39 +17,50 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
     const _cY = block.pdfjs_y ?? _cropDetails.pdfjs_y ?? 0;
     const _cW = block.pdfjs_crop_w ?? _cropDetails.pdfjs_crop_w ?? 600;
     const _cH = block.pdfjs_crop_h ?? _cropDetails.pdfjs_crop_h ?? 400;
-    const _globalPdfUrl = typeof window !== 'undefined' ? (window.__pdfOriginalUrl || window.__pdfDownloadUrl) : null;
-    const _baseUrl = (_fileUrl && typeof _fileUrl === 'string' && _fileUrl.startsWith('blob:') && _globalPdfUrl) ? _globalPdfUrl : _fileUrl;
+    const _globalPdfUrl =
+      typeof window !== 'undefined' ? window.__pdfOriginalUrl || window.__pdfDownloadUrl : null;
+    const _baseUrl =
+      _fileUrl && typeof _fileUrl === 'string' && _fileUrl.startsWith('blob:') && _globalPdfUrl
+        ? _globalPdfUrl
+        : _fileUrl;
     const _embedCacheKey = `${_baseUrl}_${_pageNum}_${_cX}_${_cY}_${_cW}_${_cH}`;
-    
+
     if (window.__pdfEmbedImagesCache && window.__pdfEmbedImagesCache.has(_embedCacheKey)) {
-      console.log("[PDFGenerator] Usando imagem pré-carregada do cache:", _embedCacheKey);
+      console.log('[PDFGenerator] Usando imagem pré-carregada do cache:', _embedCacheKey);
       return window.__pdfEmbedImagesCache.get(_embedCacheKey);
     }
 
     const pdfjsLib = window.pdfjsLib;
-    if (!pdfjsLib) throw new Error("PDF.js não encontrado");
+    if (!pdfjsLib) throw new Error('PDF.js não encontrado');
 
     // Configura worker do PDFjs se não configurado
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
       pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
 
     let pdfDoc;
     let isCurrentLocal = false;
     if (window.__pdfLocalFile) {
-      const isBlobOrEmpty = !block.pdf_url || block.pdf_url.startsWith("blob:");
+      const isBlobOrEmpty = !block.pdf_url || block.pdf_url.startsWith('blob:');
       if (isBlobOrEmpty) {
         isCurrentLocal = true;
       } else {
         const localName = window.__pdfLocalFile.name.toLowerCase();
         const blockUrlDecoded = decodeURIComponent(block.pdf_url).toLowerCase();
-        
+
         // Sanitiza os nomes de arquivos para comparação robusta
-        const localNameSanitized = localName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/g, "");
-        const blockUrlSanitized = blockUrlDecoded.replace(/\.[^/.]+$/, "").split("/").pop().replace(/[^a-z0-9]/g, "");
-        
-        if (blockUrlSanitized.includes(localNameSanitized) || localNameSanitized.includes(blockUrlSanitized)) {
+        const localNameSanitized = localName.replace(/\.[^/.]+$/, '').replace(/[^a-z0-9]/g, '');
+        const blockUrlSanitized = blockUrlDecoded
+          .replace(/\.[^/.]+$/, '')
+          .split('/')
+          .pop()
+          .replace(/[^a-z0-9]/g, '');
+
+        if (
+          blockUrlSanitized.includes(localNameSanitized) ||
+          localNameSanitized.includes(blockUrlSanitized)
+        ) {
           isCurrentLocal = true;
         } else if (window.__pdfOriginalUrl && block.pdf_url === window.__pdfOriginalUrl) {
           isCurrentLocal = true;
@@ -59,7 +70,7 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
       }
     }
 
-    const cacheKey = isCurrentLocal ? "local-file" : (block.pdf_url || null);
+    const cacheKey = isCurrentLocal ? 'local-file' : block.pdf_url || null;
 
     if (pdfCache && cacheKey && pdfCache.has(cacheKey)) {
       pdfDoc = pdfCache.get(cacheKey);
@@ -69,13 +80,13 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
         const typedArray = new Uint8Array(arrayBuffer);
         pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
       } else if (block.pdf_url) {
-        let url = block.pdf_url;
+        const url = block.pdf_url;
         try {
           // Garante Puter carregado para bypass CORS
-          if (typeof window.puter === "undefined" && !window.__loadingPuter) {
+          if (typeof window.puter === 'undefined' && !window.__loadingPuter) {
             window.__loadingPuter = new Promise((resolve) => {
-              const script = document.createElement("script");
-              script.src = "https://js.puter.com/v2/";
+              const script = document.createElement('script');
+              script.src = 'https://js.puter.com/v2/';
               script.onload = () => resolve(window.puter);
               script.onerror = () => resolve(null);
               document.head.appendChild(script);
@@ -89,7 +100,7 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
           // 1. Primary: Fetch via Worker Proxy
           try {
             const fetchUrl = getProxyPdfUrl(url);
-            console.log("[PDFGenerator] Carregando PDF via fetch/proxy:", fetchUrl);
+            console.log('[PDFGenerator] Carregando PDF via fetch/proxy:', fetchUrl);
             const response = await fetch(fetchUrl);
             if (response.ok) {
               arrayBuffer = await response.arrayBuffer();
@@ -97,10 +108,20 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
               throw new Error(`Fetch HTTP ${response.status}`);
             }
           } catch (proxyErr) {
-            console.warn("[PDFGenerator] Falha no Worker Proxy, tentando Puter fallback...", proxyErr);
+            console.warn(
+              '[PDFGenerator] Falha no Worker Proxy, tentando Puter fallback...',
+              proxyErr,
+            );
             // 2. Fallback: Puter fetch
-            if (typeof window.puter !== "undefined" && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
-              console.log("[PDFGenerator] Carregando PDF via Puter.net.fetch:", url);
+            if (
+              typeof window.puter !== 'undefined' &&
+              window.puter.auth &&
+              typeof window.puter.auth.isSignedIn === 'function' &&
+              window.puter.auth.isSignedIn() &&
+              window.puter.net &&
+              window.puter.net.fetch
+            ) {
+              console.log('[PDFGenerator] Carregando PDF via Puter.net.fetch:', url);
               const response = await window.puter.net.fetch(url);
               if (!response.ok) throw new Error(`Puter HTTP ${response.status}`);
               const blob = await response.blob();
@@ -114,7 +135,7 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
           pdfDoc = await pdfjsLib.getDocument({
             data: typedArray,
             disableRange: true,
-            disableAutoFetch: true
+            disableAutoFetch: true,
           }).promise;
         } catch (err) {
           console.warn(`Erro ao carregar PDF de ${url}, tentando fallback com arquivo local:`, err);
@@ -138,13 +159,12 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
     const pageNum = parseInt(block.pdf_page || 1, 10);
     const page = await pdfDoc.getPage(pageNum);
 
-    const hasSpecificCrop = (
+    const hasSpecificCrop =
       block.pdfjs_x !== undefined ||
       block.pdfjs_y !== undefined ||
       block.pdfjs_crop_w !== undefined ||
       block.pdfjs_crop_h !== undefined ||
-      (block.cropDetails && block.cropDetails.pdfjs_x !== undefined)
-    );
+      (block.cropDetails && block.cropDetails.pdfjs_x !== undefined);
 
     const cropDetails = block.cropDetails || {};
     const pdfjsSourceW = block.pdfjs_source_w ?? cropDetails.pdfjs_source_w ?? 2480;
@@ -173,10 +193,10 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
       offsetY = 0;
     }
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = finalWidth;
     canvas.height = finalHeight;
-    const context = canvas.getContext("2d");
+    const context = canvas.getContext('2d');
 
     // Preencher fundo branco (para PDFs transparentes)
     context.fillStyle = '#FFFFFF';
@@ -197,9 +217,9 @@ export async function renderPdfCropToDataUrl(block, pdfCache = null) {
 
     context.restore();
 
-    return canvas.toDataURL("image/png");
+    return canvas.toDataURL('image/png');
   } catch (e) {
-    console.error("Erro ao converter recorte PDF para imagem:", e);
+    console.error('Erro ao converter recorte PDF para imagem:', e);
     return null;
   }
 }
@@ -209,10 +229,11 @@ export async function preCarregarImagensEmBackground(questoes) {
   // 1. Extrair crops pendentes
   const pendingCrops = [];
   const cacheMap = window.__pdfEmbedImagesCache || (window.__pdfEmbedImagesCache = new Map());
-  
+
   const checkBlock = (bloco) => {
-    if (bloco.tipo === "imagem") {
-      const isPdfCrop = bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
+    if (bloco.tipo === 'imagem') {
+      const isPdfCrop =
+        bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
       if (isPdfCrop) {
         const fileUrl = bloco.pdf_url || null;
         const pageNum = parseInt(bloco.pdf_page || 1, 10);
@@ -221,13 +242,16 @@ export async function preCarregarImagensEmBackground(questoes) {
           X: bloco.pdfjs_x ?? cropDetails.pdfjs_x ?? 0,
           Y: bloco.pdfjs_y ?? cropDetails.pdfjs_y ?? 0,
           cW: bloco.pdfjs_crop_w ?? cropDetails.pdfjs_crop_w ?? 600,
-          cH: bloco.pdfjs_crop_h ?? cropDetails.pdfjs_crop_h ?? 400
+          cH: bloco.pdfjs_crop_h ?? cropDetails.pdfjs_crop_h ?? 400,
         };
         const globalPdfUrl = window.__pdfOriginalUrl || window.__pdfDownloadUrl || null;
-        const baseUrl = (fileUrl && typeof fileUrl === 'string' && fileUrl.startsWith('blob:') && globalPdfUrl) ? globalPdfUrl : fileUrl;
+        const baseUrl =
+          fileUrl && typeof fileUrl === 'string' && fileUrl.startsWith('blob:') && globalPdfUrl
+            ? globalPdfUrl
+            : fileUrl;
         const effectiveUrl = baseUrl;
         const cacheKey = `${effectiveUrl}_${pageNum}_${c.X}_${c.Y}_${c.cW}_${c.cH}`;
-        
+
         if (!cacheMap.has(cacheKey)) {
           pendingCrops.push({ bloco, cacheKey });
         }
@@ -238,7 +262,7 @@ export async function preCarregarImagensEmBackground(questoes) {
   questoes.forEach((qObj) => {
     const q = qObj.fullData?.dados_questao || {};
     const g = qObj.fullData?.dados_gabarito || {};
-    
+
     if (q.estrutura && Array.isArray(q.estrutura)) {
       q.estrutura.forEach(checkBlock);
     }
@@ -259,7 +283,7 @@ export async function preCarregarImagensEmBackground(questoes) {
   });
 
   if (pendingCrops.length === 0) {
-    console.log("[PDFGenerator] Todas as imagens de PDF já estão em cache.");
+    console.log('[PDFGenerator] Todas as imagens de PDF já estão em cache.');
     return;
   }
 
@@ -267,28 +291,28 @@ export async function preCarregarImagensEmBackground(questoes) {
 
   // Importar React/ReactDOM e PdfEmbedRenderer dinamicamente
   const [React, ReactDOMClient, { PdfEmbedRenderer }] = await Promise.all([
-    import("react"),
-    import("react-dom/client"),
-    import("../ui/PdfEmbedRenderer.tsx")
+    import('react'),
+    import('react-dom/client'),
+    import('../ui/PdfEmbedRenderer.tsx'),
   ]);
 
   // Criar sandbox invisível no DOM
-  const sandbox = document.createElement("div");
-  sandbox.id = "pdf-generation-pre-render-sandbox";
-  sandbox.style.position = "absolute";
-  sandbox.style.left = "-9999px";
-  sandbox.style.top = "-9999px";
-  sandbox.style.width = "800px";
-  sandbox.style.height = "600px";
-  sandbox.style.overflow = "hidden";
-  sandbox.style.opacity = "0";
-  sandbox.style.pointerEvents = "none";
+  const sandbox = document.createElement('div');
+  sandbox.id = 'pdf-generation-pre-render-sandbox';
+  sandbox.style.position = 'absolute';
+  sandbox.style.left = '-9999px';
+  sandbox.style.top = '-9999px';
+  sandbox.style.width = '800px';
+  sandbox.style.height = '600px';
+  sandbox.style.overflow = 'hidden';
+  sandbox.style.opacity = '0';
+  sandbox.style.pointerEvents = 'none';
   document.body.appendChild(sandbox);
 
   const root = ReactDOMClient.createRoot(sandbox);
 
   return new Promise((resolve) => {
-    const pendingKeys = new Set(pendingCrops.map(item => item.cacheKey));
+    const pendingKeys = new Set(pendingCrops.map((item) => item.cacheKey));
     let timeoutId;
 
     const cleanup = () => {
@@ -299,7 +323,7 @@ export async function preCarregarImagensEmBackground(questoes) {
           root.unmount();
           sandbox.remove();
         } catch (e) {
-          console.warn("[PDFGenerator] Erro ao desmontar sandbox:", e);
+          console.warn('[PDFGenerator] Erro ao desmontar sandbox:', e);
         }
       }, 500);
     };
@@ -309,7 +333,9 @@ export async function preCarregarImagensEmBackground(questoes) {
       const key = `${detail.url}_${detail.page}_${detail.x}_${detail.y}_${detail.w}_${detail.h}`;
       if (pendingKeys.has(key)) {
         pendingKeys.delete(key);
-        console.log(`[PDFGenerator] Crop carregado via background render: ${key}. Restam: ${pendingKeys.size}`);
+        console.log(
+          `[PDFGenerator] Crop carregado via background render: ${key}. Restam: ${pendingKeys.size}`,
+        );
         if (pendingKeys.size === 0) {
           cleanup();
           resolve();
@@ -321,7 +347,10 @@ export async function preCarregarImagensEmBackground(questoes) {
 
     // Timeout de segurança de 15 segundos
     timeoutId = setTimeout(() => {
-      console.warn(`[PDFGenerator] Timeout no pré-carregamento. Pendentes:`, Array.from(pendingKeys));
+      console.warn(
+        `[PDFGenerator] Timeout no pré-carregamento. Pendentes:`,
+        Array.from(pendingKeys),
+      );
       cleanup();
       resolve();
     }, 15000);
@@ -329,7 +358,7 @@ export async function preCarregarImagensEmBackground(questoes) {
     // Renderizar componentes
     const PreRenderWrapper = () => {
       return React.createElement(
-        "div",
+        'div',
         null,
         pendingCrops.map((item, index) => {
           const b = item.bloco;
@@ -350,9 +379,9 @@ export async function preCarregarImagensEmBackground(questoes) {
             pdfjs_crop_h: b.pdfjs_crop_h,
             scaleToFit: true,
             readOnly: true,
-            forceRenderMode: 'puter'
+            forceRenderMode: 'puter',
           });
-        })
+        }),
       );
     };
 
@@ -362,7 +391,7 @@ export async function preCarregarImagensEmBackground(questoes) {
 
 // Mostra modal simples de loading
 function showPrintLoading() {
-  const oldModal = document.getElementById("printLoadingModal");
+  const oldModal = document.getElementById('printLoadingModal');
   if (oldModal) oldModal.remove();
 
   const modalHtml = `
@@ -399,72 +428,74 @@ function showPrintLoading() {
       </style>
     </div>
   `;
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 function hidePrintLoading() {
-  document.getElementById("printLoadingModal")?.remove();
+  document.getElementById('printLoadingModal')?.remove();
 }
 
 // Escapa conteúdo para data-raw
 function escapeHtml(text) {
-  if (!text) return "";
+  if (!text) return '';
   return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // Helper para converter blocos de estrutura em tags HTML
 function renderBlockToHtmlString(bloco) {
-  const tipo = (bloco.tipo || "texto").toLowerCase();
-  const conteudo = bloco.conteudo ? String(bloco.conteudo) : "";
+  const tipo = (bloco.tipo || 'texto').toLowerCase();
+  const conteudo = bloco.conteudo ? String(bloco.conteudo) : '';
   const escaped = escapeHtml(conteudo);
 
   switch (tipo) {
-    case "texto":
+    case 'texto':
       return `<div class="markdown-content print-block-text" data-raw="${escaped}"></div>`;
-    case "citacao":
+    case 'citacao':
       return `<blockquote class="markdown-content print-block-citacao" data-raw="${escaped}"></blockquote>`;
-    case "destaque":
+    case 'destaque':
       return `<div class="markdown-content print-block-destaque" data-raw="${escaped}"></div>`;
-    case "titulo":
+    case 'titulo':
       return `<h3 class="markdown-content print-block-titulo" data-raw="${escaped}"></h3>`;
-    case "subtitulo":
+    case 'subtitulo':
       return `<h4 class="markdown-content print-block-subtitulo" data-raw="${escaped}"></h4>`;
-    case "fonte":
+    case 'fonte':
       return `<div class="markdown-content print-block-fonte" data-raw="${escaped}"></div>`;
-    case "separador":
+    case 'separador':
       return `<hr class="print-block-separador" />`;
-    case "equacao":
+    case 'equacao':
       return `<div class="math-block">\\[${conteudo}\\]</div>`;
-    case "tabela":
+    case 'tabela':
       return `<div class="markdown-content print-block-tabela" data-raw="${escaped}"></div>`;
-    case "lista":
+    case 'lista':
       return `<div class="markdown-content print-block-lista" data-raw="${escaped}"></div>`;
-    case "codigo":
+    case 'codigo':
       return `<pre class="print-block-codigo"><code>${escaped}</code></pre>`;
-    case "imagem":
-      const src = bloco._printSrc || bloco.url || "";
-      let imgHtml = "";
+    case 'imagem': {
+      const src = bloco._printSrc || bloco.url || '';
+      let imgHtml = '';
       if (src) {
         imgHtml = `<img src="${src}" style="max-width: 100%; max-height: 500px; display: block; margin: 12px auto; object-fit: contain;" />`;
       }
       const captionHtml = conteudo
         ? `<div class="markdown-content print-image-caption" data-raw="${escaped}" style="font-size: 8.5pt; text-align: center; font-style: italic; color: #555; margin-top: 4px;"></div>`
-        : "";
-      let creditHtml = "";
-      const isPdfCrop = bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
+        : '';
+      let creditHtml = '';
+      const isPdfCrop =
+        bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
       if (isPdfCrop) {
-        const materialName = bloco._materialOrigem || "Prova Original";
+        const materialName = bloco._materialOrigem || 'Prova Original';
         const pageNum = bloco.pdf_page || 1;
         creditHtml = `<div class="print-image-credit">Fonte: ${escapeHtml(materialName)} (p. ${pageNum})</div>`;
       }
       return `<div class="print-block-image-wrapper">${imgHtml}${captionHtml}${creditHtml}</div>`;
+    }
     default:
-      return "";
+      return '';
   }
 }
 
@@ -477,11 +508,15 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
 
     const objectiveQuestions = rawQuestoes.filter((qObj) => {
       const q = qObj.fullData?.dados_questao || {};
-      return !(q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0);
+      return !(
+        q.tipo_resposta === 'dissertativa' ||
+        !q.alternativas ||
+        q.alternativas.length === 0
+      );
     });
     const writtenQuestions = rawQuestoes.filter((qObj) => {
       const q = qObj.fullData?.dados_questao || {};
-      return q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+      return q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
     });
 
     const hasObjective = objectiveQuestions.length > 0;
@@ -492,12 +527,13 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     const questoes = isMixed ? [...objectiveQuestions, ...writtenQuestions] : rawQuestoes;
 
     function calcularDuracaoProva(questoesList) {
-      let minObjective = 3; // minutos por questão objetiva
-      let minWritten = 10;  // minutos por questão dissertativa
+      const minObjective = 3; // minutos por questão objetiva
+      const minWritten = 10; // minutos por questão dissertativa
       let totalMinutes = 0;
-      questoesList.forEach(qObj => {
+      questoesList.forEach((qObj) => {
         const q = qObj.fullData?.dados_questao || {};
-        const isQDissert = q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+        const isQDissert =
+          q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
         if (isQDissert) {
           totalMinutes += minWritten;
         } else {
@@ -510,7 +546,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       totalMinutes = Math.ceil(totalMinutes / 15) * 15;
 
       if (totalMinutes >= 300) {
-        return "5 horas";
+        return '5 horas';
       }
 
       const hours = Math.floor(totalMinutes / 60);
@@ -519,9 +555,9 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       if (hours === 0) {
         return `${minutes} minutos`;
       } else if (minutes === 0) {
-        return `${hours} ${hours === 1 ? "hora" : "horas"}`;
+        return `${hours} ${hours === 1 ? 'hora' : 'horas'}`;
       } else {
-        return `${hours} ${hours === 1 ? "hora" : "horas"} e ${minutes} minutos`;
+        return `${hours} ${hours === 1 ? 'hora' : 'horas'} e ${minutes} minutos`;
       }
     }
 
@@ -531,7 +567,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     try {
       await preCarregarImagensEmBackground(questoes);
     } catch (preloadErr) {
-      console.error("[PDFGenerator] Erro ao pré-carregar imagens em background:", preloadErr);
+      console.error('[PDFGenerator] Erro ao pré-carregar imagens em background:', preloadErr);
     }
 
     // 1. Processar todas as imagens do PDF em paralelo com cache
@@ -541,13 +577,15 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     questoes.forEach((qObj) => {
       const q = qObj.fullData?.dados_questao || {};
       const meta = qObj.fullData?.meta || {};
-      const materialOrigem = meta.material_origem || qObj.prova?.replace(/_/g, " ") || "Prova Original";
-      
+      const materialOrigem =
+        meta.material_origem || qObj.prova?.replace(/_/g, ' ') || 'Prova Original';
+
       // Processa estrutura da questão
       if (q.estrutura && Array.isArray(q.estrutura)) {
         q.estrutura.forEach((bloco) => {
-          if (bloco.tipo === "imagem") {
-            const isPdfCrop = bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
+          if (bloco.tipo === 'imagem') {
+            const isPdfCrop =
+              bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
             if (isPdfCrop) {
               bloco._materialOrigem = materialOrigem;
             }
@@ -564,8 +602,9 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
         q.alternativas.forEach((alt) => {
           if (alt.estrutura && Array.isArray(alt.estrutura)) {
             alt.estrutura.forEach((bloco) => {
-              if (bloco.tipo === "imagem") {
-                const isPdfCrop = bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
+              if (bloco.tipo === 'imagem') {
+                const isPdfCrop =
+                  bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
                 if (isPdfCrop) {
                   bloco._materialOrigem = materialOrigem;
                 }
@@ -585,8 +624,9 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
         g.explicacao.forEach((step) => {
           if (step.estrutura && Array.isArray(step.estrutura)) {
             step.estrutura.forEach((bloco) => {
-              if (bloco.tipo === "imagem") {
-                const isPdfCrop = bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
+              if (bloco.tipo === 'imagem') {
+                const isPdfCrop =
+                  bloco.pdf_page || bloco.pdfjs_x !== undefined || bloco.pdf_left !== undefined;
                 if (isPdfCrop) {
                   bloco._materialOrigem = materialOrigem;
                 }
@@ -605,17 +645,19 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     await Promise.all(cropPromises);
 
     // 2. Montar o documento de impressão
-    const isTeste = simulado.tipo === "teste";
-    const examTitle = (simulado.titulo || "Simulado Maia").toUpperCase();
-    const subTitle = (isMixed
-      ? "Prova de Conhecimentos Gerais e Específicos (Mista)"
-      : hasObjective
-        ? "Prova de Conhecimentos Gerais (Objetiva)"
-        : "Prova de Conhecimentos Específicos (Dissertativa)").toUpperCase();
+    const isTeste = simulado.tipo === 'teste';
+    const examTitle = (simulado.titulo || 'Simulado Maia').toUpperCase();
+    const subTitle = (
+      isMixed
+        ? 'Prova de Conhecimentos Gerais e Específicos (Mista)'
+        : hasObjective
+          ? 'Prova de Conhecimentos Gerais (Objetiva)'
+          : 'Prova de Conhecimentos Específicos (Dissertativa)'
+    ).toUpperCase();
 
-    let layoutHtml = "";
-    let coverPageHtml = "";
-    let answerSheetHtmlTemplate = "";
+    let layoutHtml = '';
+    let coverPageHtml = '';
+    let answerSheetHtmlTemplate = '';
 
     if (modoGabarito) {
       // LEIAUTE DE RESOLUÇÕES / GABARITO (PAGINADO)
@@ -643,12 +685,12 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                     const q = qObj.fullData?.dados_questao || {};
                     const g = qObj.fullData?.dados_gabarito || {};
                     const isQDissert =
-                      q.tipo_resposta === "dissertativa" ||
+                      q.tipo_resposta === 'dissertativa' ||
                       !q.alternativas ||
                       q.alternativas.length === 0;
 
                     // Resolução passos
-                    let passosHtml = "";
+                    let passosHtml = '';
                     if (g.explicacao && Array.isArray(g.explicacao) && g.explicacao.length > 0) {
                       passosHtml = `
                       <div class="print-gabarito-steps">
@@ -658,55 +700,61 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                             .map((p, i) => {
                               const est = Array.isArray(p.estrutura)
                                 ? p.estrutura
-                                : [{ tipo: "texto", conteudo: p.passo || "" }];
-                              
+                                : [{ tipo: 'texto', conteudo: p.passo || '' }];
+
                               const stepContentHtml = est
                                 .map((bl) => renderBlockToHtmlString(bl))
-                                .join("");
-                              
+                                .join('');
+
                               return `<li class="print-gabarito-step">${stepContentHtml}</li>`;
                             })
-                            .join("")}
+                            .join('')}
                         </ol>
                       </div>`;
                     }
 
                     // Resposta modelo
-                    const respModelo = g.resposta_modelo || g.respostaModelo || "";
+                    const respModelo = g.resposta_modelo || g.respostaModelo || '';
                     const respModeloEscaped = escapeHtml(respModelo);
                     const respModeloHtml = respModelo
                       ? `<div style="margin-top: 8px;"><strong>Resposta Modelo Esperada:</strong> <div class="markdown-content print-gabarito-answer" data-raw="${respModeloEscaped}"></div></div>`
-                      : "";
+                      : '';
 
                     // Fontes externas
-                    let fontesHtml = "";
-                    if (g.fontes_externas && Array.isArray(g.fontes_externas) && g.fontes_externas.length > 0) {
+                    let fontesHtml = '';
+                    if (
+                      g.fontes_externas &&
+                      Array.isArray(g.fontes_externas) &&
+                      g.fontes_externas.length > 0
+                    ) {
                       fontesHtml = `
                       <div style="margin-top: 8px;">
                         <strong>Fontes Externas:</strong>
                         <ul style="list-style:none; padding:0; margin:5px 0 0 0; display:flex; flex-direction:column; gap:4px;">
                           ${g.fontes_externas
-                            .map((f) => `
+                            .map(
+                              (f) => `
                               <li>
                                 <a href="${f.uri}" target="_blank" rel="noopener noreferrer" style="color:#0284c7; text-decoration:none; font-size:0.85rem;">
                                   ${f.title || f.uri} ↗
                                 </a>
                               </li>
-                            `)
-                            .join("")}
+                            `,
+                            )
+                            .join('')}
                         </ul>
                       </div>`;
                     }
 
                     return `
                     <div class="print-gabarito-item">
-                      <strong>Questão ${String(absoluteIndex + 1).padStart(2, "0")}</strong>
+                      <strong>Questão ${String(absoluteIndex + 1).padStart(2, '0')}</strong>
                       <div style="margin-top: 4px;">
                         <strong>Gabarito Oficial:</strong> ${
                           isQDissert
-                            ? "Dissertativa"
+                            ? 'Dissertativa'
                             : `<span style="font-weight:bold; color:#10b981;">Alternativa ${
-                                g.alternativa_correta || "—"
+                                g.alternativa_correta || '—'
                               }</span>`
                         }
                       </div>
@@ -714,19 +762,19 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                       <div style="margin-top: 8px;">
                         <strong>Justificativa:</strong> 
                         <span class="markdown-content" data-raw="${escapeHtml(
-                          g.justificativa_curta || "Sem justificativa."
+                          g.justificativa_curta || 'Sem justificativa.',
                         )}"></span>
                       </div>
                       ${passosHtml}
                       ${fontesHtml}
                     </div>`;
                   })
-                  .join("")}
+                  .join('')}
               </div>
             </div>
           `;
         })
-        .join("");
+        .join('');
     } else {
       // LEIAUTE DE PROVA (ESTUDANTE)
       // Capa de Vestibular Estilizada Maia.edu (Autoral)
@@ -783,17 +831,14 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       `;
 
       // Constrói o HTML base da folha de respostas para a prova se aplicável
-      answerSheetHtmlTemplate = "";
+      answerSheetHtmlTemplate = '';
       if (hasObjective && !modoGabarito) {
         const totalQ = objectiveQuestions.length;
-        let sheetRows = "";
+        let sheetRows = '';
         for (let i = 0; i < totalQ; i++) {
           sheetRows += `
             <div class="print-answer-sheet-row">
-              <span class="print-answer-sheet-q">${String(i + 1).padStart(
-                2,
-                "0"
-              )}</span>
+              <span class="print-answer-sheet-q">${String(i + 1).padStart(2, '0')}</span>
               <div class="print-answer-sheet-bubbles">
                 <span class="print-bubble">A</span>
                 <span class="print-bubble">B</span>
@@ -825,10 +870,10 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     const serializedQuestoes = JSON.stringify(questoes).replace(/</g, '\\u003c');
 
     // 3. Criar modal de visualização (popup) na página pai
-    document.getElementById("pdf-preview-modal-overlay")?.remove();
+    document.getElementById('pdf-preview-modal-overlay')?.remove();
 
-    const overlay = document.createElement("div");
-    overlay.id = "pdf-preview-modal-overlay";
+    const overlay = document.createElement('div');
+    overlay.id = 'pdf-preview-modal-overlay';
     overlay.style.cssText = `
       position: fixed;
       inset: 0;
@@ -842,7 +887,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       transition: opacity 0.3s ease;
     `;
 
-    const modalContent = document.createElement("div");
+    const modalContent = document.createElement('div');
     modalContent.style.cssText = `
       background-color: var(--color-background);
       width: 95vw;
@@ -858,7 +903,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       transition: transform 0.3s ease;
     `;
 
-    const header = document.createElement("div");
+    const header = document.createElement('div');
     header.style.cssText = `
       padding: 16px 24px;
       background-color: var(--color-surface);
@@ -870,22 +915,24 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       font-family: 'Inter', sans-serif;
     `;
 
-    const titleSpan = document.createElement("span");
+    const titleSpan = document.createElement('span');
     titleSpan.style.cssText = `
       font-weight: 700;
       font-size: 1.1rem;
       letter-spacing: 0.5px;
       color: var(--color-text);
     `;
-    titleSpan.textContent = modoGabarito ? `${examTitle} - Gabarito e Resoluções` : `${examTitle} - Caderno de Questões`;
+    titleSpan.textContent = modoGabarito
+      ? `${examTitle} - Gabarito e Resoluções`
+      : `${examTitle} - Caderno de Questões`;
 
-    const btnGroup = document.createElement("div");
+    const btnGroup = document.createElement('div');
     btnGroup.style.cssText = `
       display: flex;
       gap: 12px;
     `;
 
-    const printBtn = document.createElement("button");
+    const printBtn = document.createElement('button');
     printBtn.style.cssText = `
       background-color: var(--color-primary);
       color: #fff;
@@ -901,11 +948,11 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       transition: background-color 0.2s, transform 0.1s;
       font-family: 'Inter', sans-serif;
     `;
-    printBtn.innerHTML = modoGabarito ? "📥 Baixar Gabarito (PDF)" : "📥 Baixar Prova (PDF)";
-    printBtn.onmouseover = () => printBtn.style.backgroundColor = "var(--color-primary-hover)";
-    printBtn.onmouseout = () => printBtn.style.backgroundColor = "var(--color-primary)";
+    printBtn.innerHTML = modoGabarito ? '📥 Baixar Gabarito (PDF)' : '📥 Baixar Prova (PDF)';
+    printBtn.onmouseover = () => (printBtn.style.backgroundColor = 'var(--color-primary-hover)');
+    printBtn.onmouseout = () => (printBtn.style.backgroundColor = 'var(--color-primary)');
 
-    const closeBtn = document.createElement("button");
+    const closeBtn = document.createElement('button');
     closeBtn.style.cssText = `
       background-color: var(--color-surface);
       color: var(--color-text);
@@ -918,18 +965,18 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       transition: background-color 0.2s, border-color 0.2s;
       font-family: 'Inter', sans-serif;
     `;
-    closeBtn.textContent = "Fechar";
+    closeBtn.textContent = 'Fechar';
     closeBtn.onmouseover = () => {
-      closeBtn.style.backgroundColor = "var(--color-bg-1)";
-      closeBtn.style.borderColor = "var(--color-text-secondary)";
+      closeBtn.style.backgroundColor = 'var(--color-bg-1)';
+      closeBtn.style.borderColor = 'var(--color-text-secondary)';
     };
     closeBtn.onmouseout = () => {
-      closeBtn.style.backgroundColor = "var(--color-surface)";
-      closeBtn.style.borderColor = "var(--color-border)";
+      closeBtn.style.backgroundColor = 'var(--color-surface)';
+      closeBtn.style.borderColor = 'var(--color-border)';
     };
 
-    const iframe = document.createElement("iframe");
-    iframe.id = "pdf-preview-iframe";
+    const iframe = document.createElement('iframe');
+    iframe.id = 'pdf-preview-iframe';
     iframe.style.cssText = `
       flex: 1;
       width: 100%;
@@ -947,15 +994,15 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     document.body.appendChild(overlay);
 
     const closeModal = () => {
-      overlay.style.opacity = "0";
-      modalContent.style.transform = "scale(0.95)";
+      overlay.style.opacity = '0';
+      modalContent.style.transform = 'scale(0.95)';
       setTimeout(() => {
         overlay.remove();
       }, 300);
     };
 
-    closeBtn.addEventListener("click", closeModal);
-    overlay.addEventListener("click", (e) => {
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
       if (e.target === overlay) closeModal();
     });
 
@@ -963,10 +1010,10 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
 
     // Auxiliar para estado de download do PDF no botão
     const originalBtnText = printBtn.innerHTML;
-    window.setPdfDownloadingState = function(isDownloading) {
+    window.setPdfDownloadingState = (isDownloading) => {
       if (isDownloading) {
         printBtn.disabled = true;
-        printBtn.innerHTML = "⌛ Gerando PDF...";
+        printBtn.innerHTML = '⌛ Gerando PDF...';
       } else {
         printBtn.disabled = false;
         printBtn.innerHTML = originalBtnText;
@@ -975,12 +1022,12 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
 
     // Forçar reflow
     overlay.offsetHeight;
-    overlay.style.opacity = "1";
-    modalContent.style.transform = "scale(1)";
+    overlay.style.opacity = '1';
+    modalContent.style.transform = 'scale(1)';
 
     const printWindow = iframe.contentWindow;
-    
-    printBtn.addEventListener("click", () => {
+
+    printBtn.addEventListener('click', () => {
       if (printWindow.baixarPdfSimulado) {
         printWindow.baixarPdfSimulado();
       } else {
@@ -989,8 +1036,8 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
       }
     });
 
-    const colorScheme = document.documentElement.getAttribute("data-color-scheme") || "";
-    const colorTheme = document.documentElement.getAttribute("data-theme") || "";
+    const colorScheme = document.documentElement.getAttribute('data-color-scheme') || '';
+    const colorTheme = document.documentElement.getAttribute('data-theme') || '';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -1058,8 +1105,8 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
 
         <div class="print-container">
           <!-- Capa e Folha de Respostas estáticas se não for modo Gabarito -->
-          ${modoGabarito ? "" : coverPageHtml}
-          ${modoGabarito ? "" : answerSheetHtmlTemplate}
+          ${modoGabarito ? '' : coverPageHtml}
+          ${modoGabarito ? '' : answerSheetHtmlTemplate}
           <!-- Espaço reservado para as páginas geradas dinamicamente -->
           <div id="dynamic-pages-placeholder"></div>
         </div>
@@ -2135,15 +2182,18 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
     printWindow.document.close();
 
     // Remove loading do pai quando carregar
-    window.addEventListener("simulado-pdf-ready", () => {
-      hidePrintLoading();
-    }, { once: true });
+    window.addEventListener(
+      'simulado-pdf-ready',
+      () => {
+        hidePrintLoading();
+      },
+      { once: true },
+    );
 
     // Fallback de remoção de loading
     setTimeout(() => {
       hidePrintLoading();
     }, 4000);
-
   } catch (e) {
     hidePrintLoading();
     customAlert(`❌ Erro ao gerar PDF: ${e.message}`, 4000);
@@ -2155,17 +2205,17 @@ function getStylesFromParent() {
   return Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
     .map((el) => {
       const clone = el.cloneNode(true);
-      if (clone.tagName === "LINK") {
-        const href = clone.getAttribute("href");
-        if (href && !href.startsWith("http") && !href.startsWith("//")) {
+      if (clone.tagName === 'LINK') {
+        const href = clone.getAttribute('href');
+        if (href && !href.startsWith('http') && !href.startsWith('//')) {
           // Converte link relativo para absoluto para resolver no about:blank
           clone.setAttribute(
-            "href",
-            `${window.location.origin}${href.startsWith("/") ? "" : "/"}${href}`
+            'href',
+            `${window.location.origin}${href.startsWith('/') ? '' : '/'}${href}`,
           );
         }
       }
       return clone.outerHTML;
     })
-    .join("\n");
+    .join('\n');
 }

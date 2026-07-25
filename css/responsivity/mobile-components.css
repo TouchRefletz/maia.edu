@@ -1,282 +1,283 @@
 /* --- OTIMIZAÇÃO COMPACTA PARA TOPO (MOBILE) --- */
 @media (max-width: 600px) {
+  /* 2. LINHA 1: Toggle (Prova/Gabarito) ocupa toda a largura */
+  .mode-toggle {
+    width: 100%;
+    display: flex;
+    margin-bottom: 2px;
+  }
 
-    /* 2. LINHA 1: Toggle (Prova/Gabarito) ocupa toda a largura */
-    .mode-toggle {
-        width: 100%;
-        display: flex;
-        margin-bottom: 2px;
-    }
+  .mode-toggle__btn {
+    flex: 1;
+    /* Botões dividem o espaço igualmente (50% cada) */
+    padding: 8px 0;
+    /* Área de toque confortável */
+    justify-content: center;
+  }
 
-    .mode-toggle__btn {
-        flex: 1;
-        /* Botões dividem o espaço igualmente (50% cada) */
-        padding: 8px 0;
-        /* Área de toque confortável */
-        justify-content: center;
-    }
+  /* 3. Esconder os textos "Navegação" e "Zoom" para economizar espaço */
+  .control-label {
+    font-size: 6px;
+  }
 
-    /* 3. Esconder os textos "Navegação" e "Zoom" para economizar espaço */
-    .control-label {
-        font-size: 6px;
-    }
+  /* 4. LINHA 2: Criar uma barra de ferramentas única horizontal */
+  /* Usamos um truque aqui: forçamos os itens a se alinharem */
 
-    /* 4. LINHA 2: Criar uma barra de ferramentas única horizontal */
-    /* Usamos um truque aqui: forçamos os itens a se alinharem */
+  /* Removemos as bordas e paddings dos containers individuais */
+  .pdf-controls-box {
+    display: flex;
+    align-items: center;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
 
-    /* Removemos as bordas e paddings dos containers individuais */
-    .pdf-controls-box {
-        display: flex;
-        align-items: center;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
-        background: transparent !important;
-    }
+  /* A linha interna de botões */
+  .control-row {
+    margin: 0 !important;
+    background: var(--color-background);
+    /* Um fundo leve para agrupar */
+    border-radius: 6px;
+    height: 36px;
+    /* Altura fixa para alinhar tudo */
+    padding: 16px;
+  }
 
-    /* A linha interna de botões */
-    .control-row {
-        margin: 0 !important;
-        background: var(--color-background);
-        /* Um fundo leve para agrupar */
-        border-radius: 6px;
-        height: 36px;
-        /* Altura fixa para alinhar tudo */
-        padding: 16px;
-    }
+  /* 5. Ajuste fino dos grupos para caberem lado a lado */
 
-    /* 5. Ajuste fino dos grupos para caberem lado a lado */
+  /* Grupo Navegação (< 1/30 >) */
+  .pdf-controls-box:nth-of-type(2) {
+    /* O primeiro .pdf-controls-box */
+    flex: 1;
+    /* Ganha mais espaço */
+  }
 
-    /* Grupo Navegação (< 1/30 >) */
-    .pdf-controls-box:nth-of-type(2) {
-        /* O primeiro .pdf-controls-box */
-        flex: 1;
-        /* Ganha mais espaço */
-    }
+  /* Grupo Zoom (- 100% +) */
+  .pdf-controls-box:nth-of-type(3) {
+    /* O segundo .pdf-controls-box */
+    flex: 1;
+    margin-right: 5px !important;
+  }
 
-    /* Grupo Zoom (- 100% +) */
-    .pdf-controls-box:nth-of-type(3) {
-        /* O segundo .pdf-controls-box */
-        flex: 1;
-        margin-right: 5px !important;
-    }
+  /* Ajuste para o texto de paginação e zoom ficarem pequenos */
+  #page_num,
+  #zoom_level {
+    font-size: 10px !important;
+  }
 
-    /* Ajuste para o texto de paginação e zoom ficarem pequenos */
-    #page_num,
-    #zoom_level {
-        font-size: 10px !important;
-    }
+  #zoom_level {
+    min-width: 40px !important;
+  }
 
-    #zoom_level {
-        min-width: 40px !important;
-    }
+  .control-row:has(> #zoom_level) {
+    gap: 0 !important;
+  }
 
-    .control-row:has(> #zoom_level) {
-        gap: 0 !important;
-    }
+  /* 6. Botão de Recorte (Camera) */
+  #btnRecortarHeader {
+    height: 36px;
+    width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary);
+    /* Destaque visual */
+    border-radius: 6px;
+    border: none;
+  }
 
-    /* 6. Botão de Recorte (Camera) */
-    #btnRecortarHeader {
-        height: 36px;
-        width: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-primary);
-        /* Destaque visual */
-        border-radius: 6px;
-        border: none;
-    }
+  #btnRecortarHeader img {
+    width: 18px;
+    height: 18px;
+    filter: var(--icon-filter);
+    /* Deixa o ícone branco */
+  }
 
-    #btnRecortarHeader img {
-        width: 18px;
-        height: 18px;
-        filter: var(--icon-filter);
-        /* Deixa o ícone branco */
-    }
-
-    /* Wrapper para organizar a linha de baixo (Nav + Zoom + Crop) */
-    /* Como o HTML original não tem um wrapper em volta desses 3, 
+  /* Wrapper para organizar a linha de baixo (Nav + Zoom + Crop) */
+  /* Como o HTML original não tem um wrapper em volta desses 3, 
        vamos usar flex-wrap no pai para simular */
-    .panel-label {
-        flex-direction: row !important;
-        /* Volta para row */
-        flex-wrap: wrap !important;
-    }
+  .panel-label {
+    flex-direction: row !important;
+    /* Volta para row */
+    flex-wrap: wrap !important;
+  }
 
-    /* Força o Toggle a ser 100% (quebra linha) */
-    .mode-toggle {
-        flex-basis: 100%;
-    }
+  /* Força o Toggle a ser 100% (quebra linha) */
+  .mode-toggle {
+    flex-basis: 100%;
+  }
 
-    /* Força os outros a caberem na mesma linha */
-    .pdf-controls-box,
-    #btnRecortarHeader {
-        flex-basis: auto;
-    }
+  /* Força os outros a caberem na mesma linha */
+  .pdf-controls-box,
+  #btnRecortarHeader {
+    flex-basis: auto;
+  }
 }
 
 /* --- NEW: Floating Mobile Controls --- */
 
 @media (max-width: 900px) {
+  /* 1. FLOATING CLOSE BUTTON (Top Right) */
+  .floating-close-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--color-background);
+    /* Semi-transparent dark bg */
+    backdrop-filter: blur(4px);
+    color: var(--color-text);
+    border: none;
+    box-shadow: var(--shadow-md);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      transform 0.2s,
+      background-color 0.2s;
+  }
 
-    /* 1. FLOATING CLOSE BUTTON (Top Right) */
-    .floating-close-btn {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 99999;
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background-color: var(--color-background);
-        /* Semi-transparent dark bg */
-        backdrop-filter: blur(4px);
-        color: var(--color-text);
-        border: none;
-        box-shadow: var(--shadow-md);
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: transform 0.2s, background-color 0.2s;
+  .floating-close-btn:active {
+    transform: scale(0.9);
+    background-color: var(--color-background);
+  }
+
+  /* 2. FLOATING TOOLS TOGGLE (Bottom Right) */
+  .floating-tools-btn {
+    position: fixed;
+    top: 20px;
+    /* "popup na parte inferior" */
+    left: 20px;
+    z-index: 99999;
+    width: 44px;
+    /* Slightly larger for main action */
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    color: var(--color-text);
+    border: none;
+    box-shadow: var(--shadow-lg);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      transform 0.2s,
+      background-color 0.2s;
+  }
+
+  /* 3. UNIFIED BOTTOM PANEL */
+  .floating-bottom-panel {
+    position: fixed;
+    bottom: 100px;
+    width: 90%;
+    justify-content: center;
+    align-items: center;
+    flex-direction: row;
+    /* Above the fab */
+    left: 50%;
+    transform: translateX(-50%);
+    transform-origin: bottom center;
+    z-index: 99999;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow-xl);
+    flex-direction: column;
+    gap: 10px;
+    display: flex;
+    animation: popUpFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Make it float center if widely preferred, but right seems better for thumb reach */
+
+  .floating-bottom-panel.hidden {
+    display: none !important;
+  }
+
+  .tools-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tool-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tool-divider {
+    width: 1px;
+    height: 24px;
+    background-color: var(--color-border);
+  }
+
+  /* Adjust font inside panel */
+  .floating-bottom-panel span {
+    font-size: 14px;
+    color: var(--color-text);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    min-width: 30px;
+    text-align: center;
+  }
+
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-1);
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  /* Animation Classes */
+  .floating-bottom-panel.closing {
+    animation: popDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes popUpFade {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(10px) translateX(-50%);
     }
 
-    .floating-close-btn:active {
-        transform: scale(0.9);
-        background-color: var(--color-background);
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0) translateX(-50%);
+    }
+  }
+
+  @keyframes popDownFade {
+    from {
+      opacity: 1;
+      transform: scale(1) translateY(0) translateX(-50%);
     }
 
-    /* 2. FLOATING TOOLS TOGGLE (Bottom Right) */
-    .floating-tools-btn {
-        position: fixed;
-        top: 20px;
-        /* "popup na parte inferior" */
-        left: 20px;
-        z-index: 99999;
-        width: 44px;
-        /* Slightly larger for main action */
-        height: 44px;
-        border-radius: 50%;
-        background-color: var(--color-primary);
-        color: var(--color-text);
-        border: none;
-        box-shadow: var(--shadow-lg);
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: transform 0.2s, background-color 0.2s;
+    to {
+      opacity: 0;
+      transform: scale(0.9) translateY(10px) translateX(-50%);
     }
-
-    /* 3. UNIFIED BOTTOM PANEL */
-    .floating-bottom-panel {
-        position: fixed;
-        bottom: 100px;
-        width: 90%;
-        justify-content: center;
-        align-items: center;
-        flex-direction: row;
-        /* Above the fab */
-        left: 50%;
-        transform: translateX(-50%);
-        transform-origin: bottom center;
-        z-index: 99999;
-        background-color: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: var(--shadow-xl);
-        flex-direction: column;
-        gap: 10px;
-        display: flex;
-        animation: popUpFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    /* Make it float center if widely preferred, but right seems better for thumb reach */
-
-    .floating-bottom-panel.hidden {
-        display: none !important;
-    }
-
-    .tools-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .tool-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .tool-divider {
-        width: 1px;
-        height: 24px;
-        background-color: var(--color-border);
-    }
-
-    /* Adjust font inside panel */
-    .floating-bottom-panel span {
-        font-size: 14px;
-        color: var(--color-text);
-        font-weight: 500;
-        font-variant-numeric: tabular-nums;
-        min-width: 30px;
-        text-align: center;
-    }
-
-    .btn-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        border: 1px solid var(--color-border);
-        background: var(--color-bg-1);
-        color: var(--color-text);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-    }
-
-    /* Animation Classes */
-    .floating-bottom-panel.closing {
-        animation: popDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes popUpFade {
-        from {
-            opacity: 0;
-            transform: scale(0.9) translateY(10px) translateX(-50%);
-        }
-
-        to {
-            opacity: 1;
-            transform: scale(1) translateY(0) translateX(-50%);
-        }
-    }
-
-    @keyframes popDownFade {
-        from {
-            opacity: 1;
-            transform: scale(1) translateY(0) translateX(-50%);
-        }
-
-        to {
-            opacity: 0;
-            transform: scale(0.9) translateY(10px) translateX(-50%);
-        }
-    }
+  }
 }
 
 /* Ensure mobile-only elements are hidden on desktop */
 @media (min-width: 900px) {
-
-    .mobile-only,
-    .floating-bottom-panel {
-        display: none !important;
-    }
+  .mobile-only,
+  .floating-bottom-panel {
+    display: none !important;
+  }
 }

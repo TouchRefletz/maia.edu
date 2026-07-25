@@ -1,15 +1,45 @@
-import "./services/transformers-config.js"; // Fix: Must run before any other import to configure env
-import { cleanupExpired } from "./services/memory-service.js";
+import './services/transformers-config.js'; // Fix: Must run before any other import to configure env
+import { cleanupExpired } from './services/memory-service.js';
+
 // Trigger cleanup on boot
 // Trigger cleanup on boot
 cleanupExpired().catch(console.error);
 
-import { ChatStorageService } from "./services/chat-storage.js";
+import { ChatStorageService } from './services/chat-storage.js';
+
 ChatStorageService.cleanupExpired().catch(console.error);
 
-import { initTheme } from "./services/theme-service.js";
+import { initTheme } from './services/theme-service.js';
+
 initTheme();
 
+import {
+  confirmExitingReview,
+  gerarTelaInicial,
+  iniciarModoEstudante,
+  iniciarModoRevisao,
+} from './app/telas.js';
+import { aplicarFiltrosBanco, limparFiltros } from './banco/filtros-ui.js';
+import {
+  abrirScanOriginal,
+  avaliarRespostaDissertativa,
+  toggleGabarito,
+  toggleKeywordsDissertativa,
+  verificarRespostaBanco,
+} from './banco/interacoes.js';
+import { cancelarRecorte } from './cropper/cropper-core.js';
+import { CropperState } from './cropper/cropper-state.js';
+import {
+  ativarModoRecorte,
+  cancelImageSlotMode,
+  confirmImageSlotMode,
+  iniciarCapturaParaSlotAlternativa,
+  iniciarOcrCampo,
+  onClickImagemFinal,
+  removerImagemFinal,
+  startImageSlotMode,
+} from './cropper/mode.js';
+import { salvarQuestao } from './cropper/save-handlers.js';
 import {
   app,
   auth,
@@ -28,47 +58,16 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
-} from "./firebase/init.js";
+} from './firebase/init.js';
+import './debug/chat-debugger.js';
+import { enviarDadosParaFirebase } from './firebase/envio.js';
+import { exibirModalOriginais } from './render/final/OriginaisModal.tsx';
 
-import {
-  confirmExitingReview,
-  gerarTelaInicial,
-  iniciarModoEstudante,
-  iniciarModoRevisao,
-} from "./app/telas.js";
-import { aplicarFiltrosBanco, limparFiltros } from "./banco/filtros-ui.js";
-import {
-  abrirScanOriginal,
-  toggleGabarito,
-  toggleKeywordsDissertativa,
-  verificarRespostaBanco,
-  avaliarRespostaDissertativa,
-} from "./banco/interacoes.js";
-import { cancelarRecorte } from "./cropper/cropper-core.js";
-import { CropperState } from "./cropper/cropper-state.js";
-import {
-  ativarModoRecorte,
-  cancelImageSlotMode,
-  confirmImageSlotMode,
-  onClickImagemFinal,
-  removerImagemFinal,
-  startImageSlotMode,
-  iniciarCapturaParaSlotAlternativa,
-  iniciarOcrCampo,
-} from "./cropper/mode.js";
-import { salvarQuestao } from "./cropper/save-handlers.js";
-import "./debug/chat-debugger.js";
-import { enviarDadosParaFirebase } from "./firebase/envio.js";
-import { exibirModalOriginais } from "./render/final/OriginaisModal.tsx";
-
-import { mountApiKeyModal } from "./ui/ApiKeyModal.tsx";
-import { setupDragAndDrop } from "./upload/drag-drop.js";
-import { setupFormLogic } from "./upload/form-logic.js";
-import { setupSearchLogic } from "./upload/search-logic.js";
-import {
-  getManualUploadInterfaceHTML,
-  getSearchInterfaceHTML,
-} from "./upload/upload-template.js";
+import { mountApiKeyModal } from './ui/ApiKeyModal.tsx';
+import { setupDragAndDrop } from './upload/drag-drop.js';
+import { setupFormLogic } from './upload/form-logic.js';
+import { setupSearchLogic } from './upload/search-logic.js';
+import { getManualUploadInterfaceHTML, getSearchInterfaceHTML } from './upload/upload-template.js';
 
 export {
   app,
@@ -91,18 +90,18 @@ export {
 };
 
 export const TIPOS_ESTRUTURA_VALIDOS = new Set([
-  "texto",
-  "imagem",
-  "citacao",
-  "titulo",
-  "subtitulo",
-  "lista",
-  "equacao",
-  "codigo",
-  "destaque",
-  "separador",
-  "fonte",
-  "tabela",
+  'texto',
+  'imagem',
+  'citacao',
+  'titulo',
+  'subtitulo',
+  'lista',
+  'equacao',
+  'codigo',
+  'destaque',
+  'separador',
+  'fonte',
+  'tabela',
 ]);
 
 // Exposing functions globally as requested
@@ -113,8 +112,8 @@ window.cancelarRecorte = cancelarRecorte;
 window.startImageSlotMode = startImageSlotMode;
 
 // Added for Slot Edit Mode
-import { deleteImageSlot, editImageSlotMode } from "./cropper/mode.js";
-import { highlightGroup } from "./cropper/selection-overlay.js";
+import { deleteImageSlot, editImageSlotMode } from './cropper/mode.js';
+import { highlightGroup } from './cropper/selection-overlay.js';
 
 window.editImageSlotMode = editImageSlotMode;
 window.deleteImageSlot = deleteImageSlot;
@@ -124,7 +123,7 @@ window.CropperState = CropperState;
 window.__ultimaQuestaoExtraida = null;
 window.__recortesAcumulados = [];
 window.__isProcessing = false;
-export let questaoAtual = {};
+export const questaoAtual = {};
 export const uploadState = {
   imagensConvertidas: 0,
 };
@@ -142,7 +141,7 @@ export const TAMANHO_PAGINA = 20;
 
 // Variáveis de controle de IA
 export const aiState = {
-  lastThoughtSig: "",
+  lastThoughtSig: '',
   thoughtsBootstrapped: false,
 };
 
@@ -176,24 +175,24 @@ window.__target_alt_index = null;
 // Proteção contra múltiplas inicializações
 if (!window.__globalListenerRegistered) {
   window.__globalListenerRegistered = true;
-  console.log(" Inicializando Global Listener (Única vez)...");
+  console.log(' Inicializando Global Listener (Única vez)...');
 
   // --- Slot Mode & Image Creation Integration ---
-  window.addEventListener("image-slot-action", (e) => {
+  window.addEventListener('image-slot-action', (e) => {
     const { action, slotId } = e.detail;
     console.log(`[Main] Slot Action: ${action} for ${slotId}`);
 
-    if (action === "start-capture") {
+    if (action === 'start-capture') {
       // Standard capture for new image
       if (window.startImageSlotMode) {
         window.startImageSlotMode(slotId, e.detail.parentGroupId);
       }
-    } else if (action === "edit") {
+    } else if (action === 'edit') {
       // Edit existing crop
       if (window.editImageSlotMode) {
         window.editImageSlotMode(slotId);
       }
-    } else if (action === "delete") {
+    } else if (action === 'delete') {
       // Delete the slot
       if (window.deleteImageSlot) {
         window.deleteImageSlot(slotId);
@@ -201,59 +200,58 @@ if (!window.__globalListenerRegistered) {
     }
   });
 
-  document.addEventListener("click", function (e) {
+  document.addEventListener('click', (e) => {
     // --- NOVO: Handler Genérico via data-action ---
     // Substitui os antigos onClick do React para permitir HTML estático
-    const actionEl = e.target.closest("[data-action]");
+    const actionEl = e.target.closest('[data-action]');
     if (actionEl) {
-      const { action, slotId, context, src, letter, idx, parentGroupId } =
-        actionEl.dataset;
+      const { action, slotId, context, src, letter, idx, parentGroupId } = actionEl.dataset;
       // Compatibilidade: slotId ou idx
       const id = slotId || idx;
-      if (action === "select-slot" || action === "edit-slot") {
+      if (action === 'select-slot' || action === 'edit-slot') {
         startImageSlotMode(id, parentGroupId);
         return;
       }
-      if (action === "remove-slot") {
+      if (action === 'remove-slot') {
         removerImagemFinal(id, context);
         return;
       }
-      if (action === "expand-image") {
+      if (action === 'expand-image') {
         if (src && window.expandirImagem) window.expandirImagem(src);
         return;
       }
-      if (action === "select-slot-alt" || action === "edit-slot-alt") {
+      if (action === 'select-slot-alt' || action === 'edit-slot-alt') {
         if (window.iniciar_captura_para_slot_alternativa) {
           window.iniciar_captura_para_slot_alternativa(letter, id);
         }
         return;
       }
       // Se tiver action mas não casou com os acima, pode deixar passar ou logar
-      if (action === "confirm-crop") {
+      if (action === 'confirm-crop') {
         salvarQuestao();
         return;
       }
-      if (action === "cancel-crop") {
+      if (action === 'cancel-crop') {
         cancelarRecorte();
         return;
       }
     }
     // --- CASO 1: BotÃµes de Captura de Slot ---
-    const gatilhoSlot = e.target.closest(".js-captura-trigger");
+    const gatilhoSlot = e.target.closest('.js-captura-trigger');
     if (gatilhoSlot) {
       startImageSlotMode(gatilhoSlot.dataset.idx);
       return;
     }
 
     // --- CASO 2: BotÃ£o de Recortar Final ---
-    const gatilhoRecorte = e.target.closest(".js-recortar-final");
+    const gatilhoRecorte = e.target.closest('.js-recortar-final');
     if (gatilhoRecorte) {
       onClickImagemFinal();
       return;
     }
 
     // --- CASO 3: BotÃ£o de Remover Imagem ---
-    const gatilhoRemover = e.target.closest(".js-remover-img");
+    const gatilhoRemover = e.target.closest('.js-remover-img');
     if (gatilhoRemover) {
       const { idx, ctx } = gatilhoRemover.dataset;
       removerImagemFinal(idx, ctx);
@@ -261,21 +259,21 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- CASO 4: BotÃ£o Ver Originais ---
-    const gatilhoOriginais = e.target.closest(".js-ver-originais");
+    const gatilhoOriginais = e.target.closest('.js-ver-originais');
     if (gatilhoOriginais) {
       exibirModalOriginais();
       return;
     }
 
     // --- CASO 5: BotÃ£o Confirmar e Enviar ---
-    const gatilhoEnvio = e.target.closest(".js-confirmar-envio");
+    const gatilhoEnvio = e.target.closest('.js-confirmar-envio');
     if (gatilhoEnvio) {
       enviarDadosParaFirebase();
       return;
     }
 
     // --- CASO 6: Botão Voltar (Tela Inicial) ---
-    const gatilhoVoltar = e.target.closest(".js-voltar-inicio");
+    const gatilhoVoltar = e.target.closest('.js-voltar-inicio');
     if (gatilhoVoltar) {
       // Usa a função async dentro do listener síncrono
       (async () => {
@@ -288,16 +286,14 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- CASO 6.1: Toggle Nav Sidebar ---
-    const gatilhoToggleNav = e.target.closest(".js-toggle-nav");
+    const gatilhoToggleNav = e.target.closest('.js-toggle-nav');
     if (gatilhoToggleNav) {
-      const isOpening = !document.querySelector(".nav-sidebar")?.classList.contains("open");
-      document.querySelector(".nav-sidebar")?.classList.toggle("open");
-      document
-        .querySelector(".nav-sidebar-overlay")
-        ?.classList.toggle("visible");
+      const isOpening = !document.querySelector('.nav-sidebar')?.classList.contains('open');
+      document.querySelector('.nav-sidebar')?.classList.toggle('open');
+      document.querySelector('.nav-sidebar-overlay')?.classList.toggle('visible');
 
       if (isOpening) {
-        import("./app/telas.js").then(({ loadSidebarChats }) => {
+        import('./app/telas.js').then(({ loadSidebarChats }) => {
           loadSidebarChats().catch(console.error);
         });
       }
@@ -305,120 +301,200 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- CASO 6.2: Close Nav on Overlay Click ---
-    const gatilhoCloseNav = e.target.closest(".js-close-nav");
+    const gatilhoCloseNav = e.target.closest('.js-close-nav');
     if (gatilhoCloseNav) {
-      document.querySelector(".nav-sidebar")?.classList.remove("open");
-      document
-        .querySelector(".nav-sidebar-overlay")
-        ?.classList.remove("visible");
+      document.querySelector('.nav-sidebar')?.classList.remove('open');
+      document.querySelector('.nav-sidebar-overlay')?.classList.remove('visible');
       return;
     }
 
     // --- CASO 7: Botões de Extração (Busca vs Upload) ---
-    if (e.target.closest(".js-iniciar-busca")) {
+    if (e.target.closest('.js-iniciar-busca')) {
       window.iniciarFluxoPesquisa();
       return;
     }
 
-    if (e.target.closest(".js-iniciar-upload")) {
+    if (e.target.closest('.js-iniciar-upload')) {
       window.iniciarFluxoUploadManual();
       return;
     }
 
     // --- CASO 9: Card Iniciar Modo Estudante (Antigo CASO 8) ---
-    const gatilhoEstudante = e.target.closest(".js-iniciar-estudante");
+    const gatilhoEstudante = e.target.closest('.js-iniciar-estudante');
     if (gatilhoEstudante) {
       iniciarModoEstudante();
       return;
     }
 
     // --- CASO 9: Card Iniciar Modo Revisão ---
-    const gatilhoRevisao = e.target.closest(".js-iniciar-revisao");
+    const gatilhoRevisao = e.target.closest('.js-iniciar-revisao');
     if (gatilhoRevisao) {
       iniciarModoRevisao();
       return;
     }
 
     // --- CASO 9.0: Iniciar Modo Admin ---
-    const gatilhoAdmin = e.target.closest(".js-iniciar-admin");
+    const gatilhoAdmin = e.target.closest('.js-iniciar-admin');
     if (gatilhoAdmin) {
-      import("./ui/admin-panel.js").then(({ iniciarModoAdmin }) => {
+      import('./ui/admin-panel.js').then(({ iniciarModoAdmin }) => {
         iniciarModoAdmin();
       });
       return;
     }
 
     // --- CASO 9.0a: Iniciar Modo Apêndice A ---
-    const gatilhoApendiceA = e.target.closest(".js-iniciar-apendice-a");
+    const gatilhoApendiceA = e.target.closest('.js-iniciar-apendice-a');
     if (gatilhoApendiceA) {
-      import("./ui/apendice-a-screen.js").then(({ iniciarModoApendiceA }) => {
+      import('./ui/apendice-a-screen.js').then(({ iniciarModoApendiceA }) => {
         iniciarModoApendiceA();
       });
       return;
     }
 
     // --- CASO 9.0b: Iniciar Modo Apêndice B ---
-    const gatilhoApendiceB = e.target.closest(".js-iniciar-apendice-b");
+    const gatilhoApendiceB = e.target.closest('.js-iniciar-apendice-b');
     if (gatilhoApendiceB) {
-      import("./ui/apendice-b-screen.js").then(({ iniciarModoApendiceB }) => {
+      import('./ui/apendice-b-screen.js').then(({ iniciarModoApendiceB }) => {
         iniciarModoApendiceB();
       });
       return;
     }
 
     // --- CASO 9.0c: Iniciar Modo Verificar Questões ---
-    const gatilhoVerificarQuestoes = e.target.closest(".js-iniciar-verificar-questoes");
+    const gatilhoVerificarQuestoes = e.target.closest('.js-iniciar-verificar-questoes');
     if (gatilhoVerificarQuestoes) {
-      import("./ui/verificar-questoes-screen.tsx").then(({ iniciarModoVerificacaoQuestoes }) => {
+      import('./ui/verificar-questoes-screen.tsx').then(({ iniciarModoVerificacaoQuestoes }) => {
         iniciarModoVerificacaoQuestoes();
       });
       return;
     }
 
     // --- CASO 9.1: Iniciar Modo Simulados ---
-    const gatilhoSimulados = e.target.closest(".js-iniciar-simulados");
+    const gatilhoSimulados = e.target.closest('.js-iniciar-simulados');
     if (gatilhoSimulados) {
-      import("./simulados/simulados-main.js").then(({ iniciarModoSimulados }) => {
+      import('./simulados/simulados-main.js').then(({ iniciarModoSimulados }) => {
         iniciarModoSimulados();
       });
       return;
     }
 
     // --- CASO 9: Botão Limpar Filtros ---
-    const gatilhoLimpar = e.target.closest(".js-limpar-filtros");
+    const gatilhoLimpar = e.target.closest('.js-limpar-filtros');
     if (gatilhoLimpar) {
       limparFiltros();
       return;
     }
 
     // --- CASO 9.2: Botão Modelo de Correção (Banco de Questões) ---
-    const gatilhoBancoModel = e.target.closest(".js-banco-model-selector");
+    const gatilhoBancoModel = e.target.closest('.js-banco-model-selector');
     if (gatilhoBancoModel) {
-      import("./ui/ModelSelectorModal.tsx").then(({ mountModelSelectorModal, IA_MODELS }) => {
+      import('./ui/ModelSelectorModal.tsx').then(({ mountModelSelectorModal, IA_MODELS }) => {
         const currentModel = window.selectedModelCorrector || 'models/gemini-3.5-flash';
-        mountModelSelectorModal(currentModel, (selectedId) => {
-          console.log("[Banco] Modelo de correção atualizado:", selectedId);
-          // Atualiza label no botão do banco com o título amigável
-          let modelObj = IA_MODELS.find(m => m.id === selectedId);
-          if (!modelObj && selectedId && selectedId.startsWith("puter/")) {
-            modelObj = { title: selectedId.replace("puter/", "Puter: ") };
-          }
-          const lbl = document.querySelector(".js-banco-model-label");
-          if (lbl && modelObj) lbl.textContent = "🤖 " + modelObj.title;
-        }, 'corrector');
+        mountModelSelectorModal(
+          currentModel,
+          (selectedId) => {
+            console.log('[Banco] Modelo de correção atualizado:', selectedId);
+            // Atualiza label no botão do banco com o título amigável
+            let modelObj = IA_MODELS.find((m) => m.id === selectedId);
+            if (!modelObj && selectedId && selectedId.startsWith('puter/')) {
+              modelObj = { title: selectedId.replace('puter/', 'Puter: ') };
+            }
+            const lbl = document.querySelector('.js-banco-model-label');
+            if (lbl && modelObj) lbl.textContent = '🤖 ' + modelObj.title;
+          },
+          'corrector',
+        );
       });
       return;
     }
 
+    // --- CASO 9.3: Botão Filtro Projeto Científico (Painel de Filtros) ---
+    const gatilhoProjetoCientifico = e.target.closest('.js-filtro-projeto-cientifico');
+    if (gatilhoProjetoCientifico) {
+      bancoState.filtroProjetoCientifico = !bancoState.filtroProjetoCientifico;
+      const isActive = bancoState.filtroProjetoCientifico;
+
+      gatilhoProjetoCientifico.style.background = isActive ? '#32b8c6' : 'rgba(50, 184, 198, 0.08)';
+      gatilhoProjetoCientifico.style.color = isActive ? '#000' : '#32b8c6';
+
+      import('./banco/filtros-ui.js').then(({ aplicarFiltrosBanco }) => {
+        aplicarFiltrosBanco();
+      });
+      return;
+    }
+
+    // --- CASO 9.4: Admin Toggle Projeto Científico no Card ---
+    const btnToggleProj = e.target.closest('.js-toggle-projeto-cientifico');
+    if (btnToggleProj) {
+      if (!window.isAdmin) {
+        alert('Apenas administradores podem gerenciar questões do Projeto Científico.');
+        return;
+      }
+
+      const provaKey = btnToggleProj.dataset.prova;
+      const questaoKey = btnToggleProj.dataset.id;
+      if (!provaKey || !questaoKey) return;
+
+      const mapKey = `${provaKey}/${questaoKey}`;
+      bancoState.projetoCientificoMap = bancoState.projetoCientificoMap || {};
+
+      const currentlyActive = !!bancoState.projetoCientificoMap[mapKey];
+      const nextState = !currentlyActive;
+
+      // Atualiza estado local imediatamente
+      if (nextState) {
+        bancoState.projetoCientificoMap[mapKey] = true;
+      } else {
+        delete bancoState.projetoCientificoMap[mapKey];
+      }
+
+      // Atualiza visual do botão no DOM
+      btnToggleProj.style.background = nextState
+        ? 'rgba(50, 184, 198, 0.18)'
+        : 'rgba(255,255,255,0.03)';
+      btnToggleProj.style.color = nextState ? '#32b8c6' : 'var(--color-text-secondary)';
+      btnToggleProj.style.borderColor = nextState ? '#32b8c6' : 'var(--color-border)';
+      btnToggleProj.innerHTML = `<span>🧪</span> ${nextState ? 'Projeto Científico' : '+ Add ao Projeto'}`;
+      btnToggleProj.title = nextState
+        ? 'Clique para remover esta questão do Projeto Científico'
+        : 'Clique para adicionar esta questão ao Projeto Científico';
+
+      // Atualiza no cache de todasQuestoesCache se o item estiver carregado
+      const itemInCache = bancoState.todasQuestoesCache?.find(
+        (q) => q.prova === provaKey && q.id === questaoKey,
+      );
+      if (itemInCache) {
+        itemInCache.isProjetoCientifico = nextState;
+      }
+
+      // Persiste no Firebase Realtime Database
+      import('https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js').then(
+        ({ ref, set }) => {
+          const dbPath = `projeto_cientifico/${provaKey}/${questaoKey}`;
+          set(ref(db, dbPath), nextState ? true : null).catch((err) => {
+            console.error('Erro ao salvar no Firebase:', err);
+          });
+        },
+      );
+
+      // Se o filtro do Projeto Científico estiver ativado no banco, re-aplica o filtro
+      if (bancoState.filtroProjetoCientifico) {
+        import('./banco/filtros-ui.js').then(({ aplicarFiltrosBanco }) => {
+          aplicarFiltrosBanco();
+        });
+      }
+      return;
+    }
+
     // --- CASO 10: Botão Aplicar Filtros (Busca) ---
-    const gatilhoFiltrar = e.target.closest(".js-aplicar-filtros");
+    const gatilhoFiltrar = e.target.closest('.js-aplicar-filtros');
     if (gatilhoFiltrar) {
       aplicarFiltrosBanco();
       return;
     }
 
     // --- NOVO CASO 11: BotÃ£o Toggle Gabarito ---
-    const gatilhoGabarito = e.target.closest(".js-toggle-gabarito");
+    const gatilhoGabarito = e.target.closest('.js-toggle-gabarito');
     if (gatilhoGabarito) {
       // Recupera o ID que guardamos no HTML
       const cardId = gatilhoGabarito.dataset.cardId;
@@ -427,7 +503,7 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- NOVO CASO 12: Verificar Resposta (Alternativas) ---
-    const gatilhoResposta = e.target.closest(".js-verificar-resp");
+    const gatilhoResposta = e.target.closest('.js-verificar-resp');
     if (gatilhoResposta) {
       // Extrai os dados do dataset do botÃ£o clicado
       const { cardId, letra, correta } = gatilhoResposta.dataset;
@@ -438,7 +514,7 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- NOVO CASO 12.1: Verificar Resposta (Dissertativa Simples) ---
-    const gatilhoDissertativaE = e.target.closest(".js-check-dissert-embedding");
+    const gatilhoDissertativaE = e.target.closest('.js-check-dissert-embedding');
     if (gatilhoDissertativaE) {
       const cardId = gatilhoDissertativaE.dataset.cardId;
       avaliarRespostaDissertativa(gatilhoDissertativaE, cardId, 'embedding');
@@ -446,7 +522,7 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- NOVO CASO 12.2: Verificar Resposta (Dissertativa IA) ---
-    const gatilhoDissertativaIA = e.target.closest(".js-check-dissert-ai");
+    const gatilhoDissertativaIA = e.target.closest('.js-check-dissert-ai');
     if (gatilhoDissertativaIA) {
       const cardId = gatilhoDissertativaIA.dataset.cardId;
       avaliarRespostaDissertativa(gatilhoDissertativaIA, cardId, 'ai');
@@ -454,15 +530,15 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- NOVO CASO 12.3: Toggle Keywords Dissertativa ---
-    const gatilhoKwDissertativa = e.target.closest(".js-toggle-kw-dissert");
+    const gatilhoKwDissertativa = e.target.closest('.js-toggle-kw-dissert');
     if (gatilhoKwDissertativa) {
-        const cardId = gatilhoKwDissertativa.dataset.cardId;
-        toggleKeywordsDissertativa(gatilhoKwDissertativa, cardId);
-        return;
+      const cardId = gatilhoKwDissertativa.dataset.cardId;
+      toggleKeywordsDissertativa(gatilhoKwDissertativa, cardId);
+      return;
     }
 
     // --- NOVO CASO 13: Ver Scan Original (Enunciado ou Gabarito) ---
-    const gatilhoScan = e.target.closest(".js-ver-scan");
+    const gatilhoScan = e.target.closest('.js-ver-scan');
     if (gatilhoScan) {
       // Passamos o prÃ³prio elemento HTML para a funÃ§Ã£o,
       // igual o 'this' fazia no onclick inline.
@@ -471,7 +547,7 @@ if (!window.__globalListenerRegistered) {
     }
 
     // --- NOVO CASO 14: Configurar API Key ---
-    const gatilhoApi = e.target.closest(".js-config-api");
+    const gatilhoApi = e.target.closest('.js-config-api');
     if (gatilhoApi) {
       mountApiKeyModal();
       return;
@@ -479,21 +555,21 @@ if (!window.__globalListenerRegistered) {
   });
 
   // --- Slot Mode & Image Creation Integration ---
-  window.addEventListener("image-slot-action", (e) => {
+  window.addEventListener('image-slot-action', (e) => {
     const { action, slotId } = e.detail;
     console.log(`[Main] Slot Action: ${action} for ${slotId}`);
 
-    if (action === "start-capture") {
+    if (action === 'start-capture') {
       // Standard capture for new image
       if (window.startImageSlotMode) {
         window.startImageSlotMode(slotId);
       }
-    } else if (action === "edit") {
+    } else if (action === 'edit') {
       // Edit existing crop
       if (window.editImageSlotMode) {
         window.editImageSlotMode(slotId);
       }
-    } else if (action === "delete") {
+    } else if (action === 'delete') {
       // Delete the slot
       if (window.deleteImageSlot) {
         window.deleteImageSlot(slotId);
@@ -503,17 +579,12 @@ if (!window.__globalListenerRegistered) {
 
   // --- Slot Mode Persistence Listener ---
   // Atualizado para Sistema de Imagens via PDF (em vez de base64)
-  window.addEventListener("slot-update", (e) => {
+  window.addEventListener('slot-update', (e) => {
     const { slotId, action, cropData, previewUrl } = e.detail;
     console.log(`[Main] Slot Update: ${action} for ${slotId}`, cropData);
 
-    if (
-      !window.__ultimaQuestaoExtraida ||
-      !window.__ultimaQuestaoExtraida.estrutura
-    ) {
-      console.warn(
-        "[Main] Nenhuma questão extraída encontrada para atualizar.",
-      );
+    if (!window.__ultimaQuestaoExtraida || !window.__ultimaQuestaoExtraida.estrutura) {
+      console.warn('[Main] Nenhuma questão extraída encontrada para atualizar.');
       return;
     }
 
@@ -532,9 +603,9 @@ if (!window.__globalListenerRegistered) {
 
     for (let i = 0; i < window.__ultimaQuestaoExtraida.estrutura.length; i++) {
       const bloco = window.__ultimaQuestaoExtraida.estrutura[i];
-      const tipo = (bloco.tipo || "imagem").toLowerCase();
+      const tipo = (bloco.tipo || 'imagem').toLowerCase();
 
-      if (tipo === "imagem") {
+      if (tipo === 'imagem') {
         if (imgCounter === index) {
           targetBlock = bloco;
           break;
@@ -544,15 +615,14 @@ if (!window.__globalListenerRegistered) {
     }
 
     if (targetBlock) {
-      if (action === "filled" && cropData) {
+      if (action === 'filled' && cropData) {
         // ============================================
         // SISTEMA DE IMAGENS VIA PDF
         // Salva coordenadas em vez de base64
         // ============================================
 
         // URL do PDF (do manifesto, pode ser null se local)
-        const pdfUrl =
-          window.__pdfOriginalUrl || window.__pdfDownloadUrl || null;
+        const pdfUrl = window.__pdfOriginalUrl || window.__pdfDownloadUrl || null;
         targetBlock.pdf_url = pdfUrl;
 
         // Coordenadas para Embed (Chrome/Edge)
@@ -576,11 +646,10 @@ if (!window.__globalListenerRegistered) {
 
         delete targetBlock.url;
 
-        targetBlock.tipo = "imagem";
+        targetBlock.tipo = 'imagem';
 
         // SYNC VALIDATION STATE
-        if (!window.__imagensLimpas.questao_original)
-          window.__imagensLimpas.questao_original = [];
+        if (!window.__imagensLimpas.questao_original) window.__imagensLimpas.questao_original = [];
 
         // [MODIFIED] Save the FULL DATA OBJECT instead of just "filled"
         // This allows OriginaisModal to access the crop parameters later
@@ -589,7 +658,7 @@ if (!window.__globalListenerRegistered) {
           pdf_url: pdfUrl,
           ...cropData,
         };
-      } else if (action === "cleared") {
+      } else if (action === 'cleared') {
         // Limpa todos os dados de imagem
         targetBlock.pdf_url = null;
         targetBlock.pdf_page = null;
@@ -619,19 +688,15 @@ if (!window.__globalListenerRegistered) {
       // 2. Render into it and potentially activate it
       // 3. Steal focus from Hub and break batch processing
       // The data update already happened above, so the tab will render correctly when activated.
-      import("./ui/sidebar-tabs.js").then(({ isHubActive }) => {
+      import('./ui/sidebar-tabs.js').then(({ isHubActive }) => {
         if (isHubActive()) {
-          console.log(
-            "[Main] Slot Update: Skipping re-render (Hub active, batch mode)",
-          );
+          console.log('[Main] Slot Update: Skipping re-render (Hub active, batch mode)');
           return;
         }
 
-        import("./render/final/render-questao.js").then(
-          ({ renderizarQuestaoFinal }) => {
-            renderizarQuestaoFinal(window.__ultimaQuestaoExtraida);
-          },
-        );
+        import('./render/final/render-questao.js').then(({ renderizarQuestaoFinal }) => {
+          renderizarQuestaoFinal(window.__ultimaQuestaoExtraida);
+        });
       });
     }
   });
@@ -644,15 +709,10 @@ if (!window.__globalListenerRegistered) {
 
 // Listener Ãºnico para fechar menus de passos ao clicar fora
 if (!window._stepMenuGlobalListener) {
-  document.addEventListener("click", (e) => {
+  document.addEventListener('click', (e) => {
     // Se o clique NÃƒO foi num botÃ£o de abrir menu, fecha todos os menus de passos
-    if (
-      !e.target.closest(".btn-toggle-step-add") &&
-      !e.target.closest(".step-menu-content")
-    ) {
-      document
-        .querySelectorAll(".step-menu-content")
-        .forEach((m) => m.classList.add("hidden"));
+    if (!e.target.closest('.btn-toggle-step-add') && !e.target.closest('.step-menu-content')) {
+      document.querySelectorAll('.step-menu-content').forEach((m) => m.classList.add('hidden'));
     }
   });
   window._stepMenuGlobalListener = true;
@@ -666,10 +726,10 @@ window.__targetSlotContext = null; // 'questao' ou 'gabarito'
 /**
  * 4. FUNÇÃO DE PESQUISA (Search Flow)
  */
-window.iniciarFluxoPesquisa = function () {
+window.iniciarFluxoPesquisa = () => {
   // Limpeza
-  document.body.innerHTML = "";
-  const viewer = document.getElementById("pdfViewerContainer");
+  document.body.innerHTML = '';
+  const viewer = document.getElementById('pdfViewerContainer');
   if (viewer) viewer.remove();
 
   // 1. Renderizar HTML de Busca
@@ -682,10 +742,10 @@ window.iniciarFluxoPesquisa = function () {
 /**
  * 5. FUNÇÃO DE UPLOAD MANUAL (Manual Upload Flow)
  */
-window.iniciarFluxoUploadManual = function () {
+window.iniciarFluxoUploadManual = () => {
   // Limpeza
-  document.body.innerHTML = "";
-  const viewer = document.getElementById("pdfViewerContainer");
+  document.body.innerHTML = '';
+  const viewer = document.getElementById('pdfViewerContainer');
   if (viewer) viewer.remove();
 
   // 1. Renderizar HTML de Upload
@@ -694,20 +754,19 @@ window.iniciarFluxoUploadManual = function () {
   // 2. Setup Lógica de Form (Upload)
   // Precisamos chamar setupDragAndDrop e setupFormLogic
   // setupDragAndDrop espera elementos específicos que existem no template manual
-  const dropZone = document.getElementById("dropZoneProva");
-  const fileInput = document.getElementById("pdfFileInput");
-  const fileNameDisplay = document.getElementById("fileName");
+  const dropZone = document.getElementById('dropZoneProva');
+  const fileInput = document.getElementById('pdfFileInput');
+  const fileNameDisplay = document.getElementById('fileName');
 
   const elements = {
-    titleInput: document.getElementById("pdfTitleInput"),
+    titleInput: document.getElementById('pdfTitleInput'),
     // Year input removido do template, passamos null para evitar crash na desestruturação
     yearInput: null,
-    pdfInput: document.getElementById("pdfFileInput"),
+    pdfInput: document.getElementById('pdfFileInput'),
     fileNameDisplay:
-      document.getElementById("fileName") ||
-      document.getElementById("fileNameDisplay"),
-    dropZoneProva: document.getElementById("dropZoneProva"),
-    form: document.getElementById("pdfUploadForm"),
+      document.getElementById('fileName') || document.getElementById('fileNameDisplay'),
+    dropZoneProva: document.getElementById('dropZoneProva'),
+    form: document.getElementById('pdfUploadForm'),
   };
 
   if (dropZone && fileInput && fileNameDisplay) {
@@ -724,9 +783,9 @@ window.iniciar_captura_para_slot_alternativa = iniciarCapturaParaSlotAlternativa
 window.iniciar_ocr_campo = iniciarOcrCampo;
 
 // --- NOVO SISTEMA DE ZOOM DE IMAGEM (MODAL) ---
-window.expandirImagem = function (src) {
+window.expandirImagem = (src) => {
   // Remove modal anterior se existir
-  const oldModal = document.getElementById("imgZoomModal");
+  const oldModal = document.getElementById('imgZoomModal');
   if (oldModal) oldModal.remove();
 
   const modalHtml = `
@@ -737,26 +796,24 @@ window.expandirImagem = function (src) {
         </div>
     </div>`;
 
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 };
 
 // --- DEBUG FUNCTION (Temporary) ---
-window.debugRenderTestQuestion = async function () {
-  console.log("Criando questão de teste COMPLETA (Debug)...");
+window.debugRenderTestQuestion = async () => {
+  console.log('Criando questão de teste COMPLETA (Debug)...');
 
   // Dynamic imports
-  const { createQuestionTab, updateTabStatus } =
-    await import("./ui/sidebar-tabs.js");
-  const { _processarGabarito, _processarQuestao } =
-    await import("./normalize/payload.js");
+  const { createQuestionTab, updateTabStatus } = await import('./ui/sidebar-tabs.js');
+  const { _processarGabarito, _processarQuestao } = await import('./normalize/payload.js');
 
   // 1. Setup Visual Crop (Corresponds to Question)
   const group = CropperState.createGroup({
-    status: "verified", // Looks "done"
-    tags: ["ia", "revisada"], // Simula que já foi processado/enviado
-    tipo: "questao_completa",
+    status: 'verified', // Looks "done"
+    tags: ['ia', 'revisada'], // Simula que já foi processado/enviado
+    tipo: 'questao_completa',
   });
-  console.log("Grupo de Debug criado:", group);
+  console.log('Grupo de Debug criado:', group);
 
   const pageNum = 2; // Fixed to page 2 for testing
   const currentScale = viewerState.pdfScale || 1.0;
@@ -784,11 +841,11 @@ window.debugRenderTestQuestion = async function () {
   CropperState.addCropToGroup(group.id, { anchorData: questionAnchor });
 
   // 2. Create Tab linked to Group
-  const tabId = createQuestionTab(String(group.id), "Questão Debug (Completa)");
+  const tabId = createQuestionTab(String(group.id), 'Questão Debug (Completa)');
 
   // 2.1 Calculate Real Crop Context for simulation
-  const { calculateCropContext } = await import("./cropper/mode.js");
-  const { DataNormalizer } = await import("./normalizer/data-normalizer.js");
+  const { calculateCropContext } = await import('./cropper/mode.js');
+  const { DataNormalizer } = await import('./normalizer/data-normalizer.js');
 
   // A. Calculate Question Context (For fotos_originais)
   const questionCropData = await calculateCropContext(questionAnchor);
@@ -802,44 +859,33 @@ window.debugRenderTestQuestion = async function () {
   const imageCropData = await calculateCropContext(imageAnchor);
 
   // 3. Prepare Mock Data: QUESTION
-  const shouldUseGlobalPdf =
-    typeof window !== "undefined" && window.__pdfOriginalUrl;
+  const shouldUseGlobalPdf = typeof window !== 'undefined' && window.__pdfOriginalUrl;
 
   const mockQuestaoRaw = {
-    identificacao: "DEBUG-FULL-001",
-    materias_possiveis: ["Debug", "FullStack"],
-    palavras_chave: ["teste", "gabarito", "mock"],
+    identificacao: 'DEBUG-FULL-001',
+    materias_possiveis: ['Debug', 'FullStack'],
+    palavras_chave: ['teste', 'gabarito', 'mock'],
     estrutura: [
       {
-        tipo: "titulo",
-        conteudo: "Questão de Teste Completa",
+        tipo: 'titulo',
+        conteudo: 'Questão de Teste Completa',
       },
       {
-        tipo: "texto",
+        tipo: 'texto',
         conteudo:
-          "Esta questão simula um fluxo **completo** de extração, incluindo enunciado, imagem e **gabarito** gerado por IA.",
+          'Esta questão simula um fluxo **completo** de extração, incluindo enunciado, imagem e **gabarito** gerado por IA.',
       },
       {
-        tipo: "imagem",
-        conteudo: "Figura Exemplo",
+        tipo: 'imagem',
+        conteudo: 'Figura Exemplo',
         pdf_url: shouldUseGlobalPdf ? window.__pdfOriginalUrl : null,
         // Use Image Specific Crop
-        pdf_page: imageCropData
-          ? imageCropData.pdf_page
-          : imageAnchor.anchorPageNum,
+        pdf_page: imageCropData ? imageCropData.pdf_page : imageAnchor.anchorPageNum,
         pdf_zoom: imageCropData ? imageCropData.pdf_zoom : 150,
-        pdf_left: imageCropData
-          ? imageCropData.pdf_left
-          : imageAnchor.relativeLeft,
-        pdf_top: imageCropData
-          ? imageCropData.pdf_top
-          : imageAnchor.relativeTop,
-        pdf_width: imageCropData
-          ? imageCropData.pdf_width
-          : `${imageAnchor.unscaledW}px`,
-        pdf_height: imageCropData
-          ? imageCropData.pdf_height
-          : `${imageAnchor.unscaledH}px`,
+        pdf_left: imageCropData ? imageCropData.pdf_left : imageAnchor.relativeLeft,
+        pdf_top: imageCropData ? imageCropData.pdf_top : imageAnchor.relativeTop,
+        pdf_width: imageCropData ? imageCropData.pdf_width : `${imageAnchor.unscaledW}px`,
+        pdf_height: imageCropData ? imageCropData.pdf_height : `${imageAnchor.unscaledH}px`,
 
         pdfjs_source_w: imageCropData?.pdfjs_source_w,
         pdfjs_source_h: imageCropData?.pdfjs_source_h,
@@ -850,42 +896,41 @@ window.debugRenderTestQuestion = async function () {
         // Fallback info omitted for brevity, logic handles it
       },
       {
-        tipo: "texto",
-        conteudo:
-          "Assinale a alternativa que descreve corretamente o status do teste:",
+        tipo: 'texto',
+        conteudo: 'Assinale a alternativa que descreve corretamente o status do teste:',
       },
     ],
     // Dynamic generation of fotos_originais
     fotos_originais: debugFotosOriginais,
     alternativas: [
       {
-        letra: "A",
-        estrutura: [{ tipo: "texto", conteudo: "O teste falhou." }],
+        letra: 'A',
+        estrutura: [{ tipo: 'texto', conteudo: 'O teste falhou.' }],
       },
       {
-        letra: "B",
-        estrutura: [{ tipo: "texto", conteudo: "Faltou o gabarito." }],
+        letra: 'B',
+        estrutura: [{ tipo: 'texto', conteudo: 'Faltou o gabarito.' }],
       },
       {
-        letra: "C",
+        letra: 'C',
         estrutura: [
           {
-            tipo: "texto",
-            conteudo: "O teste foi um **sucesso** completo.",
+            tipo: 'texto',
+            conteudo: 'O teste foi um **sucesso** completo.',
           },
         ],
       },
       {
-        letra: "D",
-        estrutura: [{ tipo: "texto", conteudo: "O PDF não carregou." }],
+        letra: 'D',
+        estrutura: [{ tipo: 'texto', conteudo: 'O PDF não carregou.' }],
       },
       {
-        letra: "E",
+        letra: 'E',
         estrutura: [
           {
-            tipo: "texto",
+            tipo: 'texto',
             conteudo:
-              "Nenhuma das anteriores. Mas aqui vai uma fórmula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$",
+              'Nenhuma das anteriores. Mas aqui vai uma fórmula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$',
           },
         ],
       },
@@ -894,9 +939,9 @@ window.debugRenderTestQuestion = async function () {
 
   // 4. Prepare Mock Data: GABARITO (Matching js/ia/config.js)
   const mockGabaritoRaw = {
-    alternativa_correta: "C",
+    alternativa_correta: 'C',
     justificativa_curta:
-      "A alternativa C é a correta pois o script injetou com sucesso ambos os objetos de dados.",
+      'A alternativa C é a correta pois o script injetou com sucesso ambos os objetos de dados.',
     confianca: 0.98,
     // Complexidade
     analise_complexidade: {
@@ -916,86 +961,85 @@ window.debugRenderTestQuestion = async function () {
         distratores_semanticos: true,
         analise_nuance_julgamento: false,
       },
-      justificativa_dificuldade:
-        "Questão de nível fácil, mas exige validação visual do resultado.",
+      justificativa_dificuldade: 'Questão de nível fácil, mas exige validação visual do resultado.',
     },
     // Créditos
     creditos: {
-      origem_resolucao: "gerado_pela_ia",
+      origem_resolucao: 'gerado_pela_ia',
       material_identificado: false,
       precisa_credito_generico: true,
-      texto_credito_sugerido: "Gerado via Debug Console",
-      autor_ou_instituicao: "FUVEST",
+      texto_credito_sugerido: 'Gerado via Debug Console',
+      autor_ou_instituicao: 'FUVEST',
     },
     alertas_credito: [],
     // Explicação Passo-a-Passo
     explicacao: [
       {
         estrutura: [
-          { tipo: "titulo", conteudo: "Análise da Solicitação" },
+          { tipo: 'titulo', conteudo: 'Análise da Solicitação' },
           {
-            tipo: "texto",
+            tipo: 'texto',
             conteudo:
-              "O usuário solicitou que a função `debugRenderTestQuestion` criasse todos os dados, incluindo o gabarito.",
+              'O usuário solicitou que a função `debugRenderTestQuestion` criasse todos os dados, incluindo o gabarito.',
           },
         ],
-        origem: "gerado_pela_ia",
-        fonte_material: "Prompt do Usuário",
-        evidencia: "Histórico do Chat",
+        origem: 'gerado_pela_ia',
+        fonte_material: 'Prompt do Usuário',
+        evidencia: 'Histórico do Chat',
       },
       {
         estrutura: [
-          { tipo: "titulo", conteudo: "Verificação" },
+          { tipo: 'titulo', conteudo: 'Verificação' },
           {
-            tipo: "texto",
+            tipo: 'texto',
             conteudo:
-              "Ao rodar o script, verificamos se o objeto `window.__ultimoGabaritoExtraido` foi preenchido.",
+              'Ao rodar o script, verificamos se o objeto `window.__ultimoGabaritoExtraido` foi preenchido.',
           },
           {
-            tipo: "equacao",
-            conteudo: "Success = True",
+            tipo: 'equacao',
+            conteudo: 'Success = True',
           },
         ],
-        origem: "gerado_pela_ia",
-        fonte_material: "Lógica do Código",
-        evidencia: "Console Logs",
+        origem: 'gerado_pela_ia',
+        fonte_material: 'Lógica do Código',
+        evidencia: 'Console Logs',
       },
     ],
     // Análise das Alternativas
     alternativas_analisadas: [
       {
-        letra: "A",
+        letra: 'A',
         correta: false,
-        motivo: "O teste não falhou, pois os dados foram gerados.",
+        motivo: 'O teste não falhou, pois os dados foram gerados.',
       },
       {
-        letra: "B",
+        letra: 'B',
         correta: false,
-        motivo: "O gabarito está presente neste objeto, logo não faltou.",
+        motivo: 'O gabarito está presente neste objeto, logo não faltou.',
       },
       {
-        letra: "C",
+        letra: 'C',
         correta: true,
-        motivo: "Correto. Todos os requisitos do prompt foram atendidos.",
+        motivo: 'Correto. Todos os requisitos do prompt foram atendidos.',
       },
       {
-        letra: "D",
+        letra: 'D',
         correta: false,
-        motivo: "O PDF (global ou fallback) foi referenciado.",
+        motivo: 'O PDF (global ou fallback) foi referenciado.',
       },
       {
-        letra: "E",
+        letra: 'E',
         correta: false,
-        motivo: "A letra C é a correta.",
+        motivo: 'A letra C é a correta.',
       },
     ],
     coerencia: {
       alternativa_correta_existe: true,
       tem_analise_para_todas: true,
-      observacoes: ["Dados gerados sinteticamente."],
+      observacoes: ['Dados gerados sinteticamente.'],
     },
     // Fallback/Legacy
-    alternativa_correta_letra: "C",
+    alternativa_correta_letra: 'C',
   };
 
   // 5. Process & Store Globally (Simulating extraction pipeline)
@@ -1003,18 +1047,14 @@ window.debugRenderTestQuestion = async function () {
   const gabaritoNorm = _processarGabarito(mockGabaritoRaw);
 
   // --- NORMALIZAÇÃO DE DEBUG ---
-  console.log("Aplicando Normalização (Debug)...");
+  console.log('Aplicando Normalização (Debug)...');
 
   // 1. Instituição (Prioridade: Gabarito > Título)
   const instGabarito =
-    gabaritoNorm.creditos?.autorouinstituicao ||
-    gabaritoNorm.creditos?.autor_ou_instituicao;
+    gabaritoNorm.creditos?.autorouinstituicao || gabaritoNorm.creditos?.autor_ou_instituicao;
 
   if (instGabarito) {
-    const normalizedInst = await DataNormalizer.normalize(
-      instGabarito,
-      "institution",
-    );
+    const normalizedInst = await DataNormalizer.normalize(instGabarito, 'institution');
     questaoNorm.instituicao = normalizedInst;
     // Update also the source credit to reflect in UI/Debug
     if (gabaritoNorm.creditos) {
@@ -1025,58 +1065,55 @@ window.debugRenderTestQuestion = async function () {
   // 2. Keywords
   if (questaoNorm.palavras_chave && Array.isArray(questaoNorm.palavras_chave)) {
     questaoNorm.palavras_chave = await Promise.all(
-      questaoNorm.palavras_chave.map((k) =>
-        DataNormalizer.normalize(k, "keyword"),
-      ),
+      questaoNorm.palavras_chave.map((k) => DataNormalizer.normalize(k, 'keyword')),
     );
   }
 
   // 3. Bufferiza Prova
-  const materialProva =
-    gabaritoNorm.creditos?.material || gabaritoNorm.creditos?.ano;
+  const materialProva = gabaritoNorm.creditos?.material || gabaritoNorm.creditos?.ano;
   if (materialProva) {
-    DataNormalizer.bufferTerm(materialProva, "exam");
+    DataNormalizer.bufferTerm(materialProva, 'exam');
   }
 
   // --- DEBUG: FLUSH PARA TESTAR EXPANSÃO IA ---
-  console.log("[Debug] Iniciando flush com expansão IA...");
+  console.log('[Debug] Iniciando flush com expansão IA...');
   await DataNormalizer.flush();
-  console.log("[Debug] Flush completo!");
+  console.log('[Debug] Flush completo!');
   // -----------------------------
 
   window.__ultimaQuestaoExtraida = questaoNorm;
   window.__ultimoGabaritoExtraido = gabaritoNorm;
 
-  console.log("Dados Normalizados:", { questaoNorm, gabaritoNorm });
+  console.log('Dados Normalizados:', { questaoNorm, gabaritoNorm });
 
   // 6. Update Tab -> Triggers Render
   // Passing the raw 'mockQuestaoRaw' as response is typical for the listener,
   // but since we already set globals, the renderer will pick them up.
   setTimeout(() => {
     updateTabStatus(tabId, {
-      status: "complete",
+      status: 'complete',
       response: {
         resultado: mockQuestaoRaw, // Convention: 'resultado' wrap
         // We can attach gabarito here too if the payload handler supports it,
         // but setting the global variable above ensures _prepararInterfaceBasica finds it.
       },
-      label: "Questão Debug (Pronta)",
+      label: 'Questão Debug (Pronta)',
     });
 
     CropperState.setActiveGroup(group.id);
-    console.log("Fluxo de teste finalizado. Interface deve atualizar.");
+    console.log('Fluxo de teste finalizado. Interface deve atualizar.');
   }, 100);
 };
 
 // Intercepta carregamento de simulado compartilhado via link direto
 const urlParams = new URLSearchParams(window.location.search);
-const isSimularMode = urlParams.get("mode") === "simular";
+const isSimularMode = urlParams.get('mode') === 'simular';
 if (isSimularMode) {
-  const type = urlParams.get("type");
-  const title = urlParams.get("title");
-  const ids = urlParams.get("ids");
+  const type = urlParams.get('type');
+  const title = urlParams.get('title');
+  const ids = urlParams.get('ids');
   if (ids) {
-    import("./simulados/simulados-main.js").then(({ carregarSimuladoCompartilhado }) => {
+    import('./simulados/simulados-main.js').then(({ carregarSimuladoCompartilhado }) => {
       carregarSimuladoCompartilhado(type, title, ids);
     });
   } else {

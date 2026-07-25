@@ -82,7 +82,7 @@
 /* Ajuste fino para Ícones se você usar (opcional) */
 .answerOption.correct::after {
   /* Você pode adicionar um checkmark via CSS se quiser, ou deixar limpo */
-  content: '✓';
+  content: "✓";
   margin-left: auto;
   color: var(--color-success);
   font-weight: bold;
@@ -92,7 +92,7 @@
 }
 
 .answerOption.wrong::after {
-  content: '✕';
+  content: "✕";
   margin-left: auto;
   color: var(--color-error);
   font-weight: bold;

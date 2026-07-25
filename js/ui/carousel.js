@@ -5,20 +5,20 @@
 
 export function hydrateCarousels(container) {
   if (!container) return;
-  const roots = container.querySelectorAll(".carousel-root");
+  const roots = container.querySelectorAll('.carousel-root');
   roots.forEach(initCarousel);
 }
 
 function initCarousel(root) {
   // Evita dupla inicialização
   if (root.dataset.hydrated) return;
-  root.dataset.hydrated = "true";
+  root.dataset.hydrated = 'true';
 
-  const track = root.querySelector(".carousel-track");
-  const slides = Array.from(track.querySelectorAll(".carousel-slide"));
-  const nextBtn = root.querySelector(".carousel-next");
-  const prevBtn = root.querySelector(".carousel-prev");
-  const dots = Array.from(root.querySelectorAll(".carousel-dot"));
+  const track = root.querySelector('.carousel-track');
+  const slides = Array.from(track.querySelectorAll('.carousel-slide'));
+  const nextBtn = root.querySelector('.carousel-next');
+  const prevBtn = root.querySelector('.carousel-prev');
+  const dots = Array.from(root.querySelectorAll('.carousel-dot'));
 
   if (slides.length === 0) return;
 
@@ -31,22 +31,21 @@ function initCarousel(root) {
 
     // 2. Atualiza Dots
     dots.forEach((dot, idx) => {
-      dot.classList.toggle("active", idx === currentIndex);
-      dot.setAttribute("aria-current", idx === currentIndex ? "true" : "false");
+      dot.classList.toggle('active', idx === currentIndex);
+      dot.setAttribute('aria-current', idx === currentIndex ? 'true' : 'false');
     });
 
     // 3. Atualiza estado dos botões (Loop: false conforme exemplo do usuário)
     if (prevBtn) {
       prevBtn.disabled = currentIndex === 0;
-      prevBtn.style.opacity = currentIndex === 0 ? "0.3" : "1";
-      prevBtn.style.cursor = currentIndex === 0 ? "not-allowed" : "pointer";
+      prevBtn.style.opacity = currentIndex === 0 ? '0.3' : '1';
+      prevBtn.style.cursor = currentIndex === 0 ? 'not-allowed' : 'pointer';
     }
 
     if (nextBtn) {
       nextBtn.disabled = currentIndex === totalSlides - 1;
-      nextBtn.style.opacity = currentIndex === totalSlides - 1 ? "0.3" : "1";
-      nextBtn.style.cursor =
-        currentIndex === totalSlides - 1 ? "not-allowed" : "pointer";
+      nextBtn.style.opacity = currentIndex === totalSlides - 1 ? '0.3' : '1';
+      nextBtn.style.cursor = currentIndex === totalSlides - 1 ? 'not-allowed' : 'pointer';
     }
   }
 
@@ -54,7 +53,7 @@ function initCarousel(root) {
   update();
 
   // Event Listeners
-  nextBtn?.addEventListener("click", (e) => {
+  nextBtn?.addEventListener('click', (e) => {
     e.stopPropagation(); // Evita bolha se tiver clique na mensagem
     if (currentIndex < totalSlides - 1) {
       currentIndex++;
@@ -62,7 +61,7 @@ function initCarousel(root) {
     }
   });
 
-  prevBtn?.addEventListener("click", (e) => {
+  prevBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (currentIndex > 0) {
       currentIndex--;
@@ -71,7 +70,7 @@ function initCarousel(root) {
   });
 
   dots.forEach((dot) => {
-    dot.addEventListener("click", (e) => {
+    dot.addEventListener('click', (e) => {
       e.stopPropagation();
       const idx = parseInt(dot.dataset.index, 10);
       if (!isNaN(idx)) {
@@ -86,7 +85,7 @@ function initCarousel(root) {
   let touchEndX = 0;
 
   track.addEventListener(
-    "touchstart",
+    'touchstart',
     (e) => {
       touchStartX = e.changedTouches[0].screenX;
     },
@@ -94,7 +93,7 @@ function initCarousel(root) {
   );
 
   track.addEventListener(
-    "touchend",
+    'touchend',
     (e) => {
       touchEndX = e.changedTouches[0].screenX;
       handleSwipe();

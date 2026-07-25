@@ -1,36 +1,32 @@
-import { splitThought } from "../sidebar/thoughts-base.js";
+import { splitThought } from '../sidebar/thoughts-base.js';
 
 export const SidebarPageManager = {
-  containerId: "sidebar-pages-container",
+  containerId: 'sidebar-pages-container',
 
   init(totalPages = 0, specificContainer = null) {
-    const parent = document.getElementById("viewerSidebar");
+    const parent = document.getElementById('viewerSidebar');
     if (!parent) return;
 
     // Verificar se container já existe ou usar o fornecido
-    let container =
-      specificContainer || document.getElementById(this.containerId);
+    let container = specificContainer || document.getElementById(this.containerId);
     if (!container) {
-      container = document.createElement("div");
+      container = document.createElement('div');
       container.id = this.containerId;
-      container.className = "sidebar-pages-container";
+      container.className = 'sidebar-pages-container';
 
       // POINTER EVENTS AUTO (Garante que cliques nos details funcionem)
-      container.style.pointerEvents = "auto";
+      container.style.pointerEvents = 'auto';
 
       // SEGURANÇA: Se o sistema de abas estiver ativo e NÃO for uma injeção explícita
-      if (
-        !specificContainer &&
-        document.getElementById("sidebar-tabs-header")
-      ) {
+      if (!specificContainer && document.getElementById('sidebar-tabs-header')) {
         // Estamos provavelmente numa aba de Questão, então não devemos recriar o Hub aqui.
         return;
       }
 
       // Inserir após o header da sidebar ou no topo
-      const sidebarHeader = parent.querySelector(".sidebar-header");
+      const sidebarHeader = parent.querySelector('.sidebar-header');
       if (sidebarHeader) {
-        sidebarHeader.insertAdjacentElement("afterend", container);
+        sidebarHeader.insertAdjacentElement('afterend', container);
       } else {
         parent.prepend(container);
       }
@@ -41,7 +37,7 @@ export const SidebarPageManager = {
       if (totalPages > 0) {
         // Preserve global header and overlay if they exist, remove others
         Array.from(container.children).forEach((child) => {
-          if (child.id !== "ai-scanner-global-header" && child.id !== "ai-sidebar-overlay") {
+          if (child.id !== 'ai-scanner-global-header' && child.id !== 'ai-sidebar-overlay') {
             child.remove();
           }
         });
@@ -69,13 +65,13 @@ export const SidebarPageManager = {
     let details = document.getElementById(pageId);
 
     if (!details) {
-      details = document.createElement("details");
+      details = document.createElement('details');
       details.id = pageId;
-      details.className = "page-details-group";
+      details.className = 'page-details-group';
       // details.open = false; // Começa fechado, abre sob demanda
 
-      const summary = document.createElement("summary");
-      summary.className = "page-summary";
+      const summary = document.createElement('summary');
+      summary.className = 'page-summary';
       summary.innerHTML = `
         <div class="page-title-group">
           <span class="page-title">Página ${pageNum}</span>
@@ -91,17 +87,17 @@ export const SidebarPageManager = {
       details.appendChild(summary);
 
       // Bind do botão de scan individual
-      const btnScan = summary.querySelector(".btn-scan-page-ai");
+      const btnScan = summary.querySelector('.btn-scan-page-ai');
       btnScan.onclick = async (e) => {
         e.stopPropagation(); // Evita abrir/fechar o details
 
         // Mostrar modal de confirmação
-        const confirmed = await import("./modal-confirm.js").then((m) =>
+        const confirmed = await import('./modal-confirm.js').then((m) =>
           m.showConfirmModal(
-            "Analisar Página com IA?",
-            "Este processo analisará apenas esta página e não poderá ser cancelado. Deseja continuar?",
-            "Analisar",
-            "Voltar",
+            'Analisar Página com IA?',
+            'Este processo analisará apenas esta página e não poderá ser cancelado. Deseja continuar?',
+            'Analisar',
+            'Voltar',
             true, // isPositiveAction = true (cor primária)
           ),
         );
@@ -112,13 +108,13 @@ export const SidebarPageManager = {
       };
 
       // Container para status dos agentes (IA)
-      const agentsContainer = document.createElement("div");
-      agentsContainer.className = "page-agents-status-list";
+      const agentsContainer = document.createElement('div');
+      agentsContainer.className = 'page-agents-status-list';
       details.appendChild(agentsContainer);
 
       // Container para cards de questões
-      const questionsContainer = document.createElement("div");
-      questionsContainer.className = "page-questions-list";
+      const questionsContainer = document.createElement('div');
+      questionsContainer.className = 'page-questions-list';
       details.appendChild(questionsContainer);
 
       // Inserir na ordem correta (pageNum crescente)
@@ -132,7 +128,7 @@ export const SidebarPageManager = {
       }
       const existingPages = Array.from(container.children);
       const nextSibling = existingPages.find((el) => {
-        const p = parseInt(el.id.replace("page-details-", ""));
+        const p = parseInt(el.id.replace('page-details-', ''));
         return p > pageNum;
       });
 
@@ -156,12 +152,11 @@ export const SidebarPageManager = {
 
   updateAgentStatus(pageNum, agentType, text) {
     const details = this.getPageElement(pageNum);
-    const agentsList = details.querySelector(".page-agents-status-list");
+    const agentsList = details.querySelector('.page-agents-status-list');
 
     // 1. Obter ultimo thought
     const lastThought = agentsList.lastElementChild;
-    const isSameType =
-      lastThought && lastThought.dataset.agentType === agentType;
+    const isSameType = lastThought && lastThought.dataset.agentType === agentType;
 
     let thoughtEl;
 
@@ -170,18 +165,18 @@ export const SidebarPageManager = {
       thoughtEl = lastThought;
     } else {
       // Cria novo details
-      thoughtEl = document.createElement("details");
-      thoughtEl.className = "maia-thoughts";
+      thoughtEl = document.createElement('details');
+      thoughtEl.className = 'maia-thoughts';
       if (agentType) thoughtEl.classList.add(`type-${agentType}`);
       thoughtEl.dataset.agentType = agentType;
       // thoughtEl.open = false; // default
 
-      const summary = document.createElement("summary");
-      summary.className = "maia-thoughts-summary";
+      const summary = document.createElement('summary');
+      summary.className = 'maia-thoughts-summary';
       thoughtEl.appendChild(summary);
 
-      const bodyContainer = document.createElement("div");
-      bodyContainer.id = "ai-thoughts-list"; // reuso de estilo
+      const bodyContainer = document.createElement('div');
+      bodyContainer.id = 'ai-thoughts-list'; // reuso de estilo
       // bodyContainer.className = "maia-thought-body-container";
       thoughtEl.appendChild(bodyContainer);
 
@@ -194,24 +189,17 @@ export const SidebarPageManager = {
     // Lógica Customizada para Status Específicos
     // Se o texto for um status curto e importante, ele vira o título do agente/details
     // e o corpo pode ser um texto descritivo padrão ou vazio.
-    const statusKeywords = [
-      "Interrompido.",
-      "Nada a auditar.",
-      "Extração finalizada.",
-    ];
+    const statusKeywords = ['Interrompido.', 'Nada a auditar.', 'Extração finalizada.'];
     let customTitle = null;
     let customBody = thoughtData.body;
 
     // Verifica se o texto processado (ou raw) bate com keywords
-    if (
-      statusKeywords.includes(thoughtData.title) ||
-      statusKeywords.includes(text.trim())
-    ) {
+    if (statusKeywords.includes(thoughtData.title) || statusKeywords.includes(text.trim())) {
       customTitle = text.trim(); // O próprio texto é o status
-      customBody = ""; // Sem corpo adicional necessário se não houver
-    } else if (text.trim() === "Interrompido.") {
-      customTitle = "Interrompido";
-      customBody = "A operação foi cancelada pelo usuário.";
+      customBody = ''; // Sem corpo adicional necessário se não houver
+    } else if (text.trim() === 'Interrompido.') {
+      customTitle = 'Interrompido';
+      customBody = 'A operação foi cancelada pelo usuário.';
     }
 
     // Se o corpo estiver vazio e NÃO for um status de interrupção claro que dispense explicação,
@@ -225,15 +213,15 @@ export const SidebarPageManager = {
       thoughtData.title = customTitle;
     }
 
-    if (!customBody || customBody.trim() === "") {
+    if (!customBody || customBody.trim() === '') {
       // Se for um pensamento ativo (ex: "Identifying...") ok ter body vazio se for só titulo?
       // O user reclamou de "detail vazio".
       // Vamos colocar um placeholder se for realmente vazio visualmente.
-      if (agentType === "auditor" && thoughtData.title === "Nada a auditar.") {
-        customBody = "Nenhuma questão selecionada/encontrada para essa página.";
+      if (agentType === 'auditor' && thoughtData.title === 'Nada a auditar.') {
+        customBody = 'Nenhuma questão selecionada/encontrada para essa página.';
         // VERIFICAR EMPTY STATE AGORA
         this.updatePageFooter(pageNum);
-      } else if (customBody === "") {
+      } else if (customBody === '') {
         // Se ainda assim vazio, deixamos vazio ou colocamos ...?
         // Se o title já diz tudo, talvez ok. Mas o user disse "não deixa vazio".
         // Vamos deixar vazio APENAS se o title for explicativo o suficiente, senão placeholder.
@@ -246,10 +234,10 @@ export const SidebarPageManager = {
     // 3. Atualizar Summary (Icone + Titulo)
     // Ícones e Labels
     const config = {
-      analysis: { icon: "🤖", label: "Análise" },
-      auditor: { icon: "🔍", label: "Auditor" },
-      correction: { icon: "✏️", label: "Corretor" },
-      default: { icon: "⚙️", label: "Sistema" },
+      analysis: { icon: '🤖', label: 'Análise' },
+      auditor: { icon: '🔍', label: 'Auditor' },
+      correction: { icon: '✏️', label: 'Corretor' },
+      default: { icon: '⚙️', label: 'Sistema' },
     };
     const typeConfig = config[agentType] || config.default;
 
@@ -257,20 +245,18 @@ export const SidebarPageManager = {
     // MAS mantemos o ícone do tipo.
     const displayTitle = thoughtData.title || typeConfig.label;
 
-    const summaryEl = thoughtEl.querySelector("summary");
+    const summaryEl = thoughtEl.querySelector('summary');
     summaryEl.innerHTML = `
         <div class="maia-thoughts-header-content">
             <div class="maia-thoughts-title-group">
-                <span class="agent-icon" title="${typeConfig.label}">${
-                  typeConfig.icon
-                }</span>
+                <span class="agent-icon" title="${typeConfig.label}">${typeConfig.icon}</span>
                 <span class="agent-text">${displayTitle}</span>
             </div>
         </div>
     `;
 
     // 4. Atualizar Body (Chain of Thought completo)
-    const bodyContainer = thoughtEl.querySelector("#ai-thoughts-list");
+    const bodyContainer = thoughtEl.querySelector('#ai-thoughts-list');
 
     // Só adiciona card se houver algo para mostrar.
     // Se "thoughtData.body" for vazio, mas temos um TITLE que é novo, deveríamos logar o titulo no corpo tb?
@@ -286,11 +272,11 @@ export const SidebarPageManager = {
     // E quer remover os "..." (três pontos) que aparecem.
 
     // Se thoughtData.body for "...", ignoramos?
-    if (thoughtData.body && thoughtData.body.trim() === "...") {
-      thoughtData.body = "";
+    if (thoughtData.body && thoughtData.body.trim() === '...') {
+      thoughtData.body = '';
     }
 
-    let cardContent = "";
+    let cardContent = '';
 
     // Se tiver título e corpo, mostra ambos
     if (thoughtData.title && thoughtData.body) {
@@ -314,7 +300,7 @@ export const SidebarPageManager = {
 
     if (cardContent) {
       // Check final anti-dot validation
-      if (cardContent.includes(">...<") || cardContent.includes(">…<")) {
+      if (cardContent.includes('>...<') || cardContent.includes('>…<')) {
         // Skip rendering simple dot visuals
         return;
       }
@@ -330,7 +316,7 @@ export const SidebarPageManager = {
             </div>
         `;
       // APPEND ao invés de substituir
-      bodyContainer.insertAdjacentHTML("beforeend", cardHTML);
+      bodyContainer.insertAdjacentHTML('beforeend', cardHTML);
 
       // Auto-scroll para o final
       bodyContainer.scrollTop = bodyContainer.scrollHeight;
@@ -347,7 +333,7 @@ export const SidebarPageManager = {
       setTimeout(() => {
         // Scroll no container da sidebar para mostrar este elemento
         // block: 'center' é o pedido "centralizar o detail em destaque"
-        thoughtEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        thoughtEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 50);
     }
   },
@@ -356,12 +342,12 @@ export const SidebarPageManager = {
     const details = this.getPageElement(pageNum);
     // [FIX] Return null if details doesn't exist (e.g., Hub not active)
     if (!details) return null;
-    return details.querySelector(".page-questions-list");
+    return details.querySelector('.page-questions-list');
   },
 
   clearQuestions(pageNum) {
     const container = this.getQuestionsContainer(pageNum);
-    if (container) container.innerHTML = "";
+    if (container) container.innerHTML = '';
   },
 
   updatePageFooter(pageNum) {
@@ -369,24 +355,20 @@ export const SidebarPageManager = {
 
     // Identificar se existem cartões de questão REAIS (ignorando placeholders/botoes antigos)
     const hasQuestions = Array.from(questionsContainer.children).some((child) =>
-      child.classList.contains("cropper-group-item"),
+      child.classList.contains('cropper-group-item'),
     );
 
     // Limpar rodapés antigos (placeholders ou botões soltos)
-    const oldPlaceholder = questionsContainer.querySelector(
-      ".empty-page-placeholder",
-    );
+    const oldPlaceholder = questionsContainer.querySelector('.empty-page-placeholder');
     if (oldPlaceholder) oldPlaceholder.remove();
 
-    const oldBtn = questionsContainer.querySelector(
-      ".btn-add-manual-page-footer",
-    );
+    const oldBtn = questionsContainer.querySelector('.btn-add-manual-page-footer');
     if (oldBtn) oldBtn.remove();
 
     if (!hasQuestions) {
       // --- CASO 1: PÁGINA VAZIA (Exibir Placeholder Grande) ---
-      const placeholder = document.createElement("div");
-      placeholder.className = "empty-page-placeholder";
+      const placeholder = document.createElement('div');
+      placeholder.className = 'empty-page-placeholder';
       placeholder.style.cssText = `
           padding: 12px;
           text-align: center;
@@ -417,14 +399,14 @@ export const SidebarPageManager = {
       `;
 
       // Bind click
-      const btn = placeholder.querySelector(".btn-add-manual-page");
+      const btn = placeholder.querySelector('.btn-add-manual-page');
       btn.onclick = (e) => this._handleAddClick(e, pageNum);
 
       questionsContainer.appendChild(placeholder);
     } else {
       // --- CASO 2: PÁGINA COM QUESTÕES (Exibir Botão Discreto no Final) ---
-      const btnFooter = document.createElement("button");
-      btnFooter.className = "btn-add-manual-page-footer";
+      const btnFooter = document.createElement('button');
+      btnFooter.className = 'btn-add-manual-page-footer';
       btnFooter.style.cssText = `
           width: 100%;
           background: transparent;
@@ -441,17 +423,17 @@ export const SidebarPageManager = {
           justify-content: center;
           gap: 6px;
       `;
-      btnFooter.innerHTML = "➕ Adicionar Outra Questão";
+      btnFooter.innerHTML = '➕ Adicionar Outra Questão';
 
       btnFooter.onmouseover = () => {
-        btnFooter.style.borderColor = "var(--color-primary)";
-        btnFooter.style.color = "var(--color-primary)";
-        btnFooter.style.background = "rgba(var(--color-primary-rgb), 0.05)";
+        btnFooter.style.borderColor = 'var(--color-primary)';
+        btnFooter.style.color = 'var(--color-primary)';
+        btnFooter.style.background = 'rgba(var(--color-primary-rgb), 0.05)';
       };
       btnFooter.onmouseout = () => {
-        btnFooter.style.borderColor = "#555";
-        btnFooter.style.color = "#aaa";
-        btnFooter.style.background = "transparent";
+        btnFooter.style.borderColor = '#555';
+        btnFooter.style.color = '#aaa';
+        btnFooter.style.background = 'transparent';
       };
 
       btnFooter.onclick = (e) => this._handleAddClick(e, pageNum);
@@ -465,25 +447,23 @@ export const SidebarPageManager = {
 
     // [FIX] Mobile: Fecha sidebar para user ver o PDF ao criar/editar
     if (window.innerWidth <= 900) {
-      import("../viewer/sidebar.js").then(({ esconderPainel }) =>
-        esconderPainel(),
-      );
+      import('../viewer/sidebar.js').then(({ esconderPainel }) => esconderPainel());
     }
 
-    import("../viewer/pdf-core.js").then(({ irParaPagina }) => {
+    import('../viewer/pdf-core.js').then(({ irParaPagina }) => {
       irParaPagina(pageNum);
       setTimeout(() => {
-        import("../cropper/cropper-state.js").then(({ CropperState }) => {
-          CropperState.createGroup({ tags: ["manual", "NOVO"] });
+        import('../cropper/cropper-state.js').then(({ CropperState }) => {
+          CropperState.createGroup({ tags: ['manual', 'NOVO'] });
         });
       }, 100);
     });
   },
 
   _handleScanPageClick(pageNum) {
-    import("../services/ai-scanner.js").then(({ AiScanner }) => {
+    import('../services/ai-scanner.js').then(({ AiScanner }) => {
       if (!AiScanner.lastPdfDoc) {
-        customAlert("Nenhum documento carregado.", 3000);
+        customAlert('Nenhum documento carregado.', 3000);
         return;
       }
       AiScanner.processSinglePage(AiScanner.lastPdfDoc, pageNum);
@@ -494,10 +474,10 @@ export const SidebarPageManager = {
     const container = document.getElementById(this.containerId);
     if (!container) return;
 
-    const allDetails = container.querySelectorAll(".page-details-group");
+    const allDetails = container.querySelectorAll('.page-details-group');
     allDetails.forEach((detail) => {
       // Extrair numero da pagina do ID "page-details-X"
-      const idParts = detail.id.split("-");
+      const idParts = detail.id.split('-');
       const p = parseInt(idParts[idParts.length - 1]);
 
       if (p !== pageNumToKeepOpen) {

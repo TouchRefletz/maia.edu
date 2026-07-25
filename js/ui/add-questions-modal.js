@@ -11,13 +11,13 @@ import {
   query,
   ref,
   startAt,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { criarCardTecnico } from "../banco/card-template.js";
-import { renderLatexIn } from "../libs/loader.tsx";
-import { db, auth } from "../main.js";
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { criarCardTecnico } from '../banco/card-template.js';
+import { renderLatexIn } from '../libs/loader.tsx';
+import { auth, db } from '../main.js';
 
 // Estado do modal
-let selectedQuestions = new Map();
+const selectedQuestions = new Map();
 let expandedExam = null;
 let modalOverlay = null;
 let previewOverlay = null;
@@ -30,9 +30,9 @@ export function openAddQuestionsModal() {
   closeAddQuestionsModal();
 
   // Cria overlay principal
-  modalOverlay = document.createElement("div");
-  modalOverlay.id = "addQuestionsModal";
-  modalOverlay.className = "final-modal-overlay visible";
+  modalOverlay = document.createElement('div');
+  modalOverlay.id = 'addQuestionsModal';
+  modalOverlay.className = 'final-modal-overlay visible';
   modalOverlay.innerHTML = generateModalHTML();
 
   document.body.appendChild(modalOverlay);
@@ -112,26 +112,22 @@ function generateModalHTML() {
 function setupModalListeners() {
   // Fechar com X ou clique no overlay
   document
-    .getElementById("closeAddQuestionsModal")
-    ?.addEventListener("click", closeAddQuestionsModal);
-  document
-    .getElementById("cancelAddQuestions")
-    ?.addEventListener("click", closeAddQuestionsModal);
+    .getElementById('closeAddQuestionsModal')
+    ?.addEventListener('click', closeAddQuestionsModal);
+  document.getElementById('cancelAddQuestions')?.addEventListener('click', closeAddQuestionsModal);
 
-  modalOverlay?.addEventListener("click", (e) => {
+  modalOverlay?.addEventListener('click', (e) => {
     if (e.target === modalOverlay) closeAddQuestionsModal();
   });
 
   // Confirmar seleção
-  document
-    .getElementById("confirmAddQuestions")
-    ?.addEventListener("click", confirmSelection);
+  document.getElementById('confirmAddQuestions')?.addEventListener('click', confirmSelection);
 
   // Busca com debounce
-  const searchInput = document.getElementById("addQuestionsSearch");
+  const searchInput = document.getElementById('addQuestionsSearch');
   let debounceTimer;
 
-  searchInput?.addEventListener("input", (e) => {
+  searchInput?.addEventListener('input', (e) => {
     const term = e.target.value.trim();
     clearTimeout(debounceTimer);
 
@@ -145,17 +141,17 @@ function setupModalListeners() {
   });
 
   // ESC para fechar
-  document.addEventListener("keydown", handleEscKey);
+  document.addEventListener('keydown', handleEscKey);
 }
 
 function handleEscKey(e) {
-  if (e.key === "Escape") {
+  if (e.key === 'Escape') {
     if (previewOverlay) {
       closePreview();
     } else if (modalOverlay) {
       closeAddQuestionsModal();
     }
-    document.removeEventListener("keydown", handleEscKey);
+    document.removeEventListener('keydown', handleEscKey);
   }
 }
 
@@ -163,20 +159,20 @@ function handleEscKey(e) {
  * Carrega provas iniciais (lista de chaves em questoes/)
  */
 async function loadInitialExams() {
-  const listContainer = document.getElementById("addQuestionsList");
-  const loading = document.getElementById("addQuestionsLoading");
+  const listContainer = document.getElementById('addQuestionsList');
+  const loading = document.getElementById('addQuestionsLoading');
 
   if (!listContainer || !loading) return;
 
-  loading.style.display = "flex";
-  listContainer.innerHTML = "";
+  loading.style.display = 'flex';
+  listContainer.innerHTML = '';
 
   try {
-    const dbRef = ref(db, "questoes");
+    const dbRef = ref(db, 'questoes');
     const consulta = query(dbRef, orderByKey(), limitToFirst(50));
     const snapshot = await get(consulta);
 
-    loading.style.display = "none";
+    loading.style.display = 'none';
 
     if (snapshot.exists()) {
       const data = snapshot.val();
@@ -191,8 +187,8 @@ async function loadInitialExams() {
       listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada.</p>`;
     }
   } catch (e) {
-    console.error("Erro ao carregar provas:", e);
-    loading.style.display = "none";
+    console.error('Erro ao carregar provas:', e);
+    loading.style.display = 'none';
     listContainer.innerHTML = `<p class="add-questions-error">Erro ao carregar: ${e.message}</p>`;
   }
 }
@@ -201,13 +197,13 @@ async function loadInitialExams() {
  * Smart Search - busca com variações de case
  */
 async function searchExams(termo) {
-  const listContainer = document.getElementById("addQuestionsList");
-  const loading = document.getElementById("addQuestionsLoading");
+  const listContainer = document.getElementById('addQuestionsList');
+  const loading = document.getElementById('addQuestionsLoading');
 
   if (!listContainer || !loading) return;
 
-  loading.style.display = "flex";
-  listContainer.innerHTML = "";
+  loading.style.display = 'flex';
+  listContainer.innerHTML = '';
 
   try {
     // Variações de case: exato, UPPERCASE, lowercase, Capitalized
@@ -216,12 +212,10 @@ async function searchExams(termo) {
     variacoes.add(termo.toUpperCase());
     variacoes.add(termo.toLowerCase());
     if (termo.length > 0) {
-      variacoes.add(
-        termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase(),
-      );
+      variacoes.add(termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase());
     }
 
-    const dbRef = ref(db, "questoes");
+    const dbRef = ref(db, 'questoes');
 
     // Buscas paralelas
     const promessas = Array.from(variacoes).map(async (termoBusca) => {
@@ -229,7 +223,7 @@ async function searchExams(termo) {
         dbRef,
         orderByKey(),
         startAt(termoBusca),
-        endAt(termoBusca + "\uf8ff"),
+        endAt(termoBusca + '\uf8ff'),
         limitToFirst(20),
       );
       return get(consulta);
@@ -247,7 +241,7 @@ async function searchExams(termo) {
       }
     });
 
-    loading.style.display = "none";
+    loading.style.display = 'none';
 
     if (resultados.size > 0) {
       const listaOrdenada = Array.from(resultados.entries()).sort((a, b) =>
@@ -262,8 +256,8 @@ async function searchExams(termo) {
       listContainer.innerHTML = `<p class="add-questions-empty">Nenhum resultado para "${termo}"</p>`;
     }
   } catch (e) {
-    console.error("Erro na busca:", e);
-    loading.style.display = "none";
+    console.error('Erro na busca:', e);
+    loading.style.display = 'none';
     listContainer.innerHTML = `<p class="add-questions-error">Erro: ${e.message}</p>`;
   }
 }
@@ -272,11 +266,11 @@ async function searchExams(termo) {
  * Cria card de prova (accordion)
  */
 function createExamCard(nomeProva, qtdQuestoes) {
-  const card = document.createElement("div");
-  card.className = "exam-card";
+  const card = document.createElement('div');
+  card.className = 'exam-card';
   card.dataset.exam = nomeProva;
 
-  const nomeFormatado = nomeProva.replace(/_/g, " ");
+  const nomeFormatado = nomeProva.replace(/_/g, ' ');
 
   card.innerHTML = `
     <div class="exam-card-header">
@@ -296,7 +290,7 @@ function createExamCard(nomeProva, qtdQuestoes) {
   `;
 
   // Toggle accordion
-  card.querySelector(".exam-card-header")?.addEventListener("click", () => {
+  card.querySelector('.exam-card-header')?.addEventListener('click', () => {
     toggleExamCard(card, nomeProva);
   });
 
@@ -307,26 +301,26 @@ function createExamCard(nomeProva, qtdQuestoes) {
  * Toggle do accordion
  */
 async function toggleExamCard(card, nomeProva) {
-  const body = card.querySelector(".exam-card-body");
-  const chevron = card.querySelector(".exam-card-chevron");
-  const isExpanded = body.style.display !== "none";
+  const body = card.querySelector('.exam-card-body');
+  const chevron = card.querySelector('.exam-card-chevron');
+  const isExpanded = body.style.display !== 'none';
 
   // Fecha todos os outros
-  document.querySelectorAll(".exam-card-body").forEach((b) => {
-    b.style.display = "none";
+  document.querySelectorAll('.exam-card-body').forEach((b) => {
+    b.style.display = 'none';
   });
-  document.querySelectorAll(".exam-card-chevron").forEach((c) => {
-    c.textContent = "▼";
-    c.style.transform = "rotate(0deg)";
+  document.querySelectorAll('.exam-card-chevron').forEach((c) => {
+    c.textContent = '▼';
+    c.style.transform = 'rotate(0deg)';
   });
 
   if (isExpanded) {
-    body.style.display = "none";
-    chevron.style.transform = "rotate(0deg)";
+    body.style.display = 'none';
+    chevron.style.transform = 'rotate(0deg)';
     expandedExam = null;
   } else {
-    body.style.display = "block";
-    chevron.style.transform = "rotate(180deg)";
+    body.style.display = 'block';
+    chevron.style.transform = 'rotate(180deg)';
     expandedExam = nomeProva;
     await loadExamQuestions(card, nomeProva);
   }
@@ -336,11 +330,11 @@ async function toggleExamCard(card, nomeProva) {
  * Carrega questões de uma prova específica
  */
 async function loadExamQuestions(card, nomeProva) {
-  const loading = card.querySelector(".exam-questions-loading");
-  const listContainer = card.querySelector(".exam-questions-list");
+  const loading = card.querySelector('.exam-questions-loading');
+  const listContainer = card.querySelector('.exam-questions-list');
 
-  loading.style.display = "flex";
-  listContainer.innerHTML = "";
+  loading.style.display = 'flex';
+  listContainer.innerHTML = '';
 
   try {
     const dbRef = ref(db, `questoes/${nomeProva}`);
@@ -355,10 +349,10 @@ async function loadExamQuestions(card, nomeProva) {
         statusMap = statusSnapshot.val();
       }
     } catch (err) {
-      console.warn("Erro ao buscar status do apêndice B:", err);
+      console.warn('Erro ao buscar status do apêndice B:', err);
     }
 
-    loading.style.display = "none";
+    loading.style.display = 'none';
 
     if (snapshot.exists()) {
       const questoes = snapshot.val();
@@ -374,8 +368,8 @@ async function loadExamQuestions(card, nomeProva) {
       listContainer.innerHTML = `<p class="add-questions-empty">Sem questões</p>`;
     }
   } catch (e) {
-    console.error("Erro ao carregar questões:", e);
-    loading.style.display = "none";
+    console.error('Erro ao carregar questões:', e);
+    loading.style.display = 'none';
     listContainer.innerHTML = `<p class="add-questions-error">Erro: ${e.message}</p>`;
   }
 }
@@ -385,54 +379,51 @@ async function loadExamQuestions(card, nomeProva) {
  */
 function createQuestionItem(idQuestao, fullData, nomeProva, hasApendiceB = false) {
   const q = fullData.dados_questao || {};
-  const materias = (q.materias_possiveis || []).slice(0, 2).join(", ");
+  const materias = (q.materias_possiveis || []).slice(0, 2).join(', ');
 
   // Extrai texto do enunciado para preview curto
-  let previewText = "";
+  let previewText = '';
   if (q.estrutura && q.estrutura.length > 0) {
     for (const bloco of q.estrutura) {
-      if (bloco.tipo === "texto" && bloco.conteudo) {
-        previewText =
-          bloco.conteudo.slice(0, 80) +
-          (bloco.conteudo.length > 80 ? "..." : "");
+      if (bloco.tipo === 'texto' && bloco.conteudo) {
+        previewText = bloco.conteudo.slice(0, 80) + (bloco.conteudo.length > 80 ? '...' : '');
         break;
       }
     }
   } else if (q.enunciado) {
-    previewText =
-      q.enunciado.slice(0, 80) + (q.enunciado.length > 80 ? "..." : "");
+    previewText = q.enunciado.slice(0, 80) + (q.enunciado.length > 80 ? '...' : '');
   }
 
   const questionKey = `${nomeProva}::${idQuestao}`;
   const isSelected = selectedQuestions.has(questionKey);
 
-  const item = document.createElement("div");
-  item.className = `question-item ${isSelected ? "selected" : ""}`;
+  const item = document.createElement('div');
+  item.className = `question-item ${isSelected ? 'selected' : ''}`;
   item.dataset.key = questionKey;
 
   item.innerHTML = `
     <label class="question-checkbox-wrapper">
-      <input type="checkbox" class="question-checkbox" ${isSelected ? "checked" : ""}>
+      <input type="checkbox" class="question-checkbox" ${isSelected ? 'checked' : ''}>
       <span class="question-checkmark"></span>
     </label>
     <div class="question-item-info">
       <div class="question-item-header" style="display: flex; align-items: center; gap: 8px; width: 100%;">
         <span class="question-item-id">${idQuestao}</span>
-        ${materias ? `<span class="question-item-tags">${materias}</span>` : ""}
+        ${materias ? `<span class="question-item-tags">${materias}</span>` : ''}
         <span class="apendice-b-status-badge" style="
           margin-left: auto;
           font-size: 0.75rem;
           font-weight: 600;
           padding: 2px 6px;
           border-radius: 4px;
-          background: ${hasApendiceB ? "rgba(40, 167, 69, 0.15)" : "rgba(108, 117, 125, 0.1)"};
-          color: ${hasApendiceB ? "#28a745" : "#6c757d"};
-          border: 1px solid ${hasApendiceB ? "rgba(40, 167, 69, 0.3)" : "rgba(108, 117, 125, 0.2)"};
+          background: ${hasApendiceB ? 'rgba(40, 167, 69, 0.15)' : 'rgba(108, 117, 125, 0.1)'};
+          color: ${hasApendiceB ? '#28a745' : '#6c757d'};
+          border: 1px solid ${hasApendiceB ? 'rgba(40, 167, 69, 0.3)' : 'rgba(108, 117, 125, 0.2)'};
         ">
-          🧪 ${hasApendiceB ? "OK" : "Pendente"}
+          🧪 ${hasApendiceB ? 'OK' : 'Pendente'}
         </span>
       </div>
-      <p class="question-item-preview">${previewText || "Sem texto de preview"}</p>
+      <p class="question-item-preview">${previewText || 'Sem texto de preview'}</p>
     </div>
     <button class="question-preview-btn" title="Ver questão completa">
       👁️
@@ -440,8 +431,8 @@ function createQuestionItem(idQuestao, fullData, nomeProva, hasApendiceB = false
   `;
 
   // Checkbox handler
-  const checkbox = item.querySelector(".question-checkbox");
-  checkbox?.addEventListener("change", (e) => {
+  const checkbox = item.querySelector('.question-checkbox');
+  checkbox?.addEventListener('change', (e) => {
     e.stopPropagation();
     if (e.target.checked) {
       selectedQuestions.set(questionKey, {
@@ -449,30 +440,26 @@ function createQuestionItem(idQuestao, fullData, nomeProva, hasApendiceB = false
         prova: nomeProva,
         fullData,
       });
-      item.classList.add("selected");
+      item.classList.add('selected');
     } else {
       selectedQuestions.delete(questionKey);
-      item.classList.remove("selected");
+      item.classList.remove('selected');
     }
     updateCounter();
   });
 
   // Preview handler
-  const previewBtn = item.querySelector(".question-preview-btn");
-  previewBtn?.addEventListener("click", (e) => {
+  const previewBtn = item.querySelector('.question-preview-btn');
+  previewBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     openQuestionPreview(idQuestao, fullData, nomeProva);
   });
 
   // Click no item também marca checkbox
-  item.addEventListener("click", (e) => {
-    if (
-      e.target !== checkbox &&
-      e.target !== previewBtn &&
-      !previewBtn?.contains(e.target)
-    ) {
+  item.addEventListener('click', (e) => {
+    if (e.target !== checkbox && e.target !== previewBtn && !previewBtn?.contains(e.target)) {
       checkbox.checked = !checkbox.checked;
-      checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
     }
   });
 
@@ -488,29 +475,29 @@ function openQuestionPreview(idQuestao, fullData, nomeProva) {
   // Injeta meta se não existir
   if (!fullData.meta) fullData.meta = {};
   if (!fullData.meta.material_origem) {
-    fullData.meta.material_origem = nomeProva.replace(/_/g, " ");
+    fullData.meta.material_origem = nomeProva.replace(/_/g, ' ');
   }
 
-  previewOverlay = document.createElement("div");
-  previewOverlay.id = "questionPreviewOverlay";
-  previewOverlay.className = "question-preview-overlay";
+  previewOverlay = document.createElement('div');
+  previewOverlay.id = 'questionPreviewOverlay';
+  previewOverlay.className = 'question-preview-overlay';
 
   // Cria container do modal
-  const modalContent = document.createElement("div");
-  modalContent.className = "question-preview-content question-preview-card";
+  const modalContent = document.createElement('div');
+  modalContent.className = 'question-preview-content question-preview-card';
 
   // Header com botão fechar
-  const header = document.createElement("div");
-  header.className = "question-preview-header";
+  const header = document.createElement('div');
+  header.className = 'question-preview-header';
   header.innerHTML = `
-    <h3>${nomeProva.replace(/_/g, " ")} - ${idQuestao}</h3>
+    <h3>${nomeProva.replace(/_/g, ' ')} - ${idQuestao}</h3>
     <button class="preview-close-btn" id="closeQuestionPreview">✕</button>
   `;
   modalContent.appendChild(header);
 
   // Body com o card do banco
-  const body = document.createElement("div");
-  body.className = "question-preview-body";
+  const body = document.createElement('div');
+  body.className = 'question-preview-body';
 
   // Usa criarCardTecnico do banco de questões
   const card = criarCardTecnico(idQuestao, fullData);
@@ -521,7 +508,7 @@ function openQuestionPreview(idQuestao, fullData, nomeProva) {
   document.body.appendChild(previewOverlay);
 
   // Renderiza LaTeX
-  if (typeof renderLatexIn === "function") {
+  if (typeof renderLatexIn === 'function') {
     renderLatexIn(card);
   }
 
@@ -529,41 +516,42 @@ function openQuestionPreview(idQuestao, fullData, nomeProva) {
   const uid = auth.currentUser?.uid;
   if (uid) {
     const adminRef = ref(db, `admins/${uid}`);
-    get(adminRef).then(async (adminSnap) => {
-      const isAdmin = adminSnap.exists() && adminSnap.val() === true;
-      if (!isAdmin) return;
+    get(adminRef)
+      .then(async (adminSnap) => {
+        const isAdmin = adminSnap.exists() && adminSnap.val() === true;
+        if (!isAdmin) return;
 
-      const apendicePanel = document.createElement("div");
-      apendicePanel.id = "apendiceBControlPanel";
-      apendicePanel.style.cssText = "margin-top: 15px; border-top: 1px dashed var(--color-border); padding-top: 15px; display: flex; flex-direction: column; gap: 12px; width: 100%;";
-      body.appendChild(apendicePanel);
+        const apendicePanel = document.createElement('div');
+        apendicePanel.id = 'apendiceBControlPanel';
+        apendicePanel.style.cssText =
+          'margin-top: 15px; border-top: 1px dashed var(--color-border); padding-top: 15px; display: flex; flex-direction: column; gap: 12px; width: 100%;';
+        body.appendChild(apendicePanel);
 
-      // Carrega status
-      try {
-        const statusRef = ref(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`);
-        const statusSnap = await get(statusRef);
-        if (statusSnap.exists()) {
-          renderApendiceBConcluido(apendicePanel, nomeProva, idQuestao, fullData);
-        } else {
-          renderApendiceBPendente(apendicePanel, nomeProva, idQuestao, fullData);
+        // Carrega status
+        try {
+          const statusRef = ref(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`);
+          const statusSnap = await get(statusRef);
+          if (statusSnap.exists()) {
+            renderApendiceBConcluido(apendicePanel, nomeProva, idQuestao, fullData);
+          } else {
+            renderApendiceBPendente(apendicePanel, nomeProva, idQuestao, fullData);
+          }
+        } catch (err) {
+          console.error('Erro ao verificar role admin:', err);
         }
-      } catch (err) {
-        console.error("Erro ao verificar role admin:", err);
-      }
-    }).catch(err => console.error("Erro ao verificar role admin:", err));
+      })
+      .catch((err) => console.error('Erro ao verificar role admin:', err));
   }
 
   // Fecha ao clicar no X ou no overlay
-  document
-    .getElementById("closeQuestionPreview")
-    ?.addEventListener("click", closePreview);
-  previewOverlay.addEventListener("click", (e) => {
+  document.getElementById('closeQuestionPreview')?.addEventListener('click', closePreview);
+  previewOverlay.addEventListener('click', (e) => {
     if (e.target === previewOverlay) closePreview();
   });
 
   // Anima entrada
   requestAnimationFrame(() => {
-    previewOverlay.classList.add("visible");
+    previewOverlay.classList.add('visible');
   });
 }
 
@@ -572,7 +560,7 @@ function openQuestionPreview(idQuestao, fullData, nomeProva) {
  */
 function closePreview() {
   if (previewOverlay) {
-    previewOverlay.classList.remove("visible");
+    previewOverlay.classList.remove('visible');
     setTimeout(() => {
       previewOverlay?.remove();
       previewOverlay = null;
@@ -584,8 +572,8 @@ function closePreview() {
  * Atualiza contador de selecionados
  */
 function updateCounter() {
-  const countEl = document.getElementById("selectedCount");
-  const confirmBtn = document.getElementById("confirmAddQuestions");
+  const countEl = document.getElementById('selectedCount');
+  const confirmBtn = document.getElementById('confirmAddQuestions');
 
   if (countEl) countEl.textContent = selectedQuestions.size;
   if (confirmBtn) confirmBtn.disabled = selectedQuestions.size === 0;
@@ -601,7 +589,7 @@ function confirmSelection() {
 
   // Dispara evento customizado
   window.dispatchEvent(
-    new CustomEvent("questions-selected", {
+    new CustomEvent('questions-selected', {
       detail: { questions: questoesArray },
     }),
   );
@@ -628,7 +616,7 @@ function renderApendiceBPendente(container, nomeProva, idQuestao, fullData) {
     </div>
   `;
 
-  container.querySelector("#btnRodarApendiceB").addEventListener("click", () => {
+  container.querySelector('#btnRodarApendiceB').addEventListener('click', () => {
     rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullData);
   });
 }
@@ -656,16 +644,16 @@ async function rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullDa
   `;
 
   // Estilo para spinner de animação se não houver
-  if (!document.getElementById("apendiceBSpinnerStyle")) {
-    const style = document.createElement("style");
-    style.id = "apendiceBSpinnerStyle";
-    style.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+  if (!document.getElementById('apendiceBSpinnerStyle')) {
+    const style = document.createElement('style');
+    style.id = 'apendiceBSpinnerStyle';
+    style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
     document.head.appendChild(style);
   }
 
-  const statusText = container.querySelector("#apendiceBStatusText span:last-child");
-  const thoughtsBox = container.querySelector("#apendiceBThoughts");
-  const responseBox = container.querySelector("#apendiceBResponse");
+  const statusText = container.querySelector('#apendiceBStatusText span:last-child');
+  const thoughtsBox = container.querySelector('#apendiceBThoughts');
+  const responseBox = container.querySelector('#apendiceBResponse');
 
   const handlers = {
     onStatus: (msg) => {
@@ -682,26 +670,28 @@ async function rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullDa
         responseBox.textContent += delta;
         responseBox.scrollTop = responseBox.scrollHeight;
       }
-    }
+    },
   };
 
   try {
-    const { executarTriageApendiceB } = await import("../chat/apendice-b-pipeline.js");
+    const { executarTriageApendiceB } = await import('../chat/apendice-b-pipeline.js');
     const result = await executarTriageApendiceB(
       { id: idQuestao, prova: nomeProva, fullData },
-      handlers
+      handlers,
     );
 
     statusText.parentElement.innerHTML = `✅ Experimento finalizado com sucesso em ${result.latency_sec}s!`;
 
     // Persiste no Firebase
-    const { ref: dbRef, set } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-    
+    const { ref: dbRef, set } = await import(
+      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+    );
+
     const statusData = {
-      status: "rodado",
+      status: 'rodado',
       timestamp: result.timestamp,
       pontuacao: result.response_text?.pontuacao_final_complexidade || null,
-      classificacao: result.response_text?.classificacao_dificuldade || null
+      classificacao: result.response_text?.classificacao_dificuldade || null,
     };
 
     await set(dbRef(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`), statusData);
@@ -716,35 +706,39 @@ async function rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullDa
     const itemKey = `${nomeProva}::${idQuestao}`;
     const itemEl = document.querySelector(`.question-item[data-key="${itemKey}"]`);
     if (itemEl) {
-      const badge = itemEl.querySelector(".apendice-b-status-badge");
+      const badge = itemEl.querySelector('.apendice-b-status-badge');
       if (badge) {
-        badge.textContent = "🧪 OK";
-        badge.style.background = "rgba(40, 167, 69, 0.15)";
-        badge.style.color = "#28a745";
-        badge.style.borderColor = "rgba(40, 167, 69, 0.3)";
+        badge.textContent = '🧪 OK';
+        badge.style.background = 'rgba(40, 167, 69, 0.15)';
+        badge.style.color = '#28a745';
+        badge.style.borderColor = 'rgba(40, 167, 69, 0.3)';
       }
 
-      const checkbox = itemEl.querySelector(".question-checkbox");
+      const checkbox = itemEl.querySelector('.question-checkbox');
       if (checkbox && !checkbox.checked) {
         checkbox.checked = true;
-        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
 
     // Download do debug JSON
     const seen = new WeakSet();
-    const safeJson = JSON.stringify(result, (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
-      }
-      return value;
-    }, 2);
+    const safeJson = JSON.stringify(
+      result,
+      (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+        return value;
+      },
+      2,
+    );
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `maia_debug_apendice_b_${idQuestao}.json`);
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(safeJson);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `maia_debug_apendice_b_${idQuestao}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -752,22 +746,28 @@ async function rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullDa
     setTimeout(() => {
       renderApendiceBConcluido(container, nomeProva, idQuestao, fullData, result);
     }, 1200);
-
   } catch (error) {
-    console.error("Erro no experimento:", error);
+    console.error('Erro no experimento:', error);
     if (statusText) {
       statusText.parentElement.innerHTML = `❌ Erro: ${error.message}`;
     }
-    const retryBtn = document.createElement("button");
-    retryBtn.className = "btn btn--primary";
-    retryBtn.style.cssText = "margin-top: 10px; width: 100%; border: none; border-radius: 6px; padding: 10px; cursor: pointer; background: var(--color-primary); color: white;";
-    retryBtn.textContent = "🔄 Tentar Novamente";
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'btn btn--primary';
+    retryBtn.style.cssText =
+      'margin-top: 10px; width: 100%; border: none; border-radius: 6px; padding: 10px; cursor: pointer; background: var(--color-primary); color: white;';
+    retryBtn.textContent = '🔄 Tentar Novamente';
     retryBtn.onclick = () => rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullData);
     container.appendChild(retryBtn);
   }
 }
 
-async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullData, cachedResult = null) {
+async function renderApendiceBConcluido(
+  container,
+  nomeProva,
+  idQuestao,
+  fullData,
+  cachedResult = null,
+) {
   let result = cachedResult;
 
   if (!result) {
@@ -779,13 +779,15 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
     `;
 
     try {
-      const { ref: dbRef, get } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+      const { ref: dbRef, get } = await import(
+        'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+      );
       const snap = await get(dbRef(db, `experimentos_apendice_b/${nomeProva}/${idQuestao}`));
       if (snap.exists()) {
         result = snap.val();
       }
     } catch (e) {
-      console.error("Erro ao ler dados do Firebase:", e);
+      console.error('Erro ao ler dados do Firebase:', e);
     }
   }
 
@@ -796,7 +798,8 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
       </div>
       <button class="btn btn--outline" id="btnRetryLoad" style="margin-top: 10px; width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--color-text);">Tentar Novamente</button>
     `;
-    container.querySelector("#btnRetryLoad").onclick = () => renderApendiceBConcluido(container, nomeProva, idQuestao, fullData);
+    container.querySelector('#btnRetryLoad').onclick = () =>
+      renderApendiceBConcluido(container, nomeProva, idQuestao, fullData);
     return;
   }
 
@@ -804,18 +807,19 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
   const criterios = scoreData.criterios || {};
 
   const critList = [
-    { label: "Enunciado", key: "complexidade_enunciado" },
-    { label: "Visuais", key: "elementos_visuais" },
-    { label: "Especificidade", key: "especificidade_dominio" },
-    { label: "Raciocínio", key: "raciocinio_complexo" },
-    { label: "Resposta", key: "resposta_complexa" }
+    { label: 'Enunciado', key: 'complexidade_enunciado' },
+    { label: 'Visuais', key: 'elementos_visuais' },
+    { label: 'Especificidade', key: 'especificidade_dominio' },
+    { label: 'Raciocínio', key: 'raciocinio_complexo' },
+    { label: 'Resposta', key: 'resposta_complexa' },
   ];
 
-  const rowsHtml = critList.map(c => {
-    const critObj = criterios[c.key] || {};
-    const nota = critObj.nota || 0;
-    const justificativa = critObj.justificativa || "Sem justificativa.";
-    return `
+  const rowsHtml = critList
+    .map((c) => {
+      const critObj = criterios[c.key] || {};
+      const nota = critObj.nota || 0;
+      const justificativa = critObj.justificativa || 'Sem justificativa.';
+      return `
       <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-radius: 6px; font-family: system-ui, sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85rem;">
           <span>${c.label}</span>
@@ -826,9 +830,10 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join('');
 
-  const formattedDate = new Date(result.timestamp).toLocaleString("pt-BR");
+  const formattedDate = new Date(result.timestamp).toLocaleString('pt-BR');
 
   container.innerHTML = `
     <div style="background: rgba(40, 167, 69, 0.08); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; color: #28a745; font-family: system-ui, sans-serif;">
@@ -845,7 +850,7 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
       </div>
       <div style="flex: 1; background: rgba(var(--color-primary-rgb), 0.05); border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; text-align: center;">
         <div style="font-size: 0.7rem; color: var(--color-text-secondary); text-transform: uppercase;">Classificação</div>
-        <div style="font-size: 1.2rem; font-weight: bold; margin-top: 6px; color: var(--color-text);">${scoreData.classificacao_dificuldade || "N/A"}</div>
+        <div style="font-size: 1.2rem; font-weight: bold; margin-top: 6px; color: var(--color-text);">${scoreData.classificacao_dificuldade || 'N/A'}</div>
       </div>
     </div>
     
@@ -866,26 +871,30 @@ async function renderApendiceBConcluido(container, nomeProva, idQuestao, fullDat
     </div>
   `;
 
-  container.querySelector("#btnDownloadDebugJson").onclick = () => {
+  container.querySelector('#btnDownloadDebugJson').onclick = () => {
     const seen = new WeakSet();
-    const safeJson = JSON.stringify(result, (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
-      }
-      return value;
-    }, 2);
+    const safeJson = JSON.stringify(
+      result,
+      (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+        return value;
+      },
+      2,
+    );
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `maia_debug_apendice_b_${idQuestao}.json`);
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(safeJson);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `maia_debug_apendice_b_${idQuestao}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
-  container.querySelector("#btnRefazerApendiceB").onclick = () => {
+  container.querySelector('#btnRefazerApendiceB').onclick = () => {
     rodarExperimentoApendiceB(container, nomeProva, idQuestao, fullData);
   };
 }

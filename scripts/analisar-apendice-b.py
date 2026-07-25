@@ -450,17 +450,21 @@ def main():
     # Separar os subsets de dados para cada uma das 5 áreas + consolidado
     lc_df = df[df['area'] == 'Linguagens'].copy()
     ch_df = df[df['area'] == 'Humanas'].copy()
+    ch_lc_df = df[df['area'].isin(['Linguagens', 'Humanas'])].copy()
     cn_df = df[df['area'] == 'Natureza'].copy()
     mt_df = df[df['area'] == 'Matematica'].copy()
     int_df = df[df['area'] == 'Interdisciplinar'].copy()
 
     all_cases_list = lc_cases_list + ch_cases_list + cn_cases_list + mt_cases_list + int_cases_list
+    ch_lc_cases_list = lc_cases_list + ch_cases_list
 
     # Processar cada segmento
     print("Processing segment: Linguagens...")
     lc_results = process_segment(lc_df, lc_cases_list, cutoff_year=2025)
     print("Processing segment: Ciências Humanas...")
     ch_results = process_segment(ch_df, ch_cases_list, cutoff_year=2025)
+    print("Processing segment: Humanas + Linguagens (50)...")
+    ch_lc_results = process_segment(ch_lc_df, ch_lc_cases_list, cutoff_year=2025)
     print("Processing segment: Ciências da Natureza...")
     cn_results = process_segment(cn_df, cn_cases_list, cutoff_year=2025)
     print("Processing segment: Matemática e Tecnologias...")
@@ -470,12 +474,22 @@ def main():
     print("Processing segment: Consolidado (Geral 125)...")
     consolidado_results = process_segment(df, all_cases_list, cutoff_year=2025)
 
-    if not lc_results or not ch_results or not cn_results or not mt_results or not int_results or not consolidado_results:
+    if not lc_results or not ch_results or not ch_lc_results or not cn_results or not mt_results or not int_results or not consolidado_results:
         print("Error: Could not process all segments.")
         return
 
     # Salvar estrutura multissegmentada no JSON
     stats_summary = {
+        'humanas_linguagens': {
+            'n_total': ch_lc_results['n_total'],
+            'n_pre_cutoff': ch_lc_results['n_pre_cutoff'],
+            'n_post_cutoff': ch_lc_results['n_post_cutoff'],
+            'correlations': ch_lc_results['correlations'],
+            'comparisons': ch_lc_results['comparisons'],
+            'faixas_stats': ch_lc_results['faixas_stats'],
+            'case_studies': ch_lc_results['case_studies'],
+            'questions_list': ch_lc_results['questions_list']
+        },
         'linguagens': {
             'n_total': lc_results['n_total'],
             'n_pre_cutoff': lc_results['n_pre_cutoff'],
@@ -609,11 +623,11 @@ def main():
     plt.savefig(os.path.join(charts_dir, 'dispersao_apendice_b.png'), dpi=150)
     plt.close()
     
-    # 5. Escrever o relatório markdown usando substituições simples com dados do consolidado
+    areas_desc = "Linguagens e Códigos (LC) e Ciências Humanas (CH)" if consolidado_results['n_total'] == 50 else "Linguagens, Humanas, Natureza, Matemática e Interdisciplinar FUVEST"
     report_template = """# Relatório Estendido de Validação e Projeção de Dificuldade da IA (N = {n_total})
  
 **Data da Análise:** {data}
-**Número de Amostras:** {n_total} questões de Linguagens e Códigos (LC) e Ciências Humanas (CH)
+**Número de Amostras:** {n_total} questões ({areas_desc})
 **Scale Normalization:** Apêndice B normalizado linearmente de [5, 25] para [0, 100] via:
 $$\\text{Ap. B \\%} = \\frac{\\text{Pontuação} - 5}{20} \\times 100$$
  
@@ -689,6 +703,7 @@ Abaixo estão as três comparações diretas de escalas, calculando os coeficien
     correlations_glob = consolidado_results['correlations']
     
     report_formatted = report_template.replace("{data}", pd.Timestamp.now().strftime("%d/%m/%Y, %H:%M:%S"))
+    report_formatted = report_formatted.replace("{areas_desc}", areas_desc)
     report_formatted = report_formatted.replace("{n_total}", str(consolidado_results['n_total']))
     report_formatted = report_formatted.replace("{n_pre_cutoff}", str(consolidado_results['n_pre_cutoff']))
     report_formatted = report_formatted.replace("{n_post_cutoff}", str(consolidado_results['n_post_cutoff']))

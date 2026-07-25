@@ -1,11 +1,8 @@
-import { CropperState } from "../cropper/cropper-state.js";
-import {
-  highlightGroup,
-  initSelectionOverlay,
-} from "../cropper/selection-overlay.js";
-import { viewerState } from "../main.js";
-import { showConfirmModal } from "../ui/modal-confirm.js";
-import { SidebarPageManager } from "../ui/sidebar-page-manager.js";
+import { CropperState } from '../cropper/cropper-state.js';
+import { highlightGroup, initSelectionOverlay } from '../cropper/selection-overlay.js';
+import { viewerState } from '../main.js';
+import { showConfirmModal } from '../ui/modal-confirm.js';
+import { SidebarPageManager } from '../ui/sidebar-page-manager.js';
 import {
   addLogToQuestionTab,
   createQuestionTab,
@@ -14,10 +11,10 @@ import {
   isHubActive,
   setHubRenderCallback,
   updateTabStatus,
-} from "../ui/sidebar-tabs.js";
+} from '../ui/sidebar-tabs.js';
 
 export function initSidebarCropper() {
-  const sidebar = document.getElementById("viewerSidebar");
+  const sidebar = document.getElementById('viewerSidebar');
   if (!sidebar) return;
 
   // Inicializa o sistema de abas
@@ -35,20 +32,18 @@ export function initSidebarCropper() {
   // Mas o SidebarPageManager já ocupa o espaço.
   // Vamos injetar o botão "Adicionar" DEPOIS do container de páginas.
 
-  let btnContainer = document.getElementById("sidebar-actions-footer");
+  let btnContainer = document.getElementById('sidebar-actions-footer');
   if (!btnContainer) {
-    btnContainer = document.createElement("div");
-    btnContainer.id = "sidebar-actions-footer";
+    btnContainer = document.createElement('div');
+    btnContainer.id = 'sidebar-actions-footer';
     // Estilo simples para espaçamento
-    btnContainer.style.padding = "10px";
-    btnContainer.style.borderTop = "1px solid var(--border-color)";
+    btnContainer.style.padding = '10px';
+    btnContainer.style.borderTop = '1px solid var(--border-color)';
 
     // Inserir após o container de páginas
-    const pagesContainer = document.getElementById(
-      SidebarPageManager.containerId,
-    );
+    const pagesContainer = document.getElementById(SidebarPageManager.containerId);
     if (pagesContainer) {
-      pagesContainer.insertAdjacentElement("afterend", btnContainer);
+      pagesContainer.insertAdjacentElement('afterend', btnContainer);
     } else {
       sidebar.appendChild(btnContainer);
     }
@@ -69,7 +64,7 @@ export function initSidebarCropper() {
   initSelectionOverlay();
 
   // FIX: User request "acompanhar scroll quando criando questao"
-  document.addEventListener("maia:pagechanged", () => {
+  document.addEventListener('maia:pagechanged', () => {
     // Se tivermos um grupo ativo SEM recortes (estamos criando),
     // ele deve "pular" para a página nova conforme o usuário scrolla.
     const active = CropperState.getActiveGroup();
@@ -85,21 +80,21 @@ export function initSidebarCropper() {
  */
 function renderHubContent(container) {
   // Garantir que os containers necessários existam dentro do container fornecido
-  let pagesContainer = container.querySelector("#sidebar-pages-container");
+  let pagesContainer = container.querySelector('#sidebar-pages-container');
   if (!pagesContainer) {
-    pagesContainer = document.createElement("div");
-    pagesContainer.id = "sidebar-pages-container";
-    pagesContainer.className = "sidebar-pages-container";
-    pagesContainer.style.pointerEvents = "auto";
+    pagesContainer = document.createElement('div');
+    pagesContainer.id = 'sidebar-pages-container';
+    pagesContainer.className = 'sidebar-pages-container';
+    pagesContainer.style.pointerEvents = 'auto';
     container.appendChild(pagesContainer);
   }
 
-  let btnContainer = container.querySelector("#sidebar-actions-footer");
+  let btnContainer = container.querySelector('#sidebar-actions-footer');
   if (!btnContainer) {
-    btnContainer = document.createElement("div");
-    btnContainer.id = "sidebar-actions-footer";
-    btnContainer.style.padding = "10px";
-    btnContainer.style.borderTop = "1px solid var(--border-color)";
+    btnContainer = document.createElement('div');
+    btnContainer.id = 'sidebar-actions-footer';
+    btnContainer.style.padding = '10px';
+    btnContainer.style.borderTop = '1px solid var(--border-color)';
     container.appendChild(btnContainer);
   }
 
@@ -121,32 +116,32 @@ function renderSidebarContent() {
   // Vamos limpar individualmente as listas de questões das páginas que vamos tocar?
   // Ou melhor: Limpar TODAS as listas de questões visíveis.
 
-  const allQuestionLists = document.querySelectorAll(".page-questions-list");
+  const allQuestionLists = document.querySelectorAll('.page-questions-list');
   // Store placeholders content to restore later if the page remains empty of groups
   const preservedPlaceholders = {};
 
   allQuestionLists.forEach((el) => {
-    const placeholder = el.querySelector(".empty-page-placeholder");
+    const placeholder = el.querySelector('.empty-page-placeholder');
     if (placeholder) {
       // Find page number from parent details id 'page-details-X'
-      const details = el.closest(".page-details-group");
+      const details = el.closest('.page-details-group');
       if (details) {
-        const idParts = details.id.split("-");
+        const idParts = details.id.split('-');
         const pageNum = parseInt(idParts[idParts.length - 1]);
         preservedPlaceholders[pageNum] = placeholder;
       }
     }
-    el.innerHTML = "";
+    el.innerHTML = '';
   });
 
   const groups = CropperState.groups;
   const activeGroup = CropperState.getActiveGroup();
 
   // Garante que o botão global de adicionar (rodapé) esteja presente
-  const footer = document.getElementById("sidebar-actions-footer");
+  const footer = document.getElementById('sidebar-actions-footer');
   if (footer) {
     // Remove empty state antigo se houver
-    const empty = footer.querySelector(".cropper-empty-state");
+    const empty = footer.querySelector('.cropper-empty-state');
     if (empty) empty.remove();
 
     // Renderiza botão de adicionar
@@ -158,7 +153,7 @@ function renderSidebarContent() {
 
   groups.forEach((group) => {
     // Skip rendering for slot-mode groups
-    if (group.tags && group.tags.includes("slot-mode")) return;
+    if (group.tags && group.tags.includes('slot-mode')) return;
 
     // Determinar a página
     let pageNum = 1;
@@ -173,7 +168,7 @@ function renderSidebarContent() {
     } else {
       // Se não tiver crop, tenta pegar a página atual do viewer ou assume 1
       // Tenta pegar de uma variável global ou data attribute
-      const viewer = document.getElementById("viewer"); // PDF.js wrapper container often has info
+      const viewer = document.getElementById('viewer'); // PDF.js wrapper container often has info
       // Fallback: Se estamos no meio de um processo, talvez ScannerUI.activePage
       // Melhor: Se for criação manual, o usuário está vendo uma página.
       // Vamos tentar inferir ou usar 1.
@@ -226,9 +221,9 @@ function renderSidebarContent() {
 
   setTimeout(() => {
     // O seletor deve bater com a classe usada em createGroupCard (.active)
-    const activeCard = document.querySelector(".cropper-group-item.active");
+    const activeCard = document.querySelector('.cropper-group-item.active');
     if (activeCard) {
-      activeCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       // User Request (Refinement): "fechar o que não for usado"
       // Se estamos editando um grupo (activeGroup existe), fecha as outras páginas
@@ -237,9 +232,9 @@ function renderSidebarContent() {
       // Já calculamos 'pageNum' dentro do loop, mas aqui estamos fora.
       // Vamos re-calcular ou pegar do DOM?
       // Pegando do DOM é mais seguro pois é onde o card foi renderizado.
-      const parentDetails = activeCard.closest(".page-details-group");
+      const parentDetails = activeCard.closest('.page-details-group');
       if (parentDetails) {
-        const idParts = parentDetails.id.split("-");
+        const idParts = parentDetails.id.split('-');
         const activePageNum = parseInt(idParts[idParts.length - 1]);
 
         // Fecha todas menos esta
@@ -252,10 +247,10 @@ function renderSidebarContent() {
 function renderAddButton(container) {
   if (!container) return;
   // Evita duplicar
-  if (container.querySelector(".btn-add-question")) return;
+  if (container.querySelector('.btn-add-question')) return;
 
-  const btnAdd = document.createElement("button");
-  btnAdd.className = "btn btn--primary btn--full-width btn-add-question";
+  const btnAdd = document.createElement('button');
+  btnAdd.className = 'btn btn--primary btn--full-width btn-add-question';
   btnAdd.innerHTML = `<span class="icon">＋</span> Adicionar Nova Questão`;
   btnAdd.onclick = () => {
     // Tenta capturar página atual antes de criar
@@ -265,10 +260,10 @@ function renderAddButton(container) {
 
     // [FIX] Mobile: Fecha sidebar para user ver o PDF
     if (window.innerWidth <= 900) {
-      import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+      import('./sidebar.js').then(({ esconderPainel }) => esconderPainel());
     }
 
-    CropperState.createGroup({ tags: ["manual", "NOVO"] });
+    CropperState.createGroup({ tags: ['manual', 'NOVO'] });
 
     // Scroll?
   };
@@ -277,26 +272,26 @@ function renderAddButton(container) {
 
 function renderEmptyStateGlobal(container) {
   if (!container) return;
-  container.innerHTML = ""; // Limpa botão de add se tiver
+  container.innerHTML = ''; // Limpa botão de add se tiver
 
-  const emptyMsg = document.createElement("div");
-  emptyMsg.className = "cropper-empty-state";
+  const emptyMsg = document.createElement('div');
+  emptyMsg.className = 'cropper-empty-state';
   emptyMsg.innerHTML = `
       <div style="font-size: 2rem; margin-bottom: 0.5rem;">✂️</div>
       <p>Nenhuma questão criada</p>
       <small>Adicione uma questão para começar a recortar</small>
     `;
 
-  const btnAdd = document.createElement("button");
-  btnAdd.className = "btn btn--primary btn--full-width btn-add-question";
-  btnAdd.style.marginTop = "1rem";
+  const btnAdd = document.createElement('button');
+  btnAdd.className = 'btn btn--primary btn--full-width btn-add-question';
+  btnAdd.style.marginTop = '1rem';
   btnAdd.innerHTML = `<span class="icon">＋</span> Adicionar Nova Questão`;
   btnAdd.onclick = () => {
     // [FIX] Mobile: Fecha sidebar
     if (window.innerWidth <= 900) {
-      import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+      import('./sidebar.js').then(({ esconderPainel }) => esconderPainel());
     }
-    CropperState.createGroup({ tags: ["manual", "NOVO"] });
+    CropperState.createGroup({ tags: ['manual', 'NOVO'] });
   };
 
   emptyMsg.appendChild(btnAdd);
@@ -304,8 +299,8 @@ function renderEmptyStateGlobal(container) {
 }
 
 function createGroupCard(group, isEditing) {
-  const item = document.createElement("div");
-  item.className = `cropper-group-item ${isEditing ? "active" : ""}`;
+  const item = document.createElement('div');
+  item.className = `cropper-group-item ${isEditing ? 'active' : ''}`;
 
   // Apply visual color indicator (Left Border + Subtle BG)
   const color = CropperState.getGroupColor(group);
@@ -315,10 +310,10 @@ function createGroupCard(group, isEditing) {
   const initialBackground = `linear-gradient(90deg, ${color}15 0%, transparent 40%)`;
   const fullBackground = `linear-gradient(90deg, ${color}40 0%, ${color}20 50%, transparent 100%)`;
   item.style.background = initialBackground;
-  item.style.transition = "background 0.4s ease";
+  item.style.transition = 'background 0.4s ease';
 
   // HOVER ANIMATION: Controlada 100% via JavaScript
-  let hoverTimeout = null;
+  const hoverTimeout = null;
   let isHighlightActive = false;
   let animationFrame = null;
   let animationStartTime = null;
@@ -336,9 +331,9 @@ function createGroupCard(group, isEditing) {
     const stop2 = Math.round(0 + 50 * progress); // 0% -> 50%
 
     if (progress < 0.1) {
-      return `linear-gradient(90deg, ${color}${opacity1.toString(16).padStart(2, "0")} 0%, transparent ${stop1}%)`;
+      return `linear-gradient(90deg, ${color}${opacity1.toString(16).padStart(2, '0')} 0%, transparent ${stop1}%)`;
     }
-    return `linear-gradient(90deg, ${color}${opacity1.toString(16).padStart(2, "0")} 0%, ${color}${opacity2.toString(16).padStart(2, "0")} ${stop2}%, transparent ${stop1}%)`;
+    return `linear-gradient(90deg, ${color}${opacity1.toString(16).padStart(2, '0')} 0%, ${color}${opacity2.toString(16).padStart(2, '0')} ${stop2}%, transparent ${stop1}%)`;
   }
 
   // Animação de entrada (0% -> 100% em 1 segundo)
@@ -383,10 +378,10 @@ function createGroupCard(group, isEditing) {
     }
   }
 
-  item.addEventListener("mouseenter", () => {
+  item.addEventListener('mouseenter', () => {
     // Bloqueia hover se estiver editando ou se a IA estiver rodando
     if (isEditing) return;
-    if (document.body.classList.contains("ai-scanning-active")) return;
+    if (document.body.classList.contains('ai-scanning-active')) return;
 
     // Cancela qualquer animação em andamento
     if (animationFrame) {
@@ -399,7 +394,7 @@ function createGroupCard(group, isEditing) {
     animationFrame = requestAnimationFrame(animateIn);
   });
 
-  item.addEventListener("mouseleave", () => {
+  item.addEventListener('mouseleave', () => {
     // Cancela animação de entrada se ainda não completou
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
@@ -418,15 +413,15 @@ function createGroupCard(group, isEditing) {
   });
 
   // HEADER (Título + Contador)
-  const header = document.createElement("div");
-  header.className = "cropper-group-header";
+  const header = document.createElement('div');
+  header.className = 'cropper-group-header';
 
-  const title = document.createElement("span");
-  title.className = "cropper-group-title";
+  const title = document.createElement('span');
+  title.className = 'cropper-group-title';
   title.innerText = group.label;
 
-  const count = document.createElement("span");
-  count.className = "cropper-group-count";
+  const count = document.createElement('span');
+  count.className = 'cropper-group-count';
   count.innerText = `${group.crops.length}`;
 
   header.appendChild(title);
@@ -434,29 +429,29 @@ function createGroupCard(group, isEditing) {
   // Render Tags (Safety Checked)
   try {
     if (Array.isArray(group.tags) && group.tags.length > 0) {
-      const tagsContainer = document.createElement("div");
-      tagsContainer.className = "cropper-group-tags";
-      tagsContainer.style.display = "flex";
-      tagsContainer.style.gap = "4px";
-      tagsContainer.style.marginLeft = "auto";
-      tagsContainer.style.marginRight = "8px";
+      const tagsContainer = document.createElement('div');
+      tagsContainer.className = 'cropper-group-tags';
+      tagsContainer.style.display = 'flex';
+      tagsContainer.style.gap = '4px';
+      tagsContainer.style.marginLeft = 'auto';
+      tagsContainer.style.marginRight = '8px';
 
       group.tags.forEach((tag) => {
-        const badge = document.createElement("span");
+        const badge = document.createElement('span');
         badge.className = `question-badge`;
 
         // Add specific class based on tag
-        if (tag === "manual" || tag === "ia" || tag === "revisada") {
+        if (tag === 'manual' || tag === 'ia' || tag === 'revisada') {
           badge.classList.add(tag);
         }
 
         // Set text content
-        if (tag === "manual") {
-          badge.innerText = "MANUAL";
-        } else if (tag === "ia") {
-          badge.innerText = "IA";
-        } else if (tag === "revisada") {
-          badge.innerText = "REVISADA";
+        if (tag === 'manual') {
+          badge.innerText = 'MANUAL';
+        } else if (tag === 'ia') {
+          badge.innerText = 'IA';
+        } else if (tag === 'revisada') {
+          badge.innerText = 'REVISADA';
         } else {
           badge.innerText = tag;
         }
@@ -466,7 +461,7 @@ function createGroupCard(group, isEditing) {
       header.appendChild(tagsContainer);
     }
   } catch (err) {
-    console.warn("Error rendering tags:", err);
+    console.warn('Error rendering tags:', err);
   }
 
   header.appendChild(count);
@@ -477,22 +472,22 @@ function createGroupCard(group, isEditing) {
 
   // Helper to escape HTML strings safely
   const escapeHtmlStr = (str) => {
-    if (!str) return "";
+    if (!str) return '';
     return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   };
 
   // --- INSTRUCTION UI (PERSISTENT / EDITABLE ON CARD) ---
-  if (!isEditing && group.status !== "sent" && group.status !== "ready") {
+  if (!isEditing && group.status !== 'sent' && group.status !== 'ready') {
     const isEditingInstruction = window.__editingInstructionGroupIds.has(group.id);
 
     if (isEditingInstruction) {
-      const editorDiv = document.createElement("div");
-      editorDiv.className = "cropper-instruction-editor";
+      const editorDiv = document.createElement('div');
+      editorDiv.className = 'cropper-instruction-editor';
       editorDiv.style.cssText = `
         margin-top: 6px;
         margin-bottom: 8px;
@@ -505,7 +500,7 @@ function createGroupCard(group, isEditing) {
         gap: 6px;
       `;
 
-      const label = document.createElement("label");
+      const label = document.createElement('label');
       label.style.cssText = `
         font-size: 0.75rem;
         font-weight: 700;
@@ -516,9 +511,10 @@ function createGroupCard(group, isEditing) {
       `;
       label.innerHTML = `⚡ <span>Instrução Personalizada</span> <span style="font-size: 0.65rem; background: rgba(168, 85, 247, 0.25); color: #e9d5ff; padding: 1px 6px; border-radius: 4px; font-weight: 600;">PRIORIDADE MÁXIMA</span>`;
 
-      const textarea = document.createElement("textarea");
-      textarea.placeholder = "Ex: Esta questão é de Química Orgânica / Foque na tabela / Ignore a anotação no canto...";
-      textarea.value = group.customInstruction || "";
+      const textarea = document.createElement('textarea');
+      textarea.placeholder =
+        'Ex: Esta questão é de Química Orgânica / Foque na tabela / Ignore a anotação no canto...';
+      textarea.value = group.customInstruction || '';
       textarea.style.cssText = `
         width: 100%;
         min-height: 54px;
@@ -534,23 +530,24 @@ function createGroupCard(group, isEditing) {
         box-sizing: border-box;
       `;
 
-      const btnRow = document.createElement("div");
-      btnRow.style.cssText = "display: flex; justify-content: flex-end; gap: 6px;";
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display: flex; justify-content: flex-end; gap: 6px;';
 
-      const btnCancel = document.createElement("button");
-      btnCancel.className = "btn btn--sm btn--outline";
-      btnCancel.innerText = "Cancelar";
-      btnCancel.style.cssText = "font-size: 0.75rem; padding: 3px 8px;";
+      const btnCancel = document.createElement('button');
+      btnCancel.className = 'btn btn--sm btn--outline';
+      btnCancel.innerText = 'Cancelar';
+      btnCancel.style.cssText = 'font-size: 0.75rem; padding: 3px 8px;';
       btnCancel.onclick = (e) => {
         e.stopPropagation();
         window.__editingInstructionGroupIds.delete(group.id);
         CropperState.notify();
       };
 
-      const btnSave = document.createElement("button");
-      btnSave.className = "btn btn--sm btn--primary";
-      btnSave.innerText = "Salvar";
-      btnSave.style.cssText = "font-size: 0.75rem; padding: 3px 8px; background: #a855f7; border-color: #a855f7; color: #fff;";
+      const btnSave = document.createElement('button');
+      btnSave.className = 'btn btn--sm btn--primary';
+      btnSave.innerText = 'Salvar';
+      btnSave.style.cssText =
+        'font-size: 0.75rem; padding: 3px 8px; background: #a855f7; border-color: #a855f7; color: #fff;';
       btnSave.onclick = (e) => {
         e.stopPropagation();
         const val = textarea.value.trim();
@@ -567,8 +564,8 @@ function createGroupCard(group, isEditing) {
 
       item.appendChild(editorDiv);
     } else if (group.customInstruction) {
-      const badgeBox = document.createElement("div");
-      badgeBox.className = "cropper-instruction-badge";
+      const badgeBox = document.createElement('div');
+      badgeBox.className = 'cropper-instruction-badge';
       badgeBox.style.cssText = `
         background: rgba(168, 85, 247, 0.12);
         border: 1px dashed rgba(168, 85, 247, 0.6);
@@ -584,31 +581,34 @@ function createGroupCard(group, isEditing) {
         gap: 6px;
       `;
 
-      const textSpan = document.createElement("span");
-      textSpan.style.cssText = "overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;";
+      const textSpan = document.createElement('span');
+      textSpan.style.cssText =
+        'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;';
       textSpan.title = group.customInstruction;
       textSpan.innerHTML = `⚡ <strong style="color: #c084fc;">Prioridade Máxima:</strong> "${escapeHtmlStr(group.customInstruction)}"`;
 
-      const actionBtns = document.createElement("div");
-      actionBtns.style.cssText = "display: flex; gap: 4px; align-items: center; flex-shrink: 0;";
+      const actionBtns = document.createElement('div');
+      actionBtns.style.cssText = 'display: flex; gap: 4px; align-items: center; flex-shrink: 0;';
 
-      const btnEditInst = document.createElement("button");
-      btnEditInst.title = "Editar instrução";
-      btnEditInst.innerText = "✏️";
-      btnEditInst.style.cssText = "background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.8rem; opacity: 0.85;";
+      const btnEditInst = document.createElement('button');
+      btnEditInst.title = 'Editar instrução';
+      btnEditInst.innerText = '✏️';
+      btnEditInst.style.cssText =
+        'background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.8rem; opacity: 0.85;';
       btnEditInst.onclick = (e) => {
         e.stopPropagation();
         window.__editingInstructionGroupIds.add(group.id);
         CropperState.notify();
       };
 
-      const btnClearInst = document.createElement("button");
-      btnClearInst.title = "Remover instrução";
-      btnClearInst.innerText = "✕";
-      btnClearInst.style.cssText = "background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.85rem; color: #f87171;";
+      const btnClearInst = document.createElement('button');
+      btnClearInst.title = 'Remover instrução';
+      btnClearInst.innerText = '✕';
+      btnClearInst.style.cssText =
+        'background: none; border: none; cursor: pointer; padding: 2px; font-size: 0.85rem; color: #f87171;';
       btnClearInst.onclick = (e) => {
         e.stopPropagation();
-        CropperState.setCustomInstruction(group.id, "");
+        CropperState.setCustomInstruction(group.id, '');
       };
 
       actionBtns.appendChild(btnEditInst);
@@ -622,34 +622,34 @@ function createGroupCard(group, isEditing) {
   }
 
   // ACTIONS CONTAINER
-  const actionsDiv = document.createElement("div");
-  actionsDiv.className = "cropper-actions";
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'cropper-actions';
 
   if (isEditing) {
     // --- MODO EDIÇÃO (INLINE) ---
 
     // Container para botões de undo lado a lado
-    const undoContainer = document.createElement("div");
-    undoContainer.style.display = "flex";
-    undoContainer.style.gap = "0.5rem";
-    undoContainer.style.marginBottom = "0.5rem";
+    const undoContainer = document.createElement('div');
+    undoContainer.style.display = 'flex';
+    undoContainer.style.gap = '0.5rem';
+    undoContainer.style.marginBottom = '0.5rem';
 
-    const btnUndo = document.createElement("button");
-    btnUndo.className = "btn btn--secondary btn--sm";
-    btnUndo.style.flex = "1";
-    btnUndo.innerText = "⟲ Desfazer";
-    btnUndo.title = "Desfazer última ação (Ctrl+Z)";
+    const btnUndo = document.createElement('button');
+    btnUndo.className = 'btn btn--secondary btn--sm';
+    btnUndo.style.flex = '1';
+    btnUndo.innerText = '⟲ Desfazer';
+    btnUndo.title = 'Desfazer última ação (Ctrl+Z)';
     btnUndo.disabled = !CropperState.canUndo();
     btnUndo.onclick = (e) => {
       e.stopPropagation();
       CropperState.undo();
     };
 
-    const btnRedo = document.createElement("button");
-    btnRedo.className = "btn btn--secondary btn--sm";
-    btnRedo.style.flex = "1";
-    btnRedo.innerText = "⟳ Refazer";
-    btnRedo.title = "Refazer ação desfeita (Ctrl+Shift+Z)";
+    const btnRedo = document.createElement('button');
+    btnRedo.className = 'btn btn--secondary btn--sm';
+    btnRedo.style.flex = '1';
+    btnRedo.innerText = '⟳ Refazer';
+    btnRedo.title = 'Refazer ação desfeita (Ctrl+Shift+Z)';
     btnRedo.disabled = !CropperState.canRedo();
     btnRedo.onclick = (e) => {
       e.stopPropagation();
@@ -659,35 +659,35 @@ function createGroupCard(group, isEditing) {
     undoContainer.appendChild(btnUndo);
     undoContainer.appendChild(btnRedo);
 
-    const btnRevert = document.createElement("button");
-    btnRevert.className = "btn btn--outline btn--sm btn--full-width";
-    btnRevert.innerText = "↺ Reverter Tudo";
-    btnRevert.title = "Voltar ao estado antes de começar a editar";
-    btnRevert.style.marginBottom = "0.5rem";
+    const btnRevert = document.createElement('button');
+    btnRevert.className = 'btn btn--outline btn--sm btn--full-width';
+    btnRevert.innerText = '↺ Reverter Tudo';
+    btnRevert.title = 'Voltar ao estado antes de começar a editar';
+    btnRevert.style.marginBottom = '0.5rem';
     btnRevert.disabled = !CropperState.editingSnapshot;
     btnRevert.onclick = (e) => {
       e.stopPropagation();
       CropperState.revert();
     };
 
-    const btnCancel = document.createElement("button");
-    btnCancel.className = "btn btn--outline btn--sm btn--full-width";
-    btnCancel.innerText = "Cancelar";
-    btnCancel.style.marginBottom = "0.5rem";
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'btn btn--outline btn--sm btn--full-width';
+    btnCancel.innerText = 'Cancelar';
+    btnCancel.style.marginBottom = '0.5rem';
     btnCancel.onclick = async (e) => {
       e.stopPropagation();
 
-      const isCreatingNew =
-        Array.isArray(group.tags) && group.tags.includes("NOVO");
+      const isCreatingNew = Array.isArray(group.tags) && group.tags.includes('NOVO');
 
       if (window.__isManualPageAdd) {
         try {
-          const { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } =
-            await import("../cropper/cropper-core.js");
+          const { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } = await import(
+            '../cropper/cropper-core.js'
+          );
           await restaurarVisualizacaoOriginal();
           resetarInterfaceBotoes();
         } catch (err) {
-          console.error("Erro ao limpar modo manual:", err);
+          console.error('Erro ao limpar modo manual:', err);
         }
       }
 
@@ -701,15 +701,15 @@ function createGroupCard(group, isEditing) {
       }
     };
 
-    const btnDone = document.createElement("button");
-    btnDone.className = "btn btn--primary btn--sm btn--full-width";
-    btnDone.innerText = "Concluir";
+    const btnDone = document.createElement('button');
+    btnDone.className = 'btn btn--primary btn--sm btn--full-width';
+    btnDone.innerText = 'Concluir';
 
     if (group.crops.length === 0) {
       btnDone.disabled = true;
-      btnDone.style.opacity = "0.5";
-      btnDone.style.cursor = "not-allowed";
-      btnDone.title = "Faça pelo menos uma seleção para concluir";
+      btnDone.style.opacity = '0.5';
+      btnDone.style.cursor = 'not-allowed';
+      btnDone.title = 'Faça pelo menos uma seleção para concluir';
     }
 
     btnDone.onclick = async (e) => {
@@ -720,11 +720,11 @@ function createGroupCard(group, isEditing) {
       // Logic: If tag is 'ia', switch to 'revisada', also remove 'NOVO'
       if (Array.isArray(group.tags)) {
         // Remove NOVO marker on done
-        group.tags = group.tags.filter((t) => t !== "NOVO");
+        group.tags = group.tags.filter((t) => t !== 'NOVO');
 
-        if (group.tags.includes("ia")) {
-          group.tags = group.tags.filter((t) => t !== "ia");
-          group.tags.push("revisada");
+        if (group.tags.includes('ia')) {
+          group.tags = group.tags.filter((t) => t !== 'ia');
+          group.tags.push('revisada');
         }
       } else if (!group.tags) {
         group.tags = [];
@@ -732,12 +732,13 @@ function createGroupCard(group, isEditing) {
 
       if (window.__isManualPageAdd) {
         try {
-          const { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } =
-            await import("../cropper/cropper-core.js");
+          const { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } = await import(
+            '../cropper/cropper-core.js'
+          );
           await restaurarVisualizacaoOriginal();
           resetarInterfaceBotoes();
         } catch (err) {
-          console.error("Erro ao limpar modo manual:", err);
+          console.error('Erro ao limpar modo manual:', err);
         }
       }
 
@@ -751,7 +752,7 @@ function createGroupCard(group, isEditing) {
   } else {
     // --- VERIFICAÇÃO DE ESTADO DE PROCESSAMENTO (FIX) ---
     // Verifica se existe uma aba de processamento ativa para este grupo
-    let isProcessing = false;
+    const isProcessing = false;
     // Import dinâmico ou acesso global? tabsState é exportado?
     // Vamos usar uma abordagem baseada em classe CSS ou atributo no grupo se possível.
     // Mas o estado está no sidebar-tabs. Precisamos checar lá.
@@ -763,7 +764,7 @@ function createGroupCard(group, isEditing) {
     const tabs = getTabsState().tabs;
     const relatedTab = tabs.find((t) => t.groupId === group.id);
 
-    if (group.status === "sent") {
+    if (group.status === 'sent') {
       // [NOVO] Estado Salvo/Concluído (Solicitado pelo User)
       // Prioridade ALTA: Se já foi enviado, mostra sucesso mesmo se a aba ainda estiver fechando
       actionsDiv.innerHTML = `
@@ -785,7 +786,7 @@ function createGroupCard(group, isEditing) {
             ✅ Salvo no banco de dados!
         </div>
       `;
-    } else if (group.status === "ready") {
+    } else if (group.status === 'ready') {
       // [BATCH] Questão processada pela IA, aguardando envio manual
       actionsDiv.innerHTML = `
         <div style="
@@ -830,23 +831,23 @@ function createGroupCard(group, isEditing) {
       `;
     } else {
       // --- MODO VISUALIZAÇÃO NORMAL ---
-      const btnSend = document.createElement("button");
-      btnSend.className = "btn btn--sm btn--primary";
-      btnSend.style.flex = "1";
-      btnSend.innerText = "Enviar";
+      const btnSend = document.createElement('button');
+      btnSend.className = 'btn btn--sm btn--primary';
+      btnSend.style.flex = '1';
+      btnSend.innerText = 'Enviar';
       btnSend.onclick = async (e) => {
         e.stopPropagation();
 
         const confirmMsg = group.customInstruction
           ? `Você está prestes a enviar esta questão para processamento.\n\n⚡ INSTRUÇÃO DE PRIORIDADE MÁXIMA:\n"${group.customInstruction}"`
-          : "Você está prestes a enviar esta questão para processamento. Este processo envolve chamadas à IA e não pode ser cancelado após iniciado.";
+          : 'Você está prestes a enviar esta questão para processamento. Este processo envolve chamadas à IA e não pode ser cancelado após iniciado.';
 
         // Modal de confirmação
         const confirmed = await showConfirmModal(
-          "Enviar Questão",
+          'Enviar Questão',
           confirmMsg,
-          "Enviar",
-          "Cancelar",
+          'Enviar',
+          'Cancelar',
           true, // isPositiveAction - cor primária
         );
 
@@ -856,8 +857,8 @@ function createGroupCard(group, isEditing) {
         const tabId = createQuestionTab(group.id, group.label);
 
         // Atualizar status inicial
-        updateTabStatus(tabId, { status: "processing", progress: 10 });
-        addLogToQuestionTab(tabId, "Iniciando processamento...");
+        updateTabStatus(tabId, { status: 'processing', progress: 10 });
+        addLogToQuestionTab(tabId, 'Iniciando processamento...');
 
         // Força um update no CropperState para disparar re-render (agora com estado 'processing' detectado)
         // Mas como o render é async por causa do import, talvez seja melhor setar manual agora também
@@ -884,35 +885,36 @@ function createGroupCard(group, isEditing) {
             `;
 
         // Processar a questão
-        import("../cropper/save-handlers.js").then((mod) => {
+        import('../cropper/save-handlers.js').then((mod) => {
           mod.salvarQuestaoEmLote(group.id, tabId);
         });
       };
 
-      const btnEdit = document.createElement("button");
-      btnEdit.className = "btn btn--sm btn--secondary";
-      btnEdit.innerText = "Editar";
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'btn btn--sm btn--secondary';
+      btnEdit.innerText = 'Editar';
       btnEdit.onclick = (e) => {
         e.stopPropagation();
 
         // [FIX] Mobile: Fecha sidebar
         if (window.innerWidth <= 900) {
-          import("./sidebar.js").then(({ esconderPainel }) => esconderPainel());
+          import('./sidebar.js').then(({ esconderPainel }) => esconderPainel());
         }
 
         CropperState.setActiveGroup(group.id);
       };
 
-      const btnInstruction = document.createElement("button");
-      btnInstruction.className = "btn btn--sm btn--outline btn-instrucao";
+      const btnInstruction = document.createElement('button');
+      btnInstruction.className = 'btn btn--sm btn--outline btn-instrucao';
       if (group.customInstruction) {
-        btnInstruction.style.cssText = "border-color: #a855f7; color: #c084fc; background: rgba(168, 85, 247, 0.18);";
-        btnInstruction.innerText = "⚡ Instrução";
+        btnInstruction.style.cssText =
+          'border-color: #a855f7; color: #c084fc; background: rgba(168, 85, 247, 0.18);';
+        btnInstruction.innerText = '⚡ Instrução';
       } else {
-        btnInstruction.style.cssText = "border-color: rgba(168, 85, 247, 0.4); color: #c084fc;";
-        btnInstruction.innerText = "+ Instrução";
+        btnInstruction.style.cssText = 'border-color: rgba(168, 85, 247, 0.4); color: #c084fc;';
+        btnInstruction.innerText = '+ Instrução';
       }
-      btnInstruction.title = "Adicionar instrução personalizada para a IA com prioridade máxima";
+      btnInstruction.title = 'Adicionar instrução personalizada para a IA com prioridade máxima';
       btnInstruction.onclick = (e) => {
         e.stopPropagation();
         window.__editingInstructionGroupIds = window.__editingInstructionGroupIds || new Set();
@@ -924,19 +926,19 @@ function createGroupCard(group, isEditing) {
         CropperState.notify();
       };
 
-      const btnDel = document.createElement("button");
-      btnDel.className = "btn btn--sm btn--outline btn-icon";
-      btnDel.style.color = "var(--color-error)";
-      btnDel.style.borderColor = "var(--color-error)";
-      btnDel.innerHTML = "🗑️";
-      btnDel.title = "Excluir Questão";
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn btn--sm btn--outline btn-icon';
+      btnDel.style.color = 'var(--color-error)';
+      btnDel.style.borderColor = 'var(--color-error)';
+      btnDel.innerHTML = '🗑️';
+      btnDel.title = 'Excluir Questão';
       btnDel.onclick = async (e) => {
         e.stopPropagation();
         const confirmed = await showConfirmModal(
-          "Excluir Questão",
+          'Excluir Questão',
           `Tem certeza que deseja excluir "${group.label}"?`,
-          "Excluir",
-          "Cancelar",
+          'Excluir',
+          'Cancelar',
         );
         if (confirmed) {
           CropperState.deleteGroup(group.id);

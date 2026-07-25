@@ -1,10 +1,9 @@
 ﻿// --- CONFIG ---
-const PROD_WORKER_URL =
-  import.meta.env.VITE_WORKER_URL || "https://your-worker.workers.dev";
+const PROD_WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://your-worker.workers.dev';
 
 // Importa o visualizador
-import { SearchPersistence } from "./search-persistence.js";
-import { TerminalUI } from "./terminal-ui.js";
+import { SearchPersistence } from './search-persistence.js';
+import { TerminalUI } from './terminal-ui.js';
 
 // --- STATE ---
 let currentSlug = null;
@@ -18,13 +17,12 @@ let terminalInstance = null; // Guardar referencia global
 
 const normalizeItem = (item) => {
   // Helper to ensure item has standard props
-  let newItem = { ...item };
+  const newItem = { ...item };
   if (!newItem.name && newItem.nome) newItem.name = newItem.nome;
-  if (!newItem.name && newItem.friendly_name)
-    newItem.name = newItem.friendly_name;
+  if (!newItem.name && newItem.friendly_name) newItem.name = newItem.friendly_name;
 
   // REFERENCE ITEM LOGIC
-  if (newItem.status === "reference") {
+  if (newItem.status === 'reference') {
     if (!newItem.url) {
       // Try common fields for external links
       newItem.url =
@@ -35,16 +33,16 @@ const normalizeItem = (item) => {
         newItem.external_url;
     }
     // If still empty, it might be a broken reference.
-    if (!newItem.url) newItem.url = "#broken-reference";
+    if (!newItem.url) newItem.url = '#broken-reference';
   } else {
     // Normal File Logic
     if (!newItem.url) {
       let path = newItem.path || newItem.filename || newItem.arquivo_local;
-      if (path && !path.startsWith("http")) {
+      if (path && !path.startsWith('http')) {
         // Construct full URL for verification
         const prefix = `output/${currentSlug}`;
         // Handle 'files/' prefix cleanly
-        if (path.startsWith("files/")) path = path.replace("files/", "");
+        if (path.startsWith('files/')) path = path.replace('files/', '');
         newItem.url = `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/${prefix}/files/${path}`;
       }
     }
@@ -58,8 +56,7 @@ const normalizeItem = (item) => {
  * @param {Function} onConfirm - Callback({ pdfUrl, gabUrl })
  */
 export const showConflictResolutionModal = (conflictData, onConfirm) => {
-  const { slug, remote_manifest, ai_data, temp_pdf_url, temp_gabarito_url } =
-    conflictData;
+  const { slug, remote_manifest, ai_data, temp_pdf_url, temp_gabarito_url } = conflictData;
 
   // 1. Prepare Items for Cards
   // 1. Prepare Items for Cards
@@ -77,7 +74,7 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
     normalizeItem({
       ...item,
       tipo: item.type || item.tipo, // ensure type exists
-      source: "remote",
+      source: 'remote',
     }),
   );
 
@@ -86,48 +83,48 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
   if (temp_pdf_url) {
     localItems.push({
       name: `(Novo) ${ai_data.institution} ${ai_data.year}`,
-      tipo: "Prova",
+      tipo: 'Prova',
       url: temp_pdf_url,
-      source: "local",
+      source: 'local',
     });
   }
   if (temp_gabarito_url) {
     localItems.push({
       name: `(Novo) Gabarito`,
-      tipo: "Gabarito",
+      tipo: 'Gabarito',
       url: temp_gabarito_url,
-      source: "local",
+      source: 'local',
     });
   }
 
   // 2. Render Modal
-  const overlay = document.createElement("div");
+  const overlay = document.createElement('div');
   Object.assign(overlay.style, {
-    position: "fixed",
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.85)",
+    backgroundColor: 'rgba(0,0,0,0.85)',
     zIndex: 11000,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backdropFilter: "blur(8px)",
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(8px)',
   });
 
-  const modal = document.createElement("div");
+  const modal = document.createElement('div');
   Object.assign(modal.style, {
-    backgroundColor: "var(--color-surface)",
-    width: "95%",
-    maxWidth: "1000px",
-    height: "85vh",
-    borderRadius: "var(--radius-xl)",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "var(--shadow-2xl)",
-    border: "1px solid var(--color-border)",
-    overflow: "hidden",
+    backgroundColor: 'var(--color-surface)',
+    width: '95%',
+    maxWidth: '1000px',
+    height: '85vh',
+    borderRadius: 'var(--radius-xl)',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: 'var(--shadow-2xl)',
+    border: '1px solid var(--color-border)',
+    overflow: 'hidden',
   });
 
   modal.innerHTML = `
@@ -168,14 +165,14 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
   const selection = { prova: null, gabarito: null };
 
   const updateButton = () => {
-    const btn = modal.querySelector("#btnMergeConflict");
+    const btn = modal.querySelector('#btnMergeConflict');
     // Valid if we have at least a Prova selected (Gabarito optional but good)
     // Actually, let's require explicit choice if options exist.
     // For simplicity: User MUST select a Prova. Gabarito is optional if none exist.
     if (selection.prova) {
       btn.disabled = false;
-      btn.style.opacity = "1";
-      btn.style.cursor = "pointer";
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
     }
   };
 
@@ -187,15 +184,15 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
       .querySelectorAll(`.conflict-card[data-type="${type.toLowerCase()}"]`)
       .forEach((card) => {
         if (card.dataset.url === item.url) {
-          card.style.borderColor = "var(--color-primary)";
-          card.style.transform = "scale(1.02)";
-          card.style.opacity = "1";
-          card.querySelector(".check-icon").style.display = "flex";
+          card.style.borderColor = 'var(--color-primary)';
+          card.style.transform = 'scale(1.02)';
+          card.style.opacity = '1';
+          card.querySelector('.check-icon').style.display = 'flex';
         } else {
-          card.style.borderColor = "transparent";
-          card.style.transform = "scale(1)";
-          card.style.opacity = "0.6";
-          card.querySelector(".check-icon").style.display = "none";
+          card.style.borderColor = 'transparent';
+          card.style.transform = 'scale(1)';
+          card.style.opacity = '0.6';
+          card.querySelector('.check-icon').style.display = 'none';
         }
       });
     updateButton();
@@ -204,47 +201,44 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
   // Helper to render mini-cards
   const renderMiniCard = (item, containerId) => {
     const container = modal.querySelector(containerId);
-    const type = (item.tipo || "Arquivo").toLowerCase().includes("gabarito")
-      ? "gabarito"
-      : "prova";
+    const type = (item.tipo || 'Arquivo').toLowerCase().includes('gabarito') ? 'gabarito' : 'prova';
 
-    const card = document.createElement("div");
-    card.className = "conflict-card";
+    const card = document.createElement('div');
+    card.className = 'conflict-card';
     card.dataset.type = type;
     card.dataset.url = item.url;
 
     Object.assign(card.style, {
-      padding: "16px",
-      borderRadius: "12px",
-      backgroundColor: "var(--color-surface)",
-      border: "2px solid transparent",
-      boxShadow: "var(--shadow-sm)",
-      cursor: "pointer",
-      position: "relative",
-      transition: "all 0.2s",
+      padding: '16px',
+      borderRadius: '12px',
+      backgroundColor: 'var(--color-surface)',
+      border: '2px solid transparent',
+      boxShadow: 'var(--shadow-sm)',
+      cursor: 'pointer',
+      position: 'relative',
+      transition: 'all 0.2s',
     });
 
     card.innerHTML = `
             <div class="check-icon" style="display:none; position:absolute; top:-10px; right:-10px; width:24px; height:24px; background:var(--color-primary); border-radius:50%; align-items:center; justify-content:center; color:white;">✓</div>
-            <div style="font-weight:bold; color:var(--color-text); margin-bottom:4px;">${item.name || "Sem Título"}</div>
-            <div style="font-size:0.8rem; color:var(--color-text-secondary); text-transform:uppercase;">${type} • ${item.source === "remote" ? "Hugging Face" : "Local"}</div>
+            <div style="font-weight:bold; color:var(--color-text); margin-bottom:4px;">${item.name || 'Sem Título'}</div>
+            <div style="font-size:0.8rem; color:var(--color-text-secondary); text-transform:uppercase;">${type} • ${item.source === 'remote' ? 'Hugging Face' : 'Local'}</div>
           `;
 
     card.onclick = () => handleSelect(item, type);
     container.appendChild(card);
   };
 
-  remoteItems.forEach((i) => renderMiniCard(i, "#remote-list"));
-  localItems.forEach((i) => renderMiniCard(i, "#local-list"));
+  remoteItems.forEach((i) => renderMiniCard(i, '#remote-list'));
+  localItems.forEach((i) => renderMiniCard(i, '#local-list'));
 
   // 4. Actions
-  modal.querySelector("#btnCancelConflict").onclick = () => {
+  modal.querySelector('#btnCancelConflict').onclick = () => {
     document.body.removeChild(overlay);
-    if (window.SearchToaster)
-      window.SearchToaster.add("info", "Upload cancelado pelo usuário.");
+    if (window.SearchToaster) window.SearchToaster.add('info', 'Upload cancelado pelo usuário.');
   };
 
-  modal.querySelector("#btnMergeConflict").onclick = () => {
+  modal.querySelector('#btnMergeConflict').onclick = () => {
     document.body.removeChild(overlay);
     onConfirm({
       pdfUrl: selection.prova ? selection.prova.url : null,
@@ -257,92 +251,85 @@ export const showConflictResolutionModal = (conflictData, onConfirm) => {
 };
 
 export function setupSearchLogic() {
-  const btnSearch = document.getElementById("btnSearch");
-  const searchInput = document.getElementById("searchInput");
-  const searchResults = document.getElementById("searchResults");
-  const btnShowUpload = document.getElementById("btnShowUpload");
-  const btnBackToSearch = document.getElementById("btnBackToSearch");
+  const btnSearch = document.getElementById('btnSearch');
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  const btnShowUpload = document.getElementById('btnShowUpload');
+  const btnBackToSearch = document.getElementById('btnBackToSearch');
 
-  const btnTypeProvas = document.getElementById("btnTypeProvas");
-  const btnTypeQuestoes = document.getElementById("btnTypeQuestoes");
+  const btnTypeProvas = document.getElementById('btnTypeProvas');
+  const btnTypeQuestoes = document.getElementById('btnTypeQuestoes');
 
-  let currentSearchType = "provas";
+  let currentSearchType = 'provas';
 
   if (btnTypeProvas && btnTypeQuestoes) {
-    btnTypeProvas.addEventListener("click", () => {
-      currentSearchType = "provas";
-      btnTypeProvas.classList.add("active");
-      btnTypeProvas.style.background = "var(--color-primary)";
-      btnTypeProvas.style.color = "white";
+    btnTypeProvas.addEventListener('click', () => {
+      currentSearchType = 'provas';
+      btnTypeProvas.classList.add('active');
+      btnTypeProvas.style.background = 'var(--color-primary)';
+      btnTypeProvas.style.color = 'white';
 
-      btnTypeQuestoes.classList.remove("active");
-      btnTypeQuestoes.style.background = "transparent";
-      btnTypeQuestoes.style.color = "var(--color-text-secondary)";
+      btnTypeQuestoes.classList.remove('active');
+      btnTypeQuestoes.style.background = 'transparent';
+      btnTypeQuestoes.style.color = 'var(--color-text-secondary)';
 
-      searchInput.placeholder = "Ex: Provas do ENEM 2023...";
-      document.getElementById("searchTitle").innerHTML =
-        "Nos dê o nome da prova e <strong>fazemos</strong> o resto.";
+      searchInput.placeholder = 'Ex: Provas do ENEM 2023...';
+      document.getElementById('searchTitle').innerHTML =
+        'Nos dê o nome da prova e <strong>fazemos</strong> o resto.';
     });
 
-    btnTypeQuestoes.addEventListener("click", () => {
-      currentSearchType = "questoes";
-      btnTypeQuestoes.classList.add("active");
-      btnTypeQuestoes.style.background = "var(--color-primary)";
-      btnTypeQuestoes.style.color = "white";
+    btnTypeQuestoes.addEventListener('click', () => {
+      currentSearchType = 'questoes';
+      btnTypeQuestoes.classList.add('active');
+      btnTypeQuestoes.style.background = 'var(--color-primary)';
+      btnTypeQuestoes.style.color = 'white';
 
-      btnTypeProvas.classList.remove("active");
-      btnTypeProvas.style.background = "transparent";
-      btnTypeProvas.style.color = "var(--color-text-secondary)";
+      btnTypeProvas.classList.remove('active');
+      btnTypeProvas.style.background = 'transparent';
+      btnTypeProvas.style.color = 'var(--color-text-secondary)';
 
-      searchInput.placeholder = "Ex: Questões de Geometria Analítica ITA...";
-      document.getElementById("searchTitle").innerHTML =
-        "Nos dê o tema e <strong>encontramos</strong> as questões.";
+      searchInput.placeholder = 'Ex: Questões de Geometria Analítica ITA...';
+      document.getElementById('searchTitle').innerHTML =
+        'Nos dê o tema e <strong>encontramos</strong> as questões.';
     });
   }
 
-  const searchContainer = document.getElementById("searchContainer");
-  const manualUploadContainer = document.getElementById(
-    "manualUploadContainer",
-  );
+  const searchContainer = document.getElementById('searchContainer');
+  const manualUploadContainer = document.getElementById('manualUploadContainer');
 
-  const btnVoltarInicio = document.querySelector(".js-voltar-inicio");
+  const btnVoltarInicio = document.querySelector('.js-voltar-inicio');
 
   // --- STATE RESTORATION (Persistence) ---
   let savedSession = SearchPersistence.getSession();
   let savedManifest = SearchPersistence.getManifest();
 
   // [FIX] Reset state if previous search was completed (User expects fresh start)
-  if (savedSession && savedSession.status === "completed") {
-    console.log(
-      "[RESTORE] Previous session completed. Clearing state for fresh start.",
-    );
+  if (savedSession && savedSession.status === 'completed') {
+    console.log('[RESTORE] Previous session completed. Clearing state for fresh start.');
     SearchPersistence.clear();
     savedSession = null;
     savedManifest = null;
   }
 
   if (savedSession && savedSession.slug) {
-    console.log("[RESTORE] Found saved session:", savedSession);
+    console.log('[RESTORE] Found saved session:', savedSession);
     currentSlug = savedSession.slug;
 
     // 1. Restore Terminal (if we have tasks or if we have results)
     // We restore terminal if there's a session, to show log history/status.
-    if (
-      (savedSession.tasks && savedSession.tasks.length > 0) ||
-      savedManifest
-    ) {
+    if ((savedSession.tasks && savedSession.tasks.length > 0) || savedManifest) {
       if (searchResults) {
-        searchResults.innerHTML = ""; // Clear placeholders
-        const consoleContainer = document.createElement("div");
-        consoleContainer.id = "deep-search-terminal";
+        searchResults.innerHTML = ''; // Clear placeholders
+        const consoleContainer = document.createElement('div');
+        consoleContainer.id = 'deep-search-terminal';
         searchResults.appendChild(consoleContainer);
 
         terminalInstance = new TerminalUI(consoleContainer);
         // Save Global Ref
         // Re-attach expand handler since we just created it
         terminalInstance.onExpandRequest = () => {
-          if (document.getElementById("btnBackToSearch"))
-            document.getElementById("btnBackToSearch").click();
+          if (document.getElementById('btnBackToSearch'))
+            document.getElementById('btnBackToSearch').click();
         };
 
         if (savedSession.tasks) {
@@ -350,10 +337,10 @@ export function setupSearchLogic() {
         }
 
         // Apply Status
-        if (savedSession.status === "completed" || savedManifest) {
-          terminalInstance.state = "DONE";
+        if (savedSession.status === 'completed' || savedManifest) {
+          terminalInstance.state = 'DONE';
           terminalInstance.finish(true);
-        } else if (savedSession.status === "running") {
+        } else if (savedSession.status === 'running') {
           // If it was running, we might leave it as is or mark as interrupted/unknown
           // For now, let's keep it open.
         }
@@ -362,7 +349,7 @@ export function setupSearchLogic() {
 
     // 2. Restore Results
     if (savedManifest && savedManifest.length > 0) {
-      console.log("[RESTORE] Restoring results manifest...");
+      console.log('[RESTORE] Restoring results manifest...');
       currentManifest = savedManifest;
       renderResultsNewUI(savedManifest);
     }
@@ -375,7 +362,7 @@ export function setupSearchLogic() {
   // export it if possible. The file structure allows multiple exports.
 
   // Checking if we can re-dock on init
-  if (terminalInstance && terminalInstance.state !== "DONE") {
+  if (terminalInstance && terminalInstance.state !== 'DONE') {
     // Re-dock logic
     const targetParent = searchResults; // Default place
     if (targetParent) {
@@ -389,22 +376,22 @@ export function setupSearchLogic() {
 
   const floatTerminal = () => {
     // FLOATING MODE: If terminal exists and job running, float it.
-    if (terminalInstance && terminalInstance.state !== "DONE") {
+    if (terminalInstance && terminalInstance.state !== 'DONE') {
       terminalInstance.setFloatMode(true);
 
       // Ensure Wrapper
-      let wrapper = document.getElementById("floating-term-wrapper");
+      let wrapper = document.getElementById('floating-term-wrapper');
       if (!wrapper) {
-        wrapper = document.createElement("div");
-        wrapper.id = "floating-term-wrapper";
-        wrapper.style.position = "fixed";
-        wrapper.style.zIndex = "99999";
+        wrapper = document.createElement('div');
+        wrapper.id = 'floating-term-wrapper';
+        wrapper.style.position = 'fixed';
+        wrapper.style.zIndex = '99999';
         document.body.appendChild(wrapper);
       }
 
       // Move container to wrapper (Reparenting)
       wrapper.appendChild(terminalInstance.container);
-      wrapper.style.display = "block";
+      wrapper.style.display = 'block';
     }
   };
 
@@ -413,18 +400,18 @@ export function setupSearchLogic() {
     if (window.iniciarFluxoUploadManual) {
       window.iniciarFluxoUploadManual();
     } else {
-      console.error("Função de upload manual não encontrada no escopo global.");
+      console.error('Função de upload manual não encontrada no escopo global.');
     }
   };
 
   // --- Toggles de Interface ---
   if (btnShowUpload) {
-    btnShowUpload.addEventListener("click", switchToManualUpload);
+    btnShowUpload.addEventListener('click', switchToManualUpload);
   }
 
   // Bind to Global Back Button (js-voltar-inicio)
   if (btnVoltarInicio) {
-    btnVoltarInicio.addEventListener("click", () => {
+    btnVoltarInicio.addEventListener('click', () => {
       // If we are navigating away from search, trigger float
       // But what does this button do? It usually goes back to Home.
       // If so, we probably want to float the terminal if search is active.
@@ -433,12 +420,12 @@ export function setupSearchLogic() {
   }
 
   if (btnBackToSearch) {
-    btnBackToSearch.addEventListener("click", () => {
-      manualUploadContainer.classList.add("hidden");
-      manualUploadContainer.style.display = "none";
-      searchContainer.classList.remove("hidden");
-      searchContainer.style.display = "flex";
-      searchContainer.classList.add("fade-in-centralized");
+    btnBackToSearch.addEventListener('click', () => {
+      manualUploadContainer.classList.add('hidden');
+      manualUploadContainer.style.display = 'none';
+      searchContainer.classList.remove('hidden');
+      searchContainer.style.display = 'flex';
+      searchContainer.classList.add('fade-in-centralized');
 
       // RESTORE MODE
       if (terminalInstance) {
@@ -446,8 +433,7 @@ export function setupSearchLogic() {
         // Devolver ao lugar original
         // O lugar original era resultsContainer
         const originalParent =
-          document.getElementById("deep-search-terminal-container") ||
-          searchResults;
+          document.getElementById('deep-search-terminal-container') || searchResults;
         // Ensure we don't duplicate
         if (!originalParent.contains(terminalInstance.container)) {
           originalParent.prepend(terminalInstance.container);
@@ -462,52 +448,44 @@ export function setupSearchLogic() {
   };
 
   // STRICT CANCELLATION ON CLOSE
-  window.addEventListener("unload", () => {
+  window.addEventListener('unload', () => {
     // Use sendBeacon to guarantee request is sent triggers even if page dies
-    if (
-      currentSlug &&
-      (!terminalInstance || terminalInstance.state !== "DONE")
-    ) {
+    if (currentSlug && (!terminalInstance || terminalInstance.state !== 'DONE')) {
       // Precisamos do runId se tiver, se não cancela pelo slug se a API suportar (mas a API pede runId).
       // Se não tiver runId, paciência, o backend deve ter timeout.
       const runId = terminalInstance ? terminalInstance.runId : null;
 
       if (runId) {
         const data = JSON.stringify({ runId: runId });
-        const blob = new Blob([data], { type: "application/json" });
+        const blob = new Blob([data], { type: 'application/json' });
         navigator.sendBeacon(`${PROD_WORKER_URL}/cancel-deep-search`, blob);
       }
     }
   });
 
   // --- Disclaimer Modal Logic ---
-  const btnDisclaimerInfo = document.getElementById("btnDisclaimerInfo");
-  const disclaimerModal = document.getElementById("disclaimerModal");
-  const btnCloseDisclaimer = document.getElementById("btnCloseDisclaimer");
+  const btnDisclaimerInfo = document.getElementById('btnDisclaimerInfo');
+  const disclaimerModal = document.getElementById('disclaimerModal');
+  const btnCloseDisclaimer = document.getElementById('btnCloseDisclaimer');
 
   if (btnDisclaimerInfo && disclaimerModal) {
-    btnDisclaimerInfo.addEventListener("click", () => {
-      disclaimerModal.style.display = "flex";
+    btnDisclaimerInfo.addEventListener('click', () => {
+      disclaimerModal.style.display = 'flex';
     });
 
     if (btnCloseDisclaimer) {
-      btnCloseDisclaimer.addEventListener("click", () => {
-        disclaimerModal.style.display = "none";
+      btnCloseDisclaimer.addEventListener('click', () => {
+        disclaimerModal.style.display = 'none';
       });
     }
 
-    disclaimerModal.addEventListener("click", (e) => {
-      if (e.target === disclaimerModal) disclaimerModal.style.display = "none";
+    disclaimerModal.addEventListener('click', (e) => {
+      if (e.target === disclaimerModal) disclaimerModal.style.display = 'none';
     });
   }
 
   // --- Deep Search Lógica ---
-  const doSearch = async (
-    force = false,
-    cleanup = false,
-    confirm = false,
-    mode = "overwrite",
-  ) => {
+  const doSearch = async (force = false, cleanup = false, confirm = false, mode = 'overwrite') => {
     const query = searchInput.value.trim();
     if (!query) return;
 
@@ -530,60 +508,53 @@ export function setupSearchLogic() {
     }
 
     // UI Feedback for "Update Mode"
-    if (mode === "update") {
-      const termHeader = document.querySelector(
-        "#deep-search-terminal .terminal-header span",
-      );
+    if (mode === 'update') {
+      const termHeader = document.querySelector('#deep-search-terminal .terminal-header span');
       if (termHeader) {
-        termHeader.innerText = "TERMINAL - MODO ATUALIZAÇÃO";
-        termHeader.style.color = "var(--color-warning)";
+        termHeader.innerText = 'TERMINAL - MODO ATUALIZAÇÃO';
+        termHeader.style.color = 'var(--color-warning)';
       }
     }
 
     // Setup Terminal if not exists (only on fresh start)
     let terminal = null;
-    const existingEl = document.getElementById("deep-search-terminal");
+    const existingEl = document.getElementById('deep-search-terminal');
 
     if (!confirm || !existingEl) {
       // Fresh start OR Recovery if terminal is missing
-      searchResults.innerHTML = "";
+      searchResults.innerHTML = '';
 
       // Only reset slug if fresh start, otherwise we might want to keep it?
       // Actually, if we are retrying, we usually get a new slug anyway.
       // So resetting is safer to avoid pusher conflicts.
       currentSlug = null;
 
-      const consoleContainer = document.createElement("div");
-      consoleContainer.id = "deep-search-terminal";
+      const consoleContainer = document.createElement('div');
+      consoleContainer.id = 'deep-search-terminal';
       searchResults.appendChild(consoleContainer);
       terminal = new TerminalUI(consoleContainer);
       terminalInstance = terminal; // Save Global Ref
       terminal.onExpandRequest = handleExpandRequest; // Link expand logic
 
-      const log = (text, type = "info") => terminal.processLogLine(text, type);
+      const log = (text, type = 'info') => terminal.processLogLine(text, type);
 
       if (!confirm) {
         // Initial LOG
-        log(
-          "Verificando banco de dados por resultados existentes...",
-          "in_progress",
-        );
+        log('Verificando banco de dados por resultados existentes...', 'in_progress');
       } else {
-        log("Reiniciando busca (Terminal Restaurado)...", "warning");
+        log('Reiniciando busca (Terminal Restaurado)...', 'warning');
       }
 
       // Wire Retry Logic
       terminal.onRetry = () => showRetryConfirmationModal(log, terminal);
     } else {
       // 0. CAPTURE STATE (Notification)
-      const prevNotify = terminalInstance
-        ? terminalInstance.getNotificationState()
-        : false;
+      const prevNotify = terminalInstance ? terminalInstance.getNotificationState() : false;
 
       // --- FIX: CLEAR PREVIOUS RESULTS ON UPDATE ---
       // If we are "Adding more results" or "Retrying", we should clear the old grid
       // so the user sees a "fresh" start while the agent runs.
-      const existingResults = searchResults.querySelector(".results-container");
+      const existingResults = searchResults.querySelector('.results-container');
       if (existingResults) existingResults.remove();
 
       // Re-attach to existing terminal
@@ -595,11 +566,10 @@ export function setupSearchLogic() {
       }
 
       // 1. Define log helper FIRST (needed for onRetry)
-      const log = (text, type = "info") => terminal.processLogLine(text, type);
+      const log = (text, type = 'info') => terminal.processLogLine(text, type);
 
       // 2. Bind onRetry with TYPE support (retry vs add_more)
-      terminal.onRetry = (type) =>
-        showRetryConfirmationModal(log, terminal, type);
+      terminal.onRetry = (type) => showRetryConfirmationModal(log, terminal, type);
 
       // 3. RESET TERMINAL STATE FOR FRESH LOOK (Even on update)
       if (terminal) terminal.reset();
@@ -610,27 +580,27 @@ export function setupSearchLogic() {
       if (prevNotify) terminal.setNotificationState(true);
 
       // If update mode, show visual cue
-      if (mode === "update")
+      if (mode === 'update')
         terminal.processLogLine(
-          "⚠ MODO ATUALIZAÇÃO ATIVADO: Novos arquivos serão mesclados.",
-          "warning",
+          '⚠ MODO ATUALIZAÇÃO ATIVADO: Novos arquivos serão mesclados.',
+          'warning',
         );
     }
 
     // Internal Log helper
-    const log = (text, type = "info") => {
+    const log = (text, type = 'info') => {
       terminal?.processLogLine(text, type);
     };
 
     // Pusher Config
-    const pusherKey = "6c9754ef715796096116";
-    const pusherCluster = "sa1";
+    const pusherKey = '6c9754ef715796096116';
+    const pusherCluster = 'sa1';
 
     try {
       // Step 1 & 2: Call Worker
       const response = await fetch(`${PROD_WORKER_URL}/trigger-deep-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query,
           slug: currentSlug, // Fix: Ensure we target the existing folder on retry/update
@@ -639,17 +609,17 @@ export function setupSearchLogic() {
           confirm,
           mode,
           search_type: currentSearchType,
-          apiKey: sessionStorage.getItem("GOOGLE_GENAI_API_KEY"),
+          apiKey: sessionStorage.getItem('GOOGLE_GENAI_API_KEY'),
         }),
       });
       const result = await response.json();
 
       // --- HANDLE PRE-FLIGHT ---
       if (result.preflight) {
-        log(`Slug Canônico Gerado: ${result.canonical_slug}`, "success");
+        log(`Slug Canônico Gerado: ${result.canonical_slug}`, 'success');
 
         if (result.slug_reasoning) {
-          log(`Raciocínio: ${result.slug_reasoning}`, "info");
+          log(`Raciocínio: ${result.slug_reasoning}`, 'info');
         }
 
         // MOSTRA direto o resultado
@@ -658,7 +628,7 @@ export function setupSearchLogic() {
             `Banco de provas encontrado (${
               result.exact_match.slug || result.canonical_slug
             }). Carregando resultados...`,
-            "success",
+            'success',
           );
           const existSlug = result.exact_match.slug || result.canonical_slug;
           currentSlug = existSlug;
@@ -683,27 +653,23 @@ export function setupSearchLogic() {
                 // We should definitely AUTO-UPGRADE.
 
                 const isManualOnly =
-                  items.length > 0 &&
-                  items.every((i) => i.link_origem === "manual-upload");
+                  items.length > 0 && items.every((i) => i.link_origem === 'manual-upload');
 
                 if (isManualOnly) {
                   log(
                     `[AUTO-UPGRADE] Pasta '${existSlug}' encontrada, mas contém apenas uploads manuais.`,
-                    "warning",
+                    'warning',
                   );
-                  log(
-                    `Iniciando Pesquisa Avançada complementar (Modo: UPDATE)...`,
-                    "success",
-                  );
+                  log(`Iniciando Pesquisa Avançada complementar (Modo: UPDATE)...`, 'success');
 
                   // Recursive call with UPDATE mode
                   // force=true, cleanup=false, confirm=true, mode="update"
-                  doSearch(true, false, true, "update");
+                  doSearch(true, false, true, 'update');
                   return true; // We handled it
                 }
               }
             } catch (e) {
-              console.warn("Auto-upgrade check failed:", e);
+              console.warn('Auto-upgrade check failed:', e);
             }
             return false;
           };
@@ -714,7 +680,7 @@ export function setupSearchLogic() {
               SearchPersistence.finishSession(true);
               // Load immediately
               const hfBase =
-                "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+                'https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main';
               loadResults(
                 `${hfBase}/output/${existSlug}/manifest.json`,
                 log,
@@ -732,7 +698,7 @@ export function setupSearchLogic() {
         // Ignora "similares" para simplificar fluxo.
         // log("Nenhum banco exato encontrado. Iniciando busca...", "info");
 
-        doSearch(force, cleanup, true, "overwrite");
+        doSearch(force, cleanup, true, 'overwrite');
         return;
       }
 
@@ -742,15 +708,15 @@ export function setupSearchLogic() {
       currentSlug = slug;
 
       // Start Persistence Session
-      if (mode !== "recover") {
+      if (mode !== 'recover') {
         SearchPersistence.startSession(slug);
       }
 
-      log(`Conectando ao canal: ${slug}...`, "info");
+      log(`Conectando ao canal: ${slug}...`, 'info');
 
       let PusherClass = window.Pusher;
       if (!PusherClass) {
-        const module = await import("pusher-js");
+        const module = await import('pusher-js');
         PusherClass = module.default;
       }
 
@@ -760,7 +726,7 @@ export function setupSearchLogic() {
 
       activeChannel = activePusher.subscribe(slug);
 
-      activeChannel.bind("task_update", function (data) {
+      activeChannel.bind('task_update', (data) => {
         if (terminal && data) {
           // Filter out cleanup tasks if mode is update?
           // The backend might not send them if we skip the steps in GH Action.
@@ -768,27 +734,22 @@ export function setupSearchLogic() {
           SearchPersistence.saveTasks(data);
 
           // Update Toaster with latest task
-          const running = data.find((t) => t.status === "in_progress");
+          const running = data.find((t) => t.status === 'in_progress');
           if (running) {
             //
           }
         }
       });
 
-      activeChannel.bind("log", function (data) {
+      activeChannel.bind('log', (data) => {
         if (!data) return;
-        const text =
-          data.message ||
-          (typeof data === "string" ? data : JSON.stringify(data));
+        const text = data.message || (typeof data === 'string' ? data : JSON.stringify(data));
         if (!text) return;
 
-        if (text.includes("COMPLETED")) {
-          let isSuccess = true; // Scope var
+        if (text.includes('COMPLETED')) {
+          const isSuccess = true; // Scope var
 
-          log(
-            "Busca base finalizada. Iniciando verificação de integridade...",
-            "success",
-          );
+          log('Busca base finalizada. Iniciando verificação de integridade...', 'success');
           activePusher.unsubscribe(slug);
           SearchPersistence.finishSession(true); // Mark Done
 
@@ -797,7 +758,7 @@ export function setupSearchLogic() {
 
           setTimeout(() => {
             const hfBase =
-              "https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main";
+              'https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main';
             loadResults(
               `${hfBase}/output/${finalSlug}/manifest.json`,
               log,
@@ -811,69 +772,68 @@ export function setupSearchLogic() {
         }
       });
     } catch (e) {
-      if (e.name === "AbortError" || e.message.includes("aborted")) {
-        log("Operação cancelada.", "info");
+      if (e.name === 'AbortError' || e.message.includes('aborted')) {
+        log('Operação cancelada.', 'info');
       } else {
-        log(`Erro Fatal: ${e.message}`, "error");
+        log(`Erro Fatal: ${e.message}`, 'error');
       }
     }
   };
 
-  const showRetryConfirmationModal = (log, terminal, type = "add_more") => {
+  const showRetryConfirmationModal = (log, terminal, type = 'add_more') => {
     // Create Modal UI dynamically
-    const modalId = "retry-confirmation-modal";
+    const modalId = 'retry-confirmation-modal';
     let modal = document.getElementById(modalId);
     if (modal) modal.remove();
 
-    modal = document.createElement("div");
+    modal = document.createElement('div');
     modal.id = modalId;
     Object.assign(modal.style, {
-      position: "fixed",
+      position: 'fixed',
       top: 0,
       left: 0,
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0,0,0,0.8)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       zIndex: 10000,
-      backdropFilter: "blur(4px)",
+      backdropFilter: 'blur(4px)',
     });
 
-    const content = document.createElement("div");
+    const content = document.createElement('div');
     Object.assign(content.style, {
-      backgroundColor: "var(--color-surface)",
-      padding: "32px",
-      borderRadius: "var(--radius-xl)",
-      maxWidth: "500px",
-      width: "90%",
-      border: "1px solid var(--color-border)",
-      boxShadow: "var(--shadow-2xl)",
-      textAlign: "center",
+      backgroundColor: 'var(--color-surface)',
+      padding: '32px',
+      borderRadius: 'var(--radius-xl)',
+      maxWidth: '500px',
+      width: '90%',
+      border: '1px solid var(--color-border)',
+      boxShadow: 'var(--shadow-2xl)',
+      textAlign: 'center',
     });
 
-    let iconHtml =
-      '<div style="font-size: 3rem; margin-bottom: 16px;">🔎</div>';
-    let titleText = "Continuar Busca?";
+    let iconHtml = '<div style="font-size: 3rem; margin-bottom: 16px;">🔎</div>';
+    let titleText = 'Continuar Busca?';
     let bodyText = `
         Deseja buscar <strong>novos arquivos</strong> para este termo?<br>
         <br>
         O sistema irá procurar itens que ainda não foram encontrados e adicioná-los ao banco de dados existente.
     `;
-    let confirmBtnText = "Buscar Mais";
-    let confirmBtnColor = "var(--color-primary)"; // Default blue
+    let confirmBtnText = 'Buscar Mais';
+    const confirmBtnColor = 'var(--color-primary)'; // Default blue
 
     // CUSTOMIZE FOR RETRY (ERROR RECOVERY)
-    if (type === "retry") {
+    if (type === 'retry') {
       iconHtml = '<div style="font-size: 3rem; margin-bottom: 16px;">🔄</div>';
-      titleText = "Tentar Novamente?";
+      titleText = 'Tentar Novamente?';
       bodyText = `
           A busca anterior pode não ter sido concluída corretamente ou falhou.<br>
           <br>
           Deseja <strong>reiniciar o processo</strong>?
       `;
-      confirmBtnText = "Tentar Novamente";
+      confirmBtnText = 'Tentar Novamente';
       // Optional: Change button color to imply 'fix' or 'retry'
     }
 
@@ -901,22 +861,19 @@ export function setupSearchLogic() {
     document.body.appendChild(modal);
 
     // Handlers
-    document.getElementById("btn-cancel-retry").onclick = () => {
+    document.getElementById('btn-cancel-retry').onclick = () => {
       modal.remove();
     };
 
-    document.getElementById("btn-confirm-retry").onclick = () => {
+    document.getElementById('btn-confirm-retry').onclick = () => {
       modal.remove();
 
       if (terminal)
-        terminal.queueLog(
-          "[SISTEMA] Iniciando busca complementar (Modo Update)...",
-          "info",
-        );
+        terminal.queueLog('[SISTEMA] Iniciando busca complementar (Modo Update)...', 'info');
 
       // Trigger Search: force=true, cleanup=FALSE, confirm=true, mode="update"
       // cleanup=false is critical to prevent deletion
-      doSearch(true, false, true, "update");
+      doSearch(true, false, true, 'update');
     };
   };
 
@@ -929,38 +886,38 @@ export function setupSearchLogic() {
     cleanup,
   ) => {
     // Create Modal UI dynamically
-    const modalId = "unified-decision-modal";
+    const modalId = 'unified-decision-modal';
     let modal = document.getElementById(modalId);
     if (modal) modal.remove();
 
-    modal = document.createElement("div");
+    modal = document.createElement('div');
     modal.id = modalId;
     Object.assign(modal.style, {
-      position: "fixed",
+      position: 'fixed',
       top: 0,
       left: 0,
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0,0,0,0.8)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.8)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       zIndex: 10000,
-      backdropFilter: "blur(4px)",
+      backdropFilter: 'blur(4px)',
     });
 
-    const content = document.createElement("div");
+    const content = document.createElement('div');
     Object.assign(content.style, {
-      backgroundColor: "var(--color-surface)",
-      padding: "32px",
-      borderRadius: "var(--radius-xl)",
-      maxWidth: "600px",
-      width: "90%",
-      border: "1px solid var(--color-border)",
-      boxShadow: "var(--shadow-2xl)",
-      textAlign: "center",
-      maxHeight: "90vh",
-      overflowY: "auto",
+      backgroundColor: 'var(--color-surface)',
+      padding: '32px',
+      borderRadius: 'var(--radius-xl)',
+      maxWidth: '600px',
+      width: '90%',
+      border: '1px solid var(--color-border)',
+      boxShadow: 'var(--shadow-2xl)',
+      textAlign: 'center',
+      maxHeight: '90vh',
+      overflowY: 'auto',
     });
 
     // Content Logic
@@ -969,10 +926,9 @@ export function setupSearchLogic() {
     const slug =
       exact && exact.slug
         ? exact.slug
-        : preflightData.canonical_slug ||
-          originalQuery.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        : preflightData.canonical_slug || originalQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-    let html = "";
+    let html = '';
 
     // --- 1. EXACT MATCH SECTION ---
     if (exact) {
@@ -984,7 +940,7 @@ export function setupSearchLogic() {
                         Já existe um repositório chamado <strong>${slug}</strong> em nosso banco de dados.
                     </p>
                     <div style="font-size: 0.9rem; color: var(--color-text-dim); margin-bottom: 24px;">
-                         📁 ${exact.file_count || "?"} arquivos • 🕒 Atualizado em: ${exact.updated_at ? new Date(exact.updated_at).toLocaleDateString() : "Desconhecido"}
+                         📁 ${exact.file_count || '?'} arquivos • 🕒 Atualizado em: ${exact.updated_at ? new Date(exact.updated_at).toLocaleDateString() : 'Desconhecido'}
                     </div>
                     
                     <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
@@ -1011,14 +967,11 @@ export function setupSearchLogic() {
     }
 
     // --- 2. SIMILAR CANDIDATES SECTION (ALWAYS SHOW IF EXISTS) ---
-    if (
-      preflightData.similar_candidates &&
-      preflightData.similar_candidates.length > 0
-    ) {
+    if (preflightData.similar_candidates && preflightData.similar_candidates.length > 0) {
       html += `
                 <div style="text-align: left; margin-top: 24px;">
                     <h3 style="font-size: 1.1rem; margin-bottom: 12px; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); padding-bottom: 8px;">
-                        ${exact ? "Outras opções que podem interessar:" : "Talvez você esteja procurando por:"}
+                        ${exact ? 'Outras opções que podem interessar:' : 'Talvez você esteja procurando por:'}
                     </h3>
                     <div style="background: var(--color-bg-1); border-radius: 8px; max-height: 200px; overflow-y: auto;">
              `;
@@ -1073,11 +1026,11 @@ export function setupSearchLogic() {
 
     // Exact Match Handlers
     if (exact) {
-      const btnView = document.getElementById("btn-view-existing");
+      const btnView = document.getElementById('btn-view-existing');
       if (btnView)
         btnView.onclick = () => {
           modal.remove();
-          log(`Carregando banco existente: ${slug}...`, "success");
+          log(`Carregando banco existente: ${slug}...`, 'success');
           currentSlug = slug; // Fix global slug
           loadResults(
             `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${slug}/manifest.json`,
@@ -1086,33 +1039,33 @@ export function setupSearchLogic() {
           );
         };
 
-      const btnUpdate = document.getElementById("btn-update-mode");
+      const btnUpdate = document.getElementById('btn-update-mode');
       if (btnUpdate)
         btnUpdate.onclick = () => {
           modal.remove();
-          log("Iniciando MODO ATUALIZAÇÃO...", "warning");
-          doSearch(force, cleanup, true, "update"); // Confirm + Update Mode
+          log('Iniciando MODO ATUALIZAÇÃO...', 'warning');
+          doSearch(force, cleanup, true, 'update'); // Confirm + Update Mode
         };
     } else {
-      const btnForce = document.getElementById("btn-force-search");
+      const btnForce = document.getElementById('btn-force-search');
       if (btnForce)
         btnForce.onclick = () => {
           modal.remove();
-          doSearch(force, cleanup, true, "overwrite");
+          doSearch(force, cleanup, true, 'overwrite');
         };
     }
 
     // Common Handlers
-    document.getElementById("btn-cancel-modal").onclick = () => {
+    document.getElementById('btn-cancel-modal').onclick = () => {
       modal.remove();
-      log("Operação cancelada pelo usuário.", "error");
+      log('Operação cancelada pelo usuário.', 'error');
     };
 
-    document.getElementById("btn-view-selected").onclick = () => {
+    document.getElementById('btn-view-selected').onclick = () => {
       const selected = modal.dataset.selectedSlug;
       modal.remove();
-      if (selected && selected !== "undefined") {
-        log(`Carregando banco selecionado: ${selected}...`, "success");
+      if (selected && selected !== 'undefined') {
+        log(`Carregando banco selecionado: ${selected}...`, 'success');
         currentSlug = selected;
         loadResults(
           `https://huggingface.co/datasets/toquereflexo/maia-deep-search/resolve/main/output/${selected}/manifest.json`,
@@ -1120,7 +1073,7 @@ export function setupSearchLogic() {
           terminal,
         );
       } else {
-        log("Erro ao selecionar item.", "error");
+        log('Erro ao selecionar item.', 'error');
       }
     };
   };
@@ -1134,9 +1087,7 @@ export function setupSearchLogic() {
     ignoredFiles = new Set(),
     enableRetry = true,
   ) => {
-    const log =
-      logFn ||
-      ((msg, type) => console.log(`[${type?.toUpperCase() || "INFO"}] ${msg}`));
+    const log = logFn || ((msg, type) => console.log(`[${type?.toUpperCase() || 'INFO'}] ${msg}`));
 
     try {
       // 1. Fetch Manifest
@@ -1145,8 +1096,8 @@ export function setupSearchLogic() {
 
       // Update Terminal
       if (terminal) {
-        terminal.setStatus("CARREGANDO_RESULTADOS");
-        terminal.updateStepText("Obtendo manifesto verificado...");
+        terminal.setStatus('CARREGANDO_RESULTADOS');
+        terminal.updateStepText('Obtendo manifesto verificado...');
       }
 
       while (loadingAttempts < 10 && !manifest) {
@@ -1166,25 +1117,20 @@ export function setupSearchLogic() {
         await new Promise((res) => setTimeout(res, 2000));
       }
 
-      if (!manifest) throw new Error("Manifesto não encontrado.");
+      if (!manifest) throw new Error('Manifesto não encontrado.');
 
       // 2. Normalize Items
       const rawItems =
-        manifest.results ||
-        manifest.files ||
-        (Array.isArray(manifest) ? manifest : []);
+        manifest.results || manifest.files || (Array.isArray(manifest) ? manifest : []);
       const validItems = rawItems.map(normalizeItem);
 
       if (validItems.length === 0) {
-        log("[SISTEMA] Nenhum resultado válido encontrado.", "warning");
+        log('[SISTEMA] Nenhum resultado válido encontrado.', 'warning');
         if (terminal) {
           // Optional: trigger auto-retry logic here if needed, or just show empty state
         }
       } else {
-        log(
-          `[SISTEMA] ${validItems.length} itens carregados com sucesso.`,
-          "success",
-        );
+        log(`[SISTEMA] ${validItems.length} itens carregados com sucesso.`, 'success');
       }
 
       // 3. Render
@@ -1198,9 +1144,9 @@ export function setupSearchLogic() {
       // AUTO-PERSIST RESULTS
       SearchPersistence.saveManifest(validItems);
     } catch (e) {
-      console.error("Critical Error in loadResults:", e);
+      console.error('Critical Error in loadResults:', e);
       if (terminal) terminal.fail(e.message);
-      log(`Erro ao carregar resultados: ${e.message}`, "error");
+      log(`Erro ao carregar resultados: ${e.message}`, 'error');
     }
   };
 
@@ -1208,17 +1154,17 @@ export function setupSearchLogic() {
 
   const renderResultsNewUI = async (items) => {
     // Container Principal
-    const container = document.createElement("div");
-    container.className = "results-container fade-in-centralized";
-    container.style.marginTop = "32px";
-    container.style.maxWidth = "1200px";
-    container.style.marginLeft = "auto";
-    container.style.marginRight = "auto";
-    container.style.width = "100%";
+    const container = document.createElement('div');
+    container.className = 'results-container fade-in-centralized';
+    container.style.marginTop = '32px';
+    container.style.maxWidth = '1200px';
+    container.style.marginLeft = 'auto';
+    container.style.marginRight = 'auto';
+    container.style.width = '100%';
 
     // Header de Ação
-    const header = document.createElement("div");
-    header.style.marginBottom = "32px";
+    const header = document.createElement('div');
+    header.style.marginBottom = '32px';
 
     header.innerHTML = `
       <h2 style="color:var(--color-text); font-weight:var(--font-weight-bold); font-size:var(--font-size-2xl);">
@@ -1260,21 +1206,21 @@ export function setupSearchLogic() {
 
     // Bind Button
     setTimeout(() => {
-      const btn = document.getElementById("btnManualUploadHighlight");
+      const btn = document.getElementById('btnManualUploadHighlight');
       if (btn) btn.onclick = switchToManualUpload;
     }, 0);
 
     // Grid Repaginado
-    const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(320px, 1fr))";
-    grid.style.gap = "24px";
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(320px, 1fr))';
+    grid.style.gap = '24px';
 
     container.appendChild(grid);
     searchResults.appendChild(container);
 
-    const itemsFiles = items.filter((i) => i.status !== "reference");
-    const itemsRefs = items.filter((i) => i.status === "reference");
+    const itemsFiles = items.filter((i) => i.status !== 'reference');
+    const itemsRefs = items.filter((i) => i.status === 'reference');
 
     // --- RENDER FILES ---
     if (itemsFiles.length > 0) {
@@ -1283,17 +1229,17 @@ export function setupSearchLogic() {
         grid.appendChild(card);
       });
     } else {
-      const msg = document.createElement("div");
+      const msg = document.createElement('div');
       Object.assign(msg.style, {
-        gridColumn: "1 / -1",
-        textAlign: "center",
-        padding: "32px",
-        color: "var(--color-text-secondary)",
-        border: "1px dashed var(--color-border)",
-        borderRadius: "8px",
-        background: "var(--color-bg-sub)",
+        gridColumn: '1 / -1',
+        textAlign: 'center',
+        padding: '32px',
+        color: 'var(--color-text-secondary)',
+        border: '1px dashed var(--color-border)',
+        borderRadius: '8px',
+        background: 'var(--color-bg-sub)',
       });
-      msg.innerHTML = "Nenhum arquivo de prova encontrado.";
+      msg.innerHTML = 'Nenhum arquivo de prova encontrado.';
       grid.appendChild(msg);
     }
 
@@ -1301,9 +1247,9 @@ export function setupSearchLogic() {
     // User requested: Always show the field, even if empty (with message)
     if (true) {
       // Create Section Break
-      const refSection = document.createElement("div");
-      refSection.style.gridColumn = "1 / -1";
-      refSection.style.marginTop = "32px";
+      const refSection = document.createElement('div');
+      refSection.style.gridColumn = '1 / -1';
+      refSection.style.marginTop = '32px';
 
       let contentHtml = `<h3 style="color:var(--color-text); margin-bottom:16px;">Links de Referência (${itemsRefs.length})</h3>`;
 
@@ -1349,12 +1295,12 @@ export function setupSearchLogic() {
 
       // MOVED: Render items separately to ensure they are appended correctly
       if (itemsRefs.length > 0) {
-        const refList = document.createElement("div");
+        const refList = document.createElement('div');
         Object.assign(refList.style, {
-          gridColumn: "1 / -1",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
+          gridColumn: '1 / -1',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
         });
 
         itemsRefs.forEach((item) => {
@@ -1370,83 +1316,82 @@ export function setupSearchLogic() {
   const createReferenceRow = (item) => {
     let finalUrl = item.url;
     if (!finalUrl && item.path) finalUrl = item.path;
-    if (!finalUrl) return document.createElement("div");
+    if (!finalUrl) return document.createElement('div');
 
     // Title Fallback
-    let displayTitle =
-      item.name || item.nome_amigavel || item.description || item.friendly_name;
-    if (!displayTitle || displayTitle.trim() === "") {
+    let displayTitle = item.name || item.nome_amigavel || item.description || item.friendly_name;
+    if (!displayTitle || displayTitle.trim() === '') {
       displayTitle = item.url; // Use URL if no name
     }
 
-    const row = document.createElement("div");
+    const row = document.createElement('div');
     Object.assign(row.style, {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "16px 20px",
-      backgroundColor: "var(--color-surface)",
-      border: "1px solid var(--color-border)",
-      borderRadius: "var(--radius-lg)",
-      boxShadow: "var(--shadow-sm)",
-      transition: "all 0.2s ease",
-      width: "100%",
-      gap: "16px",
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '16px 20px',
+      backgroundColor: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 'var(--radius-lg)',
+      boxShadow: 'var(--shadow-sm)',
+      transition: 'all 0.2s ease',
+      width: '100%',
+      gap: '16px',
     });
 
     row.onmouseenter = () => {
-      row.style.borderColor = "var(--color-primary)";
-      row.style.transform = "translateX(4px)";
+      row.style.borderColor = 'var(--color-primary)';
+      row.style.transform = 'translateX(4px)';
     };
     row.onmouseleave = () => {
-      row.style.borderColor = "var(--color-border)";
-      row.style.transform = "none";
+      row.style.borderColor = 'var(--color-border)';
+      row.style.transform = 'none';
     };
 
     // Icon + Info Group
-    const leftGroup = document.createElement("div");
+    const leftGroup = document.createElement('div');
     Object.assign(leftGroup.style, {
-      display: "flex",
-      alignItems: "center",
-      gap: "16px",
-      flex: "1",
-      overflow: "hidden",
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      flex: '1',
+      overflow: 'hidden',
     });
 
-    const icon = document.createElement("div");
+    const icon = document.createElement('div');
     icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
     Object.assign(icon.style, {
-      color: "var(--color-text-secondary)",
+      color: 'var(--color-text-secondary)',
       flexShrink: 0,
     });
 
-    const textCol = document.createElement("div");
+    const textCol = document.createElement('div');
     Object.assign(textCol.style, {
-      display: "flex",
-      flexDirection: "column",
-      gap: "4px",
-      overflow: "hidden",
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+      overflow: 'hidden',
     });
 
-    const titleEl = document.createElement("div");
+    const titleEl = document.createElement('div');
     titleEl.innerText = displayTitle;
     Object.assign(titleEl.style, {
-      fontWeight: "600",
-      color: "var(--color-text)",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
+      fontWeight: '600',
+      color: 'var(--color-text)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
     });
 
-    const urlEl = document.createElement("div");
+    const urlEl = document.createElement('div');
     urlEl.innerText = finalUrl;
     Object.assign(urlEl.style, {
-      fontSize: "0.85rem",
-      color: "var(--color-text-secondary)",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      opacity: "0.8",
+      fontSize: '0.85rem',
+      color: 'var(--color-text-secondary)',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      opacity: '0.8',
     });
 
     textCol.appendChild(titleEl);
@@ -1455,38 +1400,38 @@ export function setupSearchLogic() {
     leftGroup.appendChild(textCol);
 
     // Action Button
-    const btn = document.createElement("a");
+    const btn = document.createElement('a');
     btn.href = finalUrl;
-    btn.target = "_blank";
+    btn.target = '_blank';
     btn.innerHTML = `
         <span>Visitar Link</span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       `;
     Object.assign(btn.style, {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      padding: "8px 16px",
-      backgroundColor: "var(--color-bg-sub)",
-      color: "var(--color-text)",
-      border: "1px solid var(--color-border)",
-      borderRadius: "6px",
-      fontSize: "0.9rem",
-      fontWeight: "500",
-      textDecoration: "none",
-      whiteSpace: "nowrap",
-      transition: "all 0.2s",
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      backgroundColor: 'var(--color-bg-sub)',
+      color: 'var(--color-text)',
+      border: '1px solid var(--color-border)',
+      borderRadius: '6px',
+      fontSize: '0.9rem',
+      fontWeight: '500',
+      textDecoration: 'none',
+      whiteSpace: 'nowrap',
+      transition: 'all 0.2s',
     });
 
     btn.onmouseenter = () => {
-      btn.style.backgroundColor = "var(--color-primary)";
-      btn.style.borderColor = "var(--color-primary)";
-      btn.style.color = "white";
+      btn.style.backgroundColor = 'var(--color-primary)';
+      btn.style.borderColor = 'var(--color-primary)';
+      btn.style.color = 'white';
     };
     btn.onmouseleave = () => {
-      btn.style.backgroundColor = "var(--color-bg-sub)";
-      btn.style.borderColor = "var(--color-border)";
-      btn.style.color = "var(--color-text)";
+      btn.style.backgroundColor = 'var(--color-bg-sub)';
+      btn.style.borderColor = 'var(--color-border)';
+      btn.style.color = 'var(--color-text)';
     };
 
     row.appendChild(leftGroup);
@@ -1497,87 +1442,86 @@ export function setupSearchLogic() {
 
   const createCard = (item, isReference = false) => {
     // Prioritize External Link
-    let finalUrl = item.link_origem || item.url || item.path;
-    if (!finalUrl && !isReference) return document.createElement("div");
+    const finalUrl = item.link_origem || item.url || item.path;
+    if (!finalUrl && !isReference) return document.createElement('div');
 
     // Title Logic
-    let displayTitle =
-      item.name || item.nome_amigavel || item.description || item.friendly_name;
+    let displayTitle = item.name || item.nome_amigavel || item.description || item.friendly_name;
 
-    if (!displayTitle || displayTitle.trim() === "") {
-      let fileBase = (item.filename || item.path || "").split("/").pop();
+    if (!displayTitle || displayTitle.trim() === '') {
+      let fileBase = (item.filename || item.path || '').split('/').pop();
       if (fileBase) {
-        fileBase = fileBase.replace(/\.pdf$/i, "");
-        displayTitle = fileBase.replace(/[_-]/g, " ");
+        fileBase = fileBase.replace(/\.pdf$/i, '');
+        displayTitle = fileBase.replace(/[_-]/g, ' ');
         displayTitle = displayTitle.replace(/\b\w/g, (l) => l.toUpperCase());
       } else {
-        displayTitle = isReference ? "Link Externo" : "Sem Título";
+        displayTitle = isReference ? 'Link Externo' : 'Sem Título';
       }
     }
 
-    const card = document.createElement("div");
-    card.className = "result-card";
+    const card = document.createElement('div');
+    card.className = 'result-card';
     card.setAttribute(
-      "data-type",
-      item.tipo?.toLowerCase().includes("gabarito") ? "gabarito" : "prova",
+      'data-type',
+      item.tipo?.toLowerCase().includes('gabarito') ? 'gabarito' : 'prova',
     );
 
     // Simplified Card Style (No image area)
     Object.assign(card.style, {
-      position: "relative",
-      borderRadius: "var(--radius-lg)",
-      backgroundColor: "var(--color-surface)",
-      border: "1px solid var(--color-card-border)",
-      display: "flex",
-      flexDirection: "column",
+      position: 'relative',
+      borderRadius: 'var(--radius-lg)',
+      backgroundColor: 'var(--color-surface)',
+      border: '1px solid var(--color-card-border)',
+      display: 'flex',
+      flexDirection: 'column',
       // Height auto to fit content
-      minHeight: "180px",
-      transition: "transform 0.2s, box-shadow 0.2s",
-      cursor: "pointer",
-      boxShadow: "var(--shadow-sm)",
-      padding: "20px",
+      minHeight: '180px',
+      transition: 'transform 0.2s, box-shadow 0.2s',
+      cursor: 'pointer',
+      boxShadow: 'var(--shadow-sm)',
+      padding: '20px',
     });
 
     card.onmouseenter = () => {
-      card.style.transform = "translateY(-4px)";
-      card.style.boxShadow = "var(--shadow-lg)";
-      card.style.borderColor = "var(--color-primary)";
+      card.style.transform = 'translateY(-4px)';
+      card.style.boxShadow = 'var(--shadow-lg)';
+      card.style.borderColor = 'var(--color-primary)';
     };
     card.onmouseleave = () => {
-      card.style.transform = "translateY(0)";
-      card.style.boxShadow = "var(--shadow-sm)";
-      card.style.borderColor = "var(--color-card-border)";
+      card.style.transform = 'translateY(0)';
+      card.style.boxShadow = 'var(--shadow-sm)';
+      card.style.borderColor = 'var(--color-card-border)';
     };
 
     // Header: Badge + Icon
-    const header = document.createElement("div");
+    const header = document.createElement('div');
     Object.assign(header.style, {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: "16px",
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '16px',
     });
 
     // Icon based on type
-    const isGab = (item.tipo || "").toLowerCase().includes("gabarito");
-    const iconChar = isGab ? "📝" : "📄";
-    const iconEl = document.createElement("div");
+    const isGab = (item.tipo || '').toLowerCase().includes('gabarito');
+    const iconChar = isGab ? '📝' : '📄';
+    const iconEl = document.createElement('div');
     iconEl.innerText = iconChar;
-    iconEl.style.fontSize = "2rem";
+    iconEl.style.fontSize = '2rem';
 
     // Badge
-    const badge = document.createElement("span");
-    badge.innerText = (item.tipo || "Arquivo").toUpperCase();
+    const badge = document.createElement('span');
+    badge.innerText = (item.tipo || 'Arquivo').toUpperCase();
     Object.assign(badge.style, {
-      padding: "4px 8px",
-      borderRadius: "4px",
-      fontSize: "0.7rem",
-      fontWeight: "bold",
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontSize: '0.7rem',
+      fontWeight: 'bold',
       backgroundColor: isGab
-        ? "rgba(var(--color-warning-rgb), 0.1)"
-        : "rgba(var(--color-primary-rgb), 0.1)",
-      color: isGab ? "var(--color-warning)" : "var(--color-primary)",
-      border: `1px solid ${isGab ? "var(--color-warning)" : "var(--color-primary)"}`,
+        ? 'rgba(var(--color-warning-rgb), 0.1)'
+        : 'rgba(var(--color-primary-rgb), 0.1)',
+      color: isGab ? 'var(--color-warning)' : 'var(--color-primary)',
+      border: `1px solid ${isGab ? 'var(--color-warning)' : 'var(--color-primary)'}`,
     });
 
     header.appendChild(iconEl);
@@ -1585,94 +1529,87 @@ export function setupSearchLogic() {
     card.appendChild(header);
 
     // Title
-    const title = document.createElement("h3");
+    const title = document.createElement('h3');
     title.innerText = displayTitle;
     Object.assign(title.style, {
-      fontSize: "var(--font-size-md)",
-      color: "var(--color-text)",
-      fontWeight: "var(--font-weight-medium)",
-      margin: "0 0 16px 0",
-      lineHeight: "1.4",
+      fontSize: 'var(--font-size-md)',
+      color: 'var(--color-text)',
+      fontWeight: 'var(--font-weight-medium)',
+      margin: '0 0 16px 0',
+      lineHeight: '1.4',
       flex: 1, // Push footer down
     });
     card.appendChild(title);
 
     // Footer Actions
-    const actions = document.createElement("div");
+    const actions = document.createElement('div');
     Object.assign(actions.style, {
-      marginTop: "auto",
-      display: "flex",
-      justifyContent: "flex-end",
+      marginTop: 'auto',
+      display: 'flex',
+      justifyContent: 'flex-end',
     });
 
-    const btnLink = document.createElement("div"); // Using div as button to avoid nested form submission issues if any
+    const btnLink = document.createElement('div'); // Using div as button to avoid nested form submission issues if any
     btnLink.innerHTML = `
       <span>Ver Link Oficial</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     `;
     Object.assign(btnLink.style, {
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      fontSize: "0.85rem",
-      color: "var(--color-primary)",
-      fontWeight: "600",
-      cursor: "pointer",
-      padding: "8px 12px",
-      borderRadius: "6px",
-      background: "var(--color-bg-sub)",
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '0.85rem',
+      color: 'var(--color-primary)',
+      fontWeight: '600',
+      cursor: 'pointer',
+      padding: '8px 12px',
+      borderRadius: '6px',
+      background: 'var(--color-bg-sub)',
     });
 
-    btnLink.onmouseenter = () =>
-      (btnLink.style.background = "var(--color-bg-hover)");
-    btnLink.onmouseleave = () =>
-      (btnLink.style.background = "var(--color-bg-sub)");
+    btnLink.onmouseenter = () => (btnLink.style.background = 'var(--color-bg-hover)');
+    btnLink.onmouseleave = () => (btnLink.style.background = 'var(--color-bg-sub)');
 
     btnLink.onclick = (e) => {
       e.stopPropagation();
-      window.open(finalUrl, "_blank");
+      window.open(finalUrl, '_blank');
     };
 
     actions.appendChild(btnLink);
     card.appendChild(actions);
 
-    card.onclick = () => window.open(finalUrl, "_blank");
+    card.onclick = () => window.open(finalUrl, '_blank');
 
     return card;
   };
 
-  const showCandidatesModal = (
-    candidates,
-    originalQuery,
-    onSelect,
-    onForce,
-  ) => {
+  const showCandidatesModal = (candidates, originalQuery, onSelect, onForce) => {
     // Create Overlay
-    const overlay = document.createElement("div");
+    const overlay = document.createElement('div');
     Object.assign(overlay.style, {
-      position: "fixed",
+      position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.8)",
+      backgroundColor: 'rgba(0,0,0,0.8)',
       zIndex: 10000,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      backdropFilter: "blur(4px)",
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backdropFilter: 'blur(4px)',
     });
 
-    const modal = document.createElement("div");
+    const modal = document.createElement('div');
     Object.assign(modal.style, {
-      backgroundColor: "var(--color-surface)",
-      width: "90%",
-      maxWidth: "600px",
-      borderRadius: "var(--radius-lg)",
-      padding: "24px",
-      border: "1px solid var(--color-border)",
-      boxShadow: "var(--shadow-xl)",
-      animation: "fadeIn 0.3s ease",
+      backgroundColor: 'var(--color-surface)',
+      width: '90%',
+      maxWidth: '600px',
+      borderRadius: 'var(--radius-lg)',
+      padding: '24px',
+      border: '1px solid var(--color-border)',
+      boxShadow: 'var(--shadow-xl)',
+      animation: 'fadeIn 0.3s ease',
     });
 
     modal.innerHTML = `
@@ -1702,38 +1639,35 @@ export function setupSearchLogic() {
         </div>
       `;
 
-    const list = modal.querySelector("#candidatesList");
+    const list = modal.querySelector('#candidatesList');
 
     candidates.forEach((cand) => {
-      const item = document.createElement("div");
+      const item = document.createElement('div');
       Object.assign(item.style, {
-        padding: "12px",
-        border: "1px solid var(--color-border)",
-        borderRadius: "8px",
-        cursor: "pointer",
-        transition: "background 0.2s",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: "var(--color-bg-sub)",
+        padding: '12px',
+        border: '1px solid var(--color-border)',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'background 0.2s',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'var(--color-bg-sub)',
       });
-      item.onmouseover = () =>
-        (item.style.backgroundColor = "var(--color-bg-hover)");
-      item.onmouseout = () =>
-        (item.style.backgroundColor = "var(--color-bg-sub)");
+      item.onmouseover = () => (item.style.backgroundColor = 'var(--color-bg-hover)');
+      item.onmouseout = () => (item.style.backgroundColor = 'var(--color-bg-sub)');
 
       const formatSlug = (str) => {
         if (!str) return null;
         return str
-          .split("-")
+          .split('-')
           .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" ");
+          .join(' ');
       };
 
       const title = formatSlug(cand.slug) || cand.query;
       const info =
-        [cand.institution, cand.year].filter(Boolean).join(" • ") ||
-        "Processado recentemente";
+        [cand.institution, cand.year].filter(Boolean).join(' • ') || 'Processado recentemente';
 
       item.innerHTML = `
             <div>
@@ -1753,7 +1687,7 @@ export function setupSearchLogic() {
       list.appendChild(item);
     });
 
-    const btnForce = modal.querySelector("#btnForceSearch");
+    const btnForce = modal.querySelector('#btnForceSearch');
     btnForce.onclick = () => {
       document.body.removeChild(overlay);
       if (onForce) onForce();
@@ -1767,32 +1701,29 @@ export function setupSearchLogic() {
   // Removed: advanced PDF rendering, previews, etc
 
   // Listeners Iniciais
-  if (btnSearch) btnSearch.addEventListener("click", () => doSearch(false));
+  if (btnSearch) btnSearch.addEventListener('click', () => doSearch(false));
   if (searchInput) {
-    searchInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") doSearch(false);
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') doSearch(false);
     });
   }
 }
 
 /* --- EXPORTED HELPER FOR GLOBAL NAVIGATION --- */
 export function checkAndRestoreFloatingTerminal() {
-  if (terminalInstance && terminalInstance.state !== "DONE") {
+  if (terminalInstance && terminalInstance.state !== 'DONE') {
     terminalInstance.setFloatMode(true);
-    let wrapper = document.getElementById("floating-term-wrapper");
+    let wrapper = document.getElementById('floating-term-wrapper');
     if (!wrapper) {
-      wrapper = document.createElement("div");
-      wrapper.id = "floating-term-wrapper";
-      wrapper.style.position = "fixed";
-      wrapper.style.zIndex = "99999";
+      wrapper = document.createElement('div');
+      wrapper.id = 'floating-term-wrapper';
+      wrapper.style.position = 'fixed';
+      wrapper.style.zIndex = '99999';
       document.body.appendChild(wrapper);
     }
-    if (
-      terminalInstance.container &&
-      !wrapper.contains(terminalInstance.container)
-    ) {
+    if (terminalInstance.container && !wrapper.contains(terminalInstance.container)) {
       wrapper.appendChild(terminalInstance.container);
     }
-    wrapper.style.display = "block";
+    wrapper.style.display = 'block';
   }
 }

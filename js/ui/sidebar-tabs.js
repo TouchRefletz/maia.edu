@@ -5,8 +5,8 @@
 
 // Estado global das abas
 const tabsState = {
-  tabs: [{ id: "hub", type: "hub", label: "Questões", closable: false }],
-  activeTabId: "hub",
+  tabs: [{ id: 'hub', type: 'hub', label: 'Questões', closable: false }],
+  activeTabId: 'hub',
   tabIdCounter: 0,
 };
 
@@ -39,42 +39,42 @@ export function cancelTabRequests(tabId) {
 }
 
 // Import helpers for rich cards
-import { CropperState } from "../cropper/cropper-state.js";
+import { CropperState } from '../cropper/cropper-state.js';
 import {
   construirSkeletonLoader,
   criarElementoCardPensamento,
   splitThought,
-} from "../sidebar/thoughts-base.js";
-import { showConfirmModal } from "./modal-confirm.js";
+} from '../sidebar/thoughts-base.js';
+import { showConfirmModal } from './modal-confirm.js';
 
 /**
  * Inicializa o sistema de abas na sidebar
  */
 export function initSidebarTabs() {
-  const sidebar = document.getElementById("viewerSidebar");
+  const sidebar = document.getElementById('viewerSidebar');
   if (!sidebar) return;
 
   // Criar container do header de abas se não existir
-  let tabsHeader = document.getElementById("sidebar-tabs-header");
+  let tabsHeader = document.getElementById('sidebar-tabs-header');
   if (!tabsHeader) {
-    tabsHeader = document.createElement("div");
-    tabsHeader.id = "sidebar-tabs-header";
-    tabsHeader.className = "sidebar-tabs-header";
+    tabsHeader = document.createElement('div');
+    tabsHeader.id = 'sidebar-tabs-header';
+    tabsHeader.className = 'sidebar-tabs-header';
     // FIX: Garantir que o header fique sobre o conteúdo (questão pode ter z-index alto)
-    tabsHeader.style.position = "relative";
-    tabsHeader.style.zIndex = "100";
+    tabsHeader.style.position = 'relative';
+    tabsHeader.style.zIndex = '100';
     sidebar.prepend(tabsHeader);
   }
 
   // Criar container do conteúdo de abas se não existir
-  let tabsContent = document.getElementById("sidebar-tabs-content");
+  let tabsContent = document.getElementById('sidebar-tabs-content');
   if (!tabsContent) {
-    tabsContent = document.createElement("div");
-    tabsContent.id = "sidebar-tabs-content";
-    tabsContent.className = "sidebar-tabs-content";
+    tabsContent = document.createElement('div');
+    tabsContent.id = 'sidebar-tabs-content';
+    tabsContent.className = 'sidebar-tabs-content';
 
     // Inserir após o header de abas
-    tabsHeader.insertAdjacentElement("afterend", tabsContent);
+    tabsHeader.insertAdjacentElement('afterend', tabsContent);
   }
 
   renderTabs();
@@ -105,11 +105,11 @@ export function createQuestionTab(groupId, label, options = {}) {
 
   const newTab = {
     id: tabId,
-    type: "question",
+    type: 'question',
     label: label || `Questão ${tabsState.tabIdCounter}`,
     groupId: groupId,
     closable: true,
-    status: "processing", // processing, complete, error
+    status: 'processing', // processing, complete, error
     progress: 0,
   };
 
@@ -146,7 +146,7 @@ export function removeTab(tabId) {
 
   // Se a aba ativa foi removida, volta para o Hub
   if (tabsState.activeTabId === tabId) {
-    setActiveTab("hub");
+    setActiveTab('hub');
   } else {
     renderTabs();
   }
@@ -176,7 +176,7 @@ export function reloadTab(tabId) {
   const tabContainerId = `tab-content-${tabId}`;
   const container = document.getElementById(tabContainerId);
   if (container) {
-    container.innerHTML = ""; // Limpa conteúdo
+    container.innerHTML = ''; // Limpa conteúdo
     container.remove(); // Remove do DOM para forçar recriação
   }
 
@@ -210,10 +210,8 @@ export function updateTabStatus(tabId, updates, options = {}) {
   if (updates.progress !== undefined) tab.progress = updates.progress;
   if (updates.label !== undefined) tab.label = updates.label;
   if (updates.response !== undefined) tab.response = updates.response;
-  if (updates.gabaritoResponse !== undefined)
-    tab.gabaritoResponse = updates.gabaritoResponse; // [BATCH FIX] Armazena gabarito por aba
-  if (updates.aiThoughtsHtml !== undefined)
-    tab.aiThoughtsHtml = updates.aiThoughtsHtml; // [NOVO] Armazena HTML dos pensamentos
+  if (updates.gabaritoResponse !== undefined) tab.gabaritoResponse = updates.gabaritoResponse; // [BATCH FIX] Armazena gabarito por aba
+  if (updates.aiThoughtsHtml !== undefined) tab.aiThoughtsHtml = updates.aiThoughtsHtml; // [NOVO] Armazena HTML dos pensamentos
 
   renderTabs();
 
@@ -230,54 +228,54 @@ export function updateTabStatus(tabId, updates, options = {}) {
  * Renderiza a barra de abas
  */
 function renderTabs() {
-  const tabsHeader = document.getElementById("sidebar-tabs-header");
+  const tabsHeader = document.getElementById('sidebar-tabs-header');
   if (!tabsHeader) return;
 
-  tabsHeader.innerHTML = "";
+  tabsHeader.innerHTML = '';
 
   // Wrapper para conter abas + botão fechar
-  const headerWrapper = document.createElement("div");
-  headerWrapper.className = "sidebar-tabs-header-wrapper";
+  const headerWrapper = document.createElement('div');
+  headerWrapper.className = 'sidebar-tabs-header-wrapper';
 
-  const tabsBar = document.createElement("div");
-  tabsBar.className = "sidebar-tabs-bar";
+  const tabsBar = document.createElement('div');
+  tabsBar.className = 'sidebar-tabs-bar';
 
   tabsState.tabs.forEach((tab) => {
     const isActive = tab.id === tabsState.activeTabId;
-    const tabBtn = document.createElement("button");
-    tabBtn.className = `sidebar-tab ${isActive ? "active" : ""}`;
+    const tabBtn = document.createElement('button');
+    tabBtn.className = `sidebar-tab ${isActive ? 'active' : ''}`;
     tabBtn.dataset.tabId = tab.id;
 
     // Ícone baseado no tipo
-    let icon = "📋";
-    if (tab.type === "hub") {
-      icon = "🏠";
-    } else if (tab.type === "question") {
-      if (tab.status === "processing") icon = "⏳";
-      else if (tab.status === "complete") icon = "✅";
-      else if (tab.status === "error") icon = "❌";
+    let icon = '📋';
+    if (tab.type === 'hub') {
+      icon = '🏠';
+    } else if (tab.type === 'question') {
+      if (tab.status === 'processing') icon = '⏳';
+      else if (tab.status === 'complete') icon = '✅';
+      else if (tab.status === 'error') icon = '❌';
     }
 
     // Label com ícone
-    const labelSpan = document.createElement("span");
-    labelSpan.className = "sidebar-tab-label";
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'sidebar-tab-label';
     labelSpan.innerHTML = `<span class="tab-icon">${icon}</span> ${tab.label}`;
     tabBtn.appendChild(labelSpan);
 
     // Botão de fechar (apenas para abas fecháveis)
     if (tab.closable) {
-      const closeBtn = document.createElement("span");
-      closeBtn.className = "sidebar-tab-close";
-      closeBtn.innerHTML = "×";
+      const closeBtn = document.createElement('span');
+      closeBtn.className = 'sidebar-tab-close';
+      closeBtn.innerHTML = '×';
       closeBtn.onclick = async (e) => {
         e.stopPropagation();
 
         // Modal de confirmação (negativo - ação destrutiva)
         const confirmed = await showConfirmModal(
-          "Fechar Questão?",
-          "Tem certeza que deseja fechar esta questão? O processamento será cancelado e a questão NÃO será salva no banco de dados. Você poderá enviá-la novamente depois.",
-          "Fechar e Descartar",
-          "Continuar Processando",
+          'Fechar Questão?',
+          'Tem certeza que deseja fechar esta questão? O processamento será cancelado e a questão NÃO será salva no banco de dados. Você poderá enviá-la novamente depois.',
+          'Fechar e Descartar',
+          'Continuar Processando',
           false, // isPositiveAction = false (cor de erro/warning)
         );
 
@@ -314,12 +312,12 @@ function renderTabs() {
   headerWrapper.appendChild(tabsBar);
 
   // Botão de fechar sidebar
-  const closeSidebarBtn = document.createElement("button");
-  closeSidebarBtn.className = "sidebar-close-btn";
-  closeSidebarBtn.innerHTML = "×";
-  closeSidebarBtn.title = "Fechar Sidebar";
+  const closeSidebarBtn = document.createElement('button');
+  closeSidebarBtn.className = 'sidebar-close-btn';
+  closeSidebarBtn.innerHTML = '×';
+  closeSidebarBtn.title = 'Fechar Sidebar';
   closeSidebarBtn.onclick = () => {
-    import("../viewer/sidebar.js").then(({ esconderPainel }) => esconderPainel());
+    import('../viewer/sidebar.js').then(({ esconderPainel }) => esconderPainel());
   };
   headerWrapper.appendChild(closeSidebarBtn);
 
@@ -330,25 +328,25 @@ function renderTabs() {
  * Renderiza o conteúdo da aba ativa (PERSISTENTE)
  */
 function renderActiveTabContent() {
-  const tabsContent = document.getElementById("sidebar-tabs-content");
+  const tabsContent = document.getElementById('sidebar-tabs-content');
   if (!tabsContent) return;
 
   const activeTab = getActiveTab();
   if (!activeTab) return;
 
   // 1. Esconder TODOS os containers de abas (Preservando Scroll)
-  const allContainers = tabsContent.querySelectorAll(".tab-content-container");
+  const allContainers = tabsContent.querySelectorAll('.tab-content-container');
   allContainers.forEach((el) => {
     // Usamos visibility + position absolute para manter o elemento renderizado
     // e preservar o scroll, mas tirá-lo do fluxo visual.
-    el.style.position = "absolute";
-    el.style.visibility = "hidden";
-    el.style.opacity = "0";
-    el.style.pointerEvents = "none";
-    el.style.top = "0";
-    el.style.left = "0";
-    el.style.width = "100%";
-    el.style.zIndex = "-1";
+    el.style.position = 'absolute';
+    el.style.visibility = 'hidden';
+    el.style.opacity = '0';
+    el.style.pointerEvents = 'none';
+    el.style.top = '0';
+    el.style.left = '0';
+    el.style.width = '100%';
+    el.style.zIndex = '-1';
   });
 
   // 2. Verifica se já existe container para a aba ativa
@@ -357,11 +355,11 @@ function renderActiveTabContent() {
 
   // Se não existe, cria
   if (!activeContainer) {
-    activeContainer = document.createElement("div");
+    activeContainer = document.createElement('div');
     activeContainer.id = tabContainerId;
-    activeContainer.className = "tab-content-container";
-    activeContainer.style.height = "100%"; // Ocupar altura total
-    activeContainer.style.overflowY = "auto"; // Scroll interno se necessário
+    activeContainer.className = 'tab-content-container';
+    activeContainer.style.height = '100%'; // Ocupar altura total
+    activeContainer.style.overflowY = 'auto'; // Scroll interno se necessário
     tabsContent.appendChild(activeContainer);
 
     // Renderiza o conteúdo INICIALMENTE
@@ -369,39 +367,39 @@ function renderActiveTabContent() {
   }
 
   // 3. Mostra o container ativo
-  activeContainer.style.position = "relative";
-  activeContainer.style.visibility = "visible";
-  activeContainer.style.opacity = "1";
-  activeContainer.style.pointerEvents = "auto";
-  activeContainer.style.zIndex = "1";
+  activeContainer.style.position = 'relative';
+  activeContainer.style.visibility = 'visible';
+  activeContainer.style.opacity = '1';
+  activeContainer.style.pointerEvents = 'auto';
+  activeContainer.style.zIndex = '1';
   // Remove styles de ocultação que podem ter sobrado
-  activeContainer.style.top = "";
-  activeContainer.style.left = "";
+  activeContainer.style.top = '';
+  activeContainer.style.left = '';
 }
 
 /**
  * Preenche o conteúdo de um container de aba recém-criado
  */
 function renderTabInnerContent(container, tab) {
-  if (tab.type === "hub") {
+  if (tab.type === 'hub') {
     // Renderizar o Hub (lista de questões por página)
     if (hubRenderCallback) {
       hubRenderCallback(container);
     } else {
       // O footer de ações também precisa existir
-      const actionsFooter = document.createElement("div");
-      actionsFooter.id = "sidebar-actions-footer";
-      actionsFooter.style.padding = "10px";
-      actionsFooter.style.borderTop = "1px solid var(--border-color)";
+      const actionsFooter = document.createElement('div');
+      actionsFooter.id = 'sidebar-actions-footer';
+      actionsFooter.style.padding = '10px';
+      actionsFooter.style.borderTop = '1px solid var(--border-color)';
       container.appendChild(actionsFooter);
 
       // Fallback - criar containers esperados pelo sistema existente
-      const pagesContainer = document.createElement("div");
-      pagesContainer.id = "sidebar-pages-container";
-      pagesContainer.className = "sidebar-pages-container";
+      const pagesContainer = document.createElement('div');
+      pagesContainer.id = 'sidebar-pages-container';
+      pagesContainer.className = 'sidebar-pages-container';
       container.appendChild(pagesContainer);
     }
-  } else if (tab.type === "question") {
+  } else if (tab.type === 'question') {
     // Se já tiver uma resposta final processada, renderiza o formulário final
     if (tab.response) {
       // [BATCH FIX] Sincroniza variáveis globais com os dados DESTA aba
@@ -414,19 +412,15 @@ function renderTabInnerContent(container, tab) {
 
       // Garante que o renderizador e as bibliotecas KaTeX/Marked estejam carregadas ANTES de renderizar
       Promise.all([
-        import("../render/final/render-questao.js"),
-        import("../libs/loader.tsx").then((m) => m.ensureLibsLoaded()),
+        import('../render/final/render-questao.js'),
+        import('../libs/loader.tsx').then((m) => m.ensureLibsLoaded()),
       ])
         .then(([mod]) => {
           // [FIX] Passa o 3º argumento (aiThoughtsHtml) que a renderizarQuestaoFinal espera
-          mod.renderizarQuestaoFinal(
-            tab.response,
-            container,
-            tab.aiThoughtsHtml,
-          );
+          mod.renderizarQuestaoFinal(tab.response, container, tab.aiThoughtsHtml);
         })
         .catch((err) => {
-          console.error("Erro ao carregar renderizador final:", err);
+          console.error('Erro ao carregar renderizador final:', err);
           container.innerHTML = `<div class="error-msg">Erro ao carregar visualização.</div>`;
         });
     } else {
@@ -441,7 +435,7 @@ function renderTabInnerContent(container, tab) {
  */
 function renderQuestionTabContent(container, tab) {
   // Limpa o container para garantir
-  container.innerHTML = "";
+  container.innerHTML = '';
 
   // 1. Usa o Skeleton Loader oficial (Design do Usuário)
   // construirSkeletonLoader espera um container pai ("sidebar"), mas aqui
@@ -459,11 +453,11 @@ function renderQuestionTabContent(container, tab) {
 
   // Ajuste fino: O Skeleton Loader pode ter estilos que esperam estar direto no body
   // mas vamos garantir que ele ocupe o espaço correto
-  loadingContainer.style.marginTop = "0";
-  loadingContainer.style.borderTop = "none";
-  loadingContainer.style.height = "100%";
-  loadingContainer.style.display = "flex";
-  loadingContainer.style.flexDirection = "column";
+  loadingContainer.style.marginTop = '0';
+  loadingContainer.style.borderTop = 'none';
+  loadingContainer.style.height = '100%';
+  loadingContainer.style.display = 'flex';
+  loadingContainer.style.flexDirection = 'column';
 
   // Identifica este container de logs especificamente para o addLogToQuestionTab
   // Como addLogToQuestionTab busca por ID "maiaThoughts", e agora temos múltiplos (um por aba invisível),
@@ -485,9 +479,7 @@ function renderQuestionTabContent(container, tab) {
       const card = criarElementoCardPensamento(title, body);
 
       // Insere ANTES do skeleton final (se existir) para manter o efeito de "pensando..."
-      const skeletonCard = thoughtListEl.querySelector(
-        ".maia-thought-card--skeleton",
-      );
+      const skeletonCard = thoughtListEl.querySelector('.maia-thought-card--skeleton');
       if (skeletonCard) {
         thoughtListEl.insertBefore(card, skeletonCard);
       } else {
@@ -525,9 +517,7 @@ export function addLogToQuestionTab(tabId, message) {
   const card = criarElementoCardPensamento(title, body);
 
   // Insere ANTES do skeleton (efeito "pensando..." continua no final)
-  const skeletonCard = thoughtListEl.querySelector(
-    ".maia-thought-card--skeleton",
-  );
+  const skeletonCard = thoughtListEl.querySelector('.maia-thought-card--skeleton');
   if (skeletonCard) {
     thoughtListEl.insertBefore(card, skeletonCard);
   } else {
@@ -548,7 +538,7 @@ export function addLogToQuestionTab(tabId, message) {
  * Verifica se o sistema de abas está ativo (Hub visível)
  */
 export function isHubActive() {
-  return tabsState.activeTabId === "hub";
+  return tabsState.activeTabId === 'hub';
 }
 
 /**
@@ -556,7 +546,7 @@ export function isHubActive() {
  * Útil para mostrar o status de "Salvo!" após envio ao Firebase
  */
 export function switchToHub() {
-  setActiveTab("hub");
+  setActiveTab('hub');
 }
 
 /**
@@ -571,12 +561,12 @@ export function refreshActiveTab() {
 
 function getStatusLabel(status) {
   switch (status) {
-    case "processing":
-      return "Processando...";
-    case "complete":
-      return "Concluído";
-    case "error":
-      return "Erro";
+    case 'processing':
+      return 'Processando...';
+    case 'complete':
+      return 'Concluído';
+    case 'error':
+      return 'Erro';
     default:
       return status;
   }

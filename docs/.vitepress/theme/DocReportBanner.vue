@@ -21,25 +21,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vitepress'
+import { useRoute } from 'vitepress';
+import { computed } from 'vue';
 
-const route = useRoute()
+const route = useRoute();
 
 const reportUrl = computed(() => {
-  const pageTitle = encodeURIComponent(route.path)
+  const pageTitle = encodeURIComponent(route.path);
   const body = encodeURIComponent(
     `## Página com Erro\n\n` +
-    `**URL:** ${route.path}\n\n` +
-    `## Descrição do Erro\n\n` +
-    `<!-- Descreva o erro encontrado na documentação -->\n\n` +
-    `## Correção Sugerida\n\n` +
-    `<!-- Se possível, indique a correção correta -->\n\n` +
-    `---\n` +
-    `*Este report foi gerado automaticamente pelo sistema de documentação.*`
-  )
-  return `https://github.com/maia-edu/maia.api/issues/new?title=[Docs] Erro em ${pageTitle}&body=${body}&labels=documentation,ai-generated`
-})
+      `**URL:** ${route.path}\n\n` +
+      `## Descrição do Erro\n\n` +
+      `<!-- Descreva o erro encontrado na documentação -->\n\n` +
+      `## Correção Sugerida\n\n` +
+      `<!-- Se possível, indique a correção correta -->\n\n` +
+      `---\n` +
+      `*Este report foi gerado automaticamente pelo sistema de documentação.*`,
+  );
+  return `https://github.com/maia-edu/maia.api/issues/new?title=[Docs] Erro em ${pageTitle}&body=${body}&labels=documentation,ai-generated`;
+});
 </script>
 
 <style scoped>

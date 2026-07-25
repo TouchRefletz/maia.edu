@@ -1,5 +1,6 @@
-console.log("[DEBUG] Loading updated alternativas.js");
-import { criarHtmlBlocoEditor } from "./structure-editor.js";
+console.log('[DEBUG] Loading updated alternativas.js');
+
+import { criarHtmlBlocoEditor } from './structure-editor.js';
 
 /**
  * Retorna apenas a string HTML da estrutura da alternativa.
@@ -46,16 +47,16 @@ export const gerarHtmlTemplateAlternativa = (blocoInicialHtml) => {
  */
 export const configurarEventosNovaAlternativa = (linhaElemento) => {
   // 1. Configura os botões de adicionar blocos (Texto, Equação, Imagem)
-  linhaElemento.querySelectorAll(".btn-alt-add").forEach((btn) => {
+  linhaElemento.querySelectorAll('.btn-alt-add').forEach((btn) => {
     btn.onclick = () => {
       const tipo = btn.dataset.addType;
-      const html = criarHtmlBlocoEditor(tipo, "");
+      const html = criarHtmlBlocoEditor(tipo, '');
 
-      const temp = document.createElement("div");
+      const temp = document.createElement('div');
       temp.innerHTML = html.trim();
 
       // Encontra o container de drag ESPECÍFICO desta linha e adiciona
-      const dragContainer = linhaElemento.querySelector(".alt-drag-container");
+      const dragContainer = linhaElemento.querySelector('.alt-drag-container');
       if (dragContainer) {
         dragContainer.appendChild(temp.firstChild);
       }
@@ -63,9 +64,9 @@ export const configurarEventosNovaAlternativa = (linhaElemento) => {
   });
 
   // 2. Configura o botão de remover a própria linha
-  const btnRemove = linhaElemento.querySelector(".btn-remove-alt");
+  const btnRemove = linhaElemento.querySelector('.btn-remove-alt');
   if (btnRemove) {
-    btnRemove.onclick = function () {
+    btnRemove.onclick = () => {
       linhaElemento.remove();
     };
   }
@@ -75,13 +76,12 @@ export const configurarEventosNovaAlternativa = (linhaElemento) => {
  * Cria o elemento DOM da alternativa, preenche o HTML e liga os eventos.
  */
 export const criarEAnexarAlternativa = (containerDestino) => {
-  const nova = document.createElement("div");
-  nova.className = "alt-row alt-edit-row";
-  nova.style.cssText =
-    "display:flex;flex-direction:column;gap:8px;margin-bottom:10px";
+  const nova = document.createElement('div');
+  nova.className = 'alt-row alt-edit-row';
+  nova.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:10px';
 
   // Gera o conteúdo visual
-  const blocoInicial = criarHtmlBlocoEditor("texto", "");
+  const blocoInicial = criarHtmlBlocoEditor('texto', '');
   nova.innerHTML = gerarTemplateAlternativaSimples(blocoInicial);
 
   // Liga os eventos (Remover e Adicionar Bloco)
@@ -136,53 +136,53 @@ export const gerarTemplateAlternativaSimples = (blocoInicial) => {
  */
 export const configurarEventosAlternativa = (linhaElemento) => {
   // Botão Remover Linha
-  const btnRemove = linhaElemento.querySelector(".btn-remove-alt");
+  const btnRemove = linhaElemento.querySelector('.btn-remove-alt');
   if (btnRemove) {
     btnRemove.onclick = () => linhaElemento.remove();
   }
 
   // --- LÓGICA DO MENU DROPDOWN ---
-  const toggleBtn = linhaElemento.querySelector(".btn-alt-toggle-menu");
-  const menu = linhaElemento.querySelector(".alt-add-menu");
+  const toggleBtn = linhaElemento.querySelector('.btn-alt-toggle-menu');
+  const menu = linhaElemento.querySelector('.alt-add-menu');
 
   if (toggleBtn && menu) {
     toggleBtn.onclick = (e) => {
       e.stopPropagation();
       // Fecha outros menus abertos para não poluir
-      document.querySelectorAll(".alt-add-menu").forEach((m) => {
+      document.querySelectorAll('.alt-add-menu').forEach((m) => {
         if (m !== menu) {
-          m.classList.add("hidden");
-          m.style.display = "none";
+          m.classList.add('hidden');
+          m.style.display = 'none';
         }
       });
 
-      const isHidden = menu.classList.contains("hidden");
+      const isHidden = menu.classList.contains('hidden');
       if (isHidden) {
-        menu.classList.remove("hidden");
-        menu.style.display = "flex";
+        menu.classList.remove('hidden');
+        menu.style.display = 'flex';
       } else {
-        menu.classList.add("hidden");
-        menu.style.display = "none";
+        menu.classList.add('hidden');
+        menu.style.display = 'none';
       }
     };
   }
 
   // Botões Adicionar Bloco
-  linhaElemento.querySelectorAll(".btn-alt-add").forEach((btn) => {
+  linhaElemento.querySelectorAll('.btn-alt-add').forEach((btn) => {
     btn.onclick = () => {
       const tipo = btn.dataset.addType;
-      const html = criarHtmlBlocoEditor(tipo, "");
+      const html = criarHtmlBlocoEditor(tipo, '');
 
-      const temp = document.createElement("div");
+      const temp = document.createElement('div');
       temp.innerHTML = html.trim();
 
-      const dragContainer = linhaElemento.querySelector(".alt-drag-container");
+      const dragContainer = linhaElemento.querySelector('.alt-drag-container');
       if (dragContainer) dragContainer.appendChild(temp.firstChild);
 
       // Fecha o menu após adicionar
       if (menu) {
-        menu.classList.add("hidden");
-        menu.style.display = "none";
+        menu.classList.add('hidden');
+        menu.style.display = 'none';
       }
     };
   });

@@ -16,6 +16,6 @@ export const pick = <T,>(...values: (T | undefined | null)[]): T | undefined => 
     // Retorna o primeiro valor válido encontrado
     return v as T;
   }
-  
+
   return undefined;
 };

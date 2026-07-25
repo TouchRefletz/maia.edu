@@ -1,13 +1,52 @@
-﻿# Viewer Template
+# Template e Estrutura DOM do Viewer (`js/viewer/template.js`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+Viewer+Template&labels=docs)
+## Arquivo-Fonte
 
-## Visao Geral
-Pagina de documentacao para `js/viewer/viewer-template.js` - componente do sistema de visualizacao de PDF.
+| Propriedade | Valor |
+|---|---|
+| **Arquivo** | [`js/viewer/template.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/template.js) |
+| **Escopo** | Injeção e criação da árvore DOM do PDF Viewer, toolbar e viewport |
+| **Exports** | `createViewerHTML()`, `injectViewerTemplate()` |
 
-## Arquivo: `js/viewer/viewer-template.js`
+---
 
-## Referencias Cruzadas
-- [PDF Core](/pdf/core) — Renderizacao principal
-- [Arquitetura](/guia/arquitetura) — Visao geral
+## 🏗️ Estrutura DOM Injetada
 
+```javascript
+export function createViewerHTML() {
+  return `
+    <div class="pdf-viewer-root">
+      <header class="pdf-toolbar">
+        <div class="toolbar-left">
+          <button id="btn-sidebar-toggle" class="btn-icon" aria-label="Abrir Sidebar">☰</button>
+          <span class="document-title" id="pdf-doc-title">Documento.pdf</span>
+        </div>
+        <div class="toolbar-center">
+          <button id="btn-prev-page" class="btn-icon">▲</button>
+          <input type="number" id="input-page-num" value="1" min="1" />
+          <span id="label-total-pages">/ 0</span>
+          <button id="btn-next-page" class="btn-icon">▼</button>
+        </div>
+        <div class="toolbar-right">
+          <button id="btn-zoom-out" class="btn-icon">-</button>
+          <span id="zoom-value-label">100%</span>
+          <button id="btn-zoom-in" class="btn-icon">+</button>
+          <button id="btn-mode-crop" class="btn-primary">✂️ Cortar Questão</button>
+        </div>
+      </header>
+      <div class="pdf-body-wrapper">
+        <aside id="pdf-sidebar" class="pdf-sidebar"></aside>
+        <main id="pdf-viewport" class="pdf-viewport">
+          <div id="pdf-canvas-container" class="canvas-container"></div>
+        </main>
+      </div>
+    </div>
+  `;
+}
+```
+
+---
+
+## 🔗 Referências Cruzadas
+- [Core do PDF Viewer](/pdf/core)
+- [PDF Viewer Styles CSS](/css/pdf-viewer)

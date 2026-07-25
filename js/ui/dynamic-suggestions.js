@@ -17,7 +17,7 @@ const TYPE_SPEED_MS = 40; // Velocidade de digitação
 const ERASE_SPEED_MS = 25; // Velocidade de apagar (mais rápido)
 
 // Armazena o texto alvo do placeholder para evitar race conditions
-let targetPlaceholder = "";
+let targetPlaceholder = '';
 
 /**
  * Inicia a rotação automática das sugestões
@@ -26,17 +26,18 @@ export async function startSuggestionRotation() {
   if (isRunning) return;
 
   isRunning = true;
-  console.log("[DynamicSuggestions] Iniciando rotação...");
+  console.log('[DynamicSuggestions] Iniciando rotação...');
 
   // Import dinâmico para evitar erros de módulo
-  const { generateSuggestions, generatePlaceholder } =
-    await import("../services/suggestion-generator.js");
+  const { generateSuggestions, generatePlaceholder } = await import(
+    '../services/suggestion-generator.js'
+  );
 
   // Primeira atualização imediata
   updateSuggestionsUI(generateSuggestions);
 
   // Inicializa o placeholder alvo
-  const input = document.querySelector(".chat-input-field");
+  const input = document.querySelector('.chat-input-field');
   if (input) {
     targetPlaceholder = input.placeholder;
   }
@@ -70,14 +71,14 @@ export function stopSuggestionRotation() {
     placeholderInterval = null;
   }
 
-  console.log("[DynamicSuggestions] Rotação parada.");
+  console.log('[DynamicSuggestions] Rotação parada.');
 }
 
 /**
  * Atualiza os chips de sugestão com animação fade
  */
 async function updateSuggestionsUI(generateSuggestions) {
-  const chips = document.querySelectorAll(".suggestion-chip");
+  const chips = document.querySelectorAll('.suggestion-chip');
   if (chips.length === 0) return;
 
   // Gera novas sugestões
@@ -85,8 +86,8 @@ async function updateSuggestionsUI(generateSuggestions) {
 
   // Fade out
   chips.forEach((chip) => {
-    chip.style.opacity = "0";
-    chip.style.transform = "translateY(5px)";
+    chip.style.opacity = '0';
+    chip.style.transform = 'translateY(5px)';
   });
 
   // Espera a animação
@@ -101,8 +102,8 @@ async function updateSuggestionsUI(generateSuggestions) {
 
   // Fade in
   chips.forEach((chip) => {
-    chip.style.opacity = "1";
-    chip.style.transform = "translateY(0)";
+    chip.style.opacity = '1';
+    chip.style.transform = 'translateY(0)';
   });
 }
 
@@ -110,11 +111,11 @@ async function updateSuggestionsUI(generateSuggestions) {
  * Efeito typewriter no placeholder - apaga e escreve letra por letra
  */
 async function typewriterPlaceholder(generatePlaceholderFn) {
-  const input = document.querySelector(".chat-input-field");
+  const input = document.querySelector('.chat-input-field');
   if (!input) return;
 
   // Só atualiza se o input estiver vazio e não estiver animando
-  if (input.value.trim() !== "" || isTyping) return;
+  if (input.value.trim() !== '' || isTyping) return;
 
   isTyping = true;
 
@@ -137,7 +138,7 @@ async function typewriterPlaceholder(generatePlaceholderFn) {
     // Fase 1: Apagar o texto atual (letra por letra)
     for (let i = currentText.length; i >= 0; i--) {
       if (!isRunning) return; // Retorna imediatamente se parou
-      input.placeholder = currentText.substring(0, i) + "│"; // Cursor piscante
+      input.placeholder = currentText.substring(0, i) + '│'; // Cursor piscante
       await sleep(ERASE_SPEED_MS);
     }
 
@@ -147,7 +148,7 @@ async function typewriterPlaceholder(generatePlaceholderFn) {
     // Fase 2: Escrever o novo texto (letra por letra)
     for (let i = 0; i <= newText.length; i++) {
       if (!isRunning) return; // Retorna imediatamente se parou
-      input.placeholder = newText.substring(0, i) + "│";
+      input.placeholder = newText.substring(0, i) + '│';
       await sleep(TYPE_SPEED_MS);
     }
 
@@ -164,18 +165,18 @@ async function typewriterPlaceholder(generatePlaceholderFn) {
  * Configura os chips para preencher o textarea ao clicar
  */
 export function setupChipClickHandlers() {
-  const chips = document.querySelectorAll(".suggestion-chip");
-  const textarea = document.querySelector(".chat-input-field");
+  const chips = document.querySelectorAll('.suggestion-chip');
+  const textarea = document.querySelector('.chat-input-field');
 
   if (!textarea) return;
 
   chips.forEach((chip) => {
-    chip.addEventListener("click", () => {
+    chip.addEventListener('click', () => {
       textarea.value = chip.textContent;
       textarea.focus();
 
       // Dispara evento input para ajustar altura
-      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
     });
   });
 }

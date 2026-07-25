@@ -1,11 +1,11 @@
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { CropperState } from "./cropper-state.js";
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { CropperState } from './cropper-state.js';
 // NOVO: Importa o gerenciador de overlay
 import {
   extractImageFromSelection,
   initSelectionOverlay,
   removeSelectionOverlay,
-} from "./selection-overlay.js";
+} from './selection-overlay.js';
 
 export async function prepararImagemParaCropper() {
   // Deprecated: Não usamos mais 'imagem única'
@@ -29,7 +29,7 @@ export async function obterImagemDoCropper() {
   const blobUrl = await extractImageFromSelection();
 
   if (!blobUrl) {
-    customAlert("⚠️ Selecione uma área primeiro!", 2000);
+    customAlert('⚠️ Selecione uma área primeiro!', 2000);
     return null;
   }
 
@@ -43,21 +43,21 @@ export async function restaurarVisualizacaoOriginal() {
   // Define o grupo ativo como null para sair do modo de edição e desativar interação do overlay
   CropperState.setActiveGroup(null);
 
-  document.body.classList.remove("manual-crop-active");
+  document.body.classList.remove('manual-crop-active');
   window.__isManualPageAdd = false;
 
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (container) {
-    container.style.overflow = "";
-    container.style.touchAction = "";
-    container.style.userSelect = "";
-    container.style.cursor = "grab"; // Restaura cursor de Pan
+    container.style.overflow = '';
+    container.style.touchAction = '';
+    container.style.userSelect = '';
+    container.style.cursor = 'grab'; // Restaura cursor de Pan
   }
 
   // FIX: Destranca o header explicitamente caso a classe manual-crop-active não tenha resolvido
-  const header = document.getElementById("viewerHeader");
+  const header = document.getElementById('viewerHeader');
   if (header) {
-    header.style.pointerEvents = "auto";
+    header.style.pointerEvents = 'auto';
   }
 
   // Não precisamos mais dar 'renderAllPages' porque não destruímos o DOM,
@@ -68,16 +68,16 @@ export async function restaurarVisualizacaoOriginal() {
 
 export function resetarInterfaceBotoes() {
   // 1. Esconde botões flutuantes
-  const floatParams = document.getElementById("floatingActionParams");
-  if (floatParams) floatParams.classList.add("hidden");
+  const floatParams = document.getElementById('floatingActionParams');
+  if (floatParams) floatParams.classList.add('hidden');
 
   // Reset do texto e classe do botão de confirmação flutuante
   const btnConfirm = document.querySelector(
-    "#floatingActionParams button[data-action='confirm-crop']"
+    "#floatingActionParams button[data-action='confirm-crop']",
   );
   if (btnConfirm) {
-    btnConfirm.innerText = "✅ Confirmar Seleção";
-    btnConfirm.className = "flyingBtn btn--success";
+    btnConfirm.innerText = '✅ Confirmar Seleção';
+    btnConfirm.className = 'flyingBtn btn--success';
   }
 
   // 2. Reseta variável de estado de edição
@@ -86,17 +86,17 @@ export function resetarInterfaceBotoes() {
   // 3. (Legacy) Botões flutuantes removidos do fluxo.
 
   // 4. Reativa o botão de tesoura no header
-  const btnHeader = document.getElementById("btnRecortarHeader");
+  const btnHeader = document.getElementById('btnRecortarHeader');
   if (btnHeader) {
-    btnHeader.style.opacity = "1";
-    btnHeader.style.pointerEvents = "auto";
+    btnHeader.style.opacity = '1';
+    btnHeader.style.pointerEvents = 'auto';
   }
 }
 
 export function cancelarRecorte() {
   // 0. Delegate Slot Mode safely (Preserves existing data on edit-cancel)
-  if (window.__targetSlotContext === "image-slot") {
-    import("./mode.js").then((mod) => mod.cancelImageSlotMode());
+  if (window.__targetSlotContext === 'image-slot') {
+    import('./mode.js').then((mod) => mod.cancelImageSlotMode());
     return;
   }
 
@@ -105,12 +105,12 @@ export function cancelarRecorte() {
   // 1. Check for legacy slot-mode tag cleanup (Fallback) OR 'NOVO' tag
   if (activeGroup && activeGroup.tags) {
     // Apenas deleta se for um grupo NOVO (não concluído/salvo) ou se ficou completamente vazio
-    if (activeGroup.tags.includes("NOVO") || activeGroup.crops.length === 0) {
+    if (activeGroup.tags.includes('NOVO') || activeGroup.crops.length === 0) {
       CropperState.deleteGroup(activeGroup.id);
       console.log(
         `[CropperCore] Grupo temporário (${activeGroup.tags.join(
-          ","
-        )}) ${activeGroup.id} limpo ao cancelar.`
+          ',',
+        )}) ${activeGroup.id} limpo ao cancelar.`,
       );
     }
   }
@@ -131,12 +131,12 @@ export function cancelarRecorte() {
   resetarInterfaceBotoes();
 
   // Re-exibe o painel se necessário (pois slot mode esconde/usa painel)
-  import("../viewer/sidebar.js").then((mod) => mod.mostrarPainel());
+  import('../viewer/sidebar.js').then((mod) => mod.mostrarPainel());
 
   if (altLetra !== null && altIndex !== null) {
     window.dispatchEvent(
-      new CustomEvent("image-slot-mode-change", {
-        detail: { slotId: `alt_${altLetra}_${altIndex}`, mode: "idle" },
+      new CustomEvent('image-slot-mode-change', {
+        detail: { slotId: `alt_${altLetra}_${altIndex}`, mode: 'idle' },
       }),
     );
   }

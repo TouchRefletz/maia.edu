@@ -1,8 +1,8 @@
-import { FATORES_DEF, CFG } from "../utils/complexity-data.js";
-import { _calcularComplexidade } from "../render/ComplexityCard.tsx";
+import { _calcularComplexidade } from '../render/ComplexityCard.tsx';
+import { CFG, FATORES_DEF } from '../utils/complexity-data.js';
 
 export function gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte) {
-  let htmlFinal = "";
+  let htmlFinal = '';
 
   // 1. Gera o corpo principal (React Hydration Target para Estrutura)
   if (q.estrutura && Array.isArray(q.estrutura)) {
@@ -13,16 +13,12 @@ export function gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte) {
     const imgsHtml =
       imgsOriginalQ.length > 0
         ? imgsOriginalQ
-            .map(
-              (url) =>
-                `<img src="${url}" class="structure-img" style="margin-bottom:10px;">`,
-            )
-            .join("")
-        : "";
+            .map((url) => `<img src="${url}" class="structure-img" style="margin-bottom:10px;">`)
+            .join('')
+        : '';
 
     htmlFinal =
-      imgsHtml +
-      `<div class="structure-text">${(q.enunciado || "").replace(/\n/g, "<br>")}</div>`;
+      imgsHtml + `<div class="structure-text">${(q.enunciado || '').replace(/\n/g, '<br>')}</div>`;
   }
 
   // 2. Adiciona Imagens de Suporte (se houver)
@@ -35,7 +31,7 @@ export function gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte) {
 
 export function renderMatrizComplexidade(g) {
   const calc = _calcularComplexidade(g.analise_complexidade);
-  if (!calc) return "";
+  if (!calc) return '';
 
   const { pct, nivel, grupos } = calc;
 
@@ -57,18 +53,19 @@ export function renderMatrizComplexidade(g) {
     htmlGrid += `<div class="comp-cat-group">`;
     htmlGrid += `<div class="comp-cat-label" style="color:${catCfg.color};">${catCfg.label}</div>`;
     for (const item of itens) {
-      htmlGrid += `<div class="comp-factor ${item.ativo ? "active" : ""}"><div class="comp-dot" style="${item.ativo ? `background:${catCfg.color}; box-shadow:0 0 5px ${catCfg.color};` : ""}"></div><span>${item.label}</span></div>`;
+      htmlGrid += `<div class="comp-factor ${item.ativo ? 'active' : ''}"><div class="comp-dot" style="${item.ativo ? `background:${catCfg.color}; box-shadow:0 0 5px ${catCfg.color};` : ''}"></div><span>${item.label}</span></div>`;
     }
     htmlGrid += `</div>`;
   }
-  htmlGrid += "</div>";
+  htmlGrid += '</div>';
 
   // Justificativa da IA
-  let htmlJust = "";
+  let htmlJust = '';
   if (g.analise_complexidade.justificativa_dificuldade) {
-    const safeJust = String(
-      g.analise_complexidade.justificativa_dificuldade,
-    ).replace(/"/g, "&quot;");
+    const safeJust = String(g.analise_complexidade.justificativa_dificuldade).replace(
+      /"/g,
+      '&quot;',
+    );
     htmlJust = `<div class="markdown-content" data-raw="${safeJust}" style="margin-top:10px; font-style:italic; font-size:0.85rem; color:var(--color-text-secondary);">${g.analise_complexidade.justificativa_dificuldade}</div>`;
   }
 
@@ -76,26 +73,26 @@ export function renderMatrizComplexidade(g) {
 }
 
 export function renderBotaoScanGabarito(imgsOriginalG, jsonImgsG) {
-  if (!imgsOriginalG || imgsOriginalG.length === 0) return "";
+  if (!imgsOriginalG || imgsOriginalG.length === 0) return '';
   return `<button class="btn-view-scan js-ver-scan" data-imgs="${jsonImgsG}">
                 📸 Ver Scan Original do Gabarito
             </button>`;
 }
 
 export function renderPassosComDetalhes(g) {
-  if (!g.explicacao || g.explicacao.length === 0) return "";
+  if (!g.explicacao || g.explicacao.length === 0) return '';
 
   const htmlPassos = g.explicacao
     .map((p, i) => {
-      const origemLabel = (p.origem || "").includes("extraido")
-        ? "📄 Material Original"
-        : "🤖 Gerado por IA";
-      const origemCor = (p.origem || "").includes("extraido")
-        ? "var(--color-success)"
-        : "var(--color-primary)";
+      const origemLabel = (p.origem || '').includes('extraido')
+        ? '📄 Material Original'
+        : '🤖 Gerado por IA';
+      const origemCor = (p.origem || '').includes('extraido')
+        ? 'var(--color-success)'
+        : 'var(--color-primary)';
       const estrutura = Array.isArray(p.estrutura)
         ? p.estrutura
-        : [{ tipo: "texto", conteudo: p.passo || "" }];
+        : [{ tipo: 'texto', conteudo: p.passo || '' }];
 
       // Contexto 'banco' para renderização limpa
       // Mudança: Container para React Hydration
@@ -111,12 +108,12 @@ export function renderPassosComDetalhes(g) {
                     <summary>Metadados</summary>
                     <div class="q-step-meta-box">
                         <div class="q-step-row"><span class="q-step-key">Origem:</span><span style="color:${origemCor}; font-weight:bold;">${origemLabel}</span></div>
-                        ${p.fontematerial ? `<div class="q-step-row"><span class="q-step-key">Fonte:</span><span>${p.fontematerial}</span></div>` : ""}
+                        ${p.fontematerial ? `<div class="q-step-row"><span class="q-step-key">Fonte:</span><span>${p.fontematerial}</span></div>` : ''}
                     </div>
                 </details>
             </div>`;
     })
-    .join("");
+    .join('');
 
   return `
     <div class="q-res-section">
@@ -128,18 +125,14 @@ export function renderPassosComDetalhes(g) {
 }
 
 export function renderCreditosCompleto(g) {
-  if (!g.creditos) return "";
+  if (!g.creditos) return '';
   const c = g.creditos;
 
-  const inst =
-    c.autorouinstituicao ||
-    c.autor_ou_instituicao ||
-    c.autorOuInstituicao ||
-    "—";
-  const mat = c.material || c.nomeMaterial || c.nome_material || "—";
+  const inst = c.autorouinstituicao || c.autor_ou_instituicao || c.autorOuInstituicao || '—';
+  const mat = c.material || c.nomeMaterial || c.nome_material || '—';
   const confianca = c.confiancaidentificacao
-    ? Math.round(c.confiancaidentificacao * 100) + "%"
-    : "—";
+    ? Math.round(c.confiancaidentificacao * 100) + '%'
+    : '—';
 
   return `
         <div class="q-res-section">
@@ -147,7 +140,7 @@ export function renderCreditosCompleto(g) {
             <table class="credits-table">
                 <tr><td>Instituição</td><td>${inst}</td></tr>
                 <tr><td>Material</td><td>${mat}</td></tr>
-                <tr><td>Ano</td><td>${c.ano || "—"}</td></tr>
+                <tr><td>Ano</td><td>${c.ano || '—'}</td></tr>
                 <tr><td>Confiança</td><td>${confianca}</td></tr>
             </table>
         </div>`;
@@ -156,10 +149,10 @@ export function renderCreditosCompleto(g) {
 // --- NOVAS FUNÇÕES PARA O USER_REQUEST ---
 
 export function renderRelatorioPesquisa(g) {
-  if (!g.texto_referencia) return "";
+  if (!g.texto_referencia) return '';
 
   // Escapa aspas para não quebrar o atributo data-raw
-  const safeText = String(g.texto_referencia).replace(/"/g, "&quot;");
+  const safeText = String(g.texto_referencia).replace(/"/g, '&quot;');
 
   return `
   <div class="q-res-section static-render-target" style="border:1px solid var(--color-border); border-radius:6px; overflow:hidden; margin-bottom:10px;">
@@ -178,7 +171,7 @@ export function renderRelatorioPesquisa(g) {
 }
 
 export function renderFontesExternas(g) {
-  if (!g.fontes_externas || g.fontes_externas.length === 0) return "";
+  if (!g.fontes_externas || g.fontes_externas.length === 0) return '';
 
   const lis = g.fontes_externas
     .map(
@@ -190,7 +183,7 @@ export function renderFontesExternas(g) {
     </li>
   `,
     )
-    .join("");
+    .join('');
 
   return `
   <div class="q-res-section">

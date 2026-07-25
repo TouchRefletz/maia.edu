@@ -1,9 +1,15 @@
-import { ref, remove, get, set, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { db, auth } from "../main.js";
-import { clearAllPineconeVectors, deletePineconeRecordWorker } from "../api/worker.js";
-import { customAlert } from "./GlobalAlertsLogic.tsx";
-import { gerarTelaInicial } from "../app/telas.js";
-import { sanitizarID } from "../ia/envio-textos.js";
+import {
+  get,
+  ref,
+  remove,
+  set,
+  update,
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { clearAllPineconeVectors, deletePineconeRecordWorker } from '../api/worker.js';
+import { gerarTelaInicial } from '../app/telas.js';
+import { sanitizarID } from '../ia/envio-textos.js';
+import { auth, db } from '../main.js';
+import { customAlert } from './GlobalAlertsLogic.tsx';
 
 /**
  * Cache local de provas -> array de IDs de questões
@@ -15,13 +21,13 @@ let cacheProvasQuestoes = {};
  * Helper para escapar HTML e prevenir XSS e falhas de formatação
  */
 function escapeHtml(str) {
-  if (typeof str !== "string") return String(str || "");
+  if (typeof str !== 'string') return String(str || '');
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -29,22 +35,25 @@ function escapeHtml(str) {
  * (Remove caracteres proibidilíssimos: ., #, $, /, [, ])
  */
 function sanitizarKeyFirebase(key) {
-  if (!key) return "";
-  return key.trim().replace(/[.#$/[\]]/g, "_");
+  if (!key) return '';
+  return key.trim().replace(/[.#$/[\]]/g, '_');
 }
 
 /**
  * Normaliza e valida um JSON de Apêndice B para salvamento no Firebase
  */
 export function normalizarJsonApendiceB(parsedJson) {
-  if (!parsedJson || (typeof parsedJson !== "object" && typeof parsedJson !== "string")) {
-    throw new Error("O conteúdo fornecido não é um objeto ou JSON válido.");
+  if (!parsedJson || (typeof parsedJson !== 'object' && typeof parsedJson !== 'string')) {
+    throw new Error('O conteúdo fornecido não é um objeto ou JSON válido.');
   }
 
-  if (typeof parsedJson === "string") {
+  if (typeof parsedJson === 'string') {
     let clean = parsedJson.trim();
-    if (clean.startsWith("```")) {
-      clean = clean.replace(/^```[a-zA-Z]*\s*/, "").replace(/\s*```$/, "").trim();
+    if (clean.startsWith('```')) {
+      clean = clean
+        .replace(/^```[a-zA-Z]*\s*/, '')
+        .replace(/\s*```$/, '')
+        .trim();
     }
     parsedJson = JSON.parse(clean);
   }
@@ -53,27 +62,31 @@ export function normalizarJsonApendiceB(parsedJson) {
     if (parsedJson.length > 0) {
       return normalizarJsonApendiceB(parsedJson[0]);
     } else {
-      throw new Error("O JSON fornecido é uma lista vazia.");
+      throw new Error('O JSON fornecido é uma lista vazia.');
     }
   }
 
   let finalObj = {};
 
-  if (parsedJson.response_text && typeof parsedJson.response_text === "object") {
+  if (parsedJson.response_text && typeof parsedJson.response_text === 'object') {
     finalObj = { ...parsedJson };
-  } else if (parsedJson.pontuacao_final_complexidade || parsedJson.criterios || parsedJson.classificacao_dificuldade) {
+  } else if (
+    parsedJson.pontuacao_final_complexidade ||
+    parsedJson.criterios ||
+    parsedJson.classificacao_dificuldade
+  ) {
     finalObj = {
       timestamp: parsedJson.timestamp || Date.now(),
       latency_sec: parsedJson.latency_sec || 0,
-      response_text: parsedJson
+      response_text: parsedJson,
     };
-  } else if (parsedJson.data && typeof parsedJson.data === "object") {
+  } else if (parsedJson.data && typeof parsedJson.data === 'object') {
     return normalizarJsonApendiceB(parsedJson.data);
   } else {
     finalObj = {
       timestamp: Date.now(),
       latency_sec: 0,
-      response_text: parsedJson
+      response_text: parsedJson,
     };
   }
 
@@ -81,14 +94,14 @@ export function normalizarJsonApendiceB(parsedJson) {
 
   const resp = finalObj.response_text || {};
   const pontuacao = resp.pontuacao_final_complexidade ?? resp.pontuacao ?? null;
-  const classificacao = resp.classificacao_dificuldade ?? resp.classificacao ?? "Importado";
+  const classificacao = resp.classificacao_dificuldade ?? resp.classificacao ?? 'Importado';
 
   const statusData = {
-    status: "rodado",
+    status: 'rodado',
     timestamp: finalObj.timestamp,
     pontuacao: pontuacao,
     classificacao: classificacao,
-    origem: "importado_manual"
+    origem: 'importado_manual',
   };
 
   return { finalObj, statusData };
@@ -99,17 +112,17 @@ export function normalizarJsonApendiceB(parsedJson) {
  */
 export function lerArquivoJson(file) {
   return new Promise((resolve, reject) => {
-    if (!file) return reject(new Error("Nenhum arquivo fornecido."));
+    if (!file) return reject(new Error('Nenhum arquivo fornecido.'));
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const json = JSON.parse(e.target.result);
         resolve(json);
       } catch (err) {
-        reject(new Error("O arquivo selecionado não contém um JSON válido: " + err.message));
+        reject(new Error('O arquivo selecionado não contém um JSON válido: ' + err.message));
       }
     };
-    reader.onerror = () => reject(new Error("Erro ao ler o arquivo selecionado."));
+    reader.onerror = () => reject(new Error('Erro ao ler o arquivo selecionado.'));
     reader.readAsText(file);
   });
 }
@@ -124,7 +137,7 @@ export async function verificarSeAdmin(uid) {
     const snapshot = await get(adminRef);
     return snapshot.exists() && snapshot.val() === true;
   } catch (error) {
-    console.error("Erro ao verificar role admin:", error);
+    console.error('Erro ao verificar role admin:', error);
     return false;
   }
 }
@@ -135,7 +148,7 @@ export async function verificarSeAdmin(uid) {
 export async function iniciarModoAdmin() {
   const user = auth.currentUser;
   if (!user) {
-    customAlert("⚠️ Faça login primeiro.");
+    customAlert('⚠️ Faça login primeiro.');
     gerarTelaInicial();
     return;
   }
@@ -150,7 +163,7 @@ export async function iniciarModoAdmin() {
 
   const isAdmin = await verificarSeAdmin(user.uid);
   if (!isAdmin) {
-    customAlert("⛔ Acesso negado: Você não possui privilégios de administrador.");
+    customAlert('⛔ Acesso negado: Você não possui privilégios de administrador.');
     gerarTelaInicial();
     return;
   }
@@ -458,36 +471,36 @@ export async function iniciarModoAdmin() {
 
 function setupListeners() {
   // Voltar
-  const btnVoltar = document.querySelector(".js-voltar-inicio");
+  const btnVoltar = document.querySelector('.js-voltar-inicio');
   if (btnVoltar) {
-    btnVoltar.addEventListener("click", () => {
+    btnVoltar.addEventListener('click', () => {
       gerarTelaInicial();
     });
   }
 
   // Controle de Navegação de Abas
-  const tabButtons = document.querySelectorAll(".admin-tab-btn");
-  const tabContents = document.querySelectorAll(".admin-tab-content");
+  const tabButtons = document.querySelectorAll('.admin-tab-btn');
+  const tabContents = document.querySelectorAll('.admin-tab-content');
 
   tabButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener('click', () => {
       const targetTabId = btn.dataset.tab;
-      
-      tabButtons.forEach((b) => b.classList.remove("active"));
-      tabContents.forEach((c) => c.classList.remove("active"));
 
-      btn.classList.add("active");
+      tabButtons.forEach((b) => b.classList.remove('active'));
+      tabContents.forEach((c) => c.classList.remove('active'));
+
+      btn.classList.add('active');
       const targetContent = document.getElementById(targetTabId);
-      if (targetContent) targetContent.classList.add("active");
+      if (targetContent) targetContent.classList.add('active');
     });
   });
 
   // Dropdown Aba 1: Deletar
-  const selectProva = document.getElementById("selectProvaAdmin");
-  const selectQuestao = document.getElementById("selectQuestaoAdmin");
+  const selectProva = document.getElementById('selectProvaAdmin');
+  const selectQuestao = document.getElementById('selectQuestaoAdmin');
 
   if (selectProva && selectQuestao) {
-    selectProva.addEventListener("change", (e) => {
+    selectProva.addEventListener('change', (e) => {
       const provaKey = e.target.value;
       if (!provaKey || !cacheProvasQuestoes[provaKey]) {
         selectQuestao.innerHTML = '<option value="">-- Selecione uma prova primeiro --</option>';
@@ -506,7 +519,7 @@ function setupListeners() {
       ocultarPreview();
     });
 
-    selectQuestao.addEventListener("change", (e) => {
+    selectQuestao.addEventListener('change', (e) => {
       const provaKey = selectProva.value;
       const questaoKey = e.target.value;
       if (provaKey && questaoKey) {
@@ -518,14 +531,15 @@ function setupListeners() {
   }
 
   // Dropdown Aba 2: Vincular Apêndice B
-  const selectProvaVincular = document.getElementById("selectProvaVincular");
-  const selectQuestaoVincular = document.getElementById("selectQuestaoVincular");
+  const selectProvaVincular = document.getElementById('selectProvaVincular');
+  const selectQuestaoVincular = document.getElementById('selectQuestaoVincular');
 
   if (selectProvaVincular && selectQuestaoVincular) {
-    selectProvaVincular.addEventListener("change", (e) => {
+    selectProvaVincular.addEventListener('change', (e) => {
       const provaKey = e.target.value;
       if (!provaKey || !cacheProvasQuestoes[provaKey]) {
-        selectQuestaoVincular.innerHTML = '<option value="">-- Selecione uma prova primeiro --</option>';
+        selectQuestaoVincular.innerHTML =
+          '<option value="">-- Selecione uma prova primeiro --</option>';
         selectQuestaoVincular.disabled = true;
         return;
       }
@@ -541,27 +555,27 @@ function setupListeners() {
   }
 
   // Botões de Recarregar Banco
-  const btnsRecarregar = document.querySelectorAll(".js-btn-recarregar-lista");
+  const btnsRecarregar = document.querySelectorAll('.js-btn-recarregar-lista');
   btnsRecarregar.forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener('click', () => {
       carregarTodasInstanciasProvas();
     });
   });
 
   // Listener para Busca Manual Deletar
-  const btnVerificarManual = document.getElementById("btnVerificarManual");
-  const inputManualProva = document.getElementById("inputManualProva");
-  const inputManualQuestao = document.getElementById("inputManualQuestao");
+  const btnVerificarManual = document.getElementById('btnVerificarManual');
+  const inputManualProva = document.getElementById('inputManualProva');
+  const inputManualQuestao = document.getElementById('inputManualQuestao');
 
-  if (inputManualProva) inputManualProva.addEventListener("input", ocultarPreview);
-  if (inputManualQuestao) inputManualQuestao.addEventListener("input", ocultarPreview);
+  if (inputManualProva) inputManualProva.addEventListener('input', ocultarPreview);
+  if (inputManualQuestao) inputManualQuestao.addEventListener('input', ocultarPreview);
 
   if (btnVerificarManual && inputManualProva && inputManualQuestao) {
-    btnVerificarManual.addEventListener("click", () => {
+    btnVerificarManual.addEventListener('click', () => {
       const provaKey = sanitizarKeyFirebase(inputManualProva.value);
       const questaoKey = sanitizarKeyFirebase(inputManualQuestao.value);
       if (!provaKey || !questaoKey) {
-        customAlert("⚠️ Preencha o nome da prova e o ID da questão com caracteres válidos.");
+        customAlert('⚠️ Preencha o nome da prova e o ID da questão com caracteres válidos.');
         return;
       }
       carregarPreviewQuestao(provaKey, questaoKey);
@@ -569,11 +583,11 @@ function setupListeners() {
   }
 
   // File Upload para Vincular Apêndice B
-  const fileJsonInput = document.getElementById("fileJsonApendiceB");
-  const textareaJson = document.getElementById("textareaJsonApendiceB");
+  const fileJsonInput = document.getElementById('fileJsonApendiceB');
+  const textareaJson = document.getElementById('textareaJsonApendiceB');
 
   if (fileJsonInput && textareaJson) {
-    fileJsonInput.addEventListener("change", async (e) => {
+    fileJsonInput.addEventListener('change', async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
       try {
@@ -586,37 +600,37 @@ function setupListeners() {
   }
 
   // Ação de Salvar e Vincular Apêndice B
-  const btnSalvarVincularApendice = document.getElementById("btnSalvarVincularApendice");
+  const btnSalvarVincularApendice = document.getElementById('btnSalvarVincularApendice');
   if (btnSalvarVincularApendice) {
-    btnSalvarVincularApendice.addEventListener("click", async () => {
-      const inputManualP = document.getElementById("inputManualProvaVincular");
-      const inputManualQ = document.getElementById("inputManualQuestaoVincular");
-      
-      let provaKey = selectProvaVincular?.value || "";
-      let questaoKey = selectQuestaoVincular?.value || "";
+    btnSalvarVincularApendice.addEventListener('click', async () => {
+      const inputManualP = document.getElementById('inputManualProvaVincular');
+      const inputManualQ = document.getElementById('inputManualQuestaoVincular');
+
+      let provaKey = selectProvaVincular?.value || '';
+      let questaoKey = selectQuestaoVincular?.value || '';
 
       if (inputManualP?.value.trim()) provaKey = sanitizarKeyFirebase(inputManualP.value);
       if (inputManualQ?.value.trim()) questaoKey = sanitizarKeyFirebase(inputManualQ.value);
 
       if (!provaKey || !questaoKey) {
-        customAlert("⚠️ Selecione ou informe a Prova e o ID da Questão alvo.");
+        customAlert('⚠️ Selecione ou informe a Prova e o ID da Questão alvo.');
         return;
       }
 
       const rawJsonText = textareaJson?.value.trim();
       if (!rawJsonText) {
-        customAlert("⚠️ Selecione um arquivo .json ou cole o texto do JSON de Apêndice B.");
+        customAlert('⚠️ Selecione um arquivo .json ou cole o texto do JSON de Apêndice B.');
         return;
       }
 
-      setLoadingState(btnSalvarVincularApendice, true, "Vinculando Apêndice B...");
+      setLoadingState(btnSalvarVincularApendice, true, 'Vinculando Apêndice B...');
 
       try {
         const { finalObj, statusData } = normalizarJsonApendiceB(rawJsonText);
 
         await Promise.all([
           set(ref(db, `experimentos_apendice_b_status/${provaKey}/${questaoKey}`), statusData),
-          set(ref(db, `experimentos_apendice_b/${provaKey}/${questaoKey}`), finalObj)
+          set(ref(db, `experimentos_apendice_b/${provaKey}/${questaoKey}`), finalObj),
         ]);
 
         window.bancoState = window.bancoState || {};
@@ -624,27 +638,27 @@ function setupListeners() {
         window.bancoState.apendiceBStatusMap[`${provaKey}/${questaoKey}`] = true;
 
         customAlert(`✅ Apêndice B vinculado com sucesso à questão "${provaKey} / ${questaoKey}"!`);
-        if (textareaJson) textareaJson.value = "";
-        if (fileJsonInput) fileJsonInput.value = "";
+        if (textareaJson) textareaJson.value = '';
+        if (fileJsonInput) fileJsonInput.value = '';
       } catch (err) {
-        console.error("Erro ao vincular Apêndice B:", err);
+        console.error('Erro ao vincular Apêndice B:', err);
         customAlert(`❌ Falha ao vincular Apêndice B: ${err.message}`);
       } finally {
-        setLoadingState(btnSalvarVincularApendice, false, "💾 Salvar & Vincular Apêndice B");
+        setLoadingState(btnSalvarVincularApendice, false, '💾 Salvar & Vincular Apêndice B');
       }
     });
   }
 
   // Listener do Botão de Exclusão Única
-  const btnDeletarQuestaoUnica = document.getElementById("btnDeletarQuestaoUnica");
+  const btnDeletarQuestaoUnica = document.getElementById('btnDeletarQuestaoUnica');
   if (btnDeletarQuestaoUnica) {
-    btnDeletarQuestaoUnica.addEventListener("click", async () => {
+    btnDeletarQuestaoUnica.addEventListener('click', async () => {
       const provaKey = btnDeletarQuestaoUnica.dataset.prova;
       const questaoKey = btnDeletarQuestaoUnica.dataset.questao;
       const idPinecone = btnDeletarQuestaoUnica.dataset.pineconeId;
 
       if (!provaKey || !questaoKey) {
-        customAlert("⚠️ Nenhuma questão válida selecionada.");
+        customAlert('⚠️ Nenhuma questão válida selecionada.');
         return;
       }
 
@@ -652,7 +666,7 @@ function setupListeners() {
 
       if (!confirm(msgConfirm)) return;
 
-      setLoadingState(btnDeletarQuestaoUnica, true, "Excluindo questão...");
+      setLoadingState(btnDeletarQuestaoUnica, true, 'Excluindo questão...');
 
       try {
         // 1. Apaga do Firebase RTDB (questoes, revisoes, experimentos_apendice_b_status)
@@ -660,16 +674,16 @@ function setupListeners() {
           remove(ref(db, `questoes/${provaKey}/${questaoKey}`)),
           remove(ref(db, `revisoes/${provaKey}/${questaoKey}`)),
           remove(ref(db, `revisoes/${provaKey}_${questaoKey}`)),
-          remove(ref(db, `experimentos_apendice_b_status/${provaKey}/${questaoKey}`))
+          remove(ref(db, `experimentos_apendice_b_status/${provaKey}/${questaoKey}`)),
         ]);
 
         // 2. Apaga vetor no Pinecone (target default = questoes)
         if (idPinecone) {
-          await deletePineconeRecordWorker(idPinecone, "default").catch(err => {
-            console.warn("⚠️ Aviso Pinecone Delete:", err);
+          await deletePineconeRecordWorker(idPinecone, 'default').catch((err) => {
+            console.warn('⚠️ Aviso Pinecone Delete:', err);
           });
           // Fallback com questaoKey puro
-          await deletePineconeRecordWorker(questaoKey, "default").catch(() => {});
+          await deletePineconeRecordWorker(questaoKey, 'default').catch(() => {});
         }
 
         customAlert(`✅ Questão "${provaKey} / ${questaoKey}" excluída e limpa com sucesso!`);
@@ -679,40 +693,41 @@ function setupListeners() {
         // Recarrega o dropdown de provas e questões
         carregarTodasInstanciasProvas();
       } catch (err) {
-        console.error("Erro ao excluir questão:", err);
+        console.error('Erro ao excluir questão:', err);
         customAlert(`❌ Erro ao excluir questão: ${err.message}`);
       } finally {
-        setLoadingState(btnDeletarQuestaoUnica, false, "🗑️ Excluir Esta Questão Específica");
+        setLoadingState(btnDeletarQuestaoUnica, false, '🗑️ Excluir Esta Questão Específica');
       }
     });
   }
 
   // Abrir Verificar Questões
-  const btnAbrirVerificacao = document.getElementById("btnAbrirVerificacao");
+  const btnAbrirVerificacao = document.getElementById('btnAbrirVerificacao');
   if (btnAbrirVerificacao) {
-    btnAbrirVerificacao.addEventListener("click", () => {
-      import("./verificar-questoes-screen.tsx").then(({ iniciarModoVerificacaoQuestoes }) => {
+    btnAbrirVerificacao.addEventListener('click', () => {
+      import('./verificar-questoes-screen.tsx').then(({ iniciarModoVerificacaoQuestoes }) => {
         iniciarModoVerificacaoQuestoes();
       });
     });
   }
 
   // Dropdown Aba 5: Restaurar Link Prova
-  const selectProvaLink = document.getElementById("selectProvaRestaurarLink");
-  const selectQuestaoLink = document.getElementById("selectQuestaoRestaurarLink");
-  const inputProvaLink = document.getElementById("inputProvaRestaurarLink");
-  const inputQuestaoLink = document.getElementById("inputQuestaoRestaurarLink");
-  const inputUrlLink = document.getElementById("inputUrlRestaurarLink");
+  const selectProvaLink = document.getElementById('selectProvaRestaurarLink');
+  const selectQuestaoLink = document.getElementById('selectQuestaoRestaurarLink');
+  const inputProvaLink = document.getElementById('inputProvaRestaurarLink');
+  const inputQuestaoLink = document.getElementById('inputQuestaoRestaurarLink');
+  const inputUrlLink = document.getElementById('inputUrlRestaurarLink');
 
   if (selectProvaLink && selectQuestaoLink) {
-    selectProvaLink.addEventListener("change", async (e) => {
+    selectProvaLink.addEventListener('change', async (e) => {
       const provaKey = e.target.value;
       if (inputProvaLink) inputProvaLink.value = provaKey;
 
       if (!provaKey || !cacheProvasQuestoes[provaKey]) {
-        selectQuestaoLink.innerHTML = '<option value="">-- Selecione uma prova primeiro --</option>';
+        selectQuestaoLink.innerHTML =
+          '<option value="">-- Selecione uma prova primeiro --</option>';
         selectQuestaoLink.disabled = true;
-        if (inputQuestaoLink) inputQuestaoLink.value = "";
+        if (inputQuestaoLink) inputQuestaoLink.value = '';
         return;
       }
 
@@ -723,14 +738,17 @@ function setupListeners() {
       }
       selectQuestaoLink.innerHTML = html;
       selectQuestaoLink.disabled = false;
-      if (inputQuestaoLink) inputQuestaoLink.value = "";
+      if (inputQuestaoLink) inputQuestaoLink.value = '';
 
       try {
         const snap = await get(ref(db, `questoes/${provaKey}`));
         if (snap.exists()) {
           const qDataMap = snap.val();
           for (const k in qDataMap) {
-            const foundUrl = qDataMap[k]?.meta?.source_url || qDataMap[k]?.meta?.source_url_prova || qDataMap[k]?.dados_questao?.source_url;
+            const foundUrl =
+              qDataMap[k]?.meta?.source_url ||
+              qDataMap[k]?.meta?.source_url_prova ||
+              qDataMap[k]?.dados_questao?.source_url;
             if (foundUrl && inputUrlLink) {
               inputUrlLink.value = foundUrl;
               break;
@@ -738,13 +756,13 @@ function setupListeners() {
           }
         }
       } catch (err) {
-        console.warn("Erro ao buscar link existente:", err);
+        console.warn('Erro ao buscar link existente:', err);
       }
     });
 
-    selectQuestaoLink.addEventListener("change", async (e) => {
+    selectQuestaoLink.addEventListener('change', async (e) => {
       const qKey = e.target.value;
-      const provaKey = selectProvaLink ? selectProvaLink.value : "";
+      const provaKey = selectProvaLink ? selectProvaLink.value : '';
       if (inputQuestaoLink) inputQuestaoLink.value = qKey;
 
       if (provaKey && qKey) {
@@ -752,32 +770,36 @@ function setupListeners() {
           const snap = await get(ref(db, `questoes/${provaKey}/${qKey}`));
           if (snap.exists() && inputUrlLink) {
             const val = snap.val();
-            const foundUrl = val?.meta?.source_url || val?.meta?.source_url_prova || val?.dados_questao?.source_url || "";
+            const foundUrl =
+              val?.meta?.source_url ||
+              val?.meta?.source_url_prova ||
+              val?.dados_questao?.source_url ||
+              '';
             if (foundUrl) inputUrlLink.value = foundUrl;
           }
         } catch (err) {
-          console.warn("Erro ao buscar link da questão:", err);
+          console.warn('Erro ao buscar link da questão:', err);
         }
       }
     });
   }
 
   // Salvar & Restaurar Link da Prova Original (Aba 5)
-  const btnSalvarLink = document.getElementById("btnSalvarLinkOriginalAdmin");
+  const btnSalvarLink = document.getElementById('btnSalvarLinkOriginalAdmin');
   if (btnSalvarLink) {
-    btnSalvarLink.addEventListener("click", async () => {
-      const provaKey = (document.getElementById("inputProvaRestaurarLink")?.value || "").trim();
-      const questaoKey = (document.getElementById("inputQuestaoRestaurarLink")?.value || "").trim();
-      const urlValue = (document.getElementById("inputUrlRestaurarLink")?.value || "").trim();
+    btnSalvarLink.addEventListener('click', async () => {
+      const provaKey = (document.getElementById('inputProvaRestaurarLink')?.value || '').trim();
+      const questaoKey = (document.getElementById('inputQuestaoRestaurarLink')?.value || '').trim();
+      const urlValue = (document.getElementById('inputUrlRestaurarLink')?.value || '').trim();
 
       if (!provaKey || !urlValue) {
-        customAlert("⚠️ Preencha a Chave da Prova e o Link (URL) da Prova em PDF.");
+        customAlert('⚠️ Preencha a Chave da Prova e o Link (URL) da Prova em PDF.');
         return;
       }
 
       try {
         btnSalvarLink.disabled = true;
-        btnSalvarLink.innerText = "⏳ Salvando link no Firebase...";
+        btnSalvarLink.innerText = '⏳ Salvando link no Firebase...';
 
         if (questaoKey) {
           // Atualiza apenas uma questão
@@ -789,7 +811,7 @@ function setupListeners() {
           const provaRef = ref(db, `questoes/${provaKey}`);
           const snap = await get(provaRef);
           if (!snap.exists()) {
-            customAlert("❌ Prova não encontrada no Firebase.");
+            customAlert('❌ Prova não encontrada no Firebase.');
             return;
           }
 
@@ -801,102 +823,109 @@ function setupListeners() {
             count++;
           }
           await update(ref(db), updates);
-          customAlert(`🎉 Link da fonte original restaurado em TODAS as ${count} questões da prova ${provaKey}!`);
+          customAlert(
+            `🎉 Link da fonte original restaurado em TODAS as ${count} questões da prova ${provaKey}!`,
+          );
         }
       } catch (err) {
-        console.error("Erro ao salvar link da fonte:", err);
-        customAlert("❌ Erro ao salvar link: " + (err.message || err));
+        console.error('Erro ao salvar link da fonte:', err);
+        customAlert('❌ Erro ao salvar link: ' + (err.message || err));
       } finally {
         btnSalvarLink.disabled = false;
-        btnSalvarLink.innerText = "💾 Salvar & Restaurar Link da Prova";
+        btnSalvarLink.innerText = '💾 Salvar & Restaurar Link da Prova';
       }
     });
   }
 
   // Inputs e Botões das Limpezas em Massa
-  const confirmInput = document.getElementById("confirmInput");
-  const btnResetGeral = document.getElementById("btnResetGeral");
-  const btnLimparQuestoes = document.getElementById("btnLimparQuestoes");
-  const btnLimparRevisoes = document.getElementById("btnLimparRevisoes");
-  const btnLimparPinecone = document.getElementById("btnLimparPinecone");
+  const confirmInput = document.getElementById('confirmInput');
+  const btnResetGeral = document.getElementById('btnResetGeral');
+  const btnLimparQuestoes = document.getElementById('btnLimparQuestoes');
+  const btnLimparRevisoes = document.getElementById('btnLimparRevisoes');
+  const btnLimparPinecone = document.getElementById('btnLimparPinecone');
 
   if (confirmInput && btnResetGeral) {
-    confirmInput.addEventListener("input", (e) => {
-      btnResetGeral.disabled = e.target.value !== "DELETAR TUDO";
+    confirmInput.addEventListener('input', (e) => {
+      btnResetGeral.disabled = e.target.value !== 'DELETAR TUDO';
     });
   }
 
   if (btnLimparQuestoes) {
-    btnLimparQuestoes.addEventListener("click", async () => {
-      if (!confirm("Tem certeza que deseja apagar TODAS as questões no Firebase?")) return;
-      setLoadingState(btnLimparQuestoes, true, "Excluindo...");
+    btnLimparQuestoes.addEventListener('click', async () => {
+      if (!confirm('Tem certeza que deseja apagar TODAS as questões no Firebase?')) return;
+      setLoadingState(btnLimparQuestoes, true, 'Excluindo...');
       try {
-        await remove(ref(db, "questoes"));
-        customAlert("✅ Questões limpas no Firebase com sucesso!");
+        await remove(ref(db, 'questoes'));
+        customAlert('✅ Questões limpas no Firebase com sucesso!');
       } catch (e) {
         console.error(e);
-        customAlert("❌ Erro ao limpar questões: " + e.message);
+        customAlert('❌ Erro ao limpar questões: ' + e.message);
       } finally {
-        setLoadingState(btnLimparQuestoes, false, "Limpar TODAS as Questões (Firebase)");
+        setLoadingState(btnLimparQuestoes, false, 'Limpar TODAS as Questões (Firebase)');
       }
     });
   }
 
   if (btnLimparRevisoes) {
-    btnLimparRevisoes.addEventListener("click", async () => {
-      if (!confirm("Tem certeza que deseja apagar TODAS as revisões no Firebase?")) return;
-      setLoadingState(btnLimparRevisoes, true, "Excluindo...");
+    btnLimparRevisoes.addEventListener('click', async () => {
+      if (!confirm('Tem certeza que deseja apagar TODAS as revisões no Firebase?')) return;
+      setLoadingState(btnLimparRevisoes, true, 'Excluindo...');
       try {
-        await remove(ref(db, "revisoes"));
-        customAlert("✅ Revisões limpas no Firebase com sucesso!");
+        await remove(ref(db, 'revisoes'));
+        customAlert('✅ Revisões limpas no Firebase com sucesso!');
       } catch (e) {
         console.error(e);
-        customAlert("❌ Erro ao limpar revisões: " + e.message);
+        customAlert('❌ Erro ao limpar revisões: ' + e.message);
       } finally {
-        setLoadingState(btnLimparRevisoes, false, "Limpar TODAS as Revisões (Firebase)");
+        setLoadingState(btnLimparRevisoes, false, 'Limpar TODAS as Revisões (Firebase)');
       }
     });
   }
 
   if (btnLimparPinecone) {
-    btnLimparPinecone.addEventListener("click", async () => {
-      if (!confirm("Tem certeza que deseja apagar TODOS os vetores no Pinecone?")) return;
-      setLoadingState(btnLimparPinecone, true, "Limpando Pinecone...");
+    btnLimparPinecone.addEventListener('click', async () => {
+      if (!confirm('Tem certeza que deseja apagar TODOS os vetores no Pinecone?')) return;
+      setLoadingState(btnLimparPinecone, true, 'Limpando Pinecone...');
       try {
-        await clearAllPineconeVectors("default");
-        customAlert("✅ Vetores limpos no Pinecone com sucesso!");
+        await clearAllPineconeVectors('default');
+        customAlert('✅ Vetores limpos no Pinecone com sucesso!');
       } catch (e) {
         console.error(e);
-        customAlert("❌ Erro ao limpar Pinecone: " + e.message);
+        customAlert('❌ Erro ao limpar Pinecone: ' + e.message);
       } finally {
-        setLoadingState(btnLimparPinecone, false, "Limpar TODOS os Vetores (Pinecone)");
+        setLoadingState(btnLimparPinecone, false, 'Limpar TODOS os Vetores (Pinecone)');
       }
     });
   }
 
   if (btnResetGeral) {
-    btnResetGeral.addEventListener("click", async () => {
-      if (confirmInput.value !== "DELETAR TUDO") return;
-      if (!confirm("ATENÇÃO MÁXIMA: Você vai apagar permanentemente as Questões, Revisões E Vetores de Busca. Confirmar?")) return;
+    btnResetGeral.addEventListener('click', async () => {
+      if (confirmInput.value !== 'DELETAR TUDO') return;
+      if (
+        !confirm(
+          'ATENÇÃO MÁXIMA: Você vai apagar permanentemente as Questões, Revisões E Vetores de Busca. Confirmar?',
+        )
+      )
+        return;
 
-      setLoadingState(btnResetGeral, true, "Resetando Geral...");
+      setLoadingState(btnResetGeral, true, 'Resetando Geral...');
       disableOtherButtons(true);
 
       try {
         await Promise.all([
-          remove(ref(db, "questoes")),
-          remove(ref(db, "revisoes")),
-          clearAllPineconeVectors("default")
+          remove(ref(db, 'questoes')),
+          remove(ref(db, 'revisoes')),
+          clearAllPineconeVectors('default'),
         ]);
 
-        customAlert("💥 Reset Geral Concluído! Tudo foi excluído.");
-        confirmInput.value = "";
+        customAlert('💥 Reset Geral Concluído! Tudo foi excluído.');
+        confirmInput.value = '';
         btnResetGeral.disabled = true;
       } catch (e) {
         console.error(e);
-        customAlert("❌ Ocorreu um erro no Reset Geral: " + e.message);
+        customAlert('❌ Ocorreu um erro no Reset Geral: ' + e.message);
       } finally {
-        setLoadingState(btnResetGeral, false, "Excluir Tudo Permanentemente");
+        setLoadingState(btnResetGeral, false, 'Excluir Tudo Permanentemente');
         disableOtherButtons(false);
       }
     });
@@ -925,28 +954,30 @@ function setupListeners() {
  */
 async function carregarTodasInstanciasProvas() {
   const selectsProva = [
-    document.getElementById("selectProvaAdmin"),
-    document.getElementById("selectProvaVincular"),
-    document.getElementById("selectProvaRestaurarLink")
+    document.getElementById('selectProvaAdmin'),
+    document.getElementById('selectProvaVincular'),
+    document.getElementById('selectProvaRestaurarLink'),
   ].filter(Boolean);
 
   const selectsQuestao = [
-    document.getElementById("selectQuestaoAdmin"),
-    document.getElementById("selectQuestaoVincular"),
-    document.getElementById("selectQuestaoRestaurarLink")
+    document.getElementById('selectQuestaoAdmin'),
+    document.getElementById('selectQuestaoVincular'),
+    document.getElementById('selectQuestaoRestaurarLink'),
   ].filter(Boolean);
 
-  selectsProva.forEach(s => s.innerHTML = '<option value="">⏳ Carregando provas...</option>');
-  selectsQuestao.forEach(s => {
+  selectsProva.forEach((s) => (s.innerHTML = '<option value="">⏳ Carregando provas...</option>'));
+  selectsQuestao.forEach((s) => {
     s.innerHTML = '<option value="">-- Selecione uma prova primeiro --</option>';
     s.disabled = true;
   });
   ocultarPreview();
 
   try {
-    const snapshot = await get(ref(db, "questoes"));
+    const snapshot = await get(ref(db, 'questoes'));
     if (!snapshot.exists()) {
-      selectsProva.forEach(s => s.innerHTML = '<option value="">(Nenhuma prova encontrada)</option>');
+      selectsProva.forEach(
+        (s) => (s.innerHTML = '<option value="">(Nenhuma prova encontrada)</option>'),
+      );
       cacheProvasQuestoes = {};
       return;
     }
@@ -959,15 +990,17 @@ async function carregarTodasInstanciasProvas() {
 
     for (const provaKey of provaKeys) {
       const qMap = val[provaKey] || {};
-      const qKeys = typeof qMap === "object" ? Object.keys(qMap) : [];
+      const qKeys = typeof qMap === 'object' ? Object.keys(qMap) : [];
       cacheProvasQuestoes[provaKey] = qKeys;
       html += `<option value="${escapeHtml(provaKey)}">${escapeHtml(provaKey)} (${qKeys.length} questões)</option>`;
     }
 
-    selectsProva.forEach(s => s.innerHTML = html);
+    selectsProva.forEach((s) => (s.innerHTML = html));
   } catch (err) {
-    console.error("Erro ao carregar provas no admin:", err);
-    selectsProva.forEach(s => s.innerHTML = '<option value="">❌ Erro ao carregar provas do banco</option>');
+    console.error('Erro ao carregar provas no admin:', err);
+    selectsProva.forEach(
+      (s) => (s.innerHTML = '<option value="">❌ Erro ao carregar provas do banco</option>'),
+    );
   }
 }
 
@@ -975,10 +1008,10 @@ async function carregarTodasInstanciasProvas() {
  * Esconde o card de preview
  */
 function ocultarPreview() {
-  const containerPreview = document.getElementById("containerPreviewQuestao");
-  const btnDeletar = document.getElementById("btnDeletarQuestaoUnica");
+  const containerPreview = document.getElementById('containerPreviewQuestao');
+  const btnDeletar = document.getElementById('btnDeletarQuestaoUnica');
 
-  if (containerPreview) containerPreview.style.display = "none";
+  if (containerPreview) containerPreview.style.display = 'none';
   if (btnDeletar) {
     btnDeletar.disabled = true;
     delete btnDeletar.dataset.prova;
@@ -993,13 +1026,13 @@ function ocultarPreview() {
 async function carregarPreviewQuestao(provaKey, questaoKey) {
   if (!provaKey || !questaoKey) return;
 
-  const containerPreview = document.getElementById("containerPreviewQuestao");
-  const conteudoPreview = document.getElementById("conteudoPreviewQuestao");
-  const btnDeletar = document.getElementById("btnDeletarQuestaoUnica");
+  const containerPreview = document.getElementById('containerPreviewQuestao');
+  const conteudoPreview = document.getElementById('conteudoPreviewQuestao');
+  const btnDeletar = document.getElementById('btnDeletarQuestaoUnica');
 
   if (!containerPreview || !conteudoPreview || !btnDeletar) return;
 
-  containerPreview.style.display = "block";
+  containerPreview.style.display = 'block';
   conteudoPreview.innerHTML = `
     <div style="display:flex; align-items:center; gap:8px;">
       <span class="admin-spinner"></span> Buscando dados de <strong>${escapeHtml(provaKey)} / ${escapeHtml(questaoKey)}</strong>...
@@ -1013,36 +1046,44 @@ async function carregarPreviewQuestao(provaKey, questaoKey) {
       get(ref(db, `questoes/${provaKey}/${questaoKey}`)),
       get(ref(db, `revisoes/${provaKey}/${questaoKey}`)),
       get(ref(db, `revisoes/${provaKey}_${questaoKey}`)),
-      get(ref(db, `experimentos_apendice_b_status/${provaKey}/${questaoKey}`))
+      get(ref(db, `experimentos_apendice_b_status/${provaKey}/${questaoKey}`)),
     ]);
 
     const temQuestao = qSnap.exists();
     const temRevisao = rSnap.exists() || rSnapAlt.exists();
     const temStatus = statusSnap.exists();
 
-    let qData = temQuestao ? qSnap.val() : null;
+    const qData = temQuestao ? qSnap.val() : null;
 
     // Extrair texto do enunciado
-    let enunciado = "";
+    let enunciado = '';
     if (qData) {
       if (qData.questaoFinal?.estrutura) {
-        enunciado = qData.questaoFinal.estrutura.map(i => i.conteudo || "").join(" ");
+        enunciado = qData.questaoFinal.estrutura.map((i) => i.conteudo || '').join(' ');
       } else if (qData.dados_questao?.estrutura) {
-        enunciado = qData.dados_questao.estrutura.map(i => i.conteudo || "").join(" ");
+        enunciado = qData.dados_questao.estrutura.map((i) => i.conteudo || '').join(' ');
       } else if (qData.estrutura) {
-        enunciado = Array.isArray(qData.estrutura) ? qData.estrutura.map(i => i.conteudo || "").join(" ") : String(qData.estrutura);
+        enunciado = Array.isArray(qData.estrutura)
+          ? qData.estrutura.map((i) => i.conteudo || '').join(' ')
+          : String(qData.estrutura);
       } else if (qData.enunciado) {
         enunciado = qData.enunciado;
       }
     }
 
     if (enunciado.length > 250) {
-      enunciado = enunciado.substring(0, 250) + "...";
+      enunciado = enunciado.substring(0, 250) + '...';
     }
 
-    const materiaRaw = qData?.dados_questao?.materia || qData?.materia || qData?.dados_questao?.disciplina || "Não informada";
-    const materiaStr = Array.isArray(materiaRaw) ? materiaRaw.join(", ") : String(materiaRaw);
-    const anoStr = String(qData?.dados_gabarito?.creditos?.ano || qData?.dados_questao?.ano || qData?.ano || "N/A");
+    const materiaRaw =
+      qData?.dados_questao?.materia ||
+      qData?.materia ||
+      qData?.dados_questao?.disciplina ||
+      'Não informada';
+    const materiaStr = Array.isArray(materiaRaw) ? materiaRaw.join(', ') : String(materiaRaw);
+    const anoStr = String(
+      qData?.dados_gabarito?.creditos?.ano || qData?.dados_questao?.ano || qData?.ano || 'N/A',
+    );
 
     conteudoPreview.innerHTML = `
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:12px;">
@@ -1081,9 +1122,8 @@ async function carregarPreviewQuestao(provaKey, questaoKey) {
     btnDeletar.dataset.prova = provaKey;
     btnDeletar.dataset.questao = questaoKey;
     btnDeletar.dataset.pineconeId = idPineconeCalculado;
-
   } catch (err) {
-    console.error("Erro ao carregar preview da questão:", err);
+    console.error('Erro ao carregar preview da questão:', err);
     conteudoPreview.innerHTML = `<div style="color:var(--color-error, #ff4444);">❌ Erro ao buscar dados da questão: ${escapeHtml(err.message)}</div>`;
     btnDeletar.disabled = false;
     btnDeletar.dataset.prova = provaKey;

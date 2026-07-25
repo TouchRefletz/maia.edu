@@ -38,7 +38,6 @@
 
 /* Animação para o erro (tremida negativa) */
 @keyframes shakeError {
-
   0%,
   100% {
     transform: translateX(0);

@@ -1,28 +1,27 @@
-import { renderizarQuestaoFinal } from "../render/final/render-questao.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { updateTabStatus, addLogToQuestionTab } from "../ui/sidebar-tabs.js";
-import { mostrarPainel } from "../viewer/sidebar.js";
-import { restaurarVisualizacaoOriginal, resetarInterfaceBotoes } from "./cropper-core.js";
-import { CropperState } from "./cropper-state.js";
-import { renderizarGaleriaModal } from "./gallery.js";
-import { extractImageFromCropData } from "./selection-overlay.js";
-
 // Imports para processamento de IA
-import { confirmarEnvioIA } from "../envio/ui-estado.js";
-import { calculateCropContext } from "./mode.js";
+import { confirmarEnvioIA } from '../envio/ui-estado.js';
+import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { addLogToQuestionTab, updateTabStatus } from '../ui/sidebar-tabs.js';
+import { mostrarPainel } from '../viewer/sidebar.js';
+import { resetarInterfaceBotoes, restaurarVisualizacaoOriginal } from './cropper-core.js';
+import { CropperState } from './cropper-state.js';
+import { renderizarGaleriaModal } from './gallery.js';
+import { calculateCropContext } from './mode.js';
+import { extractImageFromCropData } from './selection-overlay.js';
 
 // --- BATCH SAVING (NOVO) ---
 
 export async function salvarQuestaoEmLote(groupId, tabId = null) {
   const group = CropperState.groups.find((g) => g.id === groupId);
   if (!group || group.crops.length === 0) {
-    customAlert("Nenhum recorte para enviar nesta questão!", 2000);
+    customAlert('Nenhum recorte para enviar nesta questão!', 2000);
     return;
   }
 
   // Definir status inicial básico
   if (tabId) {
-    updateTabStatus(tabId, { status: "processing", progress: 0 });
+    updateTabStatus(tabId, { status: 'processing', progress: 0 });
   }
 
   // Processar todas as imagens
@@ -56,12 +55,10 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
       // Check containment: Parent fully encloses 'a'
       const isInsideX =
         a.relativeLeft >= parent.relativeLeft - TOLERANCE &&
-        a.relativeLeft + a.unscaledW <=
-          parent.relativeLeft + parent.unscaledW + TOLERANCE;
+        a.relativeLeft + a.unscaledW <= parent.relativeLeft + parent.unscaledW + TOLERANCE;
       const isInsideY =
         a.relativeTop >= parent.relativeTop - TOLERANCE &&
-        a.relativeTop + a.unscaledH <=
-          parent.relativeTop + parent.unscaledH + TOLERANCE;
+        a.relativeTop + a.unscaledH <= parent.relativeTop + parent.unscaledH + TOLERANCE;
 
       // Also ensure parent is strictly larger to avoid banning duplicates/clones (though clones shouldn't be here)
       // Or simply logic: if A is inside B, A is child.
@@ -69,10 +66,7 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
         // Is parent actually bigger?
         if (parent.unscaledW * parent.unscaledH > a.unscaledW * a.unscaledH) {
           isContained = true;
-          console.log(
-            `[BatchSave] Ignorando crop filho (contido) em fotos_originais:`,
-            i,
-          );
+          console.log(`[BatchSave] Ignorando crop filho (contido) em fotos_originais:`, i);
           break;
         }
       }
@@ -88,10 +82,10 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
   }
 
   if (images.length === 0) {
-    console.warn("[BatchSave] Nenhuma imagem foi extraída dos recortes!");
+    console.warn('[BatchSave] Nenhuma imagem foi extraída dos recortes!');
     if (tabId) {
-      updateTabStatus(tabId, { status: "error" });
-      addLogToQuestionTab(tabId, "Erro: Nenhuma imagem pôde ser extraída do documento.");
+      updateTabStatus(tabId, { status: 'error' });
+      addLogToQuestionTab(tabId, 'Erro: Nenhuma imagem pôde ser extraída do documento.');
     }
     return;
   }
@@ -108,7 +102,7 @@ export async function salvarQuestaoEmLote(groupId, tabId = null) {
   } else {
     // Modo antigo (sem abas): Atualiza modal e exibe
     renderizarGaleriaModal();
-    document.getElementById("cropConfirmModal").classList.add("visible");
+    document.getElementById('cropConfirmModal').classList.add('visible');
   }
 
   // Opcional: Marcar grupo como 'enviado' ou similar?
@@ -147,10 +141,9 @@ export function tratarSalvarAlternativa(imgSrc) {
     window.__imagensLimpas.alternativas.questao[letra] = [];
   }
   window.__imagensLimpas.alternativas.questao[letra][idx] = imgSrc;
-  const questaoAtiva =
-    window.__ultimaQuestaoExtraida || window.ultimaQuestaoExtraida;
+  const questaoAtiva = window.__ultimaQuestaoExtraida || window.ultimaQuestaoExtraida;
   if (questaoAtiva) renderizarQuestaoFinal(questaoAtiva);
-  customAlert("Imagem inserida na alternativa " + letra + "!", 2000);
+  customAlert('Imagem inserida na alternativa ' + letra + '!', 2000);
   window.__target_alt_letra = null;
   window.__target_alt_index = null;
 
@@ -165,12 +158,11 @@ export function tratarSalvarAlternativa(imgSrc) {
 
 // --- CENÁRIO: Gabarito Passos (Dinâmico) ---
 export function tratarSalvarPassoGabarito(imgSrc) {
-  const parts = window.__targetSlotContext.split("_");
+  const parts = window.__targetSlotContext.split('_');
   const passoIdx = parseInt(parts[2]);
   const imgIdx = window.__targetSlotIndex;
 
-  if (!window.__imagensLimpas.gabarito_passos)
-    window.__imagensLimpas.gabarito_passos = {};
+  if (!window.__imagensLimpas.gabarito_passos) window.__imagensLimpas.gabarito_passos = {};
   if (!window.__imagensLimpas.gabarito_passos[passoIdx])
     window.__imagensLimpas.gabarito_passos[passoIdx] = [];
 
@@ -192,7 +184,7 @@ export function tratarSalvarSlotEstrutura(imgSrc) {
   const ctx = window.__targetSlotContext;
   const idx = window.__targetSlotIndex;
 
-  if (ctx === "gabarito") {
+  if (ctx === 'gabarito') {
     window.__imagensLimpas.gabarito_original[idx] = imgSrc;
     if (window.__ultimoGabaritoExtraido) {
       renderizarQuestaoFinal(window.__ultimoGabaritoExtraido);
@@ -204,7 +196,7 @@ export function tratarSalvarSlotEstrutura(imgSrc) {
     }
   }
 
-  customAlert("✅ Imagem inserida no espaço selecionado!", 2000);
+  customAlert('✅ Imagem inserida no espaço selecionado!', 2000);
 
   // Limpa Flags
   window.__targetSlotIndex = null;
@@ -213,7 +205,7 @@ export function tratarSalvarSlotEstrutura(imgSrc) {
 
 // --- CENÁRIO 2: Imagem de Suporte (Manual) ---
 export function tratarSalvarSuporte(imgSrc) {
-  if (window.modo === "gabarito") {
+  if (window.modo === 'gabarito') {
     if (!window.__ultimoGabaritoExtraido) window.__ultimoGabaritoExtraido = {};
     if (!window.__ultimoGabaritoExtraido.imagens_suporte)
       window.__ultimoGabaritoExtraido.imagens_suporte = [];
@@ -221,7 +213,7 @@ export function tratarSalvarSuporte(imgSrc) {
     window.__ultimoGabaritoExtraido.imagens_suporte.push(imgSrc);
     window.__imagensLimpas.gabarito_suporte.push(imgSrc);
 
-    customAlert("📸 Imagem de suporte adicionada ao GABARITO!", 2000);
+    customAlert('📸 Imagem de suporte adicionada ao GABARITO!', 2000);
     renderizarQuestaoFinal(window.__ultimoGabaritoExtraido);
   } else {
     if (!window.__ultimaQuestaoExtraida) window.__ultimaQuestaoExtraida = {};
@@ -231,7 +223,7 @@ export function tratarSalvarSuporte(imgSrc) {
     window.__ultimaQuestaoExtraida.imagens_suporte.push(imgSrc);
     window.__imagensLimpas.questao_suporte.push(imgSrc);
 
-    customAlert("📸 Imagem de suporte adicionada à QUESTÃO!", 2000);
+    customAlert('📸 Imagem de suporte adicionada à QUESTÃO!', 2000);
     renderizarQuestaoFinal(window.__ultimaQuestaoExtraida);
   }
 
@@ -247,23 +239,23 @@ export function salvarQuestao() {
     restaurarVisualizacaoOriginal();
 
     // Importante: Reseta botões (incluindo o Cut do header) que restaurarVisualizacaoOriginal não reseta sozinho
-    import("./cropper-core.js").then((mod) => mod.resetarInterfaceBotoes());
+    import('./cropper-core.js').then((mod) => mod.resetarInterfaceBotoes());
 
     // Verifica se o grupo ficou vazio e avisa
     const active = CropperState.getActiveGroup();
     if (active && active.crops.length === 0) {
-      customAlert("Questão criada (sem recortes).", 2000);
+      customAlert('Questão criada (sem recortes).', 2000);
     } else {
-      customAlert("Questão salva!", 2000);
+      customAlert('Questão salva!', 2000);
     }
     return;
   }
 
   // MANEJO ESPECIAL: Slot Mode (React)
-  if (window.__targetSlotContext === "image-slot") {
+  if (window.__targetSlotContext === 'image-slot') {
     // Carregamento dinâmico para evitar dependências circulares se necessário,
     // ou apenas garantir que chamamos a função correta.
-    import("./mode.js").then((mod) => mod.confirmImageSlotMode());
+    import('./mode.js').then((mod) => mod.confirmImageSlotMode());
     return;
   }
 
@@ -306,13 +298,10 @@ export function salvarQuestao() {
     if (!result || !result.blobUrl) return;
     const imgSrc = result.blobUrl;
 
-    if (
-      window.__target_alt_letra !== null &&
-      window.__target_alt_index !== null
-    ) {
+    if (window.__target_alt_letra !== null && window.__target_alt_index !== null) {
       const letra = window.__target_alt_letra;
       const idx = window.__target_alt_index;
-      
+
       calculateCropContext(lastCrop.anchorData).then((cropContext) => {
         const finalImgData = cropContext
           ? { ...cropContext, blobUrl: result.blobUrl, url: result.blobUrl }
@@ -323,8 +312,8 @@ export function salvarQuestao() {
         restaurarVisualizacaoOriginal();
         resetarInterfaceBotoes();
         window.dispatchEvent(
-          new CustomEvent("image-slot-mode-change", {
-            detail: { slotId: `alt_${letra}_${idx}`, mode: "idle" },
+          new CustomEvent('image-slot-mode-change', {
+            detail: { slotId: `alt_${letra}_${idx}`, mode: 'idle' },
           }),
         );
       });
@@ -333,10 +322,10 @@ export function salvarQuestao() {
 
     if (
       window.__targetSlotContext !== null &&
-      window.__targetSlotContext.startsWith("ocr_field_")
+      window.__targetSlotContext.startsWith('ocr_field_')
     ) {
-      const elementId = window.__targetSlotContext.replace("ocr_field_", "");
-      import("../services/OcrQueueService.ts").then((mod) => {
+      const elementId = window.__targetSlotContext.replace('ocr_field_', '');
+      import('../services/OcrQueueService.ts').then((mod) => {
         mod.ocrService.addToQueue(imgSrc, elementId);
       });
       CropperState.deleteGroup(activeGroup.id);
@@ -346,10 +335,7 @@ export function salvarQuestao() {
       return;
     }
 
-    if (
-      window.__targetSlotIndex !== null &&
-      window.__targetSlotContext !== null
-    ) {
+    if (window.__targetSlotIndex !== null && window.__targetSlotContext !== null) {
       tratarSalvarSlotEstrutura(imgSrc);
       CropperState.deleteGroup(activeGroup.id);
       restaurarVisualizacaoOriginal();

@@ -1,4 +1,4 @@
-import { parse } from "best-effort-json-parser";
+import { parse } from 'best-effort-json-parser';
 
 /**
  * Tenta parsear um buffer partial de JSON e extrair a estrutura completa.

@@ -1,15 +1,14 @@
-import { esconderPainel } from "./sidebar.js";
-import { mostrarPainel } from "./sidebar.js";
+import { esconderPainel, mostrarPainel } from './sidebar.js';
 
 export function garantirSidebarEBackdrop() {
-  let sidebar = document.getElementById("viewerSidebar");
-  const viewerBody = document.getElementById("viewerBody");
-  const main = document.getElementById("viewerMain");
+  let sidebar = document.getElementById('viewerSidebar');
+  const viewerBody = document.getElementById('viewerBody');
+  const main = document.getElementById('viewerMain');
 
   // 1. Cria ou Recupera a Sidebar
   if (!sidebar) {
-    sidebar = document.createElement("aside");
-    sidebar.id = "viewerSidebar";
+    sidebar = document.createElement('aside');
+    sidebar.id = 'viewerSidebar';
 
     // JÁ INSERE NA DOM (pra não ficar aquele elemento solto na memória)
     if (viewerBody && main) {
@@ -18,10 +17,10 @@ export function garantirSidebarEBackdrop() {
   }
 
   // 2. Cria ou Recupera o Backdrop
-  let backdrop = document.getElementById("sidebarBackdrop");
+  let backdrop = document.getElementById('sidebarBackdrop');
   if (!backdrop && viewerBody) {
-    backdrop = document.createElement("div");
-    backdrop.id = "sidebarBackdrop";
+    backdrop = document.createElement('div');
+    backdrop.id = 'sidebarBackdrop';
     viewerBody.appendChild(backdrop);
 
     // Configura o clique para fechar (com segurança)
@@ -35,12 +34,12 @@ export function garantirSidebarEBackdrop() {
 
 export function criarHeaderMobile(sidebar) {
   // Evita duplicação
-  if (sidebar.querySelector("#header-mobile-toggle")) {
-    return sidebar.querySelector("#header-mobile-toggle");
+  if (sidebar.querySelector('#header-mobile-toggle')) {
+    return sidebar.querySelector('#header-mobile-toggle');
   }
 
-  const headerSidebar = document.createElement("div");
-  headerSidebar.id = "header-mobile-toggle";
+  const headerSidebar = document.createElement('div');
+  headerSidebar.id = 'header-mobile-toggle';
   headerSidebar.innerHTML = `<div class="drag-handle"></div>`;
 
   sidebar.prepend(headerSidebar);
@@ -49,10 +48,10 @@ export function criarHeaderMobile(sidebar) {
 }
 
 export function anexarToggleClique(headerSidebar) {
-  const viewerBody = document.getElementById("viewerBody");
+  const viewerBody = document.getElementById('viewerBody');
 
   const toggleSheet = () => {
-    const isCollapsed = viewerBody.classList.contains("sidebar-collapsed");
+    const isCollapsed = viewerBody.classList.contains('sidebar-collapsed');
     if (isCollapsed) {
       mostrarPainel();
     } else {
@@ -63,7 +62,7 @@ export function anexarToggleClique(headerSidebar) {
   headerSidebar.onclick = (e) => {
     // Se estiver arrastando (flag global do escopo da sidebar), ignora
     // Como 'isDragging' era local, vamos checar se o elemento tem dataset de arraste
-    if (headerSidebar.dataset.isDragging === "true") return;
+    if (headerSidebar.dataset.isDragging === 'true') return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -72,7 +71,7 @@ export function anexarToggleClique(headerSidebar) {
 }
 
 export function anexarLogicaArrasteMobile(headerSidebar, sidebar) {
-  const viewerBody = document.getElementById("viewerBody");
+  const viewerBody = document.getElementById('viewerBody');
   let startY = 0;
   let currentTranslate = 0;
   const PEEK_HEIGHT = 50;
@@ -81,25 +80,25 @@ export function anexarLogicaArrasteMobile(headerSidebar, sidebar) {
 
   // --- TOUCH START ---
   headerSidebar.addEventListener(
-    "touchstart",
+    'touchstart',
     (e) => {
       const touch = e.touches[0];
       startY = touch.clientY;
 
-      headerSidebar.dataset.isDragging = "false";
+      headerSidebar.dataset.isDragging = 'false';
 
       // Posição inicial
-      const isCollapsed = viewerBody.classList.contains("sidebar-collapsed");
+      const isCollapsed = viewerBody.classList.contains('sidebar-collapsed');
       currentTranslate = isCollapsed ? getSheetHeight() - PEEK_HEIGHT : 0;
 
-      sidebar.style.transition = "none"; // Tira animação para ficar fluido
+      sidebar.style.transition = 'none'; // Tira animação para ficar fluido
     },
     { passive: true },
   );
 
   // --- TOUCH MOVE ---
   headerSidebar.addEventListener(
-    "touchmove",
+    'touchmove',
     (e) => {
       const touch = e.touches[0];
       const deltaY = touch.clientY - startY;
@@ -111,7 +110,7 @@ export function anexarLogicaArrasteMobile(headerSidebar, sidebar) {
         sidebar.style.transform = `translateY(${newTranslate}px)`;
 
         if (Math.abs(deltaY) > 5) {
-          headerSidebar.dataset.isDragging = "true";
+          headerSidebar.dataset.isDragging = 'true';
         }
       }
     },
@@ -120,10 +119,10 @@ export function anexarLogicaArrasteMobile(headerSidebar, sidebar) {
 
   // --- TOUCH END ---
   headerSidebar.addEventListener(
-    "touchend",
+    'touchend',
     (e) => {
-      sidebar.style.transition = ""; // Restaura animação CSS
-      sidebar.style.transform = ""; // Remove style inline
+      sidebar.style.transition = ''; // Restaura animação CSS
+      sidebar.style.transform = ''; // Remove style inline
 
       const touch = e.changedTouches[0];
       const deltaY = touch.clientY - startY;
@@ -139,7 +138,7 @@ export function anexarLogicaArrasteMobile(headerSidebar, sidebar) {
 
       // Delay para liberar o clique
       setTimeout(() => {
-        headerSidebar.dataset.isDragging = "false";
+        headerSidebar.dataset.isDragging = 'false';
       }, 50);
     },
     { passive: true },
@@ -157,5 +156,5 @@ export function configurarSidebarMobile(sidebar) {
   anexarToggleClique(header);
   anexarLogicaArrasteMobile(header, sidebar);
 
-  header.dataset.listenersAdded = "true";
+  header.dataset.listenersAdded = 'true';
 }

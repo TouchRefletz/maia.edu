@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { CFG as _CFG, FATORES_DEF as _FATORES_DEF } from '../utils/complexity-data';
 import { pick } from '../utils/pick';
 
@@ -19,14 +19,12 @@ interface FatorDef {
   peso: number;
 }
 
-
 const CFG = _CFG as Record<CategoriaKey, ConfigItem>;
 const FATORES_DEF = _FATORES_DEF as FatorDef[];
 
 // Garantir tipagem correta para o TS com os dados importados (opcional, mas bom pra segurança)
 // O cast 'as Record<...>' ou similar pode ser feito se necessário, mas o TS infere bem de JS modules se allowJs estiver on.
 // Caso contrário, mantemos as interfaces e apenas usamos os valores.
-
 
 // --- LÓGICA DE NEGÓCIO (Exportada para compatibilidade) ---
 
@@ -37,7 +35,7 @@ export const _calcularComplexidade = (complexidadeObj: any) => {
 
   const f = complexidadeObj.fatores;
   let somaPesos = 0;
-  let itensAtivos: (FatorDef & { ativo: boolean })[] = [];
+  const itensAtivos: (FatorDef & { ativo: boolean })[] = [];
 
   const grupos: Record<CategoriaKey, (FatorDef & { ativo: boolean })[]> = {
     leitura: [],
@@ -73,13 +71,21 @@ export const _calcularComplexidade = (complexidadeObj: any) => {
 
 // --- SUB-COMPONENTES ---
 
-const GrupoComplexidade = ({ catKey, grupos }: { catKey: CategoriaKey, grupos: any }) => {
+const GrupoComplexidade = ({ catKey, grupos }: { catKey: CategoriaKey; grupos: any }) => {
   const itens = grupos[catKey];
   const cfg = CFG[catKey];
 
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ fontSize: 10, fontWeight: 'bold', color: cfg.color, textTransform: 'uppercase', marginBottom: 4 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 'bold',
+          color: cfg.color,
+          textTransform: 'uppercase',
+          marginBottom: 4,
+        }}
+      >
         {cfg.label}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
@@ -133,7 +139,14 @@ export const ComplexityCard: React.FC<{ data: any }> = ({ data }) => {
       }}
     >
       {/* Cabeçalho */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: 10,
+        }}
+      >
         <span className="field-label" style={{ fontSize: 11, opacity: 0.8 }}>
           NÍVEL DE DIFICULDADE
         </span>
@@ -213,7 +226,15 @@ export const ComplexityCard: React.FC<{ data: any }> = ({ data }) => {
 
       {/* Detalhes (Accordion) */}
       <details style={{ fontSize: 12, borderTop: '1px solid var(--color-border)', paddingTop: 8 }}>
-        <summary style={{ cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600, fontSize: 11, outline: 'none' }}>
+        <summary
+          style={{
+            cursor: 'pointer',
+            color: 'var(--color-primary)',
+            fontWeight: 600,
+            fontSize: 11,
+            outline: 'none',
+          }}
+        >
           VER ANÁLISE DETALHADA
         </summary>
         <div style={{ marginTop: 10, paddingLeft: 4 }}>

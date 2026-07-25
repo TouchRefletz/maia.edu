@@ -1,15 +1,12 @@
-import fs from "fs";
-import path from "path";
-import { calcularWilcoxonPareado, calcularSpearman } from "../js/utils/statistics-helper.js";
+import fs from 'fs';
+import path from 'path';
+import { calcularSpearman, calcularWilcoxonPareado } from '../js/utils/statistics-helper.js';
 
-const baseDir = "./experiments/apêndice a arrumado";
-const apendiceBDirs = [
-  "./experiments/apêndice b/linguagens",
-  "./experiments/apêndice b/humanas"
-];
-const outputFile        = "./experiments/stats_summary_apendice_a.json";
-const outputFileLing    = "./experiments/stats_summary_apendice_a_linguagens.json";
-const outputFileHumanas = "./experiments/stats_summary_apendice_a_humanas.json";
+const baseDir = './experiments/apêndice a arrumado';
+const apendiceBDirs = ['./experiments/apêndice b/linguagens', './experiments/apêndice b/humanas'];
+const outputFile = './experiments/stats_summary_apendice_a.json';
+const outputFileLing = './experiments/stats_summary_apendice_a_linguagens.json';
+const outputFileHumanas = './experiments/stats_summary_apendice_a_humanas.json';
 
 function getMean(arr) {
   if (arr.length === 0) return 0;
@@ -18,27 +15,139 @@ function getMean(arr) {
 
 function getStdDev(arr, mean) {
   if (arr.length <= 1) return 0;
-  const variance =
-    arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (arr.length - 1);
+  const variance = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / (arr.length - 1);
   return Math.sqrt(variance);
 }
 
+function nCr(n, r) {
+  if (r < 0 || r > n) return 0;
+  if (r === 0 || r === n) return 1;
+  let res = 1;
+  for (let i = 1; i <= r; i++) {
+    res = (res * (n - i + 1)) / i;
+  }
+  return res;
+}
+
+// 1. Hedges' g (Tamanho do efeito para amostras pequenas)
+function calcularHedgesG(ctrlArr, expArr) {
+  if (!ctrlArr || !expArr || ctrlArr.length < 2 || expArr.length < 2) return 0;
+  const n1 = ctrlArr.length;
+  const n2 = expArr.length;
+  const m1 = getMean(ctrlArr);
+  const m2 = getMean(expArr);
+  const s1 = getStdDev(ctrlArr, m1);
+  const s2 = getStdDev(expArr, m2);
+
+  const varPooled = ((n1 - 1) * s1 ** 2 + (n2 - 1) * s2 ** 2) / (n1 + n2 - 2);
+  const sPooled = Math.sqrt(varPooled);
+  if (sPooled === 0) return 0;
+
+  const cohenD = (m2 - m1) / sPooled;
+  const df = n1 + n2 - 2;
+  const jFactor = 1 - 3 / (4 * df - 1);
+  return Number((cohenD * jFactor).toFixed(4));
+}
+
+// 2. Teste de Permutação Exata Pareada (Exact ou Monte Carlo)
+function calcularPermutacaoExata(ctrlArr, expArr) {
+  if (!ctrlArr || !expArr || ctrlArr.length === 0 || ctrlArr.length !== expArr.length) {
+    return { pValue: 1.0, observedDiff: 0 };
+  }
+  const n = ctrlArr.length;
+  const diffs = expArr.map((v, i) => v - ctrlArr[i]);
+  const obsMeanDiff = getMean(diffs);
+  const absObs = Math.abs(obsMeanDiff);
+
+  if (absObs === 0) return { pValue: 1.0, observedDiff: 0 };
+
+  let extremeCount = 0;
+  if (n <= 12) {
+    const totalPerms = 2 ** n;
+    for (let i = 0; i < totalPerms; i++) {
+      let permSum = 0;
+      for (let j = 0; j < n; j++) {
+        const sign = i & (1 << j) ? 1 : -1;
+        permSum += sign * Math.abs(diffs[j]);
+      }
+      if (Math.abs(permSum / n) >= absObs - 1e-9) {
+        extremeCount++;
+      }
+    }
+    return {
+      pValue: Number((extremeCount / totalPerms).toFixed(4)),
+      observedDiff: Number(obsMeanDiff.toFixed(4)),
+    };
+  } else {
+    const numSamples = 10000;
+    for (let i = 0; i < numSamples; i++) {
+      let permSum = 0;
+      for (let j = 0; j < n; j++) {
+        const sign = Math.random() < 0.5 ? 1 : -1;
+        permSum += sign * Math.abs(diffs[j]);
+      }
+      if (Math.abs(permSum / n) >= absObs - 1e-9) {
+        extremeCount++;
+      }
+    }
+    return {
+      pValue: Number((extremeCount / numSamples).toFixed(4)),
+      observedDiff: Number(obsMeanDiff.toFixed(4)),
+    };
+  }
+}
+
+// 3. Taxa de Vitória Direta (Win Rate / Sign Test)
+function calcularWinRate(ctrlArr, expArr) {
+  if (!ctrlArr || !expArr || ctrlArr.length === 0) {
+    return { wins: 0, losses: 0, ties: 0, winRatePct: 0, signTestPValue: 1.0 };
+  }
+  let wins = 0,
+    losses = 0,
+    ties = 0;
+  for (let i = 0; i < ctrlArr.length; i++) {
+    if (expArr[i] > ctrlArr[i]) wins++;
+    else if (expArr[i] < ctrlArr[i]) losses++;
+    else ties++;
+  }
+  const totalNonTies = wins + losses;
+  const winRatePct = totalNonTies > 0 ? (wins / totalNonTies) * 100 : (wins / ctrlArr.length) * 100;
+
+  let signPValue = 1.0;
+  if (totalNonTies > 0) {
+    const k = Math.min(wins, losses);
+    let cumulative = 0;
+    for (let r = 0; r <= k; r++) {
+      cumulative += nCr(totalNonTies, r) * 0.5 ** totalNonTies;
+    }
+    signPValue = Math.min(1.0, cumulative * 2);
+  }
+
+  return {
+    wins,
+    losses,
+    ties,
+    winRatePct: Number(winRatePct.toFixed(1)),
+    signTestPValue: Number(signPValue.toFixed(4)),
+  };
+}
+
 function normalizeModel(modelStr) {
-  if (!modelStr) return "";
+  if (!modelStr) return '';
   const s = modelStr.toLowerCase();
-  if (s.includes("gemini")) return "gemini-3.5-flash";
-  if (s.includes("gemma")) return "gemma-4-31b-it";
-  if (s.includes("gpt-oss") || s.includes("gpt_oss") || s === "o1") return "gpt-oss-120b";
+  if (s.includes('gemini')) return 'gemini-3.5-flash';
+  if (s.includes('gemma')) return 'gemma-4-31b-it';
+  if (s.includes('gpt-oss') || s.includes('gpt_oss') || s === 'o1') return 'gpt-oss-120b';
   return s;
 }
 
 // Helper to extract the actual data object from a JSON, supporting arrays
 function extractDataObject(jsonData) {
   if (Array.isArray(jsonData)) {
-    const withEval = jsonData.find(obj => obj && obj.avaliacao_juiz);
+    const withEval = jsonData.find((obj) => obj && obj.avaliacao_juiz);
     if (withEval) return withEval;
-    
-    const withModel = jsonData.find(obj => obj && obj.model);
+
+    const withModel = jsonData.find((obj) => obj && obj.model);
     if (withModel) return withModel;
 
     return jsonData[0] || {};
@@ -56,7 +165,7 @@ function findQuestionDirs(dir) {
     const stat = fs.statSync(filePath);
     if (stat.isDirectory()) {
       results = results.concat(findQuestionDirs(filePath));
-    } else if (file.endsWith(".json")) {
+    } else if (file.endsWith('.json')) {
       hasJson = true;
     }
   }
@@ -69,26 +178,26 @@ function findQuestionDirs(dir) {
 // Attempts to read the estimated complexity of the question from Appendix B triagem
 function getEstimatedComplexity(parentDirName, folderName) {
   try {
-    const normalizedFolderName = folderName.replace("questão", "Questão");
+    const normalizedFolderName = folderName.replace('questão', 'Questão');
     const testNames = [
       `maia_debug_apendice_b_${normalizedFolderName}.json`,
       `maia_debug_apendice_b_${normalizedFolderName.toUpperCase()}.json`,
-      `maia_debug_apendice_b_${normalizedFolderName.toLowerCase()}.json`
+      `maia_debug_apendice_b_${normalizedFolderName.toLowerCase()}.json`,
     ];
     for (const bDir of apendiceBDirs) {
       for (const fileName of testNames) {
         const filePath = path.join(bDir, parentDirName, fileName);
         if (fs.existsSync(filePath)) {
-          const fileData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+          const fileData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
           let responseText = fileData.response_text;
-          if (typeof responseText === "string") {
+          if (typeof responseText === 'string') {
             try {
               responseText = JSON.parse(responseText);
             } catch (err) {
               // fallback
             }
           }
-          if (responseText && typeof responseText.pontuacao_final_complexidade === "number") {
+          if (responseText && typeof responseText.pontuacao_final_complexidade === 'number') {
             return responseText.pontuacao_final_complexidade;
           }
         }
@@ -102,19 +211,19 @@ function getEstimatedComplexity(parentDirName, folderName) {
 
 // Extrai texto legível de blocos de resposta Maia.edu
 function getResponseTextString(responseObj) {
-  if (!responseObj) return "";
-  if (typeof responseObj === "string") return responseObj;
+  if (!responseObj) return '';
+  if (typeof responseObj === 'string') return responseObj;
   if (responseObj.sections && Array.isArray(responseObj.sections)) {
-    let textParts = [];
+    const textParts = [];
     for (const sec of responseObj.sections) {
       if (sec.conteudo) {
         if (Array.isArray(sec.conteudo)) {
           for (const b of sec.conteudo) {
-            if (b.conteudo && typeof b.conteudo === "string") {
+            if (b.conteudo && typeof b.conteudo === 'string') {
               textParts.push(b.conteudo);
             }
           }
-        } else if (typeof sec.conteudo === "string") {
+        } else if (typeof sec.conteudo === 'string') {
           textParts.push(sec.conteudo);
         }
       }
@@ -123,7 +232,7 @@ function getResponseTextString(responseObj) {
           const slotBlocks = sec.slots[slotKey];
           if (Array.isArray(slotBlocks)) {
             for (const b of slotBlocks) {
-              if (b.conteudo && typeof b.conteudo === "string") {
+              if (b.conteudo && typeof b.conteudo === 'string') {
                 textParts.push(b.conteudo);
               }
             }
@@ -131,7 +240,7 @@ function getResponseTextString(responseObj) {
         }
       }
     }
-    return textParts.join("\n");
+    return textParts.join('\n');
   }
   return JSON.stringify(responseObj);
 }
@@ -153,9 +262,9 @@ function extractAllCriterios(jsonData) {
 
 // Estatística de Kruskal-Wallis inline
 function calcularKruskalWallis(groups) {
-  let combined = [];
+  const combined = [];
   groups.forEach((group, groupIdx) => {
-    group.forEach(val => {
+    group.forEach((val) => {
       combined.push({ val, groupIdx });
     });
   });
@@ -175,16 +284,16 @@ function calcularKruskalWallis(groups) {
     i = j;
   }
 
-  const n = groups.map(g => g.length);
+  const n = groups.map((g) => g.length);
   const N = combined.length;
   const R = new Array(groups.length).fill(0);
-  combined.forEach(item => {
+  combined.forEach((item) => {
     R[item.groupIdx] += item.rank;
   });
 
   let sumSqR = 0;
   for (let g = 0; g < groups.length; g++) {
-    sumSqR += Math.pow(R[g], 2) / n[g];
+    sumSqR += R[g] ** 2 / n[g];
   }
 
   const H = (12 / (N * (N + 1))) * sumSqR - 3 * (N + 1);
@@ -199,7 +308,11 @@ function calcularKruskalWallis(groups) {
 function calcularRegressaoLinear(x, y) {
   const n = x.length;
   if (n === 0) return { slope: 0, intercept: 0, r2: 0 };
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumYY = 0;
+  let sumX = 0,
+    sumY = 0,
+    sumXY = 0,
+    sumXX = 0,
+    sumYY = 0;
   for (let i = 0; i < n; i++) {
     sumX += x[i];
     sumY += y[i];
@@ -211,37 +324,40 @@ function calcularRegressaoLinear(x, y) {
   const intercept = (sumY - slope * sumX) / n;
 
   const meanY = sumY / n;
-  let ssTot = 0, ssRes = 0;
+  let ssTot = 0,
+    ssRes = 0;
   for (let i = 0; i < n; i++) {
     const predY = slope * x[i] + intercept;
-    ssTot += Math.pow(y[i] - meanY, 2);
-    ssRes += Math.pow(y[i] - predY, 2);
+    ssTot += (y[i] - meanY) ** 2;
+    ssRes += (y[i] - predY) ** 2;
   }
-  const r2 = ssTot === 0 ? 0 : 1 - (ssRes / ssTot);
+  const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
 
   return { slope, intercept, r2 };
 }
 
 // Algoritmo K-Means inline
 function calcularKMeans(dataPoints, k = 3) {
-  const xs = dataPoints.map(p => p.x);
-  const ys = dataPoints.map(p => p.y);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const xs = dataPoints.map((p) => p.x);
+  const ys = dataPoints.map((p) => p.y);
+  const minX = Math.min(...xs),
+    maxX = Math.max(...xs);
+  const minY = Math.min(...ys),
+    maxY = Math.max(...ys);
 
-  const normPoints = dataPoints.map(p => ({
+  const normPoints = dataPoints.map((p) => ({
     x: maxX > minX ? (p.x - minX) / (maxX - minX) : 0,
     y: maxY > minY ? (p.y - minY) / (maxY - minY) : 0,
-    orig: p
+    orig: p,
   }));
 
-  let centroids = [];
+  const centroids = [];
   for (let i = 0; i < k; i++) {
-    const index = Math.floor((i + 0.5) * normPoints.length / k) % normPoints.length;
+    const index = Math.floor(((i + 0.5) * normPoints.length) / k) % normPoints.length;
     centroids.push({ x: normPoints[index].x, y: normPoints[index].y });
   }
 
-  let assignments = new Array(normPoints.length).fill(-1);
+  const assignments = new Array(normPoints.length).fill(-1);
   let changed = true;
   let iterations = 0;
 
@@ -255,7 +371,7 @@ function calcularKMeans(dataPoints, k = 3) {
       let closestCentroid = -1;
 
       for (let c = 0; c < k; c++) {
-        const dist = Math.pow(p.x - centroids[c].x, 2) + Math.pow(p.y - centroids[c].y, 2);
+        const dist = (p.x - centroids[c].x) ** 2 + (p.y - centroids[c].y) ** 2;
         if (dist < minDist) {
           minDist = dist;
           closestCentroid = c;
@@ -314,14 +430,14 @@ function run() {
   const errors = [];
 
   // Arrays globais para cálculo do Fleiss' Kappa
-  let agreementRatings = [];
+  const agreementRatings = [];
 
   for (const qDir of qDirs) {
     const folderName = path.basename(qDir);
     const parentName = path.basename(path.dirname(qDir));
     const questionId = `${parentName} - ${folderName}`;
 
-    const files = fs.readdirSync(qDir).filter(f => f.endsWith(".json"));
+    const files = fs.readdirSync(qDir).filter((f) => f.endsWith('.json'));
 
     if (files.length !== 6) {
       errors.push(`[${questionId}] Incoerência: Esperava 6 arquivos, encontrou ${files.length}.`);
@@ -329,32 +445,45 @@ function run() {
     }
 
     // Matching de arquivos robusto ignorando timestamps
-    const originalComArqFile = files.find(f => f.toLowerCase().includes("com_arq") && !f.toLowerCase().includes("quest"));
-    const originalSemArqFile = files.find(f => f.toLowerCase().includes("sem_arq") && !f.toLowerCase().includes("quest"));
-    const judgesComArqFiles = files.filter(f => f.toLowerCase().includes("com_arq") && f.toLowerCase().includes("quest"));
-    const judgesSemArqFiles = files.filter(f => f.toLowerCase().includes("sem_arq") && f.toLowerCase().includes("quest"));
+    const originalComArqFile = files.find(
+      (f) => f.toLowerCase().includes('com_arq') && !f.toLowerCase().includes('quest'),
+    );
+    const originalSemArqFile = files.find(
+      (f) => f.toLowerCase().includes('sem_arq') && !f.toLowerCase().includes('quest'),
+    );
+    const judgesComArqFiles = files.filter(
+      (f) => f.toLowerCase().includes('com_arq') && f.toLowerCase().includes('quest'),
+    );
+    const judgesSemArqFiles = files.filter(
+      (f) => f.toLowerCase().includes('sem_arq') && f.toLowerCase().includes('quest'),
+    );
 
-    if (!originalComArqFile || !originalSemArqFile || judgesComArqFiles.length !== 2 || judgesSemArqFiles.length !== 2) {
+    if (
+      !originalComArqFile ||
+      !originalSemArqFile ||
+      judgesComArqFiles.length !== 2 ||
+      judgesSemArqFiles.length !== 2
+    ) {
       errors.push(`[${questionId}] Incoerência: Estrutura de arquivos inválida.`);
       continue;
     }
 
     try {
-      const origComRaw = JSON.parse(fs.readFileSync(path.join(qDir, originalComArqFile), "utf-8"));
-      const origSemRaw = JSON.parse(fs.readFileSync(path.join(qDir, originalSemArqFile), "utf-8"));
-      
+      const origComRaw = JSON.parse(fs.readFileSync(path.join(qDir, originalComArqFile), 'utf-8'));
+      const origSemRaw = JSON.parse(fs.readFileSync(path.join(qDir, originalSemArqFile), 'utf-8'));
+
       const origComData = extractDataObject(origComRaw);
       const origSemData = extractDataObject(origSemRaw);
-      
-      const judgesComData = judgesComArqFiles.map(f => ({
+
+      const judgesComData = judgesComArqFiles.map((f) => ({
         filename: f,
-        raw: JSON.parse(fs.readFileSync(path.join(qDir, f), "utf-8")),
-        data: extractDataObject(JSON.parse(fs.readFileSync(path.join(qDir, f), "utf-8")))
+        raw: JSON.parse(fs.readFileSync(path.join(qDir, f), 'utf-8')),
+        data: extractDataObject(JSON.parse(fs.readFileSync(path.join(qDir, f), 'utf-8'))),
       }));
-      const judgesSemData = judgesSemArqFiles.map(f => ({
+      const judgesSemData = judgesSemArqFiles.map((f) => ({
         filename: f,
-        raw: JSON.parse(fs.readFileSync(path.join(qDir, f), "utf-8")),
-        data: extractDataObject(JSON.parse(fs.readFileSync(path.join(qDir, f), "utf-8")))
+        raw: JSON.parse(fs.readFileSync(path.join(qDir, f), 'utf-8')),
+        data: extractDataObject(JSON.parse(fs.readFileSync(path.join(qDir, f), 'utf-8'))),
       }));
 
       const genModelCom = normalizeModel(origComData.model);
@@ -372,7 +501,7 @@ function run() {
         memory_ms: lCom.memory_ms || 0,
         generation_ms: lCom.generation_ms || 0,
         rag_ms: lCom.rag_ms || 0,
-        search_ms: lCom.search_ms || 0
+        search_ms: lCom.search_ms || 0,
       };
 
       const lSem = origSemRaw.latencies || {};
@@ -382,7 +511,7 @@ function run() {
         memory_ms: 0,
         generation_ms: lSem.generation_ms || origSemRaw.latency_ms || 0,
         rag_ms: 0,
-        search_ms: 0
+        search_ms: 0,
       };
 
       // Extração do tamanho do texto gerado
@@ -397,11 +526,11 @@ function run() {
         for (const j of judgesList) {
           const evalObj = j.data.avaliacao_juiz;
           if (!evalObj) continue;
-          const modelKey = Object.keys(evalObj).find(k => k !== "error");
+          const modelKey = Object.keys(evalObj).find((k) => k !== 'error');
           if (!modelKey) continue;
           const judgeData = evalObj[modelKey];
           if (!judgeData || !judgeData.notas_grupo) continue;
-          
+
           // Extrair critérios detalhados
           const criteriosChecked = extractAllCriterios(j.raw);
 
@@ -409,7 +538,7 @@ function run() {
             model: normalizeModel(modelKey),
             pontuacao_total: judgeData.pontuacao_total,
             notas_grupo: judgeData.notas_grupo,
-            criterios: criteriosChecked
+            criterios: criteriosChecked,
           });
         }
         return scores;
@@ -428,18 +557,18 @@ function run() {
         const merged = {};
         const allKeys = new Set([
           ...Object.keys(scoresList[0].criterios),
-          ...Object.keys(scoresList[1].criterios)
+          ...Object.keys(scoresList[1].criterios),
         ]);
 
         for (const key of allKeys) {
           const present1 = scoresList[0].criterios[key]?.presente ? 1 : 0;
           const present2 = scoresList[1].criterios[key]?.presente ? 1 : 0;
-          const evidence1 = scoresList[0].criterios[key]?.evidencia || "";
-          const evidence2 = scoresList[1].criterios[key]?.evidencia || "";
+          const evidence1 = scoresList[0].criterios[key]?.evidencia || '';
+          const evidence2 = scoresList[1].criterios[key]?.evidencia || '';
 
           merged[key] = {
             presence_rate: (present1 + present2) / 2,
-            evidencia_length: (evidence1.length + evidence2.length) / 2
+            evidencia_length: (evidence1.length + evidence2.length) / 2,
           };
 
           // Salvar para cálculo do Fleiss' Kappa
@@ -447,7 +576,7 @@ function run() {
             questionId,
             criterion: key,
             rater1: present1,
-            rater2: present2
+            rater2: present2,
           });
         }
         return merged;
@@ -457,26 +586,29 @@ function run() {
       const criteriosSemMerged = mergeCriterios(semScores);
 
       const avgScore = (key) => (comScores[0].notas_grupo[key] + comScores[1].notas_grupo[key]) / 2;
-      const avgScoreSem = (key) => (semScores[0].notas_grupo[key] + semScores[1].notas_grupo[key]) / 2;
+      const avgScoreSem = (key) =>
+        (semScores[0].notas_grupo[key] + semScores[1].notas_grupo[key]) / 2;
 
       const comTotals = (comScores[0].pontuacao_total + comScores[1].pontuacao_total) / 2;
       const semTotals = (semScores[0].pontuacao_total + semScores[1].pontuacao_total) / 2;
 
       const complexityEst = getEstimatedComplexity(parentName, folderName) || 12.0;
-      const isPostCutoff = parentName.includes("2025");
+      const isPostCutoff = parentName.includes('2025');
 
       // Timestamp hour
       let hourOfDay = 12;
       if (origComRaw.timestamp) {
         try {
           hourOfDay = new Date(origComRaw.timestamp).getHours();
-        } catch(e) {}
+        } catch (e) {}
       }
 
       // Detecta área pelo caminho da pasta (linguagens/ ou humanas/)
-      const areaFromPath = qDir.toLowerCase().includes(`${path.sep}humanas${path.sep}`) ||
-                           qDir.toLowerCase().includes("/humanas/")
-                           ? "Humanas" : "Linguagens";
+      const areaFromPath =
+        qDir.toLowerCase().includes(`${path.sep}humanas${path.sep}`) ||
+        qDir.toLowerCase().includes('/humanas/')
+          ? 'Humanas'
+          : 'Linguagens';
 
       allQuestionsData.push({
         id: questionId,
@@ -491,29 +623,38 @@ function run() {
         char_count_control: charsSem,
         char_count_experimental: charsCom,
         scores_control: {
-          grupo_a: avgScoreSem("grupo_a"),
-          grupo_b: avgScoreSem("grupo_b"),
-          grupo_c: avgScoreSem("grupo_c"),
-          grupo_d: avgScoreSem("grupo_d"),
-          grupo_e: avgScoreSem("grupo_e"),
-          total: semTotals
+          grupo_a: avgScoreSem('grupo_a'),
+          grupo_b: avgScoreSem('grupo_b'),
+          grupo_c: avgScoreSem('grupo_c'),
+          grupo_d: avgScoreSem('grupo_d'),
+          grupo_e: avgScoreSem('grupo_e'),
+          total: semTotals,
         },
         scores_experimental: {
-          grupo_a: avgScore("grupo_a"),
-          grupo_b: avgScore("grupo_b"),
-          grupo_c: avgScore("grupo_c"),
-          grupo_d: avgScore("grupo_d"),
-          grupo_e: avgScore("grupo_e"),
-          total: comTotals
+          grupo_a: avgScore('grupo_a'),
+          grupo_b: avgScore('grupo_b'),
+          grupo_c: avgScore('grupo_c'),
+          grupo_d: avgScore('grupo_d'),
+          grupo_e: avgScore('grupo_e'),
+          total: comTotals,
         },
         criterios_control: criteriosSemMerged,
         criterios_experimental: criteriosComMerged,
         raw_evaluations: {
-          control: semScores.map(s => ({ judge: s.model, total: s.pontuacao_total })),
-          experimental: comScores.map(s => ({ judge: s.model, total: s.pontuacao_total }))
-        }
+          control: semScores.map((s) => ({
+            model: s.model,
+            pontuacao_total: s.pontuacao_total,
+            notas_grupo: s.notas_grupo,
+            criterios: s.criterios,
+          })),
+          experimental: comScores.map((s) => ({
+            model: s.model,
+            pontuacao_total: s.pontuacao_total,
+            notas_grupo: s.notas_grupo,
+            criterios: s.criterios,
+          })),
+        },
       });
-
     } catch (e) {
       errors.push(`[${questionId}] Falha ao processar arquivos JSON: ${e.message}`);
     }
@@ -521,13 +662,13 @@ function run() {
 
   if (errors.length > 0) {
     console.warn(`\n⚠️ RELATÓRIO DE INCOERÊNCIAS E ERROS (${errors.length}):`);
-    errors.forEach(err => console.warn(`- ${err}`));
+    errors.forEach((err) => console.warn(`- ${err}`));
   } else {
     console.log(`\n✅ Sucesso: Nenhuma incoerência nos arquivos do crossover!`);
   }
 
   if (allQuestionsData.length === 0) {
-    console.error("Nenhum dado válido pôde ser extraído.");
+    console.error('Nenhum dado válido pôde ser extraído.');
     process.exit(1);
   }
 
@@ -538,23 +679,25 @@ function run() {
   function computeStats(questions, agreeRatings) {
     const summary = {
       n_total: questions.length,
-      metrics: {}
+      metrics: {},
     };
 
     if (questions.length === 0) {
-      summary.errors = ["Nenhuma questão no subconjunto."];
+      summary.errors = ['Nenhuma questão no subconjunto.'];
       summary.questions = [];
       return summary;
     }
 
-    const keys = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e", "total", "latency"];
+    const keys = ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e', 'total', 'latency'];
     const arrays = {};
-    keys.forEach(k => { arrays[k] = { control: [], experimental: [] }; });
+    keys.forEach((k) => {
+      arrays[k] = { control: [], experimental: [] };
+    });
     const iepArray = [];
 
     for (const q of questions) {
-      keys.forEach(k => {
-        if (k === "latency") {
+      keys.forEach((k) => {
+        if (k === 'latency') {
           arrays[k].control.push(q.latencies_control.total_ms / 1000);
           arrays[k].experimental.push(q.latencies_experimental.total_ms / 1000);
         } else {
@@ -563,25 +706,63 @@ function run() {
         }
       });
       const deltaTotal = q.scores_experimental.total - q.scores_control.total;
-      const iepValue = q.latencies_experimental.total_ms > 0 ? deltaTotal / (q.latencies_experimental.total_ms / 1000) : 0;
+      const iepValue =
+        q.latencies_experimental.total_ms > 0
+          ? deltaTotal / (q.latencies_experimental.total_ms / 1000)
+          : 0;
       iepArray.push(iepValue);
     }
 
     const metricMetadata = [
-      { key: "latency", label: "Latência (s)",                                   ctrlArr: arrays.latency.control,  expArr: arrays.latency.experimental },
-      { key: "grupo_a", label: "Grupo A - Estrutura e Estética Básica (Máx: 7)",  ctrlArr: arrays.grupo_a.control,  expArr: arrays.grupo_a.experimental },
-      { key: "grupo_b", label: "Grupo B - Ancoragem Factual e Interpretação (Máx: 14)", ctrlArr: arrays.grupo_b.control, expArr: arrays.grupo_b.experimental },
-      { key: "grupo_c", label: "Grupo C - Pedagogia e Transposição Cognitiva (Máx: 21)", ctrlArr: arrays.grupo_c.control, expArr: arrays.grupo_c.experimental },
-      { key: "grupo_d", label: "Grupo D - Lógica Dedutiva e Eliminação (Máx: 28)",  ctrlArr: arrays.grupo_d.control, expArr: arrays.grupo_d.experimental },
-      { key: "grupo_e", label: "Grupo E - Engenharia da Resolução e Interfaces (Máx: 30)", ctrlArr: arrays.grupo_e.control, expArr: arrays.grupo_e.experimental },
-      { key: "total",   label: "Pontuação Total do Juiz (Máx: 100)",              ctrlArr: arrays.total.control,    expArr: arrays.total.experimental }
+      {
+        key: 'latency',
+        label: 'Latência (s)',
+        ctrlArr: arrays.latency.control,
+        expArr: arrays.latency.experimental,
+      },
+      {
+        key: 'grupo_a',
+        label: 'Grupo A - Estrutura e Estética Básica (Máx: 7)',
+        ctrlArr: arrays.grupo_a.control,
+        expArr: arrays.grupo_a.experimental,
+      },
+      {
+        key: 'grupo_b',
+        label: 'Grupo B - Ancoragem Factual e Interpretação (Máx: 14)',
+        ctrlArr: arrays.grupo_b.control,
+        expArr: arrays.grupo_b.experimental,
+      },
+      {
+        key: 'grupo_c',
+        label: 'Grupo C - Pedagogia e Transposição Cognitiva (Máx: 21)',
+        ctrlArr: arrays.grupo_c.control,
+        expArr: arrays.grupo_c.experimental,
+      },
+      {
+        key: 'grupo_d',
+        label: 'Grupo D - Lógica Dedutiva e Eliminação (Máx: 28)',
+        ctrlArr: arrays.grupo_d.control,
+        expArr: arrays.grupo_d.experimental,
+      },
+      {
+        key: 'grupo_e',
+        label: 'Grupo E - Engenharia da Resolução e Interfaces (Máx: 30)',
+        ctrlArr: arrays.grupo_e.control,
+        expArr: arrays.grupo_e.experimental,
+      },
+      {
+        key: 'total',
+        label: 'Pontuação Total do Juiz (Máx: 100)',
+        ctrlArr: arrays.total.control,
+        expArr: arrays.total.experimental,
+      },
     ];
 
     for (const m of metricMetadata) {
       const meanCtrl = getMean(m.ctrlArr);
-      const sdCtrl   = getStdDev(m.ctrlArr, meanCtrl);
-      const meanExp  = getMean(m.expArr);
-      const sdExp    = getStdDev(m.expArr, meanExp);
+      const sdCtrl = getStdDev(m.ctrlArr, meanCtrl);
+      const meanExp = getMean(m.expArr);
+      const sdExp = getStdDev(m.expArr, meanExp);
 
       let wilcoxonRes = { pValue: null, statistic: null, rejected: false };
       try {
@@ -592,27 +773,30 @@ function run() {
 
       summary.metrics[m.key] = {
         label: m.label,
-        control:      { mean: meanCtrl, stdDev: sdCtrl },
-        experimental: { mean: meanExp,  stdDev: sdExp  },
+        control: { mean: meanCtrl, stdDev: sdCtrl },
+        experimental: { mean: meanExp, stdDev: sdExp },
         wilcoxon: {
-          pValue:      wilcoxonRes.pValue,
-          statistic:   wilcoxonRes.statistic,
-          significant: wilcoxonRes.pValue !== null && wilcoxonRes.pValue < 0.05
-        }
+          pValue: wilcoxonRes.pValue,
+          statistic: wilcoxonRes.statistic,
+          significant: wilcoxonRes.pValue !== null && wilcoxonRes.pValue < 0.05,
+        },
+        hedges_g: calcularHedgesG(m.ctrlArr, m.expArr),
+        exact_permutation: calcularPermutacaoExata(m.ctrlArr, m.expArr),
+        win_rate: calcularWinRate(m.ctrlArr, m.expArr),
       };
     }
 
-    summary.metrics["iep"] = {
-      label: "Índice de Eficiência de Processamento (IEP)",
-      experimental: { mean: getMean(iepArray), stdDev: getStdDev(iepArray, getMean(iepArray)) }
+    summary.metrics['iep'] = {
+      label: 'Índice de Eficiência de Processamento (IEP)',
+      experimental: { mean: getMean(iepArray), stdDev: getStdDev(iepArray, getMean(iepArray)) },
     };
 
     // Cutoff
-    const preCutoff  = questions.filter(q => !q.isPostCutoff);
-    const postCutoff = questions.filter(q =>  q.isPostCutoff);
+    const preCutoff = questions.filter((q) => !q.isPostCutoff);
+    const postCutoff = questions.filter((q) => q.isPostCutoff);
     const compileCutoff = (sub) => {
-      const ctrlS = sub.map(q => q.scores_control.total);
-      const expS  = sub.map(q => q.scores_experimental.total);
+      const ctrlS = sub.map((q) => q.scores_control.total);
+      const expS = sub.map((q) => q.scores_experimental.total);
       const cMean = getMean(ctrlS);
       const eMean = getMean(expS);
       let wilc = { pValue: null, statistic: null, significant: false };
@@ -621,70 +805,100 @@ function run() {
           const res = calcularWilcoxonPareado(ctrlS, expS);
           wilc = { pValue: res.pValue, statistic: res.statistic, significant: res.pValue < 0.05 };
         }
-      } catch(e) {}
+      } catch (e) {}
+
+      const hedgesG = calcularHedgesG(ctrlS, expS);
+      const exactPerm = calcularPermutacaoExata(ctrlS, expS);
+      const winRateObj = calcularWinRate(ctrlS, expS);
+
+      const groupsBreakdown = {};
+      ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e'].forEach((g) => {
+        const cG = sub.map((q) => q.scores_control[g]);
+        const eG = sub.map((q) => q.scores_experimental[g]);
+        groupsBreakdown[g] = {
+          control_mean: Number(getMean(cG).toFixed(2)),
+          experimental_mean: Number(getMean(eG).toFixed(2)),
+          hedges_g: calcularHedgesG(cG, eG),
+          exact_permutation_p: calcularPermutacaoExata(cG, eG).pValue,
+          win_rate: calcularWinRate(cG, eG),
+        };
+      });
+
       return {
         n: sub.length,
-        control:      { mean: cMean, stdDev: getStdDev(ctrlS, cMean) },
-        experimental: { mean: eMean, stdDev: getStdDev(expS,  eMean) },
-        wilcoxon: wilc
+        control: { mean: cMean, stdDev: getStdDev(ctrlS, cMean) },
+        experimental: { mean: eMean, stdDev: getStdDev(expS, eMean) },
+        wilcoxon: wilc,
+        hedges_g: hedgesG,
+        exact_permutation: exactPerm,
+        win_rate: winRateObj,
+        groups_breakdown: groupsBreakdown,
       };
     };
     summary.cutoff_analysis = {
-      pre_cutoff:  compileCutoff(preCutoff),
-      post_cutoff: compileCutoff(postCutoff)
+      pre_cutoff: compileCutoff(preCutoff),
+      post_cutoff: compileCutoff(postCutoff),
     };
 
     // Confronto por modelo
-    const models = ["gemini-3.5-flash", "gemma-4-31b-it", "gpt-oss-120b"];
+    const models = ['gemini-3.5-flash', 'gemma-4-31b-it', 'gpt-oss-120b'];
     summary.model_confrontation = {};
     for (const model of models) {
-      const mq = questions.filter(q => q.generatorModel === model);
-      const ctrlS = mq.map(q => q.scores_control.total);
-      const expS  = mq.map(q => q.scores_experimental.total);
+      const mq = questions.filter((q) => q.generatorModel === model);
+      const ctrlS = mq.map((q) => q.scores_control.total);
+      const expS = mq.map((q) => q.scores_experimental.total);
       summary.model_confrontation[model] = {
         n: mq.length,
         scores: {
-          control:      getMean(ctrlS),
+          control: getMean(ctrlS),
           experimental: getMean(expS),
-          delta:        getMean(expS) - getMean(ctrlS)
+          delta: getMean(expS) - getMean(ctrlS),
         },
         latency: {
-          control:      getMean(mq.map(q => q.latencies_control.total_ms  / 1000)),
-          experimental: getMean(mq.map(q => q.latencies_experimental.total_ms / 1000))
-        }
+          control: getMean(mq.map((q) => q.latencies_control.total_ms / 1000)),
+          experimental: getMean(mq.map((q) => q.latencies_experimental.total_ms / 1000)),
+        },
       };
     }
 
     // Kruskal-Wallis
-    const kwGroups = models.map(m => questions.filter(q => q.generatorModel === m).map(q => q.scores_experimental.total));
+    const kwGroups = models.map((m) =>
+      questions.filter((q) => q.generatorModel === m).map((q) => q.scores_experimental.total),
+    );
     summary.kruskal_wallis = calcularKruskalWallis(kwGroups);
 
     // Fleiss' Kappa (usa os agreeRatings filtrados)
     if (agreeRatings && agreeRatings.length > 0) {
       let sAgree = 0;
-      agreeRatings.forEach(item => { if (item.rater1 === item.rater2) sAgree++; });
-      const pObs  = sAgree / agreeRatings.length;
+      agreeRatings.forEach((item) => {
+        if (item.rater1 === item.rater2) sAgree++;
+      });
+      const pObs = sAgree / agreeRatings.length;
       const cTrue = agreeRatings.reduce((s, item) => s + item.rater1 + item.rater2, 0);
-      const tRat  = agreeRatings.length * 2;
-      const p1k   = cTrue / tRat;
-      const p0k   = 1 - p1k;
-      const pExp  = p1k * p1k + p0k * p0k;
+      const tRat = agreeRatings.length * 2;
+      const p1k = cTrue / tRat;
+      const p0k = 1 - p1k;
+      const pExp = p1k * p1k + p0k * p0k;
       summary.inter_rater_agreement = {
-        percent_agreement:  pObs,
+        percent_agreement: pObs,
         expected_agreement: pExp,
-        fleiss_kappa:       (pObs - pExp) / (1 - pExp)
+        fleiss_kappa: (pObs - pExp) / (1 - pExp),
       };
     } else {
-      summary.inter_rater_agreement = { percent_agreement: 0, expected_agreement: 0, fleiss_kappa: 0 };
+      summary.inter_rater_agreement = {
+        percent_agreement: 0,
+        expected_agreement: 0,
+        fleiss_kappa: 0,
+      };
     }
 
     // Regressão linear
-    const regLat   = questions.map(q => q.latencies_experimental.total_ms / 1000);
-    const regGains = questions.map(q => q.scores_experimental.total - q.scores_control.total);
+    const regLat = questions.map((q) => q.latencies_experimental.total_ms / 1000);
+    const regGains = questions.map((q) => q.scores_experimental.total - q.scores_control.total);
     summary.linear_regression = calcularRegressaoLinear(regLat, regGains);
 
     // Spearman matrix grupos
-    const groupsList = ["grupo_a", "grupo_b", "grupo_c", "grupo_d", "grupo_e"];
+    const groupsList = ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e'];
     summary.spearman_matrix = {};
     for (const g1 of groupsList) {
       summary.spearman_matrix[g1] = {};
@@ -692,66 +906,192 @@ function run() {
         if (g1 === g2) {
           summary.spearman_matrix[g1][g2] = 1.0;
         } else {
-          const v1 = questions.map(q => q.scores_experimental[g1]);
-          const v2 = questions.map(q => q.scores_experimental[g2]);
+          const v1 = questions.map((q) => q.scores_experimental[g1]);
+          const v2 = questions.map((q) => q.scores_experimental[g2]);
           summary.spearman_matrix[g1][g2] = calcularSpearman(v1, v2) || 0;
         }
       }
     }
 
     // K-Means
-    const clusterPoints = questions.map(q => ({
+    const clusterPoints = questions.map((q) => ({
       x: q.latencies_experimental.total_ms / 1000,
       y: q.scores_experimental.total,
-      id: q.id
+      id: q.id,
     }));
-    summary.kmeans_clusters = calcularKMeans(clusterPoints, Math.min(3, questions.length)).map(c => ({
-      id: c.id,
-      centroid: c.centroid,
-      points_count: c.points.length,
-      points: c.points.map(p => p.id)
-    }));
+    summary.kmeans_clusters = calcularKMeans(clusterPoints, Math.min(3, questions.length)).map(
+      (c) => ({
+        id: c.id,
+        centroid: c.centroid,
+        points_count: c.points.length,
+        points: c.points.map((p) => p.id),
+      }),
+    );
 
     // Spearman IEP vs. Complexidade
-    const complexityList = questions.map(q => q.complexity_estimated);
+    const complexityList = questions.map((q) => q.complexity_estimated);
     summary.iep_complexity_correlation = {
       spearman: calcularSpearman(iepArray, complexityList) || 0,
-      description: "Correlação de Spearman entre o IEP (Pontos Ganhos/s) e a Complexidade Estimada da Questão (Appendix B)."
+      description:
+        'Correlação de Spearman entre o IEP (Pontos Ganhos/s) e a Complexidade Estimada da Questão (Appendix B).',
     };
 
     summary.questions = questions;
     return summary;
   }
 
+  function mergeCriteriosForJudges(scoresList, qId, agreeRatingsArr) {
+    const merged = {};
+    if (!scoresList || scoresList.length === 0) return merged;
+
+    const allKeys = new Set();
+    scoresList.forEach((s) => Object.keys(s.criterios || {}).forEach((k) => allKeys.add(k)));
+
+    for (const key of allKeys) {
+      let sumPresent = 0;
+      let sumLength = 0;
+      scoresList.forEach((s) => {
+        if (s.criterios && s.criterios[key] && s.criterios[key].presente) sumPresent += 1;
+        const ev = (s.criterios && s.criterios[key] && s.criterios[key].evidencia) || '';
+        sumLength += ev.length;
+      });
+
+      merged[key] = {
+        presence_rate: sumPresent / scoresList.length,
+        evidencia_length: sumLength / scoresList.length,
+      };
+
+      if (agreeRatingsArr && scoresList.length >= 2) {
+        agreeRatingsArr.push({
+          questionId: qId,
+          criterion: key,
+          rater1: scoresList[0].criterios[key]?.presente ? 1 : 0,
+          rater2: scoresList[1].criterios[key]?.presente ? 1 : 0,
+        });
+      }
+    }
+    return merged;
+  }
+
+  const JUDGE_FILTERS = {
+    all: ['gemini-3.5-flash', 'gemma-4-31b-it', 'gpt-oss-120b'],
+    'gpt-oss-120b': ['gpt-oss-120b'],
+    'gemini-3.5-flash': ['gemini-3.5-flash'],
+    'gemma-4-31b-it': ['gemma-4-31b-it'],
+    'gpt+gemini': ['gpt-oss-120b', 'gemini-3.5-flash'],
+    'gpt+gemma': ['gpt-oss-120b', 'gemma-4-31b-it'],
+    'gemma+gemini': ['gemma-4-31b-it', 'gemini-3.5-flash'],
+  };
+
+  function computeStatsForJudges(questionsData, allowedJudges) {
+    const filteredQuestions = [];
+    const filteredAgreeRatings = [];
+
+    for (const q of questionsData) {
+      const matchingCom = q.raw_evaluations.experimental.filter((s) =>
+        allowedJudges.includes(s.model),
+      );
+      const matchingSem = q.raw_evaluations.control.filter((s) => allowedJudges.includes(s.model));
+
+      if (matchingCom.length === 0 || matchingSem.length === 0) {
+        continue;
+      }
+
+      const calcAvgScore = (list, key) => {
+        let sum = 0;
+        for (const item of list) {
+          sum += item.notas_grupo[key] || 0;
+        }
+        return sum / list.length;
+      };
+
+      const calcAvgTotal = (list) => {
+        let sum = 0;
+        for (const item of list) {
+          sum += item.pontuacao_total || 0;
+        }
+        return sum / list.length;
+      };
+
+      const expScores = {
+        grupo_a: calcAvgScore(matchingCom, 'grupo_a'),
+        grupo_b: calcAvgScore(matchingCom, 'grupo_b'),
+        grupo_c: calcAvgScore(matchingCom, 'grupo_c'),
+        grupo_d: calcAvgScore(matchingCom, 'grupo_d'),
+        grupo_e: calcAvgScore(matchingCom, 'grupo_e'),
+        total: calcAvgTotal(matchingCom),
+      };
+
+      const ctrlScores = {
+        grupo_a: calcAvgScore(matchingSem, 'grupo_a'),
+        grupo_b: calcAvgScore(matchingSem, 'grupo_b'),
+        grupo_c: calcAvgScore(matchingSem, 'grupo_c'),
+        grupo_d: calcAvgScore(matchingSem, 'grupo_d'),
+        grupo_e: calcAvgScore(matchingSem, 'grupo_e'),
+        total: calcAvgTotal(matchingSem),
+      };
+
+      const criteriosComMerged = mergeCriteriosForJudges(matchingCom, q.id, filteredAgreeRatings);
+      const criteriosSemMerged = mergeCriteriosForJudges(matchingSem, q.id, null);
+
+      filteredQuestions.push({
+        ...q,
+        scores_control: ctrlScores,
+        scores_experimental: expScores,
+        criterios_control: criteriosSemMerged,
+        criterios_experimental: criteriosComMerged,
+        matching_judges_com: matchingCom.map((m) => m.model),
+        matching_judges_sem: matchingSem.map((m) => m.model),
+        raw_evaluations: {
+          control: matchingSem,
+          experimental: matchingCom,
+        },
+      });
+    }
+
+    return computeStats(filteredQuestions, filteredAgreeRatings);
+  }
+
+  function buildFullStatsPackage(questionsSubset) {
+    const mainStats = computeStatsForJudges(questionsSubset, JUDGE_FILTERS['all']);
+    mainStats.by_judge_filter = {};
+
+    for (const [filterKey, allowedJudges] of Object.entries(JUDGE_FILTERS)) {
+      mainStats.by_judge_filter[filterKey] = computeStatsForJudges(questionsSubset, allowedJudges);
+    }
+
+    return mainStats;
+  }
+
   // Separa questões por área
-  const questoesLinguagens = allQuestionsData.filter(q => q.area === "Linguagens");
-  const questoesHumanas    = allQuestionsData.filter(q => q.area === "Humanas");
+  const questoesLinguagens = allQuestionsData.filter((q) => q.area === 'Linguagens');
+  const questoesHumanas = allQuestionsData.filter((q) => q.area === 'Humanas');
 
-  // Filtra agreementRatings por área
-  const questoesIdsLing    = new Set(questoesLinguagens.map(q => q.id));
-  const questoesIdsHum     = new Set(questoesHumanas.map(q => q.id));
-  const agreeRatingsLing   = agreementRatings.filter(r => questoesIdsLing.has(r.questionId));
-  const agreeRatingsHum    = agreementRatings.filter(r => questoesIdsHum.has(r.questionId));
+  console.log(
+    `\n📊 Subconjuntos: Total=${allQuestionsData.length}, Linguagens=${questoesLinguagens.length}, Humanas=${questoesHumanas.length}`,
+  );
 
-  console.log(`\n📊 Subconjuntos: Total=${allQuestionsData.length}, Linguagens=${questoesLinguagens.length}, Humanas=${questoesHumanas.length}`);
-
-  // Computa estatísticas para os 3 conjuntos
-  const statsTotal     = computeStats(allQuestionsData,    agreementRatings);
-  const statsLinguagens = computeStats(questoesLinguagens, agreeRatingsLing);
-  const statsHumanas    = computeStats(questoesHumanas,    agreeRatingsHum);
+  // Computa estatísticas para os 3 conjuntos com suporte aos 7 filtros de juiz
+  const statsTotal = buildFullStatsPackage(allQuestionsData);
+  const statsLinguagens = buildFullStatsPackage(questoesLinguagens);
+  const statsHumanas = buildFullStatsPackage(questoesHumanas);
 
   // Adiciona metadado de área e erros globais nos 3
-  statsTotal.errors      = errors;
-  statsTotal.area_label  = "Total (Linguagens + Humanas)";
-  statsLinguagens.errors = errors.filter(e => e.toLowerCase().includes("linguagens") || !e.toLowerCase().includes("humanas"));
-  statsLinguagens.area_label = "Linguagens";
-  statsHumanas.errors    = errors.filter(e => e.toLowerCase().includes("humanas") || !e.toLowerCase().includes("linguagens"));
-  statsHumanas.area_label    = "Humanas";
+  statsTotal.errors = errors;
+  statsTotal.area_label = 'Total (Linguagens + Humanas)';
+  statsLinguagens.errors = errors.filter(
+    (e) => e.toLowerCase().includes('linguagens') || !e.toLowerCase().includes('humanas'),
+  );
+  statsLinguagens.area_label = 'Linguagens';
+  statsHumanas.errors = errors.filter(
+    (e) => e.toLowerCase().includes('humanas') || !e.toLowerCase().includes('linguagens'),
+  );
+  statsHumanas.area_label = 'Humanas';
 
   // Salva os 3 arquivos
-  fs.writeFileSync(outputFile,        JSON.stringify(statsTotal,      null, 2), "utf-8");
-  fs.writeFileSync(outputFileLing,    JSON.stringify(statsLinguagens, null, 2), "utf-8");
-  fs.writeFileSync(outputFileHumanas, JSON.stringify(statsHumanas,    null, 2), "utf-8");
+  fs.writeFileSync(outputFile, JSON.stringify(statsTotal, null, 2), 'utf-8');
+  fs.writeFileSync(outputFileLing, JSON.stringify(statsLinguagens, null, 2), 'utf-8');
+  fs.writeFileSync(outputFileHumanas, JSON.stringify(statsHumanas, null, 2), 'utf-8');
 
   console.log(`\n✅ [Total]      → ${outputFile}`);
   console.log(`✅ [Linguagens] → ${outputFileLing}`);

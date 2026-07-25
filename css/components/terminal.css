@@ -123,16 +123,18 @@
 
 /* Shimmer effect for active progress */
 .term-bar-fill::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.3) 50%,
-      rgba(255, 255, 255, 0) 100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
   transform: translateX(-100%);
   animation: shimmer 2s infinite;
 }
@@ -142,7 +144,6 @@
     transform: translateX(100%);
   }
 }
-
 
 /* --- NEW FLOATING OBJECTIVES HEADER --- */
 /* The container for the floating icons */
@@ -188,7 +189,7 @@
 
 /* Connectors between icons */
 .term-obj-icon-link:not(:last-child)::after {
-  content: '';
+  content: "";
   position: absolute;
   right: -16px;
   /* Half of gap */
@@ -464,7 +465,7 @@
 
 /* Vertical Line Segment */
 .term-chain-node::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 35px;
   /* 20px padding + 16px (half logo) - 1px (half line) */
@@ -598,7 +599,6 @@
   display: inline;
 }
 
-
 /* =========================================
    FLOATING & MINIMIZED STATES (Migrated from JS)
    ========================================= */
@@ -653,7 +653,9 @@
   justify-content: center !important;
   background: var(--term-bg) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease !important;
 }
 
 .term-floating.term-minimized:hover {
@@ -661,7 +663,7 @@
 }
 
 /* Hide internal elements when minimized */
-.term-floating.term-minimized>*:not(.term-minimized-btn) {
+.term-floating.term-minimized > *:not(.term-minimized-btn) {
   display: none !important;
 }
 
@@ -709,7 +711,7 @@
 }
 
 .term-floating.term-status-success .term-minimized-btn::after {
-  content: '✔';
+  content: "✔";
   color: var(--color-success);
   font-size: 1.5rem;
   font-weight: bold;
@@ -726,7 +728,7 @@
 }
 
 .term-floating.term-status-error .term-minimized-btn::after {
-  content: '✖';
+  content: "✖";
   color: var(--color-error);
   font-size: 1.5rem;
   font-weight: bold;
@@ -854,12 +856,12 @@
     gap: 12px;
   }
 
-  .term-log-header>span {
+  .term-log-header > span {
     margin: 0 !important;
     width: 100%;
   }
 
-  .term-log-header>div {
+  .term-log-header > div {
     display: flex;
     flex-wrap: wrap;
     width: 100%;
@@ -871,59 +873,59 @@
    LIGHT MODE & THEMING
    ========================================= */
 /* Ensure terminal specific vars map correctly in light mode */
-[data-color-scheme='light'] .term-floating {
+[data-color-scheme="light"] .term-floating {
   background: var(--color-surface) !important;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1) !important;
   border: 1px solid var(--color-border);
 }
 
-[data-color-scheme='light'] .term-task-card {
+[data-color-scheme="light"] .term-task-card {
   background: #fff;
   border-color: var(--color-border);
 }
 
-[data-color-scheme='light'] .term-task-card.active {
+[data-color-scheme="light"] .term-task-card.active {
   background: var(--color-bg-1);
   border-color: var(--color-primary);
 }
 
 /* Fix logs text color in light mode */
-[data-color-scheme='light'] .term-logs {
+[data-color-scheme="light"] .term-logs {
   background: #f8f9fa;
   /* Light console bg */
   color: #444;
 }
 
-[data-color-scheme='light'] .term-log-line {
+[data-color-scheme="light"] .term-log-line {
   color: #333;
 }
 
-[data-color-scheme='light'] .term-log-line strong {
+[data-color-scheme="light"] .term-log-line strong {
   color: #e51;
   /* Darker shine? */
 }
 
-[data-color-scheme='light'] .term-log-header {
+[data-color-scheme="light"] .term-log-header {
   background: rgba(0, 0, 0, 0.05);
   color: #555;
   border-top-color: var(--color-border);
 }
 
-[data-color-scheme='light'] .term-log-header span {
+[data-color-scheme="light"] .term-log-header span {
   color: #333;
 }
 
-[data-color-scheme='light'] .term-log-header .term-btn {
+[data-color-scheme="light"] .term-log-header .term-btn {
   color: #555;
   border-color: var(--color-border);
 }
 
-[data-color-scheme='light'] .term-log-header .term-btn:hover {
+[data-color-scheme="light"] .term-log-header .term-btn:hover {
   color: #222;
   border-color: #888;
 }
 
 /* Dark mode overrides if needed */
-[data-color-scheme='dark'] .term-floating {
+[data-color-scheme="dark"] .term-floating {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }

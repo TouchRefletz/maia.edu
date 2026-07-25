@@ -3,36 +3,36 @@ import {
   gerarEmbedding,
   queryPineconeWorker,
   upsertPineconeWorker,
-} from "../api/worker.js";
+} from '../api/worker.js';
 
 const CONFIDENCE_THRESHOLD = 0.85;
-const FILTER_INDEX_TARGET = "filter";
+const FILTER_INDEX_TARGET = 'filter';
 
 const NAMESPACE_MAP = {
-  institution: "institutions",
-  keyword: "keywords",
+  institution: 'institutions',
+  keyword: 'keywords',
   // Exam is explicitly excluded from normalization, but we map it for saving/buffering purposes if needed.
   // However, per requirements, we do NOT normalize exams.
-  exam: "exams",
+  exam: 'exams',
 };
 
 // Schema for AI term expansion (structured output)
 const TERM_EXPANSION_SCHEMA = {
-  type: "object",
+  type: 'object',
   properties: {
     canonical_name: {
-      type: "string",
+      type: 'string',
       description:
         "O nome canônico/oficial mais reconhecível para esta entidade (ex: 'INEP' ou 'ENEM')",
     },
     variations: {
-      type: "array",
-      items: { type: "string" },
+      type: 'array',
+      items: { type: 'string' },
       description:
-        "Lista de variações, siglas, nomes completos, abreviações e termos relacionados que representam a MESMA entidade",
+        'Lista de variações, siglas, nomes completos, abreviações e termos relacionados que representam a MESMA entidade',
     },
   },
-  required: ["canonical_name", "variations"],
+  required: ['canonical_name', 'variations'],
 };
 
 /**
@@ -43,15 +43,14 @@ const TERM_EXPANSION_SCHEMA = {
  */
 async function expandTermWithAI(term, type) {
   const typeDescriptions = {
-    institution:
-      "instituição, banca, escola, universidade ou órgão educacional brasileiro",
-    keyword: "palavra-chave ou tema de questão educacional",
-    exam: "prova, vestibular ou concurso brasileiro",
+    institution: 'instituição, banca, escola, universidade ou órgão educacional brasileiro',
+    keyword: 'palavra-chave ou tema de questão educacional',
+    exam: 'prova, vestibular ou concurso brasileiro',
   };
 
   const prompt = `Você é um especialista em educação brasileira.
 
-Dado o termo "${term}" que representa uma ${typeDescriptions[type] || "entidade educacional"}:
+Dado o termo "${term}" que representa uma ${typeDescriptions[type] || 'entidade educacional'}:
 
 1. Identifique o nome canônico/oficial mais reconhecível
 2. Liste TODAS as variações possíveis incluindo:
@@ -73,19 +72,16 @@ Retorne APENAS o JSON estruturado.`;
       prompt,
       TERM_EXPANSION_SCHEMA,
       [], // no images
-      "image/jpeg",
+      'image/jpeg',
       {}, // no handlers
-      { model: "models/gemma-4-31b-it" } // use Gemma 4 31B IT
+      { model: 'models/gemma-4-31b-it' }, // use Gemma 4 31B IT
     );
 
     if (result && result.variations && Array.isArray(result.variations)) {
       // Combine canonical + all variations into one string for embedding
-      const allTerms = [
-        result.canonical_name || term,
-        ...result.variations,
-      ].filter(Boolean);
+      const allTerms = [result.canonical_name || term, ...result.variations].filter(Boolean);
 
-      const expandedText = allTerms.join(" | ");
+      const expandedText = allTerms.join(' | ');
 
       console.log(`[Normalizer] Expansão IA para "${term}":`, allTerms);
 
@@ -119,7 +115,7 @@ class DataNormalizerService {
    * @returns {Promise<string>} - The canonical term found in DB or the original term.
    */
   async normalize(term, type) {
-    if (!term || typeof term !== "string") return term;
+    if (!term || typeof term !== 'string') return term;
     const cleanTerm = term.trim();
     if (!cleanTerm) return term;
 
@@ -127,7 +123,7 @@ class DataNormalizerService {
     // We might want to buffer it if we want to save new exams to the filter index for future reference?
     // The user said: "O nome da prova já vem normalizado... mantém o que tiver"
     // But "Apenas salva no Pinecone se for novo". So we should buffer it.
-    if (type === "exam") {
+    if (type === 'exam') {
       // Check if it exists? Or just always buffer to be safe?
       // Checking might be expensive. But if we don't check, we might duplicate?
       // Actually, upsert is idempotent. We can just buffer.
@@ -154,22 +150,18 @@ class DataNormalizerService {
         1,
         {}, // No specific metadata filter
         FILTER_INDEX_TARGET,
-        namespace
+        namespace,
       );
 
       // 3. Check Similarity
-      if (
-        queryResult &&
-        queryResult.matches &&
-        queryResult.matches.length > 0
-      ) {
+      if (queryResult && queryResult.matches && queryResult.matches.length > 0) {
         const bestMatch = queryResult.matches[0];
 
         // --- DEBUG REQUESTADO PELO USUÁRIO ---
         console.log(`[Normalizer Debug] Termo: "${cleanTerm}"`);
         console.log(`[Normalizer Debug] Resultado Pinecone:`, queryResult);
         console.log(
-          `[Normalizer Debug] Match +Próximo: "${bestMatch.metadata?.original_term || bestMatch.id}" (${(bestMatch.score * 100).toFixed(2)}%)`
+          `[Normalizer Debug] Match +Próximo: "${bestMatch.metadata?.original_term || bestMatch.id}" (${(bestMatch.score * 100).toFixed(2)}%)`,
         );
         // -------------------------------------
         if (bestMatch.score >= CONFIDENCE_THRESHOLD) {
@@ -179,7 +171,7 @@ class DataNormalizerService {
           // Let's use metadata.original_term if available, fallback to ID (refine ID?).
           const canonical = bestMatch.metadata?.original_term || bestMatch.id;
           console.log(
-            `[Normalizer] '${cleanTerm}' -> '${canonical}' (${(bestMatch.score * 100).toFixed(1)}%)`
+            `[Normalizer] '${cleanTerm}' -> '${canonical}' (${(bestMatch.score * 100).toFixed(1)}%)`,
           );
           return canonical;
         }
@@ -190,7 +182,7 @@ class DataNormalizerService {
       this.bufferTerm(cleanTerm, type);
       return cleanTerm;
     } catch (error) {
-      console.error("[Normalizer] Error normalizing term:", error);
+      console.error('[Normalizer] Error normalizing term:', error);
       return cleanTerm; // Fallback to original
     }
   }
@@ -216,19 +208,17 @@ class DataNormalizerService {
    * Should be called when saving the question.
    */
   async flush() {
-    console.log("[Normalizer] Flushing pending terms...");
+    console.log('[Normalizer] Flushing pending terms...');
     const promises = [];
 
     for (const [namespace, terms] of this.pendingWrites.entries()) {
       if (terms.size === 0) continue;
 
       const termsArray = Array.from(terms);
-      const type = Object.keys(NAMESPACE_MAP).find(
-        (key) => NAMESPACE_MAP[key] === namespace
-      );
+      const type = Object.keys(NAMESPACE_MAP).find((key) => NAMESPACE_MAP[key] === namespace);
 
       console.log(
-        `[Normalizer] Processing ${termsArray.length} terms for namespace '${namespace}'`
+        `[Normalizer] Processing ${termsArray.length} terms for namespace '${namespace}'`,
       );
 
       const batchPromise = (async () => {
@@ -248,11 +238,11 @@ class DataNormalizerService {
               const id = (expansion.canonical || term)
                 .toLowerCase()
                 .trim()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, "");
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
 
               vectors.push({
-                id: id || "unknown",
+                id: id || 'unknown',
                 values: embedding,
                 metadata: {
                   original_term: expansion.canonical || term,
@@ -264,7 +254,7 @@ class DataNormalizerService {
               });
 
               console.log(
-                `[Normalizer] Prepared vector for "${term}" -> "${expansion.canonical}" with ${expansion.variations?.length || 0} variations`
+                `[Normalizer] Prepared vector for "${term}" -> "${expansion.canonical}" with ${expansion.variations?.length || 0} variations`,
               );
             }
           } catch (e) {
@@ -275,7 +265,7 @@ class DataNormalizerService {
         if (vectors.length > 0) {
           await upsertPineconeWorker(vectors, namespace, FILTER_INDEX_TARGET);
           console.log(
-            `[Normalizer] Saved ${vectors.length} expanded vectors to namespace '${namespace}'`
+            `[Normalizer] Saved ${vectors.length} expanded vectors to namespace '${namespace}'`,
           );
         }
       })();
@@ -285,7 +275,7 @@ class DataNormalizerService {
 
     await Promise.all(promises);
     this.pendingWrites.clear();
-    console.log("[Normalizer] Flush complete.");
+    console.log('[Normalizer] Flush complete.');
   }
 }
 

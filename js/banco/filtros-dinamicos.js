@@ -1,5 +1,5 @@
-import { bancoState } from "../main.js";
-import { FATORES_DEF } from "../utils/complexity-data.js";
+import { bancoState } from '../main.js';
+import { FATORES_DEF } from '../utils/complexity-data.js';
 
 const MAPA_LABELS_FATORES = FATORES_DEF.reduce((acc, item) => {
   acc[item.key] = item.label;
@@ -7,31 +7,29 @@ const MAPA_LABELS_FATORES = FATORES_DEF.reduce((acc, item) => {
 }, {});
 
 const MAPA_TIPO_ESTRUTURA = {
-  texto: "Texto",
-  imagem: "Imagem",
-  citacao: "Citação",
-  titulo: "Título",
-  subtitulo: "Subtítulo",
-  lista: "Lista",
-  equacao: "Equação",
-  codigo: "Código",
-  destaque: "Destaque",
-  separador: "Separador",
-  fonte: "Fonte",
-  tabela: "Tabela",
+  texto: 'Texto',
+  imagem: 'Imagem',
+  citacao: 'Citação',
+  titulo: 'Título',
+  subtitulo: 'Subtítulo',
+  lista: 'Lista',
+  equacao: 'Equação',
+  codigo: 'Código',
+  destaque: 'Destaque',
+  separador: 'Separador',
+  fonte: 'Fonte',
+  tabela: 'Tabela',
 };
 
 // Helper para formatar labels (Capitalize)
 function formatLabel(str) {
-  if (!str) return "";
+  if (!str) return '';
   // Se for sigla comum, deixa upper (ex: INEP, ENEM, UNICAMP, USP, FUVEST)
   if (/^(inep|enem|unicamp|usp|fuvest|puc|ufrj)$/i.test(str)) {
     return str.toUpperCase();
   }
   // Se for texto, Capitalize Words
-  return str
-    .toLowerCase()
-    .replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase());
+  return str.toLowerCase().replace(/(?:^|\s|["'([{])+\S/g, (match) => match.toUpperCase());
 }
 
 export const preencher = (id, optionsOrSet, isObj = false) => {
@@ -77,16 +75,15 @@ export const preencher = (id, optionsOrSet, isObj = false) => {
   // --- RENDERIZAÇÃO baseada no tipo de elemento ---
 
   // MODO 1: Select Simples
-  if (el.tagName === "SELECT") {
+  if (el.tagName === 'SELECT') {
     const valorAtual = el.value;
-    const placeholder = el.querySelector("option")?.text || "Selecione";
+    const placeholder = el.querySelector('option')?.text || 'Selecione';
     el.innerHTML = `<option value="">${placeholder}</option>`;
 
     options.forEach((optData) => {
-      const opt = document.createElement("option");
+      const opt = document.createElement('option');
       opt.value = optData.value;
-      opt.innerText =
-        optData.label + (optData.count ? ` (${optData.count})` : "");
+      opt.innerText = optData.label + (optData.count ? ` (${optData.count})` : '');
       el.appendChild(opt);
     });
 
@@ -97,39 +94,37 @@ export const preencher = (id, optionsOrSet, isObj = false) => {
   }
 
   // MODO 2: Multi-Select Customizado (DIV)
-  if (el.tagName === "DIV" && el.classList.contains("multi-select-container")) {
-    const placeholder = el.dataset.placeholder || "Selecione";
+  if (el.tagName === 'DIV' && el.classList.contains('multi-select-container')) {
+    const placeholder = el.dataset.placeholder || 'Selecione';
     const valsSelecionados = new Set();
 
-    el.querySelectorAll("input:checked").forEach((cb) =>
-      valsSelecionados.add(cb.value),
-    );
+    el.querySelectorAll('input:checked').forEach((cb) => valsSelecionados.add(cb.value));
 
-    el.innerHTML = "";
+    el.innerHTML = '';
 
     // 1. Trigger
-    const trigger = document.createElement("div");
-    trigger.className = "multi-select-trigger";
+    const trigger = document.createElement('div');
+    trigger.className = 'multi-select-trigger';
     trigger.innerHTML = `<span>${placeholder}</span>`;
     el.appendChild(trigger);
 
     // 2. Dropdown
-    const dropdown = document.createElement("div");
-    dropdown.className = "multi-select-dropdown";
+    const dropdown = document.createElement('div');
+    dropdown.className = 'multi-select-dropdown';
 
     options.forEach((optData) => {
-      const optDiv = document.createElement("label");
-      optDiv.className = "multi-select-option";
+      const optDiv = document.createElement('label');
+      optDiv.className = 'multi-select-option';
 
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
       checkbox.value = optData.value;
       if (valsSelecionados.has(optData.value)) {
         checkbox.checked = true;
       }
 
       // Label + Count
-      const spanText = document.createElement("span");
+      const spanText = document.createElement('span');
       spanText.innerText = optData.label;
 
       optDiv.appendChild(checkbox);
@@ -137,11 +132,11 @@ export const preencher = (id, optionsOrSet, isObj = false) => {
 
       // Badge de Contagem
       if (optData.count !== undefined) {
-        const countBadge = document.createElement("span");
-        countBadge.className = "filter-item-count";
-        countBadge.style.opacity = "0.6";
-        countBadge.style.fontSize = "0.85em";
-        countBadge.style.marginLeft = "auto"; // Push to right if flex
+        const countBadge = document.createElement('span');
+        countBadge.className = 'filter-item-count';
+        countBadge.style.opacity = '0.6';
+        countBadge.style.fontSize = '0.85em';
+        countBadge.style.marginLeft = 'auto'; // Push to right if flex
         countBadge.innerText = `(${optData.count})`;
         optDiv.appendChild(countBadge);
       }
@@ -162,15 +157,11 @@ export const preencher = (id, optionsOrSet, isObj = false) => {
       // Deixa a lógica do filtros-ui assumir no primeiro click ou refresh
       // Mas para ficar bonito já:
       if (checkedCount <= 2) {
-        const labels = options
-          .filter((o) => valsSelecionados.has(o.value))
-          .map((o) => o.label);
-        trigger.innerHTML = `<span>${labels.join(", ")}</span>`;
+        const labels = options.filter((o) => valsSelecionados.has(o.value)).map((o) => o.label);
+        trigger.innerHTML = `<span>${labels.join(', ')}</span>`;
       } else {
-        const labels = options
-          .filter((o) => valsSelecionados.has(o.value))
-          .map((o) => o.label);
-        trigger.innerHTML = `<span>${labels.slice(0, 2).join(", ")}...</span>`;
+        const labels = options.filter((o) => valsSelecionados.has(o.value)).map((o) => o.label);
+        trigger.innerHTML = `<span>${labels.slice(0, 2).join(', ')}...</span>`;
       }
     } else {
       trigger.innerHTML = `<span>${placeholder}</span>`;
@@ -208,7 +199,7 @@ export function coletarFatoresComplexidade(fatoresObj, mapFatores) {
     if (val === true) {
       let label = MAPA_LABELS_FATORES[key];
       if (!label) {
-        label = key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+        label = key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
       }
       addCount(mapFatores, JSON.stringify({ key, label }));
     }
@@ -222,10 +213,8 @@ export function extrairDadosItemParaFiltros(item, maps) {
   const meta = item.meta || {};
 
   // 1. Arrays
-  if (q.materias_possiveis)
-    q.materias_possiveis.forEach((m) => addCount(maps.materias, m));
-  if (q.palavras_chave)
-    q.palavras_chave.forEach((p) => addCount(maps.assuntos, p));
+  if (q.materias_possiveis) q.materias_possiveis.forEach((m) => addCount(maps.materias, m));
+  if (q.palavras_chave) q.palavras_chave.forEach((p) => addCount(maps.assuntos, p));
 
   // 2. Campos Simples
   const inst = cred.autorouinstituicao || cred.autor_ou_instituicao;
@@ -244,7 +233,7 @@ export function extrairDadosItemParaFiltros(item, maps) {
   const addEstrutura = (arr, map) => {
     if (!Array.isArray(arr)) return;
     arr.forEach((b) => {
-      const t = (b.tipo || "imagem").toLowerCase();
+      const t = (b.tipo || 'imagem').toLowerCase();
       const label = MAPA_TIPO_ESTRUTURA[t] || formatLabel(t);
       addCount(map, JSON.stringify({ key: t, label }));
     });
@@ -255,54 +244,41 @@ export function extrairDadosItemParaFiltros(item, maps) {
 
   // 5. Estrutura Alternativas
   if (q.alternativas && Array.isArray(q.alternativas)) {
-    q.alternativas.forEach((alt) =>
-      addEstrutura(alt.estrutura, maps.estAlternativas),
-    );
+    q.alternativas.forEach((alt) => addEstrutura(alt.estrutura, maps.estAlternativas));
   }
 
   // 6. Estrutura Gabarito
   if (g.explicacao && Array.isArray(g.explicacao)) {
-    g.explicacao.forEach((passo) =>
-      addEstrutura(passo.estrutura, maps.estGabarito),
-    );
+    g.explicacao.forEach((passo) => addEstrutura(passo.estrutura, maps.estGabarito));
   }
 
   // 7. Origem da Resolução
   // Normaliza para 'extraido_do_material' ou 'gerado_pela_ia'
-  let origemVal = (
-    cred.origemresolucao ||
-    cred.origem_resolucao ||
-    ""
-  ).toLowerCase();
+  let origemVal = (cred.origemresolucao || cred.origem_resolucao || '').toLowerCase();
 
   // Mapeia para labels bonitas se necessário, mas aqui contamos keys.
   // O preencher vai usar formatLabel no value se não passarmos objetos.
   // Vamos padronizar as keys para bater com o filtro.
-  if (
-    origemVal.includes("gerado") ||
-    origemVal.includes("artificial") ||
-    origemVal === "ia"
-  )
-    origemVal = "gerado_pela_ia";
-  else if (origemVal.includes("material") || origemVal.includes("oficial"))
-    origemVal = "extraido_do_material";
+  if (origemVal.includes('gerado') || origemVal.includes('artificial') || origemVal === 'ia')
+    origemVal = 'gerado_pela_ia';
+  else if (origemVal.includes('material') || origemVal.includes('oficial'))
+    origemVal = 'extraido_do_material';
 
   if (origemVal) {
     // Cria objeto para ter label bonita
-    const label =
-      origemVal === "gerado_pela_ia" ? "Gerado por IA" : "Oficial / Extraído";
+    const label = origemVal === 'gerado_pela_ia' ? 'Gerado por IA' : 'Oficial / Extraído';
     addCount(maps.origem, JSON.stringify({ key: origemVal, label }));
   }
 
   // 8. Status da Questão
-  const statusVal = (item.reviewStatus || "não revisada").toLowerCase();
+  const statusVal = (item.reviewStatus || 'não revisada').toLowerCase();
 
   const MAPA_LABELS_STATUS = {
-    "não revisada": "Não Revisada",
-    revisada: "Revisada",
-    verificada: "Verificada",
-    sinalizada: "Sinalizada",
-    invalidada: "Invalidada",
+    'não revisada': 'Não Revisada',
+    revisada: 'Revisada',
+    verificada: 'Verificada',
+    sinalizada: 'Sinalizada',
+    invalidada: 'Invalidada',
   };
 
   const statusLabel = MAPA_LABELS_STATUS[statusVal] || formatLabel(statusVal);
@@ -310,21 +286,21 @@ export function extrairDadosItemParaFiltros(item, maps) {
 }
 
 export function atualizarSelectsFiltros(maps) {
-  preencher("filtroMateria", maps.materias);
-  preencher("filtroInstituicao", maps.instituicoes);
-  preencher("filtroMaterial", maps.materiais);
+  preencher('filtroMateria', maps.materias);
+  preencher('filtroInstituicao', maps.instituicoes);
+  preencher('filtroMaterial', maps.materiais);
 
-  preencher("filtroAno", maps.anos);
-  preencher("filtroAssunto", maps.assuntos);
-  preencher("filtroFator", maps.fatores, true);
+  preencher('filtroAno', maps.anos);
+  preencher('filtroAssunto', maps.assuntos);
+  preencher('filtroFator', maps.fatores, true);
 
-  preencher("filtroEstQuestao", maps.estQuestao, true);
-  preencher("filtroEstAlternativas", maps.estAlternativas, true);
-  preencher("filtroEstGabarito", maps.estGabarito, true);
+  preencher('filtroEstQuestao', maps.estQuestao, true);
+  preencher('filtroEstAlternativas', maps.estAlternativas, true);
+  preencher('filtroEstGabarito', maps.estGabarito, true);
 
   // 4. Origem e Status (Agora dinâmicos com contagem)
-  preencher("filtroOrigemRes", maps.origem, true);
-  preencher("filtroStatus", maps.status, true);
+  preencher('filtroOrigemRes', maps.origem, true);
+  preencher('filtroStatus', maps.status, true);
 }
 
 export async function popularFiltrosDinamicos() {

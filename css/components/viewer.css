@@ -14,7 +14,7 @@
   inset: 0; /* Top, Right, Bottom, Left = 0 */
   pointer-events: none;
   z-index: 999;
-  box-shadow: inset 0 0 50px 20px rgba(33, 128, 141, 0.0); /* Começa invisível */
+  box-shadow: inset 0 0 50px 20px rgba(33, 128, 141, 0); /* Começa invisível */
   transition: box-shadow 0.5s ease;
   display: block; /* Sempre renderizado, mas controlado via opacidade ou classe */
 }
@@ -24,19 +24,23 @@
   box-shadow: inset 0 0 50px 20px rgba(33, 128, 141, 0.5);
 }
 
-
-
 /* Classe para bloquear interação durante IA */
 .viewer-locked {
-    pointer-events: none !important;
-    user-select: none !important;
-    cursor: wait !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  cursor: wait !important;
 }
 
 @keyframes pulseGlow {
-  0% { box-shadow: inset 0 0 30px 10px rgba(33, 128, 141, 0.2); }
-  50% { box-shadow: inset 0 0 60px 25px rgba(33, 128, 141, 0.6); }
-  100% { box-shadow: inset 0 0 30px 10px rgba(33, 128, 141, 0.2); }
+  0% {
+    box-shadow: inset 0 0 30px 10px rgba(33, 128, 141, 0.2);
+  }
+  50% {
+    box-shadow: inset 0 0 60px 25px rgba(33, 128, 141, 0.6);
+  }
+  100% {
+    box-shadow: inset 0 0 30px 10px rgba(33, 128, 141, 0.2);
+  }
 }
 
 /* Floating fallback if sidebar missing */
@@ -52,7 +56,7 @@
   border-radius: 12px;
   z-index: 10000;
   padding: 10px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
 }
@@ -62,7 +66,7 @@
   justify-content: space-between;
   align-items: center;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 8px;
   color: #fff;
   font-weight: bold;

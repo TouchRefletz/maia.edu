@@ -2,7 +2,7 @@
 
 import React from 'react';
 import ReactDOMServer from 'react-dom/server';
-// Nota: Dependendo da configuração do seu bundler (Vite/Webpack), 
+// Nota: Dependendo da configuração do seu bundler (Vite/Webpack),
 // talvez você precise remover a extensão .tsx do import abaixo (ex: './Alternativas')
 import { Alternativas } from './AlternativasRender.tsx';
 

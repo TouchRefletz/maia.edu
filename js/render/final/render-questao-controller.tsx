@@ -1,17 +1,17 @@
-// @ts-ignore - Ignorando verificação de tipos para arquivos JS legados
+// @ts-expect-error - Ignorando verificação de tipos para arquivos JS legados
 import {
   _atualizarEstadoGlobal,
   _prepararContainerEBackups,
   _prepararDadosIniciais,
   _prepararInterfaceBasica,
-  _processarDadosPayload
+  _processarDadosPayload,
 } from '../../normalize/payload.js';
-// @ts-ignore
-import { _garantirEstruturaSidebar } from '../../viewer/resizer.js';
-// @ts-ignore
-import { mountQuestaoTabs } from '../questao-tabs.js';
-// @ts-ignore
+// @ts-expect-error
 import { getActiveTab, updateTabStatus } from '../../ui/sidebar-tabs.js';
+// @ts-expect-error
+import { _garantirEstruturaSidebar } from '../../viewer/resizer.js';
+// @ts-expect-error
+import { mountQuestaoTabs } from '../questao-tabs.js';
 
 interface IDadosPayload {
   [key: string]: any;
@@ -20,37 +20,40 @@ interface IDadosPayload {
 /**
  * Controlador responsável por orquestrar a preparação do DOM e dos dados
  * antes de montar o componente React.
- * 
+ *
  * Mantém a lógica original de manipulação imperativa necessária para o
  * funcionamento dos helpers legados (_garantirEstruturaSidebar, etc).
  */
 export function renderizarQuestaoController(
-  dados: IDadosPayload, 
+  dados: IDadosPayload,
   elementoAlvo: HTMLElement | null = null,
-  aiThoughtsHtml: string | null = null
+  aiThoughtsHtml: string | null = null,
 ): void {
-  
   // 0. AUTO-DETECÇÃO DE ABA (Hack para sistema legado que não passa alvo)
   // [FIX] Precisamos buscar o container da ABA ATIVA, não o container geral das abas
   if (!elementoAlvo) {
-    const tabsContent = document.getElementById("sidebar-tabs-content");
+    const tabsContent = document.getElementById('sidebar-tabs-content');
     if (tabsContent && tabsContent.offsetParent !== null) {
       // Busca o container da aba ativa especificamente
       // Abas de questão têm containers com id "tab-content-question-X"
-      const activeTabContainer = tabsContent.querySelector('.tab-content-container[style*="visibility: visible"]') as HTMLElement | null;
-      
+      const activeTabContainer = tabsContent.querySelector(
+        '.tab-content-container[style*="visibility: visible"]',
+      ) as HTMLElement | null;
+
       if (activeTabContainer) {
         elementoAlvo = activeTabContainer;
-        console.log("Renderizando questão dentro da aba ativa:", activeTabContainer.id);
+        console.log('Renderizando questão dentro da aba ativa:', activeTabContainer.id);
       } else {
         // Fallback: busca pelo primeiro container de questão visível
-        const questionContainer = tabsContent.querySelector('[id^="tab-content-question-"]') as HTMLElement | null;
+        const questionContainer = tabsContent.querySelector(
+          '[id^="tab-content-question-"]',
+        ) as HTMLElement | null;
         if (questionContainer) {
           elementoAlvo = questionContainer;
-          console.log("Fallback: Renderizando em container de questão:", questionContainer.id);
+          console.log('Fallback: Renderizando em container de questão:', questionContainer.id);
         } else {
           // Último recurso: usa o tabsContent mas NÃO limpa innerHTML
-          console.warn("Nenhum container de aba encontrado, criando novo.");
+          console.warn('Nenhum container de aba encontrado, criando novo.');
         }
       }
     }
@@ -68,7 +71,7 @@ export function renderizarQuestaoController(
 
   // 3. Preparação da Interface Básica (DOM Nodes)
   const interfaceBasica = _prepararInterfaceBasica(dadosNorm);
-  
+
   // Desestruturação segura
   const questao = interfaceBasica.questao;
   const gabarito = interfaceBasica.gabarito;
@@ -78,12 +81,7 @@ export function renderizarQuestaoController(
   let resizer = interfaceBasica.resizer;
 
   // 4. Garantia da Estrutura da Sidebar (Lógica de redimensionamento legado)
-  const estruturaSidebar = _garantirEstruturaSidebar(
-    viewerBody,
-    main,
-    sidebar,
-    resizer
-  );
+  const estruturaSidebar = _garantirEstruturaSidebar(viewerBody, main, sidebar, resizer);
 
   // Atualiza referências conforme retorno da função legado
   sidebar = estruturaSidebar.sidebar;
@@ -102,8 +100,8 @@ export function renderizarQuestaoController(
       elementoAlvo.appendChild(container);
     } else {
       // Comportamento Legado: Substitui todo content da Sidebar
-      sidebar.innerHTML = ''; 
-      sidebar.appendChild(container); 
+      sidebar.innerHTML = '';
+      sidebar.appendChild(container);
     }
   }
 
@@ -116,16 +114,20 @@ export function renderizarQuestaoController(
   // Se renderizamos dentro de uma aba, precisamos salvar os dados nela
   // para que, se o usuário trocar de aba e voltar, o conteúdo seja restaurado.
   // [FIX] Verifica se é um container de aba pelo prefixo do ID
-  // @ts-ignore
+  // @ts-expect-error
   if (elementoAlvo && elementoAlvo.id && elementoAlvo.id.startsWith('tab-content-')) {
-       // @ts-ignore
-       const activeTab = getActiveTab();
-       if (activeTab) {
-           // @ts-ignore
-           updateTabStatus(activeTab.id, {
-               status: 'complete',
-               response: dados
-           }, { suppressRender: true });
-       }
+    // @ts-expect-error
+    const activeTab = getActiveTab();
+    if (activeTab) {
+      // @ts-expect-error
+      updateTabStatus(
+        activeTab.id,
+        {
+          status: 'complete',
+          response: dados,
+        },
+        { suppressRender: true },
+      );
+    }
   }
 }

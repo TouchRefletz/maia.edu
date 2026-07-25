@@ -1,28 +1,28 @@
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 export async function carimbarBase64(base64, label) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const c = document.createElement("canvas");
+      const c = document.createElement('canvas');
       c.width = img.width;
       c.height = img.height;
 
-      const ctx = c.getContext("2d");
+      const ctx = c.getContext('2d');
       ctx.drawImage(img, 0, 0);
 
       // Faixa no topo
       const h = Math.max(40, Math.round(c.height * 0.08));
-      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.fillRect(0, 0, c.width, h);
 
       // Texto
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = '#fff';
       ctx.font = `${Math.round(h * 0.45)}px sans-serif`;
-      ctx.textBaseline = "middle";
+      ctx.textBaseline = 'middle';
       ctx.fillText(label, 12, Math.round(h / 2));
 
-      resolve(c.toDataURL("image/png", 1.0));
+      resolve(c.toDataURL('image/png', 1.0));
     };
     img.onerror = reject;
     img.src = base64;
@@ -42,14 +42,11 @@ export function coletarESalvarImagensParaEnvio() {
 
   // 2. Fallback: Se vazio, tenta recuperar do DOM (HTML)
   if (imagensAtuais.length === 0) {
-    const imgsNoModal = Array.from(
-      document.querySelectorAll("#cropPreviewGallery img")
-    )
+    const imgsNoModal = Array.from(document.querySelectorAll('#cropPreviewGallery img'))
       .map((img) => img?.src)
       .filter(
         (src) =>
-          typeof src === "string" &&
-          (src.startsWith("data:image") || src.startsWith("blob:"))
+          typeof src === 'string' && (src.startsWith('data:image') || src.startsWith('blob:')),
       );
 
     if (imgsNoModal.length > 0) {
@@ -63,19 +60,13 @@ export function coletarESalvarImagensParaEnvio() {
   // 2.1 Fallback (Crucial para Slot Mode/PDF Coordinates):
   // Se ainda estiver vazio, verifica se JÁ existem dados validados em __imagensLimpas
   // (Isso evita que o coletor limpe os dados de coordenadas PDF que não estão no DOM/recortesAcumulados)
-  if (
-    imagensAtuais.length === 0 &&
-    window.__imagensLimpas?.questao_original?.length > 0
-  ) {
-    console.log(
-      "[Coletor] Usando imagens já existentes em __imagensLimpas (SlotMode detected)"
-    );
+  if (imagensAtuais.length === 0 && window.__imagensLimpas?.questao_original?.length > 0) {
+    console.log('[Coletor] Usando imagens já existentes em __imagensLimpas (SlotMode detected)');
     imagensAtuais = [...window.__imagensLimpas.questao_original];
   }
 
   // 3. Pega imagens de suporte já existentes (se houver)
-  const questaoRef =
-    window.ultimaQuestaoExtraida ?? window.__ultimaQuestaoExtraida ?? null;
+  const questaoRef = window.ultimaQuestaoExtraida ?? window.__ultimaQuestaoExtraida ?? null;
   const imagensSuporteQuestao = Array.isArray(questaoRef?.imagensextraidas)
     ? questaoRef.imagensextraidas
     : [];
@@ -100,33 +91,28 @@ export function coletarESalvarImagensParaEnvio() {
   return { imagensAtuais, imagensSuporteQuestao };
 }
 
-export async function prepararImagensParaEnvio(
-  imagensAtuais,
-  imagensSuporteQuestao
-) {
+export async function prepararImagensParaEnvio(imagensAtuais, imagensSuporteQuestao) {
   // --- MODO QUESTÃO ---
 
   // 1. Validação
   if (!imagensAtuais || imagensAtuais.length === 0) {
-    customAlert("Nenhuma imagem selecionada!", 2000);
+    customAlert('Nenhuma imagem selecionada!', 2000);
     return null;
   }
 
   // 2. Garante Conversão para Base64 (Gêmeos exige b64 real, não Blob URL)
   const imagensBase64 = await Promise.all(
     imagensAtuais.map(async (img) => {
-      if (typeof img === "string" && img.startsWith("blob:")) {
+      if (typeof img === 'string' && img.startsWith('blob:')) {
         try {
-          return await import("../services/image-utils.js").then((m) =>
-            m.urlToBase64(img)
-          );
+          return await import('../services/image-utils.js').then((m) => m.urlToBase64(img));
         } catch (e) {
-          console.error("Falha ao converter blob para envio:", e);
+          console.error('Falha ao converter blob para envio:', e);
           return img;
         }
       }
       return img; // Já é base64
-    })
+    }),
   );
 
   // 3. Retorno Direto (Sem carimbo)

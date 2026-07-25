@@ -1,9 +1,9 @@
 // --- components/RenderComponents.tsx ---
-import React from 'react';
+import type React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { decodeEntities, safe, safeMarkdown } from '../../normalize/primitives.js';
-import { renderizar_estrutura_alternativa } from '../structure.js';
 import { MainStructure } from '../StructureRender';
+import { renderizar_estrutura_alternativa } from '../structure.js';
 
 // --- Interfaces para Tipagem ---
 interface ImgProps {
@@ -79,15 +79,31 @@ interface GabaritoProps {
 
 // --- Componentes ---
 
-export const SourcesList: React.FC<{ sources: Array<{ uri: string; title: string }> }> = ({ sources }) => {
+export const SourcesList: React.FC<{ sources: Array<{ uri: string; title: string }> }> = ({
+  sources,
+}) => {
   if (!sources || sources.length === 0) return null;
   return (
     <div className="field-group" style={{ marginTop: '15px' }}>
       <span className="field-label">📚 Fontes Externas (Pesquisa)</span>
-      <ul style={{ listStyle: 'none', padding: 0, margin: '5px 0 0 0', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+      <ul
+        style={{
+          listStyle: 'none',
+          padding: 0,
+          margin: '5px 0 0 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '5px',
+        }}
+      >
         {sources.map((s, i) => (
           <li key={i}>
-            <a href={s.uri} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: 'var(--color-primary)', textDecoration: 'none' }}>
+            <a
+              href={s.uri}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '12px', color: 'var(--color-primary)', textDecoration: 'none' }}
+            >
               {s.title || s.uri} ↗
             </a>
           </li>
@@ -98,17 +114,40 @@ export const SourcesList: React.FC<{ sources: Array<{ uri: string; title: string
 };
 
 export const ResearchReport: React.FC<{ text: string }> = ({ text }) => {
-  const content = text || "<em>Relatório de pesquisa não disponível ou não gerado.</em>";
+  const content = text || '<em>Relatório de pesquisa não disponível ou não gerado.</em>';
 
   return (
-    <div className="field-group" style={{ marginTop: '15px', border: '1px solid var(--color-border)', borderRadius: '6px', overflow: 'hidden' }}>
+    <div
+      className="field-group"
+      style={{
+        marginTop: '15px',
+        border: '1px solid var(--color-border)',
+        borderRadius: '6px',
+        overflow: 'hidden',
+      }}
+    >
       <details>
-        <summary style={{ padding: '8px 12px', background: 'var(--color-bg-2)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--color-text)' }}>
+        <summary
+          style={{
+            padding: '8px 12px',
+            background: 'var(--color-bg-2)',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: 'var(--color-text)',
+          }}
+        >
           📄 Relatório Técnico da Pesquisa
         </summary>
         <div
           className="markdown-content relatorio-content"
-          style={{ padding: '12px', fontSize: '12px', background: 'var(--color-background)', maxHeight: '300px', overflowY: 'auto' }}
+          style={{
+            padding: '12px',
+            fontSize: '12px',
+            background: 'var(--color-background)',
+            maxHeight: '300px',
+            overflowY: 'auto',
+          }}
           dangerouslySetInnerHTML={{ __html: safeMarkdown(content) }}
         />
       </details>
@@ -119,13 +158,31 @@ export const ResearchReport: React.FC<{ text: string }> = ({ text }) => {
 export const ImgsLimpas: React.FC<ImgProps> = ({ lista, titulo }) => {
   if (!lista || lista.length === 0) return null;
   return (
-    <div className="field-group" style={{ marginBottom: '15px', border: '1px solid var(--color-border)', padding: '10px', borderRadius: '8px' }}>
+    <div
+      className="field-group"
+      style={{
+        marginBottom: '15px',
+        border: '1px solid var(--color-border)',
+        padding: '10px',
+        borderRadius: '8px',
+      }}
+    >
       <span className="field-label" style={{ display: 'block', marginBottom: '5px' }}>
         {titulo} ({lista.length})
       </span>
       <div className="img-final-gallery" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {lista.map((src, i) => (
-          <div key={i} style={{ width: '60px', height: '60px', border: '1px solid var(--color-border)', borderRadius: '4px', overflow: 'hidden', background: 'var(--color-surface)' }}>
+          <div
+            key={i}
+            style={{
+              width: '60px',
+              height: '60px',
+              border: '1px solid var(--color-border)',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              background: 'var(--color-surface)',
+            }}
+          >
             <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
           </div>
         ))}
@@ -158,7 +215,16 @@ export const ComplexidadeVisual: React.FC<ComplexidadeProps> = ({ comp }) => {
     const key = k.replace(/([A-Z])/g, '_$1').toLowerCase();
     if (v === true && labels[key]) {
       return (
-        <span key={k} className="badge" style={{ background: 'var(--color-secondary)', color: 'var(--color-text)', fontSize: '10px', border: '1px solid var(--color-border)' }}>
+        <span
+          key={k}
+          className="badge"
+          style={{
+            background: 'var(--color-secondary)',
+            color: 'var(--color-text)',
+            fontSize: '10px',
+            border: '1px solid var(--color-border)',
+          }}
+        >
           {labels[key]}
         </span>
       );
@@ -169,16 +235,43 @@ export const ComplexidadeVisual: React.FC<ComplexidadeProps> = ({ comp }) => {
   const hasBadges = badges.some((b) => b !== null);
 
   return (
-    <div className="field-group" style={{ marginTop: '15px', background: 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '8px' }}>
-      <span className="field-label" style={{ color: 'var(--color-primary)' }}>⚡ Análise de Complexidade</span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '5px', marginBottom: '8px' }}>
-        {hasBadges ? badges : <span style={{ fontSize: '11px', color: 'gray' }}>Nenhum fator crítico marcado.</span>}
+    <div
+      className="field-group"
+      style={{
+        marginTop: '15px',
+        background: 'rgba(0,0,0,0.02)',
+        padding: '10px',
+        borderRadius: '8px',
+      }}
+    >
+      <span className="field-label" style={{ color: 'var(--color-primary)' }}>
+        ⚡ Análise de Complexidade
+      </span>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '5px',
+          marginTop: '5px',
+          marginBottom: '8px',
+        }}
+      >
+        {hasBadges ? (
+          badges
+        ) : (
+          <span style={{ fontSize: '11px', color: 'gray' }}>Nenhum fator crítico marcado.</span>
+        )}
       </div>
       {comp.justificativa_dificuldade && (
         <div
           className="markdown-content"
           data-raw={safe(comp.justificativa_dificuldade)}
-          style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--color-text-secondary)', marginTop: '8px' }}
+          style={{
+            fontSize: '12px',
+            fontStyle: 'italic',
+            color: 'var(--color-text-secondary)',
+            marginTop: '8px',
+          }}
           dangerouslySetInnerHTML={{ __html: safeMarkdown(comp.justificativa_dificuldade) }}
         />
       )}
@@ -191,11 +284,15 @@ export const CreditosTable: React.FC<CreditosProps> = ({ c }) => {
   return (
     <div className="field-group" style={{ marginTop: '15px' }}>
       <span className="field-label">Créditos & Fonte</span>
-      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginTop: '5px' }}>
+      <table
+        style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginTop: '5px' }}
+      >
         <tbody>
           <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
             <td style={{ color: 'var(--color-text-secondary)', padding: '4px' }}>Instituição</td>
-            <td style={{ padding: '4px' }}>{safe(c.autor_ou_instituicao || c.autorouinstituicao || '—')}</td>
+            <td style={{ padding: '4px' }}>
+              {safe(c.autor_ou_instituicao || c.autorouinstituicao || '—')}
+            </td>
           </tr>
           <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
             <td style={{ color: 'var(--color-text-secondary)', padding: '4px' }}>Material</td>
@@ -207,7 +304,9 @@ export const CreditosTable: React.FC<CreditosProps> = ({ c }) => {
           </tr>
           <tr>
             <td style={{ color: 'var(--color-text-secondary)', padding: '4px' }}>Origem</td>
-            <td style={{ padding: '4px' }}>{c.origem_resolucao === 'extraido_do_material' ? '📄 Extraído' : '🤖 IA'}</td>
+            <td style={{ padding: '4px' }}>
+              {c.origem_resolucao === 'extraido_do_material' ? '📄 Extraído' : '🤖 IA'}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -241,7 +340,7 @@ export const ListaAlternativas: React.FC<{ alternativas: Alternativa[] }> = ({ a
           : [{ tipo: 'texto', conteudo: alt.texto || '' }];
 
         // Decodifica entities no conteúdo de cada bloco de texto para evitar "&quot;"
-        estrutura = estrutura.map(bloco => {
+        estrutura = estrutura.map((bloco) => {
           if (bloco.tipo === 'texto' && bloco.conteudo) {
             return { ...bloco, conteudo: decodeEntities(bloco.conteudo) };
           }
@@ -262,7 +361,9 @@ export const ListaAlternativas: React.FC<{ alternativas: Alternativa[] }> = ({ a
   );
 };
 
-export const PassosGabarito: React.FC<{ explicacaoArray: PassoExplicacao[] }> = ({ explicacaoArray }) => {
+export const PassosGabarito: React.FC<{ explicacaoArray: PassoExplicacao[] }> = ({
+  explicacaoArray,
+}) => {
   if (!explicacaoArray || !explicacaoArray.length) return null;
 
   return (
@@ -280,20 +381,45 @@ export const PassosGabarito: React.FC<{ explicacaoArray: PassoExplicacao[] }> = 
                 <div className="step-index">{idx + 1}</div>
                 <div className="step-body">
                   <div className="step-content">
-                    <MainStructure 
-                        estrutura={p.estrutura} 
-                        imagensExternas={imgsPasso} 
-                        contexto={`final_view_gab_${idx}`}
-                        // Default isReadOnly=false matches legacy behavior
+                    <MainStructure
+                      estrutura={p.estrutura}
+                      imagensExternas={imgsPasso}
+                      contexto={`final_view_gab_${idx}`}
+                      // Default isReadOnly=false matches legacy behavior
                     />
                   </div>
-                  <div className="step-meta" style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--color-border)' }}>
+                  <div
+                    className="step-meta"
+                    style={{
+                      marginTop: '8px',
+                      paddingTop: '6px',
+                      borderTop: '1px dashed var(--color-border)',
+                    }}
+                  >
                     {isExtraido ? (
-                      <span className="step-chip" style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)' }}>📄 Extraído</span>
+                      <span
+                        className="step-chip"
+                        style={{
+                          borderColor: 'var(--color-success)',
+                          color: 'var(--color-success)',
+                        }}
+                      >
+                        📄 Extraído
+                      </span>
                     ) : (
-                      <span className="step-chip" style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}>🤖 IA</span>
+                      <span
+                        className="step-chip"
+                        style={{
+                          borderColor: 'var(--color-primary)',
+                          color: 'var(--color-primary)',
+                        }}
+                      >
+                        🤖 IA
+                      </span>
                     )}
-                    {p.fontematerial && <span className="step-chip step-chip--muted">📚 {safe(p.fontematerial)}</span>}
+                    {p.fontematerial && (
+                      <span className="step-chip step-chip--muted">📚 {safe(p.fontematerial)}</span>
+                    )}
                   </div>
                 </div>
               </li>
@@ -309,15 +435,29 @@ export const PainelQuestao: React.FC<QuestaoProps> = ({ q, tituloMaterial, image
   // [REFACTOR] Removed renderizarEstruturaHTML string generation
 
   return (
-    <div className="extraction-result" style={{ border: 'none', padding: 0, background: 'transparent' }}>
-      <div className="result-header" style={{ background: 'var(--color-bg-1)', padding: '10px', borderRadius: '8px', marginBottom: '15px', border: '1px solid var(--color-primary)' }}>
+    <div
+      className="extraction-result"
+      style={{ border: 'none', padding: 0, background: 'transparent' }}
+    >
+      <div
+        className="result-header"
+        style={{
+          background: 'var(--color-bg-1)',
+          padding: '10px',
+          borderRadius: '8px',
+          marginBottom: '15px',
+          border: '1px solid var(--color-primary)',
+        }}
+      >
         <div>
           <h3 style={{ color: 'var(--color-primary)', margin: 0, fontSize: '16px' }}>QUESTÃO</h3>
           <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
             Material: <strong>{safe(tituloMaterial)}</strong>
           </div>
         </div>
-        <span className="badge-success" style={{ fontSize: '12px' }}>ID: {safe(q.identificacao)}</span>
+        <span className="badge-success" style={{ fontSize: '12px' }}>
+          ID: {safe(q.identificacao)}
+        </span>
       </div>
 
       <ImgsLimpas lista={imagensFinais.q_suporte} titulo="Imagens de Suporte (Questão)" />
@@ -326,14 +466,18 @@ export const PainelQuestao: React.FC<QuestaoProps> = ({ q, tituloMaterial, image
         <span className="field-label">Enunciado</span>
         <div
           className="data-box scrollable"
-          style={{ background: 'var(--color-background)', borderColor: 'var(--color-border)', padding: '15px' }}
+          style={{
+            background: 'var(--color-background)',
+            borderColor: 'var(--color-border)',
+            padding: '15px',
+          }}
         >
-            <MainStructure 
-                estrutura={q.estrutura} 
-                imagensExternas={imagensFinais.q_original} 
-                contexto="final_view_q" 
-                isReadOnly={true} 
-            />
+          <MainStructure
+            estrutura={q.estrutura}
+            imagensExternas={imagensFinais.q_original}
+            contexto="final_view_q"
+            isReadOnly={true}
+          />
         </div>
       </div>
 
@@ -362,12 +506,40 @@ export const PainelQuestao: React.FC<QuestaoProps> = ({ q, tituloMaterial, image
         </div>
       ) : (
         <div className="field-group dissertativa-section" style={{ marginTop: '15px' }}>
-          <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            className="field-label"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
             ✍️ Questão Dissertativa
-            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-primary)', color: '#fff', fontWeight: 500 }}>Dissertativa</span>
+            <span
+              style={{
+                fontSize: '11px',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontWeight: 500,
+              }}
+            >
+              Dissertativa
+            </span>
           </span>
-          <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic', padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border)', background: 'var(--color-bg-2)' }}>
-            Esta é uma questão dissertativa estruturada. A forma de avaliação e a <strong>resposta modelo esperada</strong> encontram-se disponíveis e detalhadas no painel do <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>Gabarito</span>.
+          <div
+            style={{
+              marginTop: '10px',
+              fontSize: '13px',
+              color: 'var(--color-text-secondary)',
+              fontStyle: 'italic',
+              padding: '16px',
+              borderRadius: '10px',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-2)',
+            }}
+          >
+            Esta é uma questão dissertativa estruturada. A forma de avaliação e a{' '}
+            <strong>resposta modelo esperada</strong> encontram-se disponíveis e detalhadas no
+            painel do{' '}
+            <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>Gabarito</span>.
           </div>
         </div>
       )}
@@ -379,8 +551,20 @@ export const PainelGabarito: React.FC<GabaritoProps> = ({ g, imagensFinais, expl
   const isDissertativa = !g.alternativa_correta && (g.resposta_modelo || g.justificativa_curta);
 
   return (
-    <div className="extraction-result" style={{ border: 'none', padding: 0, background: 'transparent' }}>
-      <div className="result-header" style={{ background: 'var(--color-bg-2)', padding: '10px', borderRadius: '8px', marginBottom: '15px', border: '1px solid var(--color-warning)' }}>
+    <div
+      className="extraction-result"
+      style={{ border: 'none', padding: 0, background: 'transparent' }}
+    >
+      <div
+        className="result-header"
+        style={{
+          background: 'var(--color-bg-2)',
+          padding: '10px',
+          borderRadius: '8px',
+          marginBottom: '15px',
+          border: '1px solid var(--color-warning)',
+        }}
+      >
         <div>
           <h3 style={{ color: 'var(--color-warning)', margin: 0, fontSize: '16px' }}>
             {isDissertativa ? 'GABARITO (DISSERTATIVA)' : 'GABARITO'}
@@ -389,7 +573,15 @@ export const PainelGabarito: React.FC<GabaritoProps> = ({ g, imagensFinais, expl
             Confiança IA: <strong>{Math.round((g.confianca || 0) * 100)}%</strong>
           </div>
         </div>
-        <span className="badge" style={{ background: isDissertativa ? 'var(--color-primary)' : 'var(--color-success)', color: 'white', fontSize: '14px', padding: '4px 10px' }}>
+        <span
+          className="badge"
+          style={{
+            background: isDissertativa ? 'var(--color-primary)' : 'var(--color-success)',
+            color: 'white',
+            fontSize: '14px',
+            padding: '4px 10px',
+          }}
+        >
           {isDissertativa ? 'DISSERTATIVA' : `LETRA ${safe(g.alternativa_correta)}`}
         </span>
       </div>
@@ -401,7 +593,11 @@ export const PainelGabarito: React.FC<GabaritoProps> = ({ g, imagensFinais, expl
           <span className="field-label">Resposta Modelo Esperada</span>
           <div
             className="data-box markdown-content"
-            style={{ background: 'var(--color-background)', fontSize: '13px', borderLeft: '3px solid var(--color-primary)' }}
+            style={{
+              background: 'var(--color-background)',
+              fontSize: '13px',
+              borderLeft: '3px solid var(--color-primary)',
+            }}
             dangerouslySetInnerHTML={{ __html: safeMarkdown(g.resposta_modelo) }}
           />
         </div>
@@ -409,7 +605,9 @@ export const PainelGabarito: React.FC<GabaritoProps> = ({ g, imagensFinais, expl
 
       {g.justificativa_curta && (
         <div className="field-group">
-          <span className="field-label">{isDissertativa ? 'Critérios Base / Justificativa' : 'Resumo / Justificativa'}</span>
+          <span className="field-label">
+            {isDissertativa ? 'Critérios Base / Justificativa' : 'Resumo / Justificativa'}
+          </span>
           <div
             className="data-box markdown-content"
             style={{ background: 'var(--color-background)', fontSize: '13px' }}
@@ -448,7 +646,9 @@ export const generateListaAlternativasHtml = (alternativas: any) => {
 };
 
 export const generatePainelQuestaoHtml = (q: any, tituloMaterial: any, imagensFinais: any) => {
-  return renderToStaticMarkup(<PainelQuestao q={q} tituloMaterial={tituloMaterial} imagensFinais={imagensFinais} />);
+  return renderToStaticMarkup(
+    <PainelQuestao q={q} tituloMaterial={tituloMaterial} imagensFinais={imagensFinais} />,
+  );
 };
 
 export const generatePassosGabaritoHtml = (explicacaoArray: any) => {
@@ -456,7 +656,9 @@ export const generatePassosGabaritoHtml = (explicacaoArray: any) => {
 };
 
 export const generatePainelGabaritoHtml = (g: any, imagensFinais: any, explicacaoArray: any) => {
-  return renderToStaticMarkup(<PainelGabarito g={g} imagensFinais={imagensFinais} explicacaoArray={explicacaoArray} />);
+  return renderToStaticMarkup(
+    <PainelGabarito g={g} imagensFinais={imagensFinais} explicacaoArray={explicacaoArray} />,
+  );
 };
 
 export const generateTagsHtml = (list: any, className: any) => {

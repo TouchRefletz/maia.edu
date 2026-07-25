@@ -1,11 +1,11 @@
-import { viewerState } from "../main.js";
-import { renderizarQuestaoFinal } from "../render/final/render-questao.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import { irParaPagina } from "../viewer/pdf-core.js";
-import { mostrarPainel } from "../viewer/sidebar.js";
-import { iniciarCropper } from "./cropper-core.js";
-import { CropperState } from "./cropper-state.js";
-import { refreshOverlayPosition } from "./selection-overlay.js";
+import { viewerState } from '../main.js';
+import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { irParaPagina } from '../viewer/pdf-core.js';
+import { mostrarPainel } from '../viewer/sidebar.js';
+import { iniciarCropper } from './cropper-core.js';
+import { CropperState } from './cropper-state.js';
+import { refreshOverlayPosition } from './selection-overlay.js';
 
 // Internal State Tracking
 let __targetSlotIndex = null;
@@ -13,21 +13,21 @@ let __editingGroupId = null;
 
 // Helper lazy load to avoid cycle if possible, or just import top level if safe.
 // sidebar-tabs.js usually safe.
-import { getActiveTab } from "../ui/sidebar-tabs.js";
+import { getActiveTab } from '../ui/sidebar-tabs.js';
 
 export function ativarModoRecorte() {
-  const floatParams = document.getElementById("floatingActionParams");
+  const floatParams = document.getElementById('floatingActionParams');
   if (floatParams) {
-    floatParams.classList.remove("hidden");
+    floatParams.classList.remove('hidden');
   }
 
   if (viewerState.cropper) return;
   mostrarPainel();
   iniciarCropper();
-  const btnHeader = document.getElementById("btnRecortarHeader");
+  const btnHeader = document.getElementById('btnRecortarHeader');
   if (btnHeader) {
-    btnHeader.style.opacity = "0.5";
-    btnHeader.style.pointerEvents = "none";
+    btnHeader.style.opacity = '0.5';
+    btnHeader.style.pointerEvents = 'none';
   }
 }
 
@@ -42,12 +42,12 @@ export function iniciarCapturaParaSlot(index, contexto) {
 
   // Create a new temporary group for this slot
   const tempGroup = CropperState.createGroup({
-    tags: ["slot-mode", "NOVO"],
+    tags: ['slot-mode', 'NOVO'],
     label: `Slot ${index} (${contexto})`,
   });
 
-  if (!tempGroup.tags.includes("slot-mode")) {
-    tempGroup.tags.push("slot-mode");
+  if (!tempGroup.tags.includes('slot-mode')) {
+    tempGroup.tags.push('slot-mode');
   }
 
   const activeTab = getActiveTab();
@@ -65,18 +65,18 @@ export function iniciarCapturaParaSlot(index, contexto) {
   CropperState.setActiveGroup(tempGroup.id);
   refreshOverlayPosition();
 
-  const btnConfirm = document.querySelector(
-    "#floatingActionParams .btn--success",
-  );
+  const btnConfirm = document.querySelector('#floatingActionParams .btn--success');
   if (btnConfirm) {
-    btnConfirm.innerText = "📍 Preencher Espaço";
+    btnConfirm.innerText = '📍 Preencher Espaço';
   }
 }
 
 export function iniciarCapturaParaSlotAlternativa(letra, index) {
   console.log(`[SlotMode] Iniciando captura para alternativa: ${letra}, index: ${index}`);
 
-  window.__target_alt_letra = String(letra || "").trim().toUpperCase();
+  window.__target_alt_letra = String(letra || '')
+    .trim()
+    .toUpperCase();
   window.__target_alt_index = Number(index);
   window.__targetSlotIndex = null;
   window.__targetSlotContext = null;
@@ -84,20 +84,20 @@ export function iniciarCapturaParaSlotAlternativa(letra, index) {
   if (!viewerState.cropper) {
     mostrarPainel();
     iniciarCropper();
-    const btnHeader = document.getElementById("btnRecortarHeader");
+    const btnHeader = document.getElementById('btnRecortarHeader');
     if (btnHeader) {
-      btnHeader.style.opacity = "0.5";
-      btnHeader.style.pointerEvents = "none";
+      btnHeader.style.opacity = '0.5';
+      btnHeader.style.pointerEvents = 'none';
     }
   }
 
   const tempGroup = CropperState.createGroup({
-    tags: ["slot-mode", "NOVO"],
+    tags: ['slot-mode', 'NOVO'],
     label: `Alternativa ${letra}`,
   });
 
-  if (!tempGroup.tags.includes("slot-mode")) {
-    tempGroup.tags.push("slot-mode");
+  if (!tempGroup.tags.includes('slot-mode')) {
+    tempGroup.tags.push('slot-mode');
   }
 
   const activeTab = getActiveTab();
@@ -116,8 +116,8 @@ export function iniciarCapturaParaSlotAlternativa(letra, index) {
   refreshOverlayPosition();
 
   window.dispatchEvent(
-    new CustomEvent("image-slot-mode-change", {
-      detail: { slotId: `alt_${letra}_${index}`, mode: "capturing" },
+    new CustomEvent('image-slot-mode-change', {
+      detail: { slotId: `alt_${letra}_${index}`, mode: 'capturing' },
     }),
   );
 }
@@ -125,7 +125,7 @@ export function iniciarCapturaParaSlotAlternativa(letra, index) {
 export function iniciarOcrCampo(elementId) {
   console.log(`[SlotMode] Iniciando OCR para campo: ${elementId}`);
 
-  window.__targetSlotContext = "ocr_field_" + elementId;
+  window.__targetSlotContext = 'ocr_field_' + elementId;
   window.__targetSlotIndex = null;
   window.__target_alt_letra = null;
   window.__target_alt_index = null;
@@ -133,12 +133,12 @@ export function iniciarOcrCampo(elementId) {
   ativarModoRecorte();
 
   const tempGroup = CropperState.createGroup({
-    tags: ["slot-mode", "NOVO"],
+    tags: ['slot-mode', 'NOVO'],
     label: `OCR: ${elementId}`,
   });
 
-  if (!tempGroup.tags.includes("slot-mode")) {
-    tempGroup.tags.push("slot-mode");
+  if (!tempGroup.tags.includes('slot-mode')) {
+    tempGroup.tags.push('slot-mode');
   }
 
   const activeTab = getActiveTab();
@@ -155,28 +155,23 @@ export function iniciarOcrCampo(elementId) {
   CropperState.setActiveGroup(tempGroup.id);
   refreshOverlayPosition();
 
-  const btnConfirm = document.querySelector(
-    "#floatingActionParams .btn--success",
-  );
+  const btnConfirm = document.querySelector('#floatingActionParams .btn--success');
   if (btnConfirm) {
-    btnConfirm.innerText = "🔍 Ler Campo";
+    btnConfirm.innerText = '🔍 Ler Campo';
   }
 }
-
 
 export function iniciarCapturaImagemQuestao() {
   window.__capturandoImagemFinal = true;
   window.__targetSlotIndex = null;
   window.__targetSlotContext = null;
   ativarModoRecorte();
-  const btnConfirm = document.querySelector(
-    "#floatingActionParams .btn--success",
-  );
+  const btnConfirm = document.querySelector('#floatingActionParams .btn--success');
   if (btnConfirm) {
-    const destino = window.modo === "gabarito" ? "Gabarito" : "Questão";
+    const destino = window.modo === 'gabarito' ? 'Gabarito' : 'Questão';
     btnConfirm.innerText = `💾 Salvar Figura (${destino})`;
-    btnConfirm.classList.remove("btn--success");
-    btnConfirm.classList.add("btn--warning");
+    btnConfirm.classList.remove('btn--success');
+    btnConfirm.classList.add('btn--warning');
   }
 }
 
@@ -185,7 +180,7 @@ export function onClickImagemFinal() {
 }
 
 export function removerImagemFinal(index, tipo) {
-  if (tipo === "gabarito") {
+  if (tipo === 'gabarito') {
     if (window.__ultimoGabaritoExtraido?.imagens_suporte) {
       window.__ultimoGabaritoExtraido.imagens_suporte.splice(index, 1);
       window.__imagensLimpas.gabarito_suporte.splice(index, 1);
@@ -203,21 +198,19 @@ export function removerImagemFinal(index, tipo) {
 export function iniciarCapturaDeQuestaoRestrita(pageNum) {
   irParaPagina(pageNum);
   setTimeout(() => {
-    const container = document.getElementById("canvasContainer");
+    const container = document.getElementById('canvasContainer');
     if (container) {
-      document.body.classList.add("manual-crop-active");
+      document.body.classList.add('manual-crop-active');
       window.__isManualPageAdd = true;
-      container.style.overflow = "hidden";
+      container.style.overflow = 'hidden';
     }
     CropperState.setPageConstraint(pageNum);
     ativarModoRecorte();
-    CropperState.createGroup({ tags: ["manual", "NOVO"] });
+    CropperState.createGroup({ tags: ['manual', 'NOVO'] });
     customAlert(`🔒 Modo de Adição Manual: Página ${pageNum}`, 3000);
-    const btnConfirm = document.querySelector(
-      "#floatingActionParams .btn--success",
-    );
+    const btnConfirm = document.querySelector('#floatingActionParams .btn--success');
     if (btnConfirm) {
-      btnConfirm.innerText = "💾 Salvar Questão Manual";
+      btnConfirm.innerText = '💾 Salvar Questão Manual';
     }
   }, 700);
 }
@@ -246,7 +239,7 @@ export function startImageSlotModeWithCrop(
 
   __targetSlotIndex = Number(slotIndex);
   window.__targetSlotIndex = __targetSlotIndex;
-  window.__targetSlotContext = "image-slot";
+  window.__targetSlotContext = 'image-slot';
 
   // Navegar para a página correta
   irParaPagina(pageNum);
@@ -277,14 +270,14 @@ export function startImageSlotModeWithCrop(
     const tempGroup = CropperState.createTemporaryGroup
       ? CropperState.createTemporaryGroup()
       : CropperState.createGroup({
-          tags: ["slot-mode"],
-          label: "Novo Slot (IA)",
+          tags: ['slot-mode'],
+          label: 'Novo Slot (IA)',
         });
 
-    if (!tempGroup.tags.includes("slot-mode")) {
-      tempGroup.tags.push("slot-mode");
+    if (!tempGroup.tags.includes('slot-mode')) {
+      tempGroup.tags.push('slot-mode');
     }
-    tempGroup.tags.push("ia-detected"); // Tag para indicar que foi detectado por IA
+    tempGroup.tags.push('ia-detected'); // Tag para indicar que foi detectado por IA
 
     // Set parent group metadata
     const activeTab = getActiveTab();
@@ -314,8 +307,8 @@ export function startImageSlotModeWithCrop(
 
     // Dispatch event for React UI to update to 'capturing' state
     window.dispatchEvent(
-      new CustomEvent("image-slot-mode-change", {
-        detail: { slotId: slotIndex, mode: "capturing" },
+      new CustomEvent('image-slot-mode-change', {
+        detail: { slotId: slotIndex, mode: 'capturing' },
       }),
     );
 
@@ -333,11 +326,7 @@ export function startImageSlotModeWithCrop(
  * @param {number} pageNum - Página onde a imagem foi detectada
  * @param {Object} normalizedCrop - Coordenadas normalizadas 0-1000 { x, y, w, h }
  */
-export async function confirmAISlotDirectly(
-  slotIndex,
-  pageNum,
-  normalizedCrop,
-) {
+export async function confirmAISlotDirectly(slotIndex, pageNum, normalizedCrop) {
   // [FIX] Extrai o índice numérico do slotId (ex: "questao_img_1" -> 1, ou "1" -> 1)
   // Isso garante consistência com ImageSlotCard que espera apenas o número
   let numericIndex = slotIndex;
@@ -374,7 +363,7 @@ export async function confirmAISlotDirectly(
       pdfHeightPt = viewport.height;
     }
   } catch (e) {
-    console.warn("[SlotMode AI] Erro ao obter viewport:", e);
+    console.warn('[SlotMode AI] Erro ao obter viewport:', e);
   }
 
   // Converter 0-1000 para PDF Points
@@ -394,10 +383,7 @@ export async function confirmAISlotDirectly(
     0,
     Math.round(pdfLeft * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING,
   );
-  const embedTop = Math.max(
-    0,
-    Math.round(pdfTop * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING,
-  );
+  const embedTop = Math.max(0, Math.round(pdfTop * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING);
 
   const finalContainerWidth =
     Math.round((pdfCropW - SIZE_OFFSET) * outputScale * EMBED_SCALE_FACTOR) +
@@ -457,14 +443,14 @@ export async function confirmAISlotDirectly(
     pdf_url: finalPdfUrl,
   };
 
-  console.log("[SlotMode AI] Dados de crop calculados:", cropData);
+  console.log('[SlotMode AI] Dados de crop calculados:', cropData);
 
   // Disparar evento de atualização do slot
   window.dispatchEvent(
-    new CustomEvent("slot-update", {
+    new CustomEvent('slot-update', {
       detail: {
         slotId: numericIndex,
-        action: "filled",
+        action: 'filled',
         cropData: cropData,
         timestamp: Date.now(),
       },
@@ -473,13 +459,13 @@ export async function confirmAISlotDirectly(
 
   // Sinalizar que o slot foi preenchido
   window.dispatchEvent(
-    new CustomEvent("image-slot-mode-change", {
-      detail: { slotId: numericIndex, mode: "filled" },
+    new CustomEvent('image-slot-mode-change', {
+      detail: { slotId: numericIndex, mode: 'filled' },
     }),
   );
   // [BATCH FIX] Disparar evento para o BatchProcessor (pois o componente React pode não estar montado)
   window.dispatchEvent(
-    new CustomEvent("batch-slot-filled", {
+    new CustomEvent('batch-slot-filled', {
       detail: {
         slotId: numericIndex,
         cropData: cropData,
@@ -499,7 +485,7 @@ export function startImageSlotMode(slotIndex, explicitParentGroupId = null) {
 
   __targetSlotIndex = Number(slotIndex);
   window.__targetSlotIndex = __targetSlotIndex; // Sync global
-  window.__targetSlotContext = "image-slot";
+  window.__targetSlotContext = 'image-slot';
 
   mostrarPainel();
   iniciarCropper();
@@ -508,11 +494,11 @@ export function startImageSlotMode(slotIndex, explicitParentGroupId = null) {
   // If createTemporaryGroup doesn't exist, we fallback to createGroup
   const tempGroup = CropperState.createTemporaryGroup
     ? CropperState.createTemporaryGroup()
-    : CropperState.createGroup({ tags: ["slot-mode"], label: "Novo Slot" });
+    : CropperState.createGroup({ tags: ['slot-mode'], label: 'Novo Slot' });
 
   // Ensure tags are set correctly
-  if (!tempGroup.tags.includes("slot-mode")) {
-    tempGroup.tags.push("slot-mode");
+  if (!tempGroup.tags.includes('slot-mode')) {
+    tempGroup.tags.push('slot-mode');
   }
   // Tag with the slot ID so we can find it later for editing
   // Also tag with parentGroupId (Active Tab) for strict bounding
@@ -540,8 +526,8 @@ export function startImageSlotMode(slotIndex, explicitParentGroupId = null) {
 
   // Dispatch event for React UI to update to 'capturing' state
   window.dispatchEvent(
-    new CustomEvent("image-slot-mode-change", {
-      detail: { slotId: slotIndex, mode: "capturing" },
+    new CustomEvent('image-slot-mode-change', {
+      detail: { slotId: slotIndex, mode: 'capturing' },
     }),
   );
 }
@@ -549,7 +535,7 @@ export function startImageSlotMode(slotIndex, explicitParentGroupId = null) {
 export function editImageSlotMode(slotId) {
   __targetSlotIndex = Number(slotId);
   window.__targetSlotIndex = __targetSlotIndex;
-  window.__targetSlotContext = "image-slot";
+  window.__targetSlotContext = 'image-slot';
 
   mostrarPainel();
   iniciarCropper();
@@ -558,11 +544,7 @@ export function editImageSlotMode(slotId) {
   const groups = CropperState.groups || [];
 
   const existingGroup = groups.find(
-    (g) =>
-      g.tags &&
-      g.tags.includes("slot-mode") &&
-      g.metadata &&
-      g.metadata.slotId == slotId, // Weak equality for safety
+    (g) => g.tags && g.tags.includes('slot-mode') && g.metadata && g.metadata.slotId == slotId, // Weak equality for safety
   );
 
   if (existingGroup) {
@@ -592,14 +574,12 @@ export function editImageSlotMode(slotId) {
 
     // Dispatch event for React UI to update to 'capturing' (editing) state
     window.dispatchEvent(
-      new CustomEvent("image-slot-mode-change", {
-        detail: { slotId: slotId, mode: "capturing" },
+      new CustomEvent('image-slot-mode-change', {
+        detail: { slotId: slotId, mode: 'capturing' },
       }),
     );
   } else {
-    console.warn(
-      `[SlotMode] Grupo de edição não encontrado para slot ${slotId}. Iniciando novo.`,
-    );
+    console.warn(`[SlotMode] Grupo de edição não encontrado para slot ${slotId}. Iniciando novo.`);
     startImageSlotMode(slotId);
   }
 }
@@ -609,11 +589,7 @@ export function deleteImageSlot(slotId) {
 
   const groups = CropperState.groups || [];
   const groupToRemove = groups.find(
-    (g) =>
-      g.tags &&
-      g.tags.includes("slot-mode") &&
-      g.metadata &&
-      g.metadata.slotId == slotId,
+    (g) => g.tags && g.tags.includes('slot-mode') && g.metadata && g.metadata.slotId == slotId,
   );
 
   if (groupToRemove) {
@@ -622,18 +598,18 @@ export function deleteImageSlot(slotId) {
 
   // Update React UI
   window.dispatchEvent(
-    new CustomEvent("image-slot-action-complete", {
+    new CustomEvent('image-slot-action-complete', {
       detail: {
         slotId: slotId,
-        action: "cleared",
+        action: 'cleared',
       },
     }),
   );
 
   // Also dispatch the old style event if legacy code needs it
   window.dispatchEvent(
-    new CustomEvent("slot-update", {
-      detail: { slotId, action: "cleared" },
+    new CustomEvent('slot-update', {
+      detail: { slotId, action: 'cleared' },
     }),
   );
 }
@@ -648,7 +624,7 @@ export async function calculateCropContext(anchorData) {
   // 1. OBTER DIMENSÕES DA PÁGINA
   const anchorPage = document.getElementById(`page-wrapper-${pageNum}`);
   if (!anchorPage) {
-    console.error("Erro: página não encontrada para cálculo de crop.");
+    console.error('Erro: página não encontrada para cálculo de crop.');
     return null;
   }
 
@@ -675,10 +651,7 @@ export async function calculateCropContext(anchorData) {
     0,
     Math.round(pdfLeft * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING,
   );
-  const embedTop = Math.max(
-    0,
-    Math.round(pdfTop * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING,
-  );
+  const embedTop = Math.max(0, Math.round(pdfTop * EMBED_SCALE_FACTOR) + EMBED_AJUSTMENT - PADDING);
 
   const finalContainerWidth =
     Math.round((pdfCropW - SIZE_OFFSET) * outputScale * EMBED_SCALE_FACTOR) +
@@ -702,7 +675,7 @@ export async function calculateCropContext(anchorData) {
       pdfHeightPt = viewport.height;
     }
   } catch (e) {
-    console.warn("[calculateCropContext] Erro ao obter viewport:", e);
+    console.warn('[calculateCropContext] Erro ao obter viewport:', e);
   }
 
   const normX = (pdfLeft / pdfWidthPt) * 1000;
@@ -761,7 +734,7 @@ export async function confirmSlotMode() {
   if (!activeGroup) return;
 
   if (activeGroup.crops.length === 0) {
-    customAlert("⚠️ Selecione uma área na imagem!", 2000);
+    customAlert('⚠️ Selecione uma área na imagem!', 2000);
     return;
   }
 
@@ -769,29 +742,29 @@ export async function confirmSlotMode() {
   const anchorData = lastCrop.anchorData;
 
   if (!anchorData) {
-    customAlert("Erro: dados de ancoragem não encontrados.", 2000);
+    customAlert('Erro: dados de ancoragem não encontrados.', 2000);
     return;
   }
 
   const cropData = await calculateCropContext(anchorData);
 
   if (!cropData) {
-    customAlert("Erro ao calcular dados do recorte.", 2000);
+    customAlert('Erro ao calcular dados do recorte.', 2000);
     return;
   }
 
-  console.log("[SlotMode] Dados de crop calculados:", cropData);
+  console.log('[SlotMode] Dados de crop calculados:', cropData);
 
   // Update group metadata
   activeGroup.metadata = { slotId: __targetSlotIndex };
-  activeGroup.status = "verified";
+  activeGroup.status = 'verified';
 
   // Dispatch Event com dados de crop
   window.dispatchEvent(
-    new CustomEvent("slot-update", {
+    new CustomEvent('slot-update', {
       detail: {
         slotId: __targetSlotIndex,
-        action: "filled",
+        action: 'filled',
         cropData: cropData,
         timestamp: activeGroup.id,
       },
@@ -801,12 +774,12 @@ export async function confirmSlotMode() {
   // Exit mode but KEEP the group (persist)
   CropperState.setActiveGroup(null);
   refreshOverlayPosition();
-  customAlert("Imagem atualizada!", 1500);
+  customAlert('Imagem atualizada!', 1500);
 
   // Signal React to go to 'filled' state
   window.dispatchEvent(
-    new CustomEvent("image-slot-mode-change", {
-      detail: { slotId: __targetSlotIndex, mode: "filled" },
+    new CustomEvent('image-slot-mode-change', {
+      detail: { slotId: __targetSlotIndex, mode: 'filled' },
     }),
   );
 }
@@ -829,14 +802,11 @@ export function cancelSlotMode() {
 
   // Dispatch 'cancel' state to UI
   window.dispatchEvent(
-    new CustomEvent("image-slot-mode-change", {
-      detail: { slotId: __targetSlotIndex, mode: "idle" }, // Or whatever previous state was, usually idle/empty
+    new CustomEvent('image-slot-mode-change', {
+      detail: { slotId: __targetSlotIndex, mode: 'idle' }, // Or whatever previous state was, usually idle/empty
     }),
   );
 }
 
 // Exports
-export {
-  cancelSlotMode as cancelImageSlotMode,
-  confirmSlotMode as confirmImageSlotMode,
-};
+export { cancelSlotMode as cancelImageSlotMode, confirmSlotMode as confirmImageSlotMode };

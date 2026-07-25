@@ -1,19 +1,14 @@
-import { fecharModalConfirmacao } from "../cropper/gallery.js";
-import { loadSelectionsFromJson } from "../cropper/json-loader.js";
-import { ativarModoRecorte } from "../cropper/mode.js";
-import { confirmarEnvioIA } from "../envio/ui-estado.js";
-import { viewerState } from "../main.js";
-import { AiScanner } from "../services/ai-scanner.js";
-import { showConfirmModal } from "../ui/modal-confirm.js";
-import { inicializarContextoViewer } from "./contexto.js";
-import {
-  carregarDocumentoPDF,
-  mudarPagina,
-  mudarZoom,
-  renderAllPages,
-} from "./pdf-core.js";
-import { configurarResizerSidebar } from "./resizer.js";
-import { montarTemplateViewer } from "./viewer-template.js";
+import { fecharModalConfirmacao } from '../cropper/gallery.js';
+import { loadSelectionsFromJson } from '../cropper/json-loader.js';
+import { ativarModoRecorte } from '../cropper/mode.js';
+import { confirmarEnvioIA } from '../envio/ui-estado.js';
+import { viewerState } from '../main.js';
+import { AiScanner } from '../services/ai-scanner.js';
+import { showConfirmModal } from '../ui/modal-confirm.js';
+import { inicializarContextoViewer } from './contexto.js';
+import { carregarDocumentoPDF, mudarPagina, mudarZoom, renderAllPages } from './pdf-core.js';
+import { configurarResizerSidebar } from './resizer.js';
+import { montarTemplateViewer } from './viewer-template.js';
 
 // Expose for external usage
 window.MaiaPlugin = window.MaiaPlugin || {};
@@ -28,56 +23,56 @@ export function configurarEventosViewer() {
   const aoClicar = (id, callback) => {
     const elemento = document.getElementById(id);
     if (elemento) {
-      elemento.addEventListener("click", callback);
+      elemento.addEventListener('click', callback);
     } else {
       console.warn(`Botão não encontrado: #${id}`);
     }
   };
 
   // --- Controles Básicos ---
-  aoClicar("btnFecharViewer", fecharVisualizador);
+  aoClicar('btnFecharViewer', fecharVisualizador);
 
   // --- Navegação ---
-  aoClicar("btn-prev", () => mudarPagina(-1));
-  aoClicar("btn-next", () => mudarPagina(1));
+  aoClicar('btn-prev', () => mudarPagina(-1));
+  aoClicar('btn-next', () => mudarPagina(1));
 
   // --- Zoom ---
-  aoClicar("btnZoomOut", () => mudarZoom(-0.1));
-  aoClicar("btnZoomIn", () => mudarZoom(0.1));
+  aoClicar('btnZoomOut', () => mudarZoom(-0.1));
+  aoClicar('btnZoomIn', () => mudarZoom(0.1));
 
   // --- Mobile Floating Controls ---
-  aoClicar("btnFloatingClose", fecharVisualizador);
+  aoClicar('btnFloatingClose', fecharVisualizador);
 
   const toggleToolsPanel = () => {
-    const toolsPanel = document.getElementById("floatingToolsPanel");
+    const toolsPanel = document.getElementById('floatingToolsPanel');
     if (!toolsPanel) return;
 
-    if (toolsPanel.classList.contains("hidden")) {
-      toolsPanel.classList.remove("hidden");
-      toolsPanel.classList.remove("closing");
+    if (toolsPanel.classList.contains('hidden')) {
+      toolsPanel.classList.remove('hidden');
+      toolsPanel.classList.remove('closing');
     } else {
-      toolsPanel.classList.add("closing");
+      toolsPanel.classList.add('closing');
       const onAnimationEnd = () => {
-        if (toolsPanel.classList.contains("closing")) {
-          toolsPanel.classList.add("hidden");
-          toolsPanel.classList.remove("closing");
+        if (toolsPanel.classList.contains('closing')) {
+          toolsPanel.classList.add('hidden');
+          toolsPanel.classList.remove('closing');
         }
-        toolsPanel.removeEventListener("animationend", onAnimationEnd);
+        toolsPanel.removeEventListener('animationend', onAnimationEnd);
       };
-      toolsPanel.addEventListener("animationend", onAnimationEnd);
+      toolsPanel.addEventListener('animationend', onAnimationEnd);
     }
   };
 
-  aoClicar("btnMobileTools", toggleToolsPanel);
+  aoClicar('btnMobileTools', toggleToolsPanel);
 
   // Controls inside the unified panel
-  aoClicar("btnPrevMobile", () => mudarPagina(-1));
-  aoClicar("btnNextMobile", () => mudarPagina(1));
-  aoClicar("btnZoomOutMobile", () => mudarZoom(-0.1));
-  aoClicar("btnZoomInMobile", () => mudarZoom(0.1));
+  aoClicar('btnPrevMobile', () => mudarPagina(-1));
+  aoClicar('btnNextMobile', () => mudarPagina(1));
+  aoClicar('btnZoomOutMobile', () => mudarZoom(-0.1));
+  aoClicar('btnZoomInMobile', () => mudarZoom(0.1));
 
   // --- GESTOS: Pinch-to-Zoom (Mobile) ---
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (container) {
     let pinchStartDist = 0;
     let pinchStartScale = 1;
@@ -95,13 +90,13 @@ export function configurarEventosViewer() {
 
     // PINCH START
     container.addEventListener(
-      "touchstart",
+      'touchstart',
       (e) => {
-        const overlay = document.getElementById("selection-overlay");
+        const overlay = document.getElementById('selection-overlay');
         const isCropping =
           overlay &&
-          (overlay.classList.contains("mode-creation") ||
-            overlay.classList.contains("mode-editing"));
+          (overlay.classList.contains('mode-creation') ||
+            overlay.classList.contains('mode-editing'));
 
         if (e.touches.length === 2 && !isCropping) {
           e.preventDefault();
@@ -126,7 +121,7 @@ export function configurarEventosViewer() {
           startScrollTop = container.scrollTop;
 
           // Captura dimensões atuais da primeira página para referência
-          const firstPage = container.querySelector(".pdf-page");
+          const firstPage = container.querySelector('.pdf-page');
           if (firstPage) {
             startPageWidth = firstPage.clientWidth;
             startPageHeight = firstPage.clientHeight;
@@ -138,7 +133,7 @@ export function configurarEventosViewer() {
 
     // PINCH MOVE
     container.addEventListener(
-      "touchmove",
+      'touchmove',
       (e) => {
         if (isPinching && e.touches.length === 2) {
           e.preventDefault();
@@ -155,7 +150,7 @@ export function configurarEventosViewer() {
             const newH = startPageHeight * ratio;
 
             // Aplica largura/altura forçada nas páginas (estica o canvas existente)
-            const pages = container.querySelectorAll(".pdf-page");
+            const pages = container.querySelectorAll('.pdf-page');
             pages.forEach((p) => {
               p.style.width = `${newW}px`;
               p.style.height = `${newH}px`;
@@ -164,11 +159,8 @@ export function configurarEventosViewer() {
             // Ajusta o scroll em tempo real para manter o centro do pinch fixo visualmente
             // Formula: NewScroll = (StartScroll + PinPoint) * ratio - PinPoint
             const newScrollLeft =
-              (startScrollLeft + pinchStartCenter.x) * ratio -
-              pinchStartCenter.x;
-            const newScrollTop =
-              (startScrollTop + pinchStartCenter.y) * ratio -
-              pinchStartCenter.y;
+              (startScrollLeft + pinchStartCenter.x) * ratio - pinchStartCenter.x;
+            const newScrollTop = (startScrollTop + pinchStartCenter.y) * ratio - pinchStartCenter.y;
 
             container.scrollLeft = newScrollLeft;
             container.scrollTop = newScrollTop;
@@ -179,7 +171,7 @@ export function configurarEventosViewer() {
     );
 
     // PINCH END
-    container.addEventListener("touchend", (e) => {
+    container.addEventListener('touchend', (e) => {
       if (isPinching && e.touches.length < 2) {
         isPinching = false;
 
@@ -198,7 +190,7 @@ export function configurarEventosViewer() {
           } else {
             // Se cancelou/não mudou muito, restaura o tamanho original visualmente
             // (renderPage resetaria, mas vamos garantir)
-            const pages = container.querySelectorAll(".pdf-page");
+            const pages = container.querySelectorAll('.pdf-page');
             pages.forEach((p) => {
               p.style.width = `${startPageWidth}px`;
               p.style.height = `${startPageHeight}px`;
@@ -215,23 +207,23 @@ export function configurarEventosViewer() {
     let startX, startY, scrollLeft, scrollTop;
 
     // Define cursor inicial como "grab" (mãozinha aberta)
-    container.style.cursor = "grab";
+    container.style.cursor = 'grab';
 
-    container.addEventListener("mousedown", (e) => {
+    container.addEventListener('mousedown', (e) => {
       // 1. Bloqueia se estiver em modo de recorte (verifica overlay)
       // 1. Bloqueia se estiver em modo de recorte (verifica se está editando)
-      const overlay = document.getElementById("selection-overlay");
-      if (overlay && overlay.classList.contains("mode-editing")) return;
+      const overlay = document.getElementById('selection-overlay');
+      if (overlay && overlay.classList.contains('mode-editing')) return;
 
       // 2. Bloqueia se clicar em algum botão ou controle dentro do container (se houver)
-      if (e.target.closest("button, .resizer")) return;
+      if (e.target.closest('button, .resizer')) return;
 
       isDown = true;
-      container.classList.add("is-dragging"); // Opcional, para CSS extra se precisar
-      container.style.cursor = "grabbing";
+      container.classList.add('is-dragging'); // Opcional, para CSS extra se precisar
+      container.style.cursor = 'grabbing';
 
       // Previne seleção de texto durante o arrasto
-      container.style.userSelect = "none";
+      container.style.userSelect = 'none';
 
       startX = e.pageX - container.offsetLeft;
       startY = e.pageY - container.offsetTop;
@@ -241,17 +233,17 @@ export function configurarEventosViewer() {
 
     const stopDrag = () => {
       isDown = false;
-      container.classList.remove("is-dragging");
-      if (!document.getElementById("selection-overlay")) {
-        container.style.cursor = "grab";
+      container.classList.remove('is-dragging');
+      if (!document.getElementById('selection-overlay')) {
+        container.style.cursor = 'grab';
       }
-      container.style.removeProperty("user-select");
+      container.style.removeProperty('user-select');
     };
 
-    container.addEventListener("mouseleave", stopDrag);
-    container.addEventListener("mouseup", stopDrag);
+    container.addEventListener('mouseleave', stopDrag);
+    container.addEventListener('mouseup', stopDrag);
 
-    container.addEventListener("mousemove", (e) => {
+    container.addEventListener('mousemove', (e) => {
       if (!isDown) return;
       e.preventDefault(); // Impede comportamento padrão de seleção
 
@@ -271,13 +263,13 @@ export function configurarEventosViewer() {
 export function realizarLimpezaCompleta() {
   // 1. Encerra cropper com segurança (Se houver resquício)
   try {
-    import("../cropper/selection-overlay.js").then((module) => {
+    import('../cropper/selection-overlay.js').then((module) => {
       module.removeSelectionOverlay();
     });
   } catch (_) {}
 
   try {
-    if (typeof viewerState.cropper !== "undefined" && viewerState.cropper) {
+    if (typeof viewerState.cropper !== 'undefined' && viewerState.cropper) {
       viewerState.cropper.destroy();
       viewerState.cropper = null;
     }
@@ -285,11 +277,11 @@ export function realizarLimpezaCompleta() {
 
   // 2. Limpeza do DOM (Visual)
   const idsParaRemover = [
-    "pdfViewerContainer",
-    "sidebarResizer",
-    "viewerSidebar",
-    "reopenSidebarBtn",
-    "finalModal",
+    'pdfViewerContainer',
+    'sidebarResizer',
+    'viewerSidebar',
+    'reopenSidebarBtn',
+    'finalModal',
   ];
 
   idsParaRemover.forEach((id) => {
@@ -298,14 +290,13 @@ export function realizarLimpezaCompleta() {
   });
 
   // Esconde/Reseta elementos persistentes
-  document.getElementById("cropConfirmModal")?.classList.remove("visible");
-  document.getElementById("floatingActionParams")?.classList.add("hidden");
+  document.getElementById('cropConfirmModal')?.classList.remove('visible');
+  document.getElementById('floatingActionParams')?.classList.add('hidden');
 
   // 3. Gestão de Memória (URLs)
   try {
     if (window.__pdfUrls?.prova) URL.revokeObjectURL(window.__pdfUrls.prova);
-    if (window.__pdfUrls?.gabarito)
-      URL.revokeObjectURL(window.__pdfUrls.gabarito);
+    if (window.__pdfUrls?.gabarito) URL.revokeObjectURL(window.__pdfUrls.gabarito);
   } catch (_) {}
 
   // 4. Reset das Variáveis Globais (Estado)
@@ -330,14 +321,9 @@ export function realizarLimpezaCompleta() {
 
 export async function fecharVisualizador() {
   // 1. Pergunta de Segurança
-  const msg = "Todo o progresso não salvo desta questão será perdido.";
+  const msg = 'Todo o progresso não salvo desta questão será perdido.';
 
-  const confirmou = await showConfirmModal(
-    "Voltar ao início?",
-    msg,
-    "Sair",
-    "Cancelar",
-  );
+  const confirmou = await showConfirmModal('Voltar ao início?', msg, 'Sair', 'Cancelar');
 
   if (!confirmou) {
     return;
@@ -348,9 +334,9 @@ export async function fecharVisualizador() {
 
   // 3. Redireciona/Recarrega a Interface de Upload
   // 3. Redireciona/Recarrega a Interface de Upload (Guia Manual)
-  if (typeof window.iniciarFluxoUploadManual === "function") {
+  if (typeof window.iniciarFluxoUploadManual === 'function') {
     window.iniciarFluxoUploadManual();
-  } else if (typeof generatePDFUploadInterface === "function") {
+  } else if (typeof generatePDFUploadInterface === 'function') {
     generatePDFUploadInterface(null); // Fallback
   }
 }
@@ -364,7 +350,7 @@ export async function gerarVisualizadorPDF(args) {
 
   // FASE 2: Injeção do HTML no DOM
   const viewerHTML = montarTemplateViewer(args);
-  document.body.insertAdjacentHTML("beforeend", viewerHTML);
+  document.body.insertAdjacentHTML('beforeend', viewerHTML);
 
   // FASE 3: Eventos (Toda a mágica em uma linha)
   configurarEventosViewer();
@@ -373,7 +359,7 @@ export async function gerarVisualizadorPDF(args) {
   configurarResizerSidebar();
 
   // INICIALIZA A SIDEBAR NOVA (Cropper UI)
-  import("./sidebar.js").then((mod) => {
+  import('./sidebar.js').then((mod) => {
     if (mod.inicializarSidebarCompleta) mod.inicializarSidebarCompleta();
   });
 
@@ -385,12 +371,12 @@ export async function gerarVisualizadorPDF(args) {
     // --- 1. INICIALIZA PÁGINAS DA SIDEBAR AGORA ---
     // User Request: "muda aqui pra ter página 3,4,5 e etc, todas do pdf, existindo no primeiro segundo"
     if (viewerState.pdfDoc) {
-      import("../ui/sidebar-page-manager.js").then((mod) => {
+      import('../ui/sidebar-page-manager.js').then((mod) => {
         mod.SidebarPageManager.init(viewerState.pdfDoc.numPages);
 
         // --- AI AUTO-SCANNER TRIGGER ---
         // Iniciado somente após a inicialização da sidebar para evitar race conditions
-        console.log("🚀 Iniciando AI Scanner...");
+        console.log('🚀 Iniciando AI Scanner...');
         setTimeout(() => {
           if (viewerState.pdfDoc) {
             AiScanner.start(viewerState.pdfDoc);
@@ -399,18 +385,16 @@ export async function gerarVisualizadorPDF(args) {
       });
     }
 
-    const modalConflict = document.getElementById("unified-decision-modal");
+    const modalConflict = document.getElementById('unified-decision-modal');
     if (modalConflict) modalConflict.remove();
 
     // Também fecha o toaster de processamento se houver
-    const toasterContainer = document.getElementById(
-      "search-toaster-container",
-    );
-    if (toasterContainer) toasterContainer.innerHTML = "";
+    const toasterContainer = document.getElementById('search-toaster-container');
+    if (toasterContainer) toasterContainer.innerHTML = '';
   }
 
   try {
-    const modalEl = document.getElementById("upload-progress-modal");
+    const modalEl = document.getElementById('upload-progress-modal');
     if (modalEl) modalEl.remove();
   } catch (e) {}
 }

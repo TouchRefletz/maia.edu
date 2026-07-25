@@ -41,8 +41,8 @@
 
 /* Utilitário para itens que devem ocupar a linha toda (Search e Botão) */
 .filter-full-width {
-    flex: 1 1 100% !important;
-    width: 100%;
+  flex: 1 1 100% !important;
+  width: 100%;
 }
 
 .filter-label {
@@ -90,11 +90,11 @@
 }
 
 .multi-select-trigger span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: block;
-    max-width: calc(100% - 15px); /* Espaço da setinha */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: calc(100% - 15px); /* Espaço da setinha */
 }
 
 .multi-select-trigger:after {
@@ -212,5 +212,7 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }

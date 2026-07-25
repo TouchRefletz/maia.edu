@@ -1,20 +1,14 @@
 import {
+  formatFriendlyError,
   gerarConteudoEmJSONComImagemStream,
   gerarGabaritoComPesquisa,
-  formatFriendlyError,
-} from "../api/worker.js";
-import { obterConfiguracaoIA } from "../ia/config.js";
-import { DataNormalizer } from "../normalizer/data-normalizer.js";
-import { renderizarQuestaoFinal } from "../render/final/render-questao.js";
-import {
-  prepararAreaDeResposta,
-  pushThought,
-} from "../sidebar/thoughts-scroll.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
-import {
-  coletarESalvarImagensParaEnvio,
-  prepararImagensParaEnvio,
-} from "./imagens.js";
+} from '../api/worker.js';
+import { obterConfiguracaoIA } from '../ia/config.js';
+import { DataNormalizer } from '../normalizer/data-normalizer.js';
+import { renderizarQuestaoFinal } from '../render/final/render-questao.js';
+import { prepararAreaDeResposta, pushThought } from '../sidebar/thoughts-scroll.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { coletarESalvarImagensParaEnvio, prepararImagensParaEnvio } from './imagens.js';
 
 export function iniciarEstadoProcessamento() {
   // 1. Verificação de Segurança
@@ -40,10 +34,8 @@ export function iniciarEstadoProcessamento() {
 }
 
 export function setarEstadoLoadingModal() {
-  const btnProcessar = document.querySelector(
-    "#cropConfirmModal .btn--primary",
-  );
-  const btnVoltar = document.querySelector("#cropConfirmModal .btn--secondary");
+  const btnProcessar = document.querySelector('#cropConfirmModal .btn--primary');
+  const btnVoltar = document.querySelector('#cropConfirmModal .btn--secondary');
 
   // Segurança: se não achar o botão principal, nem segue.
   if (!btnProcessar) return null;
@@ -51,7 +43,7 @@ export function setarEstadoLoadingModal() {
   const originalText = btnProcessar.innerText;
 
   // Aplica as mudanças visuais
-  btnProcessar.innerText = "Iniciando...";
+  btnProcessar.innerText = 'Iniciando...';
   btnProcessar.disabled = true;
   if (btnVoltar) btnVoltar.disabled = true;
 
@@ -69,14 +61,10 @@ export async function inicializarEnvioCompleto() {
   if (!styleviewerSidebar) return null; // Já estava processando
 
   // 2. Coleta as imagens cruas e salva backups
-  const { imagensAtuais, imagensSuporteQuestao } =
-    coletarESalvarImagensParaEnvio();
+  const { imagensAtuais, imagensSuporteQuestao } = coletarESalvarImagensParaEnvio();
 
   // 3. Processa/Carimba as imagens (pode demorar um pouco)
-  const listaImagens = await prepararImagensParaEnvio(
-    imagensAtuais,
-    imagensSuporteQuestao,
-  );
+  const listaImagens = await prepararImagensParaEnvio(imagensAtuais, imagensSuporteQuestao);
 
   // Se falhar no processamento, limpamos o passo 1
   if (!listaImagens) {
@@ -108,34 +96,34 @@ export function finalizarProcessamentoVisual() {
   window.__isProcessing = false;
 
   // Remove efeitos visuais (se houver)
-  const reopenBtn = document.getElementById("reopenSidebarBtn");
+  const reopenBtn = document.getElementById('reopenSidebarBtn');
   if (reopenBtn) reopenBtn.remove();
 }
 
 export function addGlowEffect(targetEl) {
   if (!targetEl) return;
 
-  targetEl.classList.add("glow-on-change");
+  targetEl.classList.add('glow-on-change');
 
   const removeGlow = () => {
-    targetEl.classList.remove("glow-on-change");
+    targetEl.classList.remove('glow-on-change');
   };
 
   // Remove após 4s de timeout OU se o usuário interagir
   setTimeout(removeGlow, 4000);
-  if (typeof targetEl.addEventListener === "function") {
-    targetEl.addEventListener("click", removeGlow, { once: true });
+  if (typeof targetEl.addEventListener === 'function') {
+    targetEl.addEventListener('click', removeGlow, { once: true });
   }
 }
 
 export function finalizarInterfacePosSucesso(styleviewerSidebar, uiState) {
   // 1. Limpeza Visual
   if (styleviewerSidebar) styleviewerSidebar.remove();
-  const btnResume = document.getElementById("resumeScrollBtn");
+  const btnResume = document.getElementById('resumeScrollBtn');
   if (btnResume) btnResume.remove();
 
   // 2. Feedback ao Usuário
-  customAlert("✅ Questão e gabarito processados com sucesso!", 3000);
+  customAlert('✅ Questão e gabarito processados com sucesso!', 3000);
 
   restaurarEstadoBotoes(uiState);
 }
@@ -156,18 +144,17 @@ export function restaurarEstadoBotoes(uiState) {
 }
 
 export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
-  let userMessage = "❌ Erro ao processar. Tente novamente.";
+  let userMessage = '❌ Erro ao processar. Tente novamente.';
 
-  if (error.message === "EMPTY_RESPONSE_ERROR") {
-    console.warn("Aviso: A IA retornou vazio (provável sobrecarga).");
+  if (error.message === 'EMPTY_RESPONSE_ERROR') {
+    console.warn('Aviso: A IA retornou vazio (provável sobrecarga).');
+    userMessage = '⚠️ A IA não respondeu (possível sobrecarga). Por favor, tente novamente.';
+  } else if (error.message === 'NETWORK_ERROR') {
     userMessage =
-      "⚠️ A IA não respondeu (possível sobrecarga). Por favor, tente novamente.";
-  } else if (error.message === "NETWORK_ERROR") {
-    userMessage =
-      "⚠️ Sem conexão de rede ou o servidor do Worker está inacessível. Verifique sua conexão e tente novamente.";
+      '⚠️ Sem conexão de rede ou o servidor do Worker está inacessível. Verifique sua conexão e tente novamente.';
   } else {
     // Só loga erro real se não for o caso do vazio
-    console.error("Erro no processamento:", error);
+    console.error('Erro no processamento:', error);
     const friendlyDetail = formatFriendlyError(error.message);
     userMessage = `❌ Falha na execução da IA: ${friendlyDetail}`;
   }
@@ -185,28 +172,28 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
 
   // 4. Tratamento de Aba vs Legado
   if (tabId) {
-    import("../ui/sidebar-tabs.js").then(({ updateTabStatus, addLogToQuestionTab }) => {
-      updateTabStatus(tabId, { status: "error" }, { suppressRender: true });
+    import('../ui/sidebar-tabs.js').then(({ updateTabStatus, addLogToQuestionTab }) => {
+      updateTabStatus(tabId, { status: 'error' }, { suppressRender: true });
       addLogToQuestionTab(tabId, `❌ **ERRO**: ${userMessage}`);
-      
+
       // Remove o spinner visual da aba atual
       const thoughtListEl = document.getElementById(`maiaThoughts-${tabId}`);
       if (thoughtListEl) {
-        const skeletons = thoughtListEl.querySelectorAll(".maia-thought-card--skeleton");
-        skeletons.forEach(sk => sk.remove());
+        const skeletons = thoughtListEl.querySelectorAll('.maia-thought-card--skeleton');
+        skeletons.forEach((sk) => sk.remove());
       }
-      
+
       // Também avisa ao BatchProcessor que esta aba liberou espaço (se aplicável), senão pode travar a fila
       window.dispatchEvent(
-        new CustomEvent("question-processing-error", {
-          detail: { tabId, error: error.message }
-        })
+        new CustomEvent('question-processing-error', {
+          detail: { tabId, error: error.message },
+        }),
       );
     });
   } else {
     // Se NÃO estiver em modo Tab (Aba), reabre o modal legado
-    const modal = document.getElementById("cropConfirmModal");
-    if (modal) modal.classList.add("visible");
+    const modal = document.getElementById('cropConfirmModal');
+    if (modal) modal.classList.add('visible');
   }
 
   // 5. Restaura os botões (Reutilizando a lógica)
@@ -216,14 +203,17 @@ export function tratarErroEnvio(error, uiState, refsLoader, tabId = null) {
 /**
  * Fluxo Unificado: Extrai questão E busca gabarito automaticamente
  */
-export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
+export async function confirmarEnvioIA(tabId = null, customInstruction = '') {
   // --- PASSO 1: PREPARAÇÃO DE DADOS E ESTADO ---
   const dadosIniciais = await inicializarEnvioCompleto();
   if (!dadosIniciais) {
     if (tabId) {
-      const { updateTabStatus, addLogToQuestionTab } = await import("../ui/sidebar-tabs.js");
-      updateTabStatus(tabId, { status: "error" });
-      addLogToQuestionTab(tabId, "Erro: Falha na inicialização do envio (sem imagens ou já em processamento).");
+      const { updateTabStatus, addLogToQuestionTab } = await import('../ui/sidebar-tabs.js');
+      updateTabStatus(tabId, { status: 'error' });
+      addLogToQuestionTab(
+        tabId,
+        'Erro: Falha na inicialização do envio (sem imagens ou já em processamento).',
+      );
     }
     return;
   }
@@ -232,18 +222,20 @@ export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
   // Se não veio customInstruction direta, tenta buscar do CropperState via tabId
   if (!customInstruction && tabId) {
     try {
-      const { getTabsState } = await import("../ui/sidebar-tabs.js");
-      const { CropperState } = await import("../cropper/cropper-state.js");
+      const { getTabsState } = await import('../ui/sidebar-tabs.js');
+      const { CropperState } = await import('../cropper/cropper-state.js');
       const tabs = getTabsState().tabs;
       const tab = tabs.find((t) => t.id === tabId);
       if (tab && tab.groupId) {
-        const group = CropperState.groups.find((g) => g.id === tab.groupId || String(g.id) === String(tab.groupId));
+        const group = CropperState.groups.find(
+          (g) => g.id === tab.groupId || String(g.id) === String(tab.groupId),
+        );
         if (group && group.customInstruction) {
           customInstruction = group.customInstruction;
         }
       }
     } catch (err) {
-      console.warn("Erro ao buscar instrução do grupo:", err);
+      console.warn('Erro ao buscar instrução do grupo:', err);
     }
   }
 
@@ -252,7 +244,7 @@ export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
   if (tabId) {
     abortController = new AbortController();
     // Registra o controller para que possa ser cancelado ao fechar a aba
-    const { registerAbortController } = await import("../ui/sidebar-tabs.js");
+    const { registerAbortController } = await import('../ui/sidebar-tabs.js');
     registerAbortController(tabId, abortController);
   }
 
@@ -261,7 +253,7 @@ export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
   let refsLoader = null;
 
   if (tabId) {
-    const { addLogToQuestionTab } = await import("../ui/sidebar-tabs.js");
+    const { addLogToQuestionTab } = await import('../ui/sidebar-tabs.js');
     setStatus = (s) => {
       if (s) addLogToQuestionTab(tabId, `[STATUS] ${s}`);
     };
@@ -276,15 +268,18 @@ export async function confirmarEnvioIA(tabId = null, customInstruction = "") {
     // ============================================================
     // FASE 1: EXTRAÇÃO DA QUESTÃO
     // ============================================================
-    setStatus("📝 [QUESTÃO] Enviando imagens para IA...");
+    setStatus('📝 [QUESTÃO] Enviando imagens para IA...');
 
     const { promptDaIA: promptQuestaoBase, JSONEsperado: JSONQuestao } =
-      obterConfiguracaoIA("prova");
+      obterConfiguracaoIA('prova');
 
     let promptQuestao = promptQuestaoBase;
     if (customInstruction && customInstruction.trim()) {
-      setStatus(`⚡ [PRIORIDADE MÁXIMA] Aplicando instrução personalizada: "${customInstruction.trim()}"`);
-      promptQuestao = `
+      setStatus(
+        `⚡ [PRIORIDADE MÁXIMA] Aplicando instrução personalizada: "${customInstruction.trim()}"`,
+      );
+      promptQuestao =
+        `
 ============================================================
 🚨🚨 INSTRUÇÃO DE PRIORIDADE MÁXIMA DO USUÁRIO 🚨🚨
 ESTA INSTRUÇÃO FOI FORNECIDA PELO USUÁRIO PARA ESTA EXTRAÇÃO ESPECÍFICA.
@@ -304,19 +299,19 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
       promptQuestao,
       JSONQuestao,
       listaImagens,
-      "image/jpeg",
+      'image/jpeg',
       {
         onStatus: (s) => setStatus(`📝 [QUESTÃO] ${s}`),
         onThought: (t) => pushThought(`📝 ${t}`, tabId),
-        onAnswerDelta: () => setStatus("📝 [QUESTÃO] Gerando JSON..."),
+        onAnswerDelta: () => setStatus('📝 [QUESTÃO] Gerando JSON...'),
         signal: abortController?.signal, // Passa o signal para cancelamento
       },
       {
-        model: window.selectedModelExtractorOcr || "models/gemini-3.5-flash",
-      }
+        model: window.selectedModelExtractorOcr || 'models/gemini-3.5-flash',
+      },
     );
 
-    console.log("Resposta QUESTÃO recebida:", respostaQuestao);
+    console.log('Resposta QUESTÃO recebida:', respostaQuestao);
 
     // Anexa imagens locais à questão
     enriquecerRespostaComImagensLocais(respostaQuestao);
@@ -332,10 +327,10 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
     // ============================================================
     // FASE 2: BUSCA DO GABARITO VIA PESQUISA
     // ============================================================
-    setStatus("🔍 [GABARITO] Iniciando pesquisa de resposta...");
+    setStatus('🔍 [GABARITO] Iniciando pesquisa de resposta...');
 
     const { promptDaIA: promptGabarito, JSONEsperado: JSONGabarito } =
-      obterConfiguracaoIA("gabarito");
+      obterConfiguracaoIA('gabarito');
 
     // Prepara texto da questão para ajudar na pesquisa
     const textoQuestao = JSON.stringify(respostaQuestao);
@@ -344,22 +339,22 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
       promptGabarito,
       JSONGabarito,
       listaImagens,
-      "image/jpeg",
+      'image/jpeg',
       {
         onStatus: (s) => setStatus(`🔍 [GABARITO] ${s}`),
         onThought: (t) => pushThought(`🔍 ${t}`, tabId),
-        onAnswerDelta: () => setStatus("🔍 [GABARITO] Gerando JSON..."),
+        onAnswerDelta: () => setStatus('🔍 [GABARITO] Gerando JSON...'),
         signal: abortController?.signal, // Passa o signal para cancelamento
       },
       listaImagens, // Usa as mesmas imagens para pesquisa
       textoQuestao, // Passa o texto da questão para ajudar na busca
       {
-        searchModel: window.selectedModelExtractorSearch || "models/gemini-3.5-flash",
-        gabaritoModel: window.selectedModelExtractorGabarito || "models/gemini-3.5-flash",
-      }
+        searchModel: window.selectedModelExtractorSearch || 'models/gemini-3.5-flash',
+        gabaritoModel: window.selectedModelExtractorGabarito || 'models/gemini-3.5-flash',
+      },
     );
 
-    console.log("Resposta GABARITO recebida:", respostaGabarito);
+    console.log('Resposta GABARITO recebida:', respostaGabarito);
 
     // Salva gabarito no global
     window.__ultimoGabaritoExtraido = respostaGabarito;
@@ -379,13 +374,13 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
       const clone = el.cloneNode(true);
 
       // Remove elementos esqueletos
-      const skeletons = clone.querySelectorAll(".maia-thought-card--skeleton");
+      const skeletons = clone.querySelectorAll('.maia-thought-card--skeleton');
       skeletons.forEach((sk) => sk.remove());
 
       return clone.innerHTML;
     };
 
-    const thoughtsElId = tabId ? `maiaThoughts-${tabId}` : "maiaThoughts";
+    const thoughtsElId = tabId ? `maiaThoughts-${tabId}` : 'maiaThoughts';
     const aiThoughtsHtml = captureAndSanitizeThoughts(thoughtsElId);
 
     finalizarProcessamentoVisual();
@@ -396,21 +391,20 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
     // ============================================================
     // NORMALIZAÇÃO FINAL (Instituição, Keywords e Prova)
     // ============================================================
-    setStatus("🧠 [NORMALIZAÇÃO] Padronizando metadados...");
+    setStatus('🧠 [NORMALIZAÇÃO] Padronizando metadados...');
 
     // 1. Tenta obter a Instituição do GABARITO (Créditos) ou Título do Material
     const creditosGabarito = window.__ultimoGabaritoExtraido?.creditos;
-    const tituloMaterial = document.getElementById("tituloMaterial")?.innerText;
+    const tituloMaterial = document.getElementById('tituloMaterial')?.innerText;
 
     // Prioridade 1: 'autorouinstituicao' do Gabarito (ex: "INEP", "FUVEST")
     let candidatoInstituicao =
-      creditosGabarito?.autorouinstituicao ||
-      creditosGabarito?.autor_ou_instituicao;
+      creditosGabarito?.autorouinstituicao || creditosGabarito?.autor_ou_instituicao;
 
     // Prioridade 2: Título do Material (se não tiver no gabarito)
     if (!candidatoInstituicao && tituloMaterial) {
       try {
-        const parts = tituloMaterial.split(" ");
+        const parts = tituloMaterial.split(' ');
         candidatoInstituicao = parts[0];
       } catch (e) {}
     }
@@ -418,7 +412,7 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
     if (candidatoInstituicao) {
       const instituicaoNormalizada = await DataNormalizer.normalize(
         candidatoInstituicao,
-        "institution",
+        'institution',
       );
       console.log(
         `[Normalizer] Instituição: '${candidatoInstituicao}' -> '${instituicaoNormalizada}'`,
@@ -429,22 +423,16 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
     }
 
     // 2. Bufferiza Prova (Exam)
-    const candidatoProva =
-      creditosGabarito?.material || creditosGabarito?.ano || tituloMaterial;
+    const candidatoProva = creditosGabarito?.material || creditosGabarito?.ano || tituloMaterial;
     if (candidatoProva) {
       // Se vier do material (ex: "ENEM 2025"), usa ele.
-      DataNormalizer.bufferTerm(candidatoProva, "exam");
+      DataNormalizer.bufferTerm(candidatoProva, 'exam');
     }
 
     // 3. Normaliza Keywords
-    if (
-      respostaQuestao.palavras_chave &&
-      Array.isArray(respostaQuestao.palavras_chave)
-    ) {
+    if (respostaQuestao.palavras_chave && Array.isArray(respostaQuestao.palavras_chave)) {
       respostaQuestao.palavras_chave = await Promise.all(
-        respostaQuestao.palavras_chave.map((k) =>
-          DataNormalizer.normalize(k, "keyword"),
-        ),
+        respostaQuestao.palavras_chave.map((k) => DataNormalizer.normalize(k, 'keyword')),
       );
     }
 
@@ -454,9 +442,9 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
 
     // Renderiza o resultado FINAL (questão + gabarito)
     if (tabId) {
-      import("../ui/sidebar-tabs.js").then(({ updateTabStatus }) => {
+      import('../ui/sidebar-tabs.js').then(({ updateTabStatus }) => {
         updateTabStatus(tabId, {
-          status: "complete",
+          status: 'complete',
           response: respostaQuestao, // Passa a questão, o render vai pegar o gabarito do global
           gabaritoResponse: respostaGabarito, // [BATCH FIX] Também armazena gabarito por aba
           aiThoughtsHtml: aiThoughtsHtml, // [NOVO] Passa o HTML limpo
@@ -472,11 +460,10 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
             const emptySlots = [];
             let imgIdx = 0; // FIX: Conta apenas blocos de imagem
             estrutura.forEach((bloco) => {
-              const tipo = (bloco?.tipo || "imagem").toLowerCase();
-              if (tipo === "imagem") {
+              const tipo = (bloco?.tipo || 'imagem').toLowerCase();
+              if (tipo === 'imagem') {
                 // Se não tem pdf_page E não tem url, é um slot vazio
-                const hasPdfData =
-                  bloco.pdf_page || bloco.pdfjs_x !== undefined;
+                const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
                 const hasUrl = bloco.url;
                 if (!hasPdfData && !hasUrl) {
                   emptySlots.push(`questao_img_${imgIdx}`);
@@ -488,25 +475,20 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
           };
 
           // Checa na questão
-          const questaoSlots = checkForEmptyImageBlocks(
-            respostaQuestao?.estrutura || [],
-          );
+          const questaoSlots = checkForEmptyImageBlocks(respostaQuestao?.estrutura || []);
 
           // Checa no gabarito
           const gabaritoData = window.__ultimoGabaritoExtraido;
-          let gabaritoSlots = [];
+          const gabaritoSlots = [];
           if (gabaritoData?.passos) {
             gabaritoData.passos.forEach((passo, passoIdx) => {
               (passo.estrutura || []).forEach((bloco, blocoIdx) => {
-                const tipo = (bloco?.tipo || "imagem").toLowerCase();
-                if (tipo === "imagem") {
-                  const hasPdfData =
-                    bloco.pdf_page || bloco.pdfjs_x !== undefined;
+                const tipo = (bloco?.tipo || 'imagem').toLowerCase();
+                if (tipo === 'imagem') {
+                  const hasPdfData = bloco.pdf_page || bloco.pdfjs_x !== undefined;
                   const hasUrl = bloco.url;
                   if (!hasPdfData && !hasUrl) {
-                    gabaritoSlots.push(
-                      `gabarito_passo${passoIdx}_img_${blocoIdx}`,
-                    );
+                    gabaritoSlots.push(`gabarito_passo${passoIdx}_img_${blocoIdx}`);
                   }
                 }
               });
@@ -514,13 +496,10 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
           }
 
           const allSlots = [...questaoSlots, ...gabaritoSlots];
-          console.log(
-            `[BatchProcessor] Slots vazios detectados: ${allSlots.length}`,
-            allSlots,
-          );
+          console.log(`[BatchProcessor] Slots vazios detectados: ${allSlots.length}`, allSlots);
 
           window.dispatchEvent(
-            new CustomEvent("question-processing-complete", {
+            new CustomEvent('question-processing-complete', {
               detail: {
                 tabId,
                 hasImageSlots: allSlots.length > 0,
@@ -540,20 +519,16 @@ APLIQUE A INSTRUÇÃO ACIMA COM PRIORIDADE MÁXIMA AO EXTRAIR OS DADOS DA QUEST�
     finalizarInterfacePosSucesso(styleviewerSidebar, uiState);
   } catch (error) {
     // Verifica se foi cancelado pelo usuário (fechou a aba)
-    if (error.name === "AbortError" || abortController?.signal?.aborted) {
-      console.log("[IA] Processamento cancelado pelo usuário");
+    if (error.name === 'AbortError' || abortController?.signal?.aborted) {
+      console.log('[IA] Processamento cancelado pelo usuário');
       window.__isProcessing = false;
       if (styleviewerSidebar) styleviewerSidebar.remove();
       restaurarEstadoBotoes(uiState);
       return; // Sai silenciosamente, sem mostrar erro
     }
 
-    if (error.message === "RECITATION_ERROR") {
-      handleRecitationError(
-        uiState,
-        refsLoader,
-        dadosIniciais.styleviewerSidebar,
-      );
+    if (error.message === 'RECITATION_ERROR') {
+      handleRecitationError(uiState, refsLoader, dadosIniciais.styleviewerSidebar);
     } else {
       tratarErroEnvio(error, uiState, refsLoader, tabId);
     }
@@ -609,17 +584,17 @@ export function handleRecitationError(uiState, refsLoader, styleviewerSidebar) {
 
   // 2. Feedback
   customAlert(
-    "⚠️ Conteúdo identificado, mas não estruturado (RECITAÇÃO). Por favor, edite manualmente.",
+    '⚠️ Conteúdo identificado, mas não estruturado (RECITAÇÃO). Por favor, edite manualmente.',
     5000,
   );
 
   // 3. Cria Skeleton
   const recitationSkeleton = {
-    identificacao: "⚠️ Questão não extraída",
-    conteudo: "", // Deixa vazio para não aparecer texto feio no card
+    identificacao: '⚠️ Questão não extraída',
+    conteudo: '', // Deixa vazio para não aparecer texto feio no card
     estrutura: [
       {
-        tipo: "texto",
+        tipo: 'texto',
         conteudo:
           '⚠️ HOUVE UM ERRO DE RECITAÇÃO. Clique em "Editar Conteúdo" para transcrever a questão manualmente.',
       },
@@ -640,6 +615,6 @@ export function handleRecitationError(uiState, refsLoader, styleviewerSidebar) {
   restaurarEstadoBotoes(uiState);
 
   // Fecha o modal de crop se estiver aberto (já que fomos para a tela de edição)
-  const modal = document.getElementById("cropConfirmModal");
-  if (modal) modal.classList.remove("visible");
+  const modal = document.getElementById('cropConfirmModal');
+  if (modal) modal.classList.remove('visible');
 }

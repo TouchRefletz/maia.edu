@@ -97,7 +97,9 @@
 }
 
 @keyframes admin-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .admin-layout-wrapper {
@@ -214,4 +216,3 @@
   color: #38bdf8;
   border: 1px solid rgba(56, 189, 248, 0.3);
 }
-

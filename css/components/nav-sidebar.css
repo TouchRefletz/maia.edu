@@ -265,7 +265,6 @@
   color: var(--color-success);
 }
 
-
 /* Config no rodapé */
 .nav-sidebar-config {
   margin-top: auto;
@@ -327,7 +326,9 @@
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .login-text {

@@ -1,6 +1,6 @@
-import { renderizar_estrutura_alternativa } from "../render/structure.js";
-import { hydrateBankCard } from "./bank-hydration";
-import { _calcularComplexidade } from "../render/ComplexityCard.tsx";
+import { _calcularComplexidade } from '../render/ComplexityCard.tsx';
+import { renderizar_estrutura_alternativa } from '../render/structure.js';
+import { hydrateBankCard } from './bank-hydration';
 import {
   gerarHtmlCorpoQuestao,
   renderBotaoScanGabarito,
@@ -9,33 +9,27 @@ import {
   renderMatrizComplexidade,
   renderPassosComDetalhes,
   renderRelatorioPesquisa,
-} from "./card-partes.js";
-import { prepararImagensVisualizacao } from "./imagens.js";
+} from './card-partes.js';
+import { prepararImagensVisualizacao } from './imagens.js';
 
 export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [], sourceUrl = null) {
-  if (sourceUrl && typeof window !== "undefined" && !window.__pdfOriginalUrl) {
+  if (sourceUrl && typeof window !== 'undefined' && !window.__pdfOriginalUrl) {
     window.__pdfOriginalUrl = sourceUrl;
   }
 
   // 1. Criação do elemento DOM
-  const card = document.createElement("div");
-  card.className = "q-card";
+  const card = document.createElement('div');
+  card.className = 'q-card';
   card.id = `card_${idFirebase}`;
 
   // 2. Configuração dos Datasets (Para Filtros)
-  card.dataset.materia = (q.materias_possiveis || []).join(" ");
-  card.dataset.origem = meta.material_origem || "";
+  card.dataset.materia = (q.materias_possiveis || []).join(' ');
+  card.dataset.origem = meta.material_origem || '';
 
   // Concatena texto da estrutura ou do enunciado legado para busca
-  const textoBusca = q.estrutura
-    ? q.estrutura.map((b) => b.conteudo).join(" ")
-    : q.enunciado || "";
+  const textoBusca = q.estrutura ? q.estrutura.map((b) => b.conteudo).join(' ') : q.enunciado || '';
 
-  card.dataset.texto = (
-    textoBusca +
-    " " +
-    (q.identificacao || "")
-  ).toLowerCase();
+  card.dataset.texto = (textoBusca + ' ' + (q.identificacao || '')).toLowerCase();
 
   // 3. Geração do HTML das Alternativas
   const cardId = `q_${idFirebase}`;
@@ -43,15 +37,16 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
   // Monta mapa de motivos por letra a partir de alternativas_analisadas
   const motivoMap = {};
   (g.alternativas_analisadas || []).forEach((aa) => {
-    const letraKey = String(aa.letra || "")
+    const letraKey = String(aa.letra || '')
       .trim()
       .toUpperCase();
     if (letraKey && aa.motivo) motivoMap[letraKey] = aa.motivo;
   });
 
-  const isDissertativa = q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+  const isDissertativa =
+    q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
-  let htmlAlts = "";
+  let htmlAlts = '';
 
   if (isDissertativa) {
     htmlAlts = `
@@ -90,7 +85,7 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
     htmlAlts = (q.alternativas || [])
       .map((alt) => {
         const letra = alt.letra.trim().toUpperCase();
-        let conteudoHtml = "";
+        let conteudoHtml = '';
 
         if (alt.estrutura) {
           // Passa imagens da questão e contexto 'banco'
@@ -98,18 +93,18 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
             alt.estrutura,
             letra,
             imgsOriginalQ,
-            "banco",
+            'banco',
           );
         } else {
-          conteudoHtml = alt.texto || "";
+          conteudoHtml = alt.texto || '';
         }
 
         // Escapa o motivo para uso seguro no atributo data
-        const motivoRaw = motivoMap[letra] || "";
+        const motivoRaw = motivoMap[letra] || '';
         const motivoEscapado = motivoRaw
-          .replace(/"/g, "&quot;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
 
         // Gera o botão interativo
         return `
@@ -125,7 +120,7 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
               <div class="q-opt-motivo" style="display:none;"></div>
           </button>`;
       })
-      .join("");
+      .join('');
   }
 
   return { card, htmlAlts, cardId };
@@ -144,27 +139,18 @@ export function gerarHtmlHeader(id, fullData) {
   const cred = g.creditos || {};
 
   // 1. Origem (IA vs Original)
-  let origemLabel = "Material Original";
-  let origemIcon = "📄";
-  const origemRaw = (
-    cred.origemresolucao ||
-    cred.origem_resolucao ||
-    ""
-  ).toLowerCase();
+  let origemLabel = 'Material Original';
+  let origemIcon = '📄';
+  const origemRaw = (cred.origemresolucao || cred.origem_resolucao || '').toLowerCase();
 
-  if (
-    origemRaw.includes("gerado") ||
-    origemRaw.includes("artificial") ||
-    origemRaw === "ia"
-  ) {
-    origemLabel = "Gerada com IA";
-    origemIcon = "🤖";
+  if (origemRaw.includes('gerado') || origemRaw.includes('artificial') || origemRaw === 'ia') {
+    origemLabel = 'Gerada com IA';
+    origemIcon = '🤖';
   }
 
   // 2. Instituição e Prova
-  const instituicao =
-    cred.autorouinstituicao || cred.autor_ou_instituicao || "";
-  const prova = meta.material_origem || "Banco Geral";
+  const instituicao = cred.autorouinstituicao || cred.autor_ou_instituicao || '';
+  const prova = meta.material_origem || 'Banco Geral';
 
   // Monta label composto: "Instituição - Prova" ou só "Prova"
   let tituloPrincipal = prova;
@@ -173,28 +159,28 @@ export function gerarHtmlHeader(id, fullData) {
   }
 
   // 3. Status
-  const statusRaw = (fullData.reviewStatus || "não revisada").toLowerCase();
+  const statusRaw = (fullData.reviewStatus || 'não revisada').toLowerCase();
   const statusMap = {
-    "não revisada": { label: "Não Revisada", color: "#6c757d", icon: "⚪" },
-    revisada: { label: "Revisada", color: "#28a745", icon: "🟢" },
-    verificada: { label: "Verificada", color: "#17a2b8", icon: "🔵" },
-    sinalizada: { label: "Sinalizada", color: "#ffc107", icon: "🟡" },
-    invalidada: { label: "Invalidada", color: "#dc3545", icon: "🔴" },
+    'não revisada': { label: 'Não Revisada', color: '#6c757d', icon: '⚪' },
+    revisada: { label: 'Revisada', color: '#28a745', icon: '🟢' },
+    verificada: { label: 'Verificada', color: '#17a2b8', icon: '🔵' },
+    sinalizada: { label: 'Sinalizada', color: '#ffc107', icon: '🟡' },
+    invalidada: { label: 'Invalidada', color: '#dc3545', icon: '🔴' },
   };
-  const statusInfo = statusMap[statusRaw] || statusMap["não revisada"];
+  const statusInfo = statusMap[statusRaw] || statusMap['não revisada'];
 
   // 4. Dificuldade (badge compacto)
-  let diffBadgeHtml = "";
+  let diffBadgeHtml = '';
   const calc = _calcularComplexidade(g.analise_complexidade);
   if (calc) {
     // Mapeia nível para hex concreto (var() não funciona com sufixo de opacidade)
     const diffColorMap = {
-      FÁCIL: { hex: "#28a745", icon: "🟢" },
-      MÉDIA: { hex: "#ffc107", icon: "🟡" },
-      DIFÍCIL: { hex: "#fd7e14", icon: "🟠" },
-      DESAFIO: { hex: "#dc3545", icon: "🔴" },
+      FÁCIL: { hex: '#28a745', icon: '🟢' },
+      MÉDIA: { hex: '#ffc107', icon: '🟡' },
+      DIFÍCIL: { hex: '#fd7e14', icon: '🟠' },
+      DESAFIO: { hex: '#dc3545', icon: '🔴' },
     };
-    const dc = diffColorMap[calc.nivel.texto] || diffColorMap["MÉDIA"];
+    const dc = diffColorMap[calc.nivel.texto] || diffColorMap['MÉDIA'];
     diffBadgeHtml = `
                     <!-- Badge Dificuldade -->
                     <span style="
@@ -209,7 +195,62 @@ export function gerarHtmlHeader(id, fullData) {
                     </span>`;
   }
   // Clean ID for UI display (remove composite prefix if present)
-  const displayId = id.includes("___") ? id.split("___")[1] : id;
+  const displayId = id.includes('___') ? id.split('___')[1] : id;
+
+  // 5. Projeto Científico Badge/Toggle
+  let provaKey = fullData.prova || '';
+  let questaoKey = fullData.id || id;
+  if (id.includes('___')) {
+    const parts = id.split('___');
+    provaKey = parts[0];
+    questaoKey = parts[1];
+  }
+
+  const mapKey = `${provaKey}/${questaoKey}`;
+  const isProjeto = !!(
+    fullData.isProjetoCientifico ||
+    (window.bancoState?.projetoCientificoMap && window.bancoState.projetoCientificoMap[mapKey])
+  );
+  const isAdmin = typeof window !== 'undefined' && window.isAdmin === true;
+
+  let projetoBadgeHtml = '';
+  if (isAdmin) {
+    projetoBadgeHtml = `
+      <button 
+        class="js-toggle-projeto-cientifico" 
+        data-prova="${provaKey}" 
+        data-id="${questaoKey}"
+        title="${isProjeto ? 'Clique para remover esta questão do Projeto Científico' : 'Clique para adicionar esta questão ao Projeto Científico'}"
+        style="
+          background: ${isProjeto ? 'rgba(50, 184, 198, 0.18)' : 'rgba(255,255,255,0.03)'};
+          color: ${isProjeto ? '#32b8c6' : 'var(--color-text-secondary)'};
+          border: 1px solid ${isProjeto ? '#32b8c6' : 'var(--color-border)'};
+          padding: 3px 8px;
+          border-radius: 4px;
+          cursor: pointer;
+          display: flex; align-items: center; gap: 5px;
+          font-size: 0.8rem; font-weight: 600;
+          transition: all 0.2s ease;
+        "
+      >
+        <span>🧪</span> ${isProjeto ? 'Projeto Científico' : '+ Add ao Projeto'}
+      </button>
+    `;
+  } else if (isProjeto) {
+    projetoBadgeHtml = `
+      <span style="
+        background: rgba(50, 184, 198, 0.15);
+        color: #32b8c6;
+        border: 1px solid rgba(50, 184, 198, 0.3);
+        padding: 3px 8px;
+        border-radius: 4px;
+        display: flex; align-items: center; gap: 5px;
+        font-weight: 600; font-size: 0.8rem;
+      ">
+        <span>🧪</span> Projeto Científico
+      </span>
+    `;
+  }
 
   return `
         <div class="q-header">
@@ -228,6 +269,8 @@ export function gerarHtmlHeader(id, fullData) {
                 <!-- Badges de Metadados -->
                 <div style="display:flex; gap:8px; align-items:center; font-size:0.8rem;">
                     
+                    ${projetoBadgeHtml}
+
                     <!-- Badge Origem -->
                     <span style="
                         background: rgba(255,255,255,0.05); 
@@ -262,20 +305,23 @@ export function gerarHtmlHeader(id, fullData) {
 /**
  * Gera a seção de tags (matérias e palavras-chave).
  */
-export function gerarHtmlTags(questao, cardId = "card_unknown") {
+export function gerarHtmlTags(questao, cardId = 'card_unknown') {
   const materias = (questao.materias_possiveis || [])
     .map((m) => `<span class="q-tag highlight">${m}</span>`)
-    .join("");
+    .join('');
 
-  const isDissertativa = questao.tipo_resposta === "dissertativa" || !questao.alternativas || questao.alternativas.length === 0;
+  const isDissertativa =
+    questao.tipo_resposta === 'dissertativa' ||
+    !questao.alternativas ||
+    questao.alternativas.length === 0;
   const rawKeywords = questao.palavras_chave || [];
-  
-  let keywordsHtml = "";
+
+  let keywordsHtml = '';
 
   if (rawKeywords.length > 0) {
     if (isDissertativa) {
-        const keywordsBody = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join("");
-        keywordsHtml = `
+      const keywordsBody = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join('');
+      keywordsHtml = `
             <div style="display: inline-flex; align-items: center; gap: 8px;">
                 <button class="q-tag js-toggle-kw-dissert" data-card-id="${cardId}" style="cursor: pointer; border: 1px dashed var(--color-border); background: transparent; font-weight: bold;" title="Mostrar palavras-chave">
                     👁️ Mostrar Palavras-Chave
@@ -286,7 +332,7 @@ export function gerarHtmlTags(questao, cardId = "card_unknown") {
             </div>
         `;
     } else {
-        keywordsHtml = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join("");
+      keywordsHtml = rawKeywords.map((t) => `<span class="q-tag">${t}</span>`).join('');
     }
   }
 
@@ -302,13 +348,13 @@ export function gerarHtmlTags(questao, cardId = "card_unknown") {
  */
 export function gerarHtmlResolucao(cardId, gabarito, rawImgsG, jsonImgsG) {
   const confianca = Math.round((gabarito.confianca || 0) * 100);
-  const justificativa = gabarito.justificativa_curta || "Sem justificativa.";
+  const justificativa = gabarito.justificativa_curta || 'Sem justificativa.';
 
   return `
         <div id="${cardId}_res" class="q-resolution" style="display:none;">
             <div class="q-res-header">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <span class="q-res-badge">Gabarito: ${gabarito.alternativa_correta || "Dissertativa"}</span>
+                    <span class="q-res-badge">Gabarito: ${gabarito.alternativa_correta || 'Dissertativa'}</span>
                     <span style="font-size:0.8rem; color:var(--color-text-secondary);">
                         Confiança IA: ${confianca}%
                     </span>
@@ -316,27 +362,31 @@ export function gerarHtmlResolucao(cardId, gabarito, rawImgsG, jsonImgsG) {
             </div>
             
           ${(() => {
-              const resModeloRaw = gabarito.resposta_modelo || gabarito.respostaModelo;
-              if (!resModeloRaw) return "";
-              
-              let padronizado = String(resModeloRaw)
-                .replace(/```[a-zA-Z]*\n?/g, '')
-                .replace(/```/g, '');
-              padronizado = padronizado.split('\n').map(l => l.trimStart()).join('\n').trim();
+            const resModeloRaw = gabarito.resposta_modelo || gabarito.respostaModelo;
+            if (!resModeloRaw) return '';
 
-              const safeDataRaw = padronizado
-                .replace(/"/g, "&quot;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
+            let padronizado = String(resModeloRaw)
+              .replace(/```[a-zA-Z]*\n?/g, '')
+              .replace(/```/g, '');
+            padronizado = padronizado
+              .split('\n')
+              .map((l) => l.trimStart())
+              .join('\n')
+              .trim();
 
-              return `
+            const safeDataRaw = padronizado
+              .replace(/"/g, '&quot;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+
+            return `
                 <div class="q-res-section static-render-target">
                     <span class="q-res-label">Resposta Modelo Esperada</span>
                     <div class="markdown-content" data-raw="${safeDataRaw}" style="margin:0; line-height:1.5; padding: 10px; background: rgba(34,197,94,0.05); border-left: 3px solid var(--color-success); border-radius: 4px;">
                     </div>
                 </div>
               `;
-            })()}
+          })()}
 
             <div class="q-res-section static-render-target">
                 <span class="q-res-label">Justificativa Base</span>
@@ -360,11 +410,11 @@ export function gerarHtmlFooter(cardId, imgsOriginalQ, jsonImgsQ, sourceUrl) {
   const btnScan =
     imgsOriginalQ.length > 0
       ? `<button class="q-action-link js-ver-scan" data-imgs="${jsonImgsQ}">📄 Ver Original (Enunciado)</button>`
-      : "";
+      : '';
 
   const btnSource = sourceUrl
     ? `<button onclick="window.open('${sourceUrl}', '_blank')" class="q-action-link" title="Abrir Prova Original">🔗 Ver Fonte Original</button>`
-    : "";
+    : '';
 
   return `
         <div class="q-footer">
@@ -395,11 +445,7 @@ export function criarCardTecnico(idFirebase, fullData) {
   } = prepararImagensVisualizacao(fullData);
 
   // 2. Prepara o conteúdo do corpo da questão
-  const htmlCorpoQuestao = gerarHtmlCorpoQuestao(
-    q,
-    imgsOriginalQ,
-    htmlImgsSuporte,
-  );
+  const htmlCorpoQuestao = gerarHtmlCorpoQuestao(q, imgsOriginalQ, htmlImgsSuporte);
 
   const sourceUrl =
     meta.source_url ||
@@ -433,7 +479,7 @@ export function criarCardTecnico(idFirebase, fullData) {
     `<div class="q-options" id="${cardId}_opts">${htmlAlts}</div>`,
     gerarHtmlResolucao(cardId, g, rawImgsG, jsonImgsG),
     gerarHtmlFooter(cardId, imgsOriginalQ, jsonImgsQ, sourceUrl),
-  ].join("");
+  ].join('');
 
   // 5. Hidratação dos componentes React (Questão e Passos)
   hydrateBankCard(card, {

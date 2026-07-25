@@ -1,11 +1,11 @@
-import { ref, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { db, auth } from "../main.js";
-import { customAlert } from "./GlobalAlertsLogic.tsx";
-import { gerarTelaInicial } from "../app/telas.js";
-import { openAddQuestionsModal } from "./add-questions-modal.js";
-import { criarCardTecnico } from "../banco/card-template.js";
-import { renderLatexIn } from "../libs/loader.tsx";
-import { verificarSeAdmin, normalizarJsonApendiceB, lerArquivoJson } from "./admin-panel.js";
+import { get, ref } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { gerarTelaInicial } from '../app/telas.js';
+import { criarCardTecnico } from '../banco/card-template.js';
+import { renderLatexIn } from '../libs/loader.tsx';
+import { auth, db } from '../main.js';
+import { openAddQuestionsModal } from './add-questions-modal.js';
+import { lerArquivoJson, normalizarJsonApendiceB, verificarSeAdmin } from './admin-panel.js';
+import { customAlert } from './GlobalAlertsLogic.tsx';
 
 /**
  * Inicializa a tela dedicada do Apêndice B.
@@ -13,7 +13,7 @@ import { verificarSeAdmin, normalizarJsonApendiceB, lerArquivoJson } from "./adm
 export async function iniciarModoApendiceB() {
   const user = auth.currentUser;
   if (!user) {
-    customAlert("⚠️ Faça login primeiro.");
+    customAlert('⚠️ Faça login primeiro.');
     gerarTelaInicial();
     return;
   }
@@ -22,16 +22,11 @@ export async function iniciarModoApendiceB() {
   document.body.innerHTML = `
     <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:var(--color-bg); color:var(--color-text); font-family: system-ui, sans-serif;">
       <div class="admin-spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
-      <p style="margin-top:15px; font-weight:500;">Verificando permissões de administrador...</p>
+      <p style="margin-top:15px; font-weight:500;">Carregando Apêndice B...</p>
     </div>
   `;
 
   const isAdmin = await verificarSeAdmin(user.uid);
-  if (!isAdmin) {
-    customAlert("⛔ Acesso negado: Você não possui privilégios de administrador.");
-    gerarTelaInicial();
-    return;
-  }
 
   // Renderiza layout principal com barra de abas integradas (estilo Maia.edu)
   document.body.innerHTML = `
@@ -45,16 +40,16 @@ export async function iniciarModoApendiceB() {
 
         <!-- Barra de Navegação Interna (Tabs) -->
         <div class="apendice-tabs-nav" style="display: flex; gap: 10px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 24px;">
-          <button id="tabApendiceTriage" class="nav-tab-btn active" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: var(--color-primary); color: var(--color-btn-primary-text); cursor: pointer; font-weight: bold; transition: all 0.2s;">
+          <button id="tabApendiceTriage" class="nav-tab-btn ${isAdmin ? 'active' : ''}" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: ${isAdmin ? 'var(--color-primary)' : 'none'}; color: ${isAdmin ? 'var(--color-btn-primary-text)' : 'var(--color-text-secondary)'}; cursor: pointer; font-weight: bold; transition: all 0.2s; ${isAdmin ? '' : 'display: none;'}">
             🔬 Triagem Individual
           </button>
-          <button id="tabApendiceDashboard" class="nav-tab-btn" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: none; color: var(--color-text-secondary); cursor: pointer; font-weight: bold; transition: all 0.2s;">
+          <button id="tabApendiceDashboard" class="nav-tab-btn ${isAdmin ? '' : 'active'}" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: ${isAdmin ? 'none' : 'var(--color-primary)'}; color: ${isAdmin ? 'var(--color-text-secondary)' : 'var(--color-btn-primary-text)'}; cursor: pointer; font-weight: bold; transition: all 0.2s;">
             📊 Dashboard de Resultados (TRI vs. IA)
           </button>
         </div>
 
         <!-- CONTAINER 1: Triagem Individual -->
-        <div id="containerApendiceTriage" style="display: block;">
+        <div id="containerApendiceTriage" style="display: ${isAdmin ? 'block' : 'none'};">
           <div style="margin-bottom: 24px;">
             <p style="margin: 0 0 16px 0; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.5;">
               Selecione uma questão do banco de dados do projeto para avaliar a complexidade usando o modelo de inteligência artificial <strong>Gemma 4 31B IT</strong> de forma fixa.
@@ -73,7 +68,7 @@ export async function iniciarModoApendiceB() {
         </div>
 
         <!-- CONTAINER 2: Dashboard de Resultados -->
-        <div id="containerApendiceDashboard" style="display: none;">
+        <div id="containerApendiceDashboard" style="display: ${isAdmin ? 'none' : 'block'};">
           <div id="dashboardLoader" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px;">
             <div class="admin-spinner" style="width: 32px; height: 32px; border-width: 3px; border-top-color: var(--color-primary);"></div>
             <p style="margin-top: 12px; color: var(--color-text-secondary); font-size: 0.9rem;">Carregando estatísticas de validação...</p>
@@ -88,47 +83,54 @@ export async function iniciarModoApendiceB() {
   `;
 
   // Setup Listeners das Abas
-  const tabTriage = document.getElementById("tabApendiceTriage");
-  const tabDashboard = document.getElementById("tabApendiceDashboard");
-  const cTriage = document.getElementById("containerApendiceTriage");
-  const cDashboard = document.getElementById("containerApendiceDashboard");
+  const tabTriage = document.getElementById('tabApendiceTriage');
+  const tabDashboard = document.getElementById('tabApendiceDashboard');
+  const cTriage = document.getElementById('containerApendiceTriage');
+  const cDashboard = document.getElementById('containerApendiceDashboard');
 
-  tabTriage.addEventListener("click", () => {
-    tabTriage.style.background = "var(--color-primary)";
-    tabTriage.style.color = "var(--color-btn-primary-text)";
-    tabTriage.classList.add("active");
-    
-    tabDashboard.style.background = "none";
-    tabDashboard.style.color = "var(--color-text-secondary)";
-    tabDashboard.classList.remove("active");
-    
-    cTriage.style.display = "block";
-    cDashboard.style.display = "none";
+  tabTriage?.addEventListener('click', () => {
+    tabTriage.style.background = 'var(--color-primary)';
+    tabTriage.style.color = 'var(--color-btn-primary-text)';
+    tabTriage.classList.add('active');
+
+    tabDashboard.style.background = 'none';
+    tabDashboard.style.color = 'var(--color-text-secondary)';
+    tabDashboard.classList.remove('active');
+
+    cTriage.style.display = 'block';
+    cDashboard.style.display = 'none';
   });
 
-  tabDashboard.addEventListener("click", () => {
-    tabDashboard.style.background = "var(--color-primary)";
-    tabDashboard.style.color = "var(--color-btn-primary-text)";
-    tabDashboard.classList.add("active");
-    
-    tabTriage.style.background = "none";
-    tabTriage.style.color = "var(--color-text-secondary)";
-    tabTriage.classList.remove("active");
-    
-    cTriage.style.display = "none";
-    cDashboard.style.display = "block";
-    
+  tabDashboard?.addEventListener('click', () => {
+    tabDashboard.style.background = 'var(--color-primary)';
+    tabDashboard.style.color = 'var(--color-btn-primary-text)';
+    tabDashboard.classList.add('active');
+
+    if (tabTriage) {
+      tabTriage.style.background = 'none';
+      tabTriage.style.color = 'var(--color-text-secondary)';
+      tabTriage.classList.remove('active');
+    }
+
+    cTriage.style.display = 'none';
+    cDashboard.style.display = 'block';
+
     carregarDashboardApendiceB();
   });
 
+  // Se o usuário não for admin, carrega o dashboard diretamente
+  if (!isAdmin) {
+    carregarDashboardApendiceB();
+  }
+
   // Setup Listeners da Triagem
-  const btnSelect = document.getElementById("btnSelectQuestionApendiceB");
-  btnSelect?.addEventListener("click", () => {
+  const btnSelect = document.getElementById('btnSelectQuestionApendiceB');
+  btnSelect?.addEventListener('click', () => {
     openAddQuestionsModal();
   });
 
-  const voltarBtn = document.querySelector(".js-voltar-inicio");
-  voltarBtn?.addEventListener("click", () => {
+  const voltarBtn = document.querySelector('.js-voltar-inicio');
+  voltarBtn?.addEventListener('click', () => {
     gerarTelaInicial();
   });
 
@@ -140,16 +142,16 @@ export async function iniciarModoApendiceB() {
     }
   };
 
-  window.removeEventListener("questions-selected", window._currentApendiceBListener);
+  window.removeEventListener('questions-selected', window._currentApendiceBListener);
   window._currentApendiceBListener = handleSelectedQuestion;
-  window.addEventListener("questions-selected", handleSelectedQuestion);
+  window.addEventListener('questions-selected', handleSelectedQuestion);
 }
 
 // -------------------------------------------------------------
 // FUNÇÕES DE TRIAGEM INDIVIDUAL (Existentes)
 // -------------------------------------------------------------
 async function carregarQuestaoApendiceB(selected) {
-  const contentArea = document.getElementById("apendiceBContentArea");
+  const contentArea = document.getElementById('apendiceBContentArea');
   if (!contentArea) return;
 
   const { id, prova, fullData } = selected;
@@ -168,20 +170,20 @@ async function carregarQuestaoApendiceB(selected) {
     </div>
   `;
 
-  const previewCardContainer = document.getElementById("apendiceBQuestionPreviewCard");
+  const previewCardContainer = document.getElementById('apendiceBQuestionPreviewCard');
   if (previewCardContainer) {
     if (!fullData.meta) fullData.meta = {};
     if (!fullData.meta.material_origem) {
-      fullData.meta.material_origem = prova.replace(/_/g, " ");
+      fullData.meta.material_origem = prova.replace(/_/g, ' ');
     }
     const card = criarCardTecnico(id, fullData);
     previewCardContainer.appendChild(card);
-    if (typeof renderLatexIn === "function") {
+    if (typeof renderLatexIn === 'function') {
       renderLatexIn(card);
     }
   }
 
-  const consolePanel = document.getElementById("apendiceBConsolePanel");
+  const consolePanel = document.getElementById('apendiceBConsolePanel');
   try {
     const statusRef = ref(db, `experimentos_apendice_b_status/${prova}/${id}`);
     const statusSnap = await get(statusRef);
@@ -191,7 +193,7 @@ async function carregarQuestaoApendiceB(selected) {
       renderApendiceBPendenteScreen(consolePanel, prova, id, fullData);
     }
   } catch (err) {
-    console.error("Erro ao carregar status do Apêndice B:", err);
+    console.error('Erro ao carregar status do Apêndice B:', err);
     consolePanel.innerHTML = `<div style="color:var(--color-error);">Erro ao carregar status: ${err.message}</div>`;
   }
 }
@@ -214,11 +216,17 @@ function renderApendiceBPendenteScreen(container, nomeProva, idQuestao, fullData
     </div>
   `;
 
-  container.querySelector("#btnRodarApendiceBScreen").addEventListener("click", () => {
+  container.querySelector('#btnRodarApendiceBScreen').addEventListener('click', () => {
     rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
   });
 
-  setupImportarJsonButton(container.querySelector("#btnImportarJsonPendente"), container, nomeProva, idQuestao, fullData);
+  setupImportarJsonButton(
+    container.querySelector('#btnImportarJsonPendente'),
+    container,
+    nomeProva,
+    idQuestao,
+    fullData,
+  );
 }
 
 async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData) {
@@ -239,9 +247,9 @@ async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, 
     </div>
   `;
 
-  const statusText = container.querySelector("#apendiceBStatusText span:last-child");
-  const thoughtsBox = container.querySelector("#apendiceBThoughts");
-  const responseBox = container.querySelector("#apendiceBResponse");
+  const statusText = container.querySelector('#apendiceBStatusText span:last-child');
+  const thoughtsBox = container.querySelector('#apendiceBThoughts');
+  const responseBox = container.querySelector('#apendiceBResponse');
 
   const handlers = {
     onStatus: (msg) => {
@@ -254,33 +262,35 @@ async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, 
       }
     },
     onReset: () => {
-      if (thoughtsBox) thoughtsBox.textContent = "";
-      if (responseBox) responseBox.textContent = "";
+      if (thoughtsBox) thoughtsBox.textContent = '';
+      if (responseBox) responseBox.textContent = '';
     },
     onAnswerDelta: (delta) => {
       if (responseBox) {
         responseBox.textContent += delta;
         responseBox.scrollTop = responseBox.scrollHeight;
       }
-    }
+    },
   };
 
   try {
-    const { executarTriageApendiceB } = await import("../chat/apendice-b-pipeline.js");
+    const { executarTriageApendiceB } = await import('../chat/apendice-b-pipeline.js');
     const result = await executarTriageApendiceB(
       { id: idQuestao, prova: nomeProva, fullData },
-      handlers
+      handlers,
     );
 
     statusText.parentElement.innerHTML = `✅ Experimento finalizado com sucesso em ${result.latency_sec}s!`;
 
-    const { ref: dbRef, set } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
-    
+    const { ref: dbRef, set } = await import(
+      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+    );
+
     const statusData = {
-      status: "rodado",
+      status: 'rodado',
       timestamp: result.timestamp,
       pontuacao: result.response_text?.pontuacao_final_complexidade || null,
-      classificacao: result.response_text?.classificacao_dificuldade || null
+      classificacao: result.response_text?.classificacao_dificuldade || null,
     };
 
     await set(dbRef(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`), statusData);
@@ -293,34 +303,38 @@ async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, 
     const itemKey = `${nomeProva}::${idQuestao}`;
     const itemEl = document.querySelector(`.question-item[data-key="${itemKey}"]`);
     if (itemEl) {
-      const badge = itemEl.querySelector(".apendice-b-status-badge");
+      const badge = itemEl.querySelector('.apendice-b-status-badge');
       if (badge) {
-        badge.textContent = "🧪 OK";
-        badge.style.background = "rgba(40, 167, 69, 0.15)";
-        badge.style.color = "#28a745";
-        badge.style.borderColor = "rgba(40, 167, 69, 0.3)";
+        badge.textContent = '🧪 OK';
+        badge.style.background = 'rgba(40, 167, 69, 0.15)';
+        badge.style.color = '#28a745';
+        badge.style.borderColor = 'rgba(40, 167, 69, 0.3)';
       }
 
-      const checkbox = itemEl.querySelector(".question-checkbox");
+      const checkbox = itemEl.querySelector('.question-checkbox');
       if (checkbox && !checkbox.checked) {
         checkbox.checked = true;
-        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       }
     }
 
     const seen = new WeakSet();
-    const safeJson = JSON.stringify(result, (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
-      }
-      return value;
-    }, 2);
+    const safeJson = JSON.stringify(
+      result,
+      (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+        return value;
+      },
+      2,
+    );
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `maia_debug_apendice_b_${idQuestao}.json`);
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(safeJson);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `maia_debug_apendice_b_${idQuestao}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -328,22 +342,29 @@ async function rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, 
     setTimeout(() => {
       renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData, result);
     }, 1200);
-
   } catch (error) {
-    console.error("Erro no experimento:", error);
+    console.error('Erro no experimento:', error);
     if (statusText) {
       statusText.parentElement.innerHTML = `❌ Erro: ${error.message}`;
     }
-    const retryBtn = document.createElement("button");
-    retryBtn.className = "btn btn--primary";
-    retryBtn.style.cssText = "margin-top: 10px; width: 100%; border: none; border-radius: 6px; padding: 10px; cursor: pointer; background: var(--color-primary); color: white;";
-    retryBtn.textContent = "🔄 Tentar Novamente";
-    retryBtn.onclick = () => rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'btn btn--primary';
+    retryBtn.style.cssText =
+      'margin-top: 10px; width: 100%; border: none; border-radius: 6px; padding: 10px; cursor: pointer; background: var(--color-primary); color: white;';
+    retryBtn.textContent = '🔄 Tentar Novamente';
+    retryBtn.onclick = () =>
+      rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
     container.appendChild(retryBtn);
   }
 }
 
-async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData, cachedResult = null) {
+async function renderApendiceBConcluidoScreen(
+  container,
+  nomeProva,
+  idQuestao,
+  fullData,
+  cachedResult = null,
+) {
   let result = cachedResult;
 
   if (!result) {
@@ -355,13 +376,15 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
     `;
 
     try {
-      const { ref: dbRef, get } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+      const { ref: dbRef, get } = await import(
+        'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+      );
       const snap = await get(dbRef(db, `experimentos_apendice_b/${nomeProva}/${idQuestao}`));
       if (snap.exists()) {
         result = snap.val();
       }
     } catch (e) {
-      console.error("Erro ao ler dados do Firebase:", e);
+      console.error('Erro ao ler dados do Firebase:', e);
     }
   }
 
@@ -372,7 +395,8 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
       </div>
       <button class="btn btn--outline" id="btnRetryLoadScreen" style="margin-top: 10px; width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; cursor: pointer; color: var(--color-text);">Tentar Novamente</button>
     `;
-    container.querySelector("#btnRetryLoadScreen").onclick = () => renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData);
+    container.querySelector('#btnRetryLoadScreen').onclick = () =>
+      renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData);
     return;
   }
 
@@ -380,18 +404,19 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
   const criterios = scoreData.criterios || {};
 
   const critList = [
-    { label: "Enunciado", key: "complexidade_enunciado" },
-    { label: "Visuais", key: "elementos_visuais" },
-    { label: "Especificidade", key: "especificidade_dominio" },
-    { label: "Raciocínio", key: "raciocinio_complexo" },
-    { label: "Resposta", key: "resposta_complexa" }
+    { label: 'Enunciado', key: 'complexidade_enunciado' },
+    { label: 'Visuais', key: 'elementos_visuais' },
+    { label: 'Especificidade', key: 'especificidade_dominio' },
+    { label: 'Raciocínio', key: 'raciocinio_complexo' },
+    { label: 'Resposta', key: 'resposta_complexa' },
   ];
 
-  const rowsHtml = critList.map(c => {
-    const critObj = criterios[c.key] || {};
-    const nota = critObj.nota || 0;
-    const justificativa = critObj.justificativa || "Sem justificativa.";
-    return `
+  const rowsHtml = critList
+    .map((c) => {
+      const critObj = criterios[c.key] || {};
+      const nota = critObj.nota || 0;
+      const justificativa = critObj.justificativa || 'Sem justificativa.';
+      return `
       <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-radius: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 0.85rem;">
           <span>${c.label}</span>
@@ -402,9 +427,10 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
         </div>
       </div>
     `;
-  }).join("");
+    })
+    .join('');
 
-  const formattedDate = new Date(result.timestamp).toLocaleString("pt-BR");
+  const formattedDate = new Date(result.timestamp).toLocaleString('pt-BR');
 
   container.innerHTML = `
     <div style="background: rgba(40, 167, 69, 0.08); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; color: #28a745;">
@@ -421,7 +447,7 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
       </div>
       <div style="flex: 1; background: rgba(var(--color-primary-rgb), 0.05); border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; text-align: center;">
         <div style="font-size: 0.7rem; color: var(--color-text-secondary); text-transform: uppercase;">Classificação</div>
-        <div style="font-size: 1.2rem; font-weight: bold; margin-top: 6px; color: var(--color-text);">${scoreData.classificacao_dificuldade || "N/A"}</div>
+        <div style="font-size: 1.2rem; font-weight: bold; margin-top: 6px; color: var(--color-text);">${scoreData.classificacao_dificuldade || 'N/A'}</div>
       </div>
     </div>
     
@@ -445,28 +471,38 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
     </div>
   `;
 
-  container.querySelector("#btnDownloadDebugJsonScreen").onclick = () => {
+  container.querySelector('#btnDownloadDebugJsonScreen').onclick = () => {
     const seen = new WeakSet();
-    const safeJson = JSON.stringify(result, (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) return "[Circular]";
-        seen.add(value);
-      }
-      return value;
-    }, 2);
+    const safeJson = JSON.stringify(
+      result,
+      (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+        return value;
+      },
+      2,
+    );
 
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeJson);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `maia_debug_apendice_b_${idQuestao}.json`);
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(safeJson);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `maia_debug_apendice_b_${idQuestao}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
   };
 
-  setupImportarJsonButton(container.querySelector("#btnImportarNovoJsonApendiceBScreen"), container, nomeProva, idQuestao, fullData);
+  setupImportarJsonButton(
+    container.querySelector('#btnImportarNovoJsonApendiceBScreen'),
+    container,
+    nomeProva,
+    idQuestao,
+    fullData,
+  );
 
-  container.querySelector("#btnRefazerApendiceBScreen").onclick = () => {
+  container.querySelector('#btnRefazerApendiceBScreen').onclick = () => {
     rodarExperimentoApendiceBScreen(container, nomeProva, idQuestao, fullData);
   };
 }
@@ -476,10 +512,10 @@ async function renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, f
  */
 function setupImportarJsonButton(button, container, nomeProva, idQuestao, fullData) {
   if (!button) return;
-  button.addEventListener("click", () => {
-    const hiddenInput = document.createElement("input");
-    hiddenInput.type = "file";
-    hiddenInput.accept = ".json,application/json";
+  button.addEventListener('click', () => {
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'file';
+    hiddenInput.accept = '.json,application/json';
     hiddenInput.onchange = async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -487,10 +523,12 @@ function setupImportarJsonButton(button, container, nomeProva, idQuestao, fullDa
         const jsonObj = await lerArquivoJson(file);
         const { finalObj, statusData } = normalizarJsonApendiceB(jsonObj);
 
-        const { ref: dbRef, set } = await import("https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js");
+        const { ref: dbRef, set } = await import(
+          'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
+        );
         await Promise.all([
           set(dbRef(db, `experimentos_apendice_b_status/${nomeProva}/${idQuestao}`), statusData),
-          set(dbRef(db, `experimentos_apendice_b/${nomeProva}/${idQuestao}`), finalObj)
+          set(dbRef(db, `experimentos_apendice_b/${nomeProva}/${idQuestao}`), finalObj),
         ]);
 
         window.bancoState = window.bancoState || {};
@@ -500,7 +538,7 @@ function setupImportarJsonButton(button, container, nomeProva, idQuestao, fullDa
         customAlert(`✅ JSON de Apêndice B vinculado com sucesso à questão "${idQuestao}"!`);
         renderApendiceBConcluidoScreen(container, nomeProva, idQuestao, fullData, finalObj);
       } catch (err) {
-        console.error("Erro ao importar JSON:", err);
+        console.error('Erro ao importar JSON:', err);
         customAlert(`❌ Falha ao importar JSON: ${err.message}`);
       }
     };
@@ -515,103 +553,90 @@ let dashboardCarregado = false;
 
 async function carregarDashboardApendiceB() {
   if (dashboardCarregado) return; // Carrega apenas uma vez por inicialização da tela
-  
-  const loader = document.getElementById("dashboardLoader");
-  const content = document.getElementById("dashboardContent");
-  
+
+  const loader = document.getElementById('dashboardLoader');
+  const content = document.getElementById('dashboardContent');
+
   try {
     // 1. Carrega Chart.js de forma assíncrona se não estiver disponível
     await new Promise((resolve, reject) => {
       if (window.Chart) return resolve();
-      const script = document.createElement("script");
-      script.src = "https://cdn.jsdelivr.net/npm/chart.js";
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
       script.onload = resolve;
       script.onerror = reject;
       document.head.appendChild(script);
     });
 
     // 2. Carrega estatísticas compiladas do arquivo JSON
-    const response = await fetch("../../experiments/stats_summary.json");
+    const response = await fetch('../../experiments/stats_summary.json');
     if (!response.ok) {
-      throw new Error(`Não foi possível ler as estatísticas de validação (../../experiments/stats_summary.json). Rodou o script Python?`);
+      throw new Error(
+        `Não foi possível ler as estatísticas de validação (../../experiments/stats_summary.json). Rodou o script Python?`,
+      );
     }
     const stats = await response.json();
 
-    // 3. Oculta loader e renderiza esqueleto do Dashboard com seletores de 6 abas (5 áreas + Geral)
-    loader.style.display = "none";
-    content.style.display = "flex";
-    content.style.flexDirection = "column";
-    
+    // 3. Oculta loader e renderiza esqueleto do Dashboard com escopo 50 Questões (Geral 50, LC, CH). Exatas/Natureza/125 ocultas por padrão.
+    loader.style.display = 'none';
+    content.style.display = 'flex';
+    content.style.flexDirection = 'column';
+
     content.innerHTML = `
-      <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 15px; width: 100%; flex-wrap: wrap;">
-        <button id="btnApendiceBTabLinguagens" class="nav-tab-btn active" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-btn-primary-text); font-size: 0.85rem;">
+      <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 15px; width: 100%; flex-wrap: wrap; align-items: center;">
+        <button id="btnApendiceBTabHumanasLinguagens" class="nav-tab-btn active" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-btn-primary-text); font-size: 0.85rem;">
+          📊 Geral (50 Questões)
+        </button>
+        <button id="btnApendiceBTabLinguagens" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
           📖 Linguagens (LC)
         </button>
         <button id="btnApendiceBTabHumanas" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
           🌍 Humanas (CH)
         </button>
-        <button id="btnApendiceBTabNatureza" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          🌿 Natureza (CN)
-        </button>
-        <button id="btnApendiceBTabMatematica" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          📐 Matemática (MT)
-        </button>
-        <button id="btnApendiceBTabInterdisciplinar" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          🔄 Interdisciplinar (FUVEST)
-        </button>
-        <button id="btnApendiceBTabConsolidado" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          📊 Geral (125 Questões)
-        </button>
       </div>
       <div id="apendiceBDashboardDataContainer" style="display: flex; flex-direction: column; gap: 20px; width: 100%;"></div>
     `;
 
-    const dataContainer = document.getElementById("apendiceBDashboardDataContainer");
-    const btnLinguagens = document.getElementById("btnApendiceBTabLinguagens");
-    const btnHumanas = document.getElementById("btnApendiceBTabHumanas");
-    const btnNatureza = document.getElementById("btnApendiceBTabNatureza");
-    const btnMatematica = document.getElementById("btnApendiceBTabMatematica");
-    const btnInterdisciplinar = document.getElementById("btnApendiceBTabInterdisciplinar");
-    const btnConsolidado = document.getElementById("btnApendiceBTabConsolidado");
+    const dataContainer = document.getElementById('apendiceBDashboardDataContainer');
+    const btnHumanasLinguagens = document.getElementById('btnApendiceBTabHumanasLinguagens');
+    const btnLinguagens = document.getElementById('btnApendiceBTabLinguagens');
+    const btnHumanas = document.getElementById('btnApendiceBTabHumanas');
 
     const tabs = [
+      { btn: btnHumanasLinguagens, key: 'humanas_linguagens' },
       { btn: btnLinguagens, key: 'linguagens' },
       { btn: btnHumanas, key: 'humanas' },
-      { btn: btnNatureza, key: 'natureza' },
-      { btn: btnMatematica, key: 'matematica' },
-      { btn: btnInterdisciplinar, key: 'interdisciplinar' },
-      { btn: btnConsolidado, key: 'consolidado' }
     ];
 
     function selectTab(activeKey) {
-      tabs.forEach(t => {
+      tabs.forEach((t) => {
         if (t.key === activeKey) {
-          t.btn.style.border = "1px solid var(--color-primary)";
-          t.btn.style.background = "var(--color-primary)";
-          t.btn.style.color = "var(--color-btn-primary-text)";
-          t.btn.classList.add("active");
+          t.btn.style.border = '1px solid var(--color-primary)';
+          t.btn.style.background = 'var(--color-primary)';
+          t.btn.style.color = 'var(--color-btn-primary-text)';
+          t.btn.classList.add('active');
         } else {
-          t.btn.style.border = "1px solid var(--color-border)";
-          t.btn.style.background = "none";
-          t.btn.style.color = "var(--color-text)";
-          t.btn.classList.remove("active");
+          t.btn.style.border = '1px solid var(--color-border)';
+          t.btn.style.background = 'none';
+          t.btn.style.color = 'var(--color-text)';
+          t.btn.classList.remove('active');
         }
       });
-      renderDashboardUI(dataContainer, stats[activeKey] || stats['consolidado'], activeKey);
+      renderDashboardUI(
+        dataContainer,
+        stats[activeKey] || stats['humanas_linguagens'] || stats['consolidado'],
+        activeKey,
+      );
     }
 
-    btnLinguagens.addEventListener("click", () => selectTab('linguagens'));
-    btnHumanas.addEventListener("click", () => selectTab('humanas'));
-    btnNatureza.addEventListener("click", () => selectTab('natureza'));
-    btnMatematica.addEventListener("click", () => selectTab('matematica'));
-    btnInterdisciplinar.addEventListener("click", () => selectTab('interdisciplinar'));
-    btnConsolidado.addEventListener("click", () => selectTab('consolidado'));
+    btnHumanasLinguagens.addEventListener('click', () => selectTab('humanas_linguagens'));
+    btnLinguagens.addEventListener('click', () => selectTab('linguagens'));
+    btnHumanas.addEventListener('click', () => selectTab('humanas'));
 
-    selectTab('consolidado');
+    selectTab('humanas_linguagens');
     dashboardCarregado = true;
-    
   } catch (error) {
-    console.error("Erro ao iniciar dashboard do Apêndice B:", error);
+    console.error('Erro ao iniciar dashboard do Apêndice B:', error);
     loader.innerHTML = `
       <div style="background: rgba(220, 53, 69, 0.08); border: 1px solid rgba(220, 53, 69, 0.3); border-radius: 8px; padding: 16px; color: var(--color-error); text-align: center; max-width: 500px;">
         <span style="font-size: 1.5rem; display:block; margin-bottom:10px;">⚠️ Falha no Carregamento</span>
@@ -623,30 +648,26 @@ async function carregarDashboardApendiceB() {
 }
 
 function formatCorr(val) {
-  if (val === undefined || val === null || isNaN(val)) return "0.000";
-  return (val >= 0 ? "+" : "") + val.toFixed(3);
+  if (val === undefined || val === null || Number.isNaN(val)) return '0.000';
+  return (val >= 0 ? '+' : '') + val.toFixed(3);
 }
 
 function formatSignedPct(val) {
-  if (val === undefined || val === null || isNaN(val)) return "0.0%";
-  return (val >= 0 ? "+" : "") + val.toFixed(1) + "%";
+  if (val === undefined || val === null || Number.isNaN(val)) return '0.0%';
+  return (val >= 0 ? '+' : '') + val.toFixed(1) + '%';
 }
 
 function renderDashboardUI(container, stats, activeKey) {
   // Obter correlações e comparações do subset
   const c_glob = stats.comparisons.global;
   const c_pre = stats.comparisons.pre_cutoff;
-  const c_post = stats.comparisons.post_cutoff;
-  
+
   const hasCaseStudies = stats.case_studies && stats.case_studies.length > 0;
-  
-  let areaLabel = "Geral (125 Questões)";
-  if (activeKey === "linguagens") areaLabel = "Linguagens e Códigos (LC - N=25)";
-  if (activeKey === "humanas") areaLabel = "Ciências Humanas (CH - N=25)";
-  if (activeKey === "natureza") areaLabel = "Ciências da Natureza (CN - N=25)";
-  if (activeKey === "matematica") areaLabel = "Matemática e Tecnologias (MT - N=25)";
-  if (activeKey === "interdisciplinar") areaLabel = "Interdisciplinar (FUVEST - N=25)";
-  if (activeKey === "consolidado") areaLabel = "Geral / Consolidado (Todas as 125 Questões)";
+
+  let areaLabel = 'Geral (50 Questões)';
+  if (activeKey === 'humanas_linguagens') areaLabel = 'Geral (50 Questões)';
+  if (activeKey === 'linguagens') areaLabel = 'Linguagens e Códigos (LC - N=25)';
+  if (activeKey === 'humanas') areaLabel = 'Ciências Humanas (CH - N=25)';
 
   // Gerar HTML de cards de destaque
   container.innerHTML = `
@@ -661,9 +682,6 @@ function renderDashboardUI(container, stats, activeKey) {
           <span>Erro Médio (MAE): <strong>${c_glob.heuristic_vs_real.mae.toFixed(1)}%</strong></span>
           <span>Viés (Bias): <strong style="color: ${c_glob.heuristic_vs_real.bias < 0 ? 'var(--color-error)' : 'var(--color-success)'}">${formatSignedPct(c_glob.heuristic_vs_real.bias)}</strong></span>
         </div>
-        <div style="font-size: 0.7rem; color: var(--color-text-secondary); line-height: 1.3; margin-top: 3px;">
-          * O Firebase Heurístico subestima sistematicamente a dificuldade humana (viés negativo), com erro médio absoluto em torno de 25%.
-        </div>
       </div>
 
       <!-- Card Comparação B: Apêndice B vs Real TRI -->
@@ -673,9 +691,6 @@ function renderDashboardUI(container, stats, activeKey) {
         <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 5px; border-top: 1px dashed var(--color-border); padding-top: 8px;">
           <span>Erro Médio (MAE): <strong>${c_glob.apendice_vs_real.mae.toFixed(1)}%</strong></span>
           <span>Viés (Bias): <strong style="color: ${c_glob.apendice_vs_real.bias < 0 ? 'var(--color-error)' : 'var(--color-success)'}">${formatSignedPct(c_glob.apendice_vs_real.bias)}</strong></span>
-        </div>
-        <div style="font-size: 0.7rem; color: var(--color-text-secondary); line-height: 1.3; margin-top: 3px;">
-          * Apêndice B normalizado exibe desvio de escala e viés muito próximos da heurística simples, indicando alta estabilidade.
         </div>
       </div>
 
@@ -687,9 +702,6 @@ function renderDashboardUI(container, stats, activeKey) {
           <span>Erro Médio (MAE): <strong>${c_glob.apendice_vs_heuristic.mae.toFixed(1)}%</strong></span>
           <span>Viés (Bias): <strong style="color: ${c_glob.apendice_vs_heuristic.bias < 0 ? 'var(--color-error)' : 'var(--color-success)'}">${formatSignedPct(c_glob.apendice_vs_heuristic.bias)}</strong></span>
         </div>
-        <div style="font-size: 0.7rem; color: var(--color-text-secondary); line-height: 1.3; margin-top: 3px;">
-          * **Consistência interna forte!** O modelo julga as rubricas de forma extremamente alinhada com as heurísticas de pesos (MAE de apenas ${c_glob.apendice_vs_heuristic.mae.toFixed(1)}%).
-        </div>
       </div>
 
     </div>
@@ -699,55 +711,23 @@ function renderDashboardUI(container, stats, activeKey) {
       
       <!-- Gráfico 1: Correlações por Critério e Cutoff -->
       <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column;">
-        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Colapso de Correlação Generalizado (Pré vs. Pós Cutoff - ${areaLabel})</h4>
+        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Correlação de Spearman por Critério (Pré vs. Pós Cutoff - ${areaLabel})</h4>
         <div style="height: 250px; position: relative;">
           <canvas id="chartCorrelacaoCanvas"></canvas>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; margin-top: 12px; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 6px; border-left: 3px solid var(--color-error);">
-          <strong>Análise do Gráfico 1:</strong> No grupo pré-cutoff (exames anteriores a 2025/2026), o modelo demonstra correlações moderadas a altas (cinza), alcançando até $+0.40$. No entanto, no grupo inédito pós-cutoff (vermelho), as correlações despencam drasticamente para valores negativos (atingindo até $-0.80$). Isso evidencia empiricamente o fenômeno de <em>Contaminação de Dados (data contamination)</em>: o modelo cru não calcula a dificuldade raciocinando sobre o texto, mas depende de gabaritos memorizados durante o pré-treino.
         </div>
       </div>
 
       <!-- Gráfico 2: Médias por Faixa de Dificuldade -->
       <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column;">
-        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Complexidade Média Calculada por Faixa Real (TRI - ${areaLabel})</h4>
+        <h4 style="margin: 0 0 12px 0; font-size: 0.95rem; color: var(--color-text-shine);">Complexidade Média Calculada por Faixa TRI (${areaLabel})</h4>
         <div style="height: 250px; position: relative;">
           <canvas id="chartFaixasCanvas"></canvas>
         </div>
-        <div style="font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; margin-top: 12px; background: rgba(0,0,0,0.15); padding: 10px; border-radius: 6px; border-left: 3px solid var(--color-primary);">
-          <strong>Análise do Gráfico 2:</strong> Observa-se um crescimento monotônico das estimativas de complexidade à medida que a dificuldade real da banca (TRI) aumenta. No entanto, o Apêndice B normalizado e o Firebase Heurístico exibem um <em>viés de subestimação sistemático (bias ~ -10%)</em> nas faixas de 80%-100%. A IA considera questões difíceis como "médias" porque ela ignora a carga de distratores semânticos e a pressão de tempo que confundem os alunos humanos.
-        </div>
       </div>
 
     </div>
 
-    <!-- Linha 3: Enquadramento Metodológico e Instruções para Tese/Relatório -->
-    <div style="border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; background: rgba(var(--color-primary-rgb), 0.02); display:flex; flex-direction:column; gap:12px;">
-      <h3 style="margin:0; font-size:1.15rem; color: var(--color-primary); display:flex; align-items:center; gap:8px;">💡 Enquadramento Científico e Argumentação de Defesa</h3>
-      
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:15px;">
-        <div>
-          <h5 style="margin:0 0 5px 0; color:var(--color-text-shine); font-size:0.85rem; font-weight:600;">O Argumento da Contaminação de Dados</h5>
-          <p style="margin:0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4;">
-            Estudos de validação em IAs cruas sofrem de viés retrospectivo. O colapso da correlação no set inédito pós-cutoff para <strong>${formatCorr(c_post.apendice_vs_real.spearman)}</strong> prova cientificamente que o modelo Gemma 4 não calcula a dificuldade analisando a questão do zero; ele apenas recupera de sua rede paramétrica gabaritos históricos que estavam em seu set de pré-treino.
-          </p>
-        </div>
-        <div>
-          <h5 style="margin:0 0 5px 0; color:var(--color-text-shine); font-size:0.85rem; font-weight:600;">Justificativa de Engenharia (Maia.edu RAG)</h5>
-          <p style="margin:0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4;">
-            Se modelos puros de IA falham criticamente ao prever a complexidade pedagógica em exames inéditos, isso justifica formalmente por que a **Maia.edu** introduz a arquitetura com banco de apoio (Pinecone) e RAG estruturado. Sem este suporte de ancoragem, o tutor do estudante alucinaria sobre a dificuldade e perfil de erro do aluno.
-          </p>
-        </div>
-        <div>
-          <h5 style="margin:0 0 5px 0; color:var(--color-text-shine); font-size:0.85rem; font-weight:600;">A Justificativa da Consistência de Peso</h5>
-          <p style="margin:0; font-size:0.75rem; color:var(--color-text-secondary); line-height:1.4;">
-            A alta consistência interna entre o prompt do Apêndice B e o Firebase ($\rho = ${formatCorr(c_glob.apendice_vs_heuristic.spearman)}) legitima os pesos das heurísticas. Como "Complexidade de Enunciado" foi a única rubrica com correlação positiva resiliente no grupo inédito, ela deve receber o maior peso nos simulados.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Linha 4: Estudos de Caso Condicionais/Qualitativos (Questões Pós-Cutoff) -->
+    <!-- Linha 3: Estudos de Caso Qualitativos (Questões Pós-Cutoff) -->
     <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; display: ${hasCaseStudies ? 'flex' : 'none'}; flex-direction:column; gap:12px;">
       <h3 style="margin:0; font-size:1.1rem; color:var(--color-text-shine);">🔍 Análise Qualitativa das Questões Pós-Cutoff (${areaLabel})</h3>
       <div style="display:flex; flex-direction:column; gap:10px;" id="dashboardCaseStudiesList">
@@ -755,23 +735,23 @@ function renderDashboardUI(container, stats, activeKey) {
       </div>
     </div>
 
-    <!-- Linha 5: Conclusão Geral da Pesquisa -->
+    <!-- Linha 4: Conclusão Geral da Pesquisa -->
     <div style="background: rgba(40, 167, 69, 0.04); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
       <h3 style="margin: 0; font-size: 1.15rem; color: #28a745; display: flex; align-items: center; gap: 8px;">
-        📌 Conclusão Geral da Análise do Apêndice B (125 Questões)
+        📌 Conclusão da Análise do Apêndice B (${stats.n_total} Questões)
       </h3>
       <p style="margin: 0; font-size: 0.8rem; color: var(--color-text); line-height: 1.5;">
-        A investigação experimental sobre as <strong>125 questões</strong> distribuídas equitativamente entre as 5 áreas (Linguagens, Humanas, Natureza, Matemática e Interdisciplinar FUVEST) consolida três conclusões fundamentais para a pesquisa do ecossistema <strong>Maia.edu</strong>:
+        A investigação experimental sobre as <strong>${stats.n_total} questões</strong> do escopo (${areaLabel}) consolida três conclusões fundamentais para a pesquisa do ecossistema <strong>Maia.edu</strong>:
       </p>
       <ol style="margin: 0; padding-left: 20px; font-size: 0.78rem; color: var(--color-text-secondary); line-height: 1.5;">
         <li style="margin-bottom: 6px;">
-          <strong>Vulnerabilidade de Modelos Puros à Contaminação de Dados:</strong> O declínio generalizado das correlações no set pós-cutoff (ENEM 2025 e FUVEST 2026) comprova que IAs sem RAG não realizam inferência lógica pura sobre a dificuldade dos itens. Elas são fortemente influenciadas pela memorização de exames passados presentes em sua base de pré-treinamento.
+          <strong>Vulnerabilidade de Modelos Puros à Contaminação de Dados:</strong> O declínio das correlações no set pós-cutoff (ENEM 2025) evidencia que IAs sem RAG dependem da memorização de exames passados presentes em sua base de pré-treinamento.
         </li>
         <li style="margin-bottom: 6px;">
-          <strong>Subestimação da Barreira Cognitiva Humana:</strong> Em todas as disciplinas, a IA subestima questões de alta taxa de erro humano (TRI &gt; 80%). O modelo julga a complexidade pela extensão do enunciado ou número de fórmulas, falhando em detectar a abstração de conceitos e distratores semânticos disfarçados que confundem candidatos sob a pressão do exame real.
+          <strong>Subestimação da Barreira Cognitiva Humana:</strong> Nas áreas analisadas, a IA subestima questões de alta taxa de erro humano (TRI &gt; 80%), avaliando a complexidade majoritariamente pela extensão do enunciado.
         </li>
         <li>
-          <strong>Validação da Arquitetura Maia.edu:</strong> A incapacidade dos LLMs puros em avaliar e responder com precisão em contextos inéditos justifica cientificamente a obrigatoriedade da infraestrutura proposta pela <strong>Maia.edu</strong>. O uso de RAG vetorial ancorado no Pinecone, injeção de gabaritos verificados e geração de passos encadeados (scaffolding) são estratégias indispensáveis para suprimir alucinações e entregar tutoria pedagógica segura e inclusiva no Brasil.
+          <strong>Validação da Arquitetura Maia.edu:</strong> A variação dos modelos em contextos inéditos valida cientificamente a necessidade de RAG vetorial ancorado no Pinecone, injeção de gabaritos verificados e tutoria socrática guiada.
         </li>
       </ol>
     </div>
@@ -786,9 +766,25 @@ function renderDashboardUI(container, stats, activeKey) {
   }
 
   // Inicializar Gráfico 1: Correlação por cutoff (Eixo Y ajustado de -1.0 a 1.0)
-  const ctxCorr = document.getElementById("chartCorrelacaoCanvas").getContext("2d");
-  const metricsKeys = ['ap_enunciado', 'ap_visual', 'ap_dominio', 'ap_raciocinio', 'ap_resposta', 'ap_total_normalized', 'ai_complexity_heuristic'];
-  const metricsLabels = ['Enunciado', 'Visual', 'Domínio', 'Raciocínio', 'Resposta', 'Total Apêndice B', 'Heurística Firebase'];
+  const ctxCorr = document.getElementById('chartCorrelacaoCanvas').getContext('2d');
+  const metricsKeys = [
+    'ap_enunciado',
+    'ap_visual',
+    'ap_dominio',
+    'ap_raciocinio',
+    'ap_resposta',
+    'ap_total_normalized',
+    'ai_complexity_heuristic',
+  ];
+  const metricsLabels = [
+    'Enunciado',
+    'Visual',
+    'Domínio',
+    'Raciocínio',
+    'Resposta',
+    'Total Apêndice B',
+    'Heurística Firebase',
+  ];
 
   window.apendiceBCorrChart = new Chart(ctxCorr, {
     type: 'bar',
@@ -797,17 +793,17 @@ function renderDashboardUI(container, stats, activeKey) {
       datasets: [
         {
           label: `Pré-cutoff (Histórico, N=${stats.n_pre_cutoff})`,
-          data: metricsKeys.map(key => stats.correlations[key].pre_cutoff.spearman),
+          data: metricsKeys.map((key) => stats.correlations[key].pre_cutoff.spearman),
           backgroundColor: '#626871',
-          borderRadius: 4
+          borderRadius: 4,
         },
         {
           label: `Pós-cutoff (Inédito, N=${stats.n_post_cutoff})`,
-          data: metricsKeys.map(key => stats.correlations[key].post_cutoff.spearman),
+          data: metricsKeys.map((key) => stats.correlations[key].post_cutoff.spearman),
           backgroundColor: '#c0152f',
-          borderRadius: 4
-        }
-      ]
+          borderRadius: 4,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -817,18 +813,18 @@ function renderDashboardUI(container, stats, activeKey) {
           min: -1.0,
           max: 1.0,
           ticks: { stepSize: 0.2 },
-          title: { display: true, text: 'Correlação de Spearman (ρ)', font: { size: 10 } }
-        }
+          title: { display: true, text: 'Correlação de Spearman (ρ)', font: { size: 10 } },
+        },
       },
       plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
-      }
-    }
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+      },
+    },
   });
 
   // Inicializar Gráfico 2: Médias por faixa de dificuldade
-  const ctxFaixas = document.getElementById("chartFaixasCanvas").getContext("2d");
-  const faixasLabels = stats.faixas_stats.map(f => f.faixa);
+  const ctxFaixas = document.getElementById('chartFaixasCanvas').getContext('2d');
+  const faixasLabels = stats.faixas_stats.map((f) => f.faixa);
 
   window.apendiceBFaixasChart = new Chart(ctxFaixas, {
     type: 'bar',
@@ -837,17 +833,17 @@ function renderDashboardUI(container, stats, activeKey) {
       datasets: [
         {
           label: 'Complexidade Heurística (%)',
-          data: stats.faixas_stats.map(f => f.ai_complexity_heuristic),
+          data: stats.faixas_stats.map((f) => f.ai_complexity_heuristic),
           backgroundColor: '#21808d', // Teal
-          borderRadius: 4
+          borderRadius: 4,
         },
         {
           label: 'Apêndice B Total Normalizado (%)',
-          data: stats.faixas_stats.map(f => f.ap_total_normalized),
+          data: stats.faixas_stats.map((f) => f.ap_total_normalized),
           backgroundColor: '#c0152f', // Coral/Red
-          borderRadius: 4
-        }
-      ]
+          borderRadius: 4,
+        },
+      ],
     },
     options: {
       responsive: true,
@@ -856,20 +852,21 @@ function renderDashboardUI(container, stats, activeKey) {
         y: {
           min: 0,
           max: 100,
-          title: { display: true, text: 'Pontuação Média (%)', font: { size: 10 } }
-        }
+          title: { display: true, text: 'Pontuação Média (%)', font: { size: 10 } },
+        },
       },
       plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
-      }
-    }
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+      },
+    },
   });
 
   // Renderizar a lista de estudos de caso se houver
   if (hasCaseStudies) {
-    const casesContainer = document.getElementById("dashboardCaseStudiesList");
-    casesContainer.innerHTML = stats.case_studies.map((item, index) => {
-      return `
+    const casesContainer = document.getElementById('dashboardCaseStudiesList');
+    casesContainer.innerHTML = stats.case_studies
+      .map((item, index) => {
+        return `
         <div style="border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; display:flex; flex-direction:column; gap:8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
             <div>
@@ -926,23 +923,24 @@ function renderDashboardUI(container, stats, activeKey) {
           </div>
         </div>
       `;
-    }).join("");
-  
+      })
+      .join('');
+
     // Handler para toggles de estudos de caso
-    casesContainer.querySelectorAll(".toggle-case-just-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
+    casesContainer.querySelectorAll('.toggle-case-just-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
         const index = btn.dataset.index;
         const area = document.getElementById(`caseJustArea_${index}`);
-        if (area.style.display === "none") {
-          area.style.display = "flex";
-          btn.textContent = "Fechar Justificativa ▲";
-          btn.style.background = "var(--color-primary)";
-          btn.style.color = "var(--color-btn-primary-text)";
+        if (area.style.display === 'none') {
+          area.style.display = 'flex';
+          btn.textContent = 'Fechar Justificativa ▲';
+          btn.style.background = 'var(--color-primary)';
+          btn.style.color = 'var(--color-btn-primary-text)';
         } else {
-          area.style.display = "none";
-          btn.textContent = "Ver Justificativa da IA ▾";
-          btn.style.background = "none";
-          btn.style.color = "var(--color-text)";
+          area.style.display = 'none';
+          btn.textContent = 'Ver Justificativa da IA ▾';
+          btn.style.background = 'none';
+          btn.style.color = 'var(--color-text)';
         }
       });
     });

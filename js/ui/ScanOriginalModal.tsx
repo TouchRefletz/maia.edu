@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 
 export const ScanOriginalModal: React.FC = () => {
   // Função para fechar o modal, replicando a lógica original:
@@ -60,9 +60,7 @@ export const ScanOriginalModal: React.FC = () => {
               paddingBottom: '10px',
             }}
           >
-            <h3 style={{ margin: 0, color: 'var(--color-text)' }}>
-              Scan Original
-            </h3>
+            <h3 style={{ margin: 0, color: 'var(--color-text)' }}>Scan Original</h3>
             <button
               onClick={handleClose}
               style={{
@@ -76,7 +74,7 @@ export const ScanOriginalModal: React.FC = () => {
               ✕
             </button>
           </div>
-          
+
           {/* 
             Mantemos este ID vazio. 
             O código legado provavelmente faz:

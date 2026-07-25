@@ -1,13 +1,46 @@
-﻿# Sidebar Desktop
+# Sidebar Desktop do Viewer (`js/viewer/sidebar-desktop.js`)
 
-> u{1F916} **Disclaimer**: Documentacao gerada por IA e pode conter imprecisoes. [u{1F4CB} Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+Sidebar+Desktop&labels=docs)
+## Arquivo-Fonte
 
-## Visao Geral
-Pagina de documentacao para `js/viewer/sidebar.js` - componente do sistema de visualizacao de PDF.
+| Propriedade | Valor |
+|---|---|
+| **Arquivo** | [`js/viewer/sidebar-desktop.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/sidebar-desktop.js) |
+| **Escopo** | Painel lateral de navegação por miniaturas, busca textual e índice de páginas para telas desktop |
+| **Exports** | `initSidebarDesktop()`, `toggleDesktopSidebar()` |
 
-## Arquivo: `js/viewer/sidebar.js`
+---
 
-## Referencias Cruzadas
-- [PDF Core](/pdf/core) — Renderizacao principal
-- [Arquitetura](/guia/arquitetura) — Visao geral
+## 🎯 Visão Geral e Arquitetura
 
+O `sidebar-desktop.js` gerencia a barra lateral fixa em telas de alta resolução. Ele implementa um sistema de abas alternáveis (*Miniaturas*, *Sumário*, *Busca*) e escuta os eventos do `viewerEvents` para manter o destaque visual da página em leitura synchronizado.
+
+---
+
+## 🛠️ Implementação do Código
+
+```javascript
+import { viewerEvents } from './events.js';
+import { PDFViewerContext } from './context.js';
+
+export function initSidebarDesktop(sidebarEl) {
+  const pageListEl = sidebarEl.querySelector('.sidebar-thumbnails-list');
+
+  // Destacar miniatura da página ativa
+  viewerEvents.on('pdf:pagechange', ({ page }) => {
+    const prevActive = pageListEl.querySelector('.thumbnail-item.active');
+    if (prevActive) prevActive.classList.remove('active');
+
+    const newActive = pageListEl.querySelector(`[data-page-number="${page}"]`);
+    if (newActive) {
+      newActive.classList.add('active');
+      newActive.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+}
+```
+
+---
+
+## 🔗 Referências Cruzadas
+- [Preview e Miniaturas](/pdf/preview)
+- [Contexto do Viewer](/pdf/contexto)

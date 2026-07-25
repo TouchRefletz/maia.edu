@@ -1,17 +1,20 @@
-import { customAlert } from "../ui/GlobalAlertsLogic";
-import { auth, firestore } from "../firebase/init.js";
 import {
+  collection,
+  deleteDoc,
   doc,
   getDoc,
-  setDoc,
-  collection,
   getDocs,
-  deleteDoc,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+  orderBy,
+  query,
+  setDoc,
+  writeBatch,
+} from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
+import { auth, firestore } from '../firebase/init.js';
+import { customAlert } from '../ui/GlobalAlertsLogic';
 
-const DB_NAME = "MaiaChatsDB";
+const DB_NAME = 'MaiaChatsDB';
 const DB_VERSION = 2; // Incrementado para suportar expiresAt
-const STORE_NAME = "chats";
+const STORE_NAME = 'chats';
 
 // 30 Dias em ms (para evitar que chats sumam da barra lateral constantemente)
 const LOCAL_EXPIRATION_TIME = 30 * 24 * 60 * 60 * 1000;
@@ -27,15 +30,15 @@ function openDB() {
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
-        store.createIndex("updatedAt", "updatedAt", { unique: false });
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('updatedAt', 'updatedAt', { unique: false });
         // Novo index para expiração
-        store.createIndex("expiresAt", "expiresAt", { unique: false });
+        store.createIndex('expiresAt', 'expiresAt', { unique: false });
       } else {
         // Upgrade para V2 (se store ja existir)
         const store = event.target.transaction.objectStore(STORE_NAME);
-        if (!store.indexNames.contains("expiresAt")) {
-          store.createIndex("expiresAt", "expiresAt", { unique: false });
+        if (!store.indexNames.contains('expiresAt')) {
+          store.createIndex('expiresAt', 'expiresAt', { unique: false });
         }
       }
     };
@@ -61,6 +64,69 @@ function requestToPromise(request) {
 }
 
 /**
+ * Helper para salvar chat no Firestore separando as mensagens em uma subcoleção.
+ * Evita o limite de 1MB do documento principal do Firestore.
+ */
+async function saveChatToCloud(uid, chat) {
+  const cloudPayload = { ...chat };
+  delete cloudPayload.expiresAt;
+  delete cloudPayload._debugLog;
+
+  const messages = Array.isArray(cloudPayload.messages) ? cloudPayload.messages : [];
+  delete cloudPayload.messages;
+
+  let cleanMainPayload;
+  try {
+    cleanMainPayload = JSON.parse(JSON.stringify(cloudPayload));
+  } catch (_circularErr) {
+    const seen = new WeakSet();
+    cleanMainPayload = JSON.parse(
+      JSON.stringify(cloudPayload, (_key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return undefined;
+          seen.add(value);
+        }
+        return value;
+      }),
+    );
+  }
+
+  // 1. Salva o documento principal do chat sem o array gigante de mensagens
+  const chatDocRef = doc(firestore, 'users', uid, 'chats', chat.id);
+  await setDoc(chatDocRef, cleanMainPayload, { merge: true });
+
+  // 2. Salva cada mensagem na subcoleção users/{uid}/chats/{chat.id}/messages
+  if (messages.length > 0) {
+    const messagesCollRef = collection(firestore, 'users', uid, 'chats', chat.id, 'messages');
+    const BATCH_SIZE = 400; // Limite do Firestore writeBatch é 500 operações
+    for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+      const batch = writeBatch(firestore);
+      const chunk = messages.slice(i, i + BATCH_SIZE);
+
+      chunk.forEach((msg, indexInChunk) => {
+        const globalIndex = i + indexInChunk;
+        const msgId = msg.id || `msg_${globalIndex.toString().padStart(6, '0')}`;
+        const msgDocRef = doc(messagesCollRef, msgId);
+
+        let cleanMsg;
+        try {
+          cleanMsg = JSON.parse(JSON.stringify(msg));
+        } catch (_) {
+          cleanMsg = { ...msg };
+        }
+
+        cleanMsg.index = globalIndex;
+        cleanMsg.timestamp = msg.timestamp || Date.now();
+
+        batch.set(msgDocRef, cleanMsg, { merge: true });
+      });
+
+      await batch.commit();
+    }
+  }
+}
+
+/**
  * Serviço de Armazenamento Híbrido (IndexedDB + Firestore)
  * Regra: Tudo local expira em 30min. Logado recupera da nuvem.
  */
@@ -72,7 +138,7 @@ export const ChatStorageService = {
   async getChat(id) {
     try {
       const db = await openDB();
-      const tx = db.transaction(STORE_NAME, "readonly");
+      const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const localChat = await requestToPromise(store.get(id));
 
@@ -88,67 +154,72 @@ export const ChatStorageService = {
       if (user) {
         console.log(`[ChatStorage] Buscando chat ${id} no Firestore...`);
         try {
-          const docRef = doc(firestore, "users", user.uid, "chats", id);
+          const docRef = doc(firestore, 'users', user.uid, 'chats', id);
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
             const cloudChat = docSnap.data();
+
+            // Se o chat já possui mensagens inline (legado), usa elas.
+            // Caso contrário, busca as mensagens na subcoleção "messages".
+            if (!Array.isArray(cloudChat.messages) || cloudChat.messages.length === 0) {
+              const msgsCollRef = collection(firestore, 'users', user.uid, 'chats', id, 'messages');
+              const msgsQuery = query(msgsCollRef, orderBy('index', 'asc'));
+              const msgsSnap = await getDocs(msgsQuery);
+
+              const fetchedMessages = [];
+              msgsSnap.forEach((msgDoc) => {
+                fetchedMessages.push(msgDoc.data());
+              });
+
+              if (fetchedMessages.length === 0 && !msgsSnap.empty) {
+                msgsSnap.forEach((msgDoc) => {
+                  fetchedMessages.push(msgDoc.data());
+                });
+              }
+
+              cloudChat.messages = fetchedMessages;
+            }
+
             // Re-hidrata localmente com nova validade
             await this.saveLocal(cloudChat);
             return cloudChat;
           }
         } catch (err) {
-          console.warn("[ChatStorage] Erro ao buscar no Firestore:", err);
+          console.warn('[ChatStorage] Erro ao buscar no Firestore:', err);
         }
       }
 
       // Se chegou aqui, ou não tá logado e expirou, ou não existe na nuvem.
-      // Se expirou (localChat existe), devemos deletar?
-      // Pela regra estrita, se expirou, não deve retornar.
       if (localChat && localChat.expiresAt <= now) {
-        // Opcional: Trigger cleanup async
         this.deleteLocal(id).catch(() => {});
-        return null; // Expirado = Perda
+        return null;
       }
 
       return null;
     } catch (e) {
-      console.error("Erro ao buscar chat:", e);
+      console.error('Erro ao buscar chat:', e);
       return null;
     }
   },
 
   /**
    * Recupera lista de chats.
-   * Filtra expirados locais. Se logado, sync com nuvem (opcional ou lazy).
-   * Para listagem rápida, vamos confiar no local e fazer sync em background ou apenas fetch.
-   * Por simplicidade/performance:
-   * - Retorna locais válidos.
-   * - Se logado, faz fetch no Firestore para atualizar lista local (opcional, pode ser pesado).
-   * Vamos fazer: Retorna locais válidos e dispara sync se logado apenas para headers.
    */
   async getChats() {
     try {
-      // [FIX] Removido cleanupExpired aqui para evitar spam/loop.
-      // A limpeza roda no boot e no intervalo.
-
       const db = await openDB();
-      const tx = db.transaction(STORE_NAME, "readonly");
+      const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
-      const index = store.index("updatedAt");
+      const index = store.index('updatedAt');
       const allChats = await requestToPromise(index.getAll());
 
       // Ordenação
-      let validChats = allChats.sort((a, b) => b.updatedAt - a.updatedAt);
-
-      // [FIX] Removido syncFromCloud automático aqui para evitar Loop Infinito.
-      // O sync é feito no Login (telas.js) e em ações específicas.
-
-      return validChats;
+      const validChats = allChats.sort((a, b) => b.updatedAt - a.updatedAt);
 
       return validChats;
     } catch (e) {
-      console.error("Erro ao ler chats:", e);
+      console.error('Erro ao ler chats:', e);
       return [];
     }
   },
@@ -157,22 +228,41 @@ export const ChatStorageService = {
    * Sincroniza chats da nuvem para local (One-way Cloud -> Local)
    */
   async syncFromCloud(uid) {
-    console.log("[ChatStorage] Sincronizando lista do Firestore...");
+    console.log('[ChatStorage] Sincronizando lista do Firestore...');
     try {
-      const querySnapshot = await getDocs(
-        collection(firestore, "users", uid, "chats"),
-      );
+      const querySnapshot = await getDocs(collection(firestore, 'users', uid, 'chats'));
       const promises = [];
       querySnapshot.forEach((docSnap) => {
         const chatData = docSnap.data();
-        // Marca como sincronizado com a nuvem e renova a validade local
         chatData.syncedAt = Date.now();
-        promises.push(this.saveLocal(chatData));
+
+        if (Array.isArray(chatData.messages) && chatData.messages.length > 0) {
+          promises.push(this.saveLocal(chatData));
+        } else {
+          promises.push(
+            (async () => {
+              try {
+                const msgsCollRef = collection(firestore, 'users', uid, docSnap.id, 'messages');
+                const msgsQuery = query(msgsCollRef, orderBy('index', 'asc'));
+                const msgsSnap = await getDocs(msgsQuery);
+                const fetchedMessages = [];
+                msgsSnap.forEach((mDoc) => {
+                  fetchedMessages.push(mDoc.data());
+                });
+                chatData.messages = fetchedMessages;
+              } catch (mErr) {
+                console.warn(`[ChatStorage] Erro ao carregar mensagens para ${docSnap.id}:`, mErr);
+                if (!chatData.messages) chatData.messages = [];
+              }
+              return this.saveLocal(chatData);
+            })(),
+          );
+        }
       });
       await Promise.all(promises);
-      window.dispatchEvent(new CustomEvent("chat-list-updated"));
+      window.dispatchEvent(new CustomEvent('chat-list-updated'));
     } catch (e) {
-      console.warn("[ChatStorage] Falha ao baixar da nuvem:", e);
+      console.warn('[ChatStorage] Falha ao baixar da nuvem:', e);
     }
   },
 
@@ -185,20 +275,19 @@ export const ChatStorageService = {
     if (!user || user.isAnonymous) return;
 
     try {
-      console.log("[ChatStorage] Verificando chats locais pendentes para upload...");
+      console.log('[ChatStorage] Verificando chats locais pendentes para upload...');
       const db = await openDB();
-      const tx = db.transaction(STORE_NAME, "readonly");
+      const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const allChats = await requestToPromise(store.getAll());
 
-      // Otimização: Apenas envia chats não sincronizados ou modificados após a última sincronização
       const pendingChats = allChats.filter((chat) => {
         if (!chat.syncedAt) return true;
         return (chat.updatedAt || 0) > chat.syncedAt;
       });
 
       if (pendingChats.length === 0) {
-        console.log("[ChatStorage] Nenhum chat pendente para upload.");
+        console.log('[ChatStorage] Nenhum chat pendente para upload.');
         return;
       }
 
@@ -207,25 +296,7 @@ export const ChatStorageService = {
       );
 
       const uploadPromises = pendingChats.map(async (chat) => {
-        const cloudPayload = { ...chat };
-        delete cloudPayload.expiresAt;
-        delete cloudPayload._debugLog;
-        let cleanPayload;
-        try {
-          cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
-        } catch (_circularErr) {
-          const seen = new WeakSet();
-          cleanPayload = JSON.parse(JSON.stringify(cloudPayload, (_key, value) => {
-            if (typeof value === "object" && value !== null) {
-              if (seen.has(value)) return undefined;
-              seen.add(value);
-            }
-            return value;
-          }));
-        }
-
-        const docRef = doc(firestore, "users", user.uid, "chats", chat.id);
-        await setDoc(docRef, cleanPayload, { merge: true }).catch((e) =>
+        await saveChatToCloud(user.uid, chat).catch((e) =>
           console.warn(`Falha ao subir chat ${chat.id}:`, e),
         );
 
@@ -234,11 +305,9 @@ export const ChatStorageService = {
       });
 
       await Promise.all(uploadPromises);
-      console.log(
-        `[ChatStorage] Upload concluído! ${pendingChats.length} chats sincronizados.`,
-      );
+      console.log(`[ChatStorage] Upload concluído! ${pendingChats.length} chats sincronizados.`);
     } catch (e) {
-      console.error("[ChatStorage] Erro no syncPendingToCloud:", e);
+      console.error('[ChatStorage] Erro no syncPendingToCloud:', e);
     }
   },
 
@@ -247,49 +316,22 @@ export const ChatStorageService = {
    */
   async saveChat(chat) {
     try {
-      // 1. Salva Local (cria expiresAt se não tiver, ou renova)
-      // A cada save, renovamos a sessão de 30min deste arquivo local
       await this.saveLocal(chat);
 
-      // 2. Salva Firestore (Se logado e não anônimo)
       const user = auth.currentUser;
       if (user && !user.isAnonymous) {
-        // Remove expiresAt antes de enviar pra nuvem (dado limpo)
-        const cloudPayload = { ...chat };
-        delete cloudPayload.expiresAt; // Nuvem é permanente
-        delete cloudPayload._debugLog; // Debug data is local-only, causes circular refs
-
-        // Firestore não curte arrays de undefined, limpa payload se precisar
-        // Mas JSON stringify/parse limpa functions, etc.
-        let cleanPayload;
-        try {
-          cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
-        } catch (_circularErr) {
-          const seen = new WeakSet();
-          cleanPayload = JSON.parse(JSON.stringify(cloudPayload, (_key, value) => {
-            if (typeof value === "object" && value !== null) {
-              if (seen.has(value)) return undefined;
-              seen.add(value);
-            }
-            return value;
-          }));
-        }
-
-        const docRef = doc(firestore, "users", user.uid, "chats", chat.id);
-        setDoc(docRef, cleanPayload, { merge: true })
+        saveChatToCloud(user.uid, chat)
           .then(() => {
             chat.syncedAt = Date.now();
             this.saveLocal(chat).catch(() => {});
           })
-          .catch((err) =>
-            console.error("[ChatStorage] Erro ao salvar no Firestore:", err),
-          );
+          .catch((err) => console.error('[ChatStorage] Erro ao salvar no Firestore:', err));
       }
 
-      window.dispatchEvent(new CustomEvent("chat-list-updated"));
+      window.dispatchEvent(new CustomEvent('chat-list-updated'));
     } catch (e) {
-      console.error("Erro ao salvar chat:", e);
-      customAlert("Erro ao salvar chat.");
+      console.error('Erro ao salvar chat:', e);
+      customAlert('Erro ao salvar chat.');
     }
   },
 
@@ -298,7 +340,7 @@ export const ChatStorageService = {
    */
   async saveLocal(chat) {
     const db = await openDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
+    const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
     const chatWithExpiry = {
@@ -318,19 +360,31 @@ export const ChatStorageService = {
 
       const user = auth.currentUser;
       if (user && !user.isAnonymous) {
-        const docRef = doc(firestore, "users", user.uid, "chats", chatId);
+        try {
+          const msgsCollRef = collection(firestore, 'users', user.uid, 'chats', chatId, 'messages');
+          const msgsSnap = await getDocs(msgsCollRef);
+          const deleteMsgsPromises = [];
+          msgsSnap.forEach((msgDoc) => {
+            deleteMsgsPromises.push(deleteDoc(msgDoc.ref));
+          });
+          await Promise.all(deleteMsgsPromises);
+        } catch (subErr) {
+          console.warn(`[ChatStorage] Erro ao deletar subcoleção do chat ${chatId}:`, subErr);
+        }
+
+        const docRef = doc(firestore, 'users', user.uid, 'chats', chatId);
         await deleteDoc(docRef);
       }
 
-      window.dispatchEvent(new CustomEvent("chat-list-updated"));
+      window.dispatchEvent(new CustomEvent('chat-list-updated'));
     } catch (e) {
-      console.error("Erro ao deletar chat:", e);
+      console.error('Erro ao deletar chat:', e);
     }
   },
 
   async deleteLocal(chatId) {
     const db = await openDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
+    const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
     await requestToPromise(store.delete(chatId));
   },
@@ -341,11 +395,10 @@ export const ChatStorageService = {
   async createNewChat(firstMessage, attachments = []) {
     const chat = {
       id: crypto.randomUUID(),
-      title:
-        firstMessage.slice(0, 30) + (firstMessage.length > 30 ? "..." : ""),
+      title: firstMessage.slice(0, 30) + (firstMessage.length > 30 ? '...' : ''),
       messages: [
         {
-          role: "user",
+          role: 'user',
           content: firstMessage,
           attachments: attachments,
           timestamp: Date.now(),
@@ -360,7 +413,6 @@ export const ChatStorageService = {
   },
 
   async addMessage(chatId, role, content, attachments = []) {
-    // Busca direto do getChat (que já resolve cloud/local/validade)
     const chat = await this.getChat(chatId);
     if (chat) {
       chat.messages.push({
@@ -372,7 +424,7 @@ export const ChatStorageService = {
       chat.updatedAt = Date.now();
       await this.saveChat(chat);
     } else {
-      console.warn("Tentativa de adicionar msg a chat expirado ou inexistente");
+      console.warn('Tentativa de adicionar msg a chat expirado ou inexistente');
     }
   },
 
@@ -396,10 +448,9 @@ export const ChatStorageService = {
       chat.updatedAt = Date.now();
       await this.saveChat(chat);
     } else {
-      console.warn("Tentativa de adicionar msgs a chat expirado ou inexistente");
+      console.warn('Tentativa de adicionar msgs a chat expirado ou inexistente');
     }
   },
-
 
   async addScaffoldingStep(chatId, stepIndex, stepData) {
     const chat = await this.getChat(chatId);
@@ -430,9 +481,6 @@ export const ChatStorageService = {
   },
 
   /**
-   * Remove itens expirados do IDB
-   */
-  /**
    * Remove itens expirados do IDB com segurança (Sync -> Delete)
    */
   async cleanupExpired() {
@@ -441,12 +489,10 @@ export const ChatStorageService = {
       const user = auth.currentUser;
       const now = Date.now();
 
-      console.log(
-        "[ChatStorage] Iniciando limpeza de chats expirados (Cursor Scan)...",
-      );
+      console.log('[ChatStorage] Iniciando limpeza de chats expirados (Cursor Scan)...');
 
-      // 1. Coleta itens expirados (Iteração via Cursor para pegar legado também)
-      const tx = db.transaction(STORE_NAME, "readonly");
+      // 1. Coleta itens expirados
+      const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
 
       const expiredChats = [];
@@ -459,7 +505,6 @@ export const ChatStorageService = {
             const chat = cursor.value;
             let isExpired = false;
 
-            // Chat local expira se superou o tempo limite LOCAL_EXPIRATION_TIME (30 dias)
             if (chat.expiresAt) {
               if (chat.expiresAt <= now) isExpired = true;
             } else if (chat.updatedAt) {
@@ -481,7 +526,7 @@ export const ChatStorageService = {
       });
 
       if (expiredChats.length === 0) {
-        console.log("[ChatStorage] Nenhum chat expirado encontrado.");
+        console.log('[ChatStorage] Nenhum chat expirado encontrado.');
         return;
       }
 
@@ -501,26 +546,20 @@ export const ChatStorageService = {
               `[ChatStorage] Sincronizando ${unSyncedExpired.length} expirados pendentes com Firestore antes de deletar...`,
             );
             const syncPromises = unSyncedExpired.map((chat) => {
-              const cloudPayload = { ...chat };
-              delete cloudPayload.expiresAt;
-              delete cloudPayload._debugLog;
-              const cleanPayload = JSON.parse(JSON.stringify(cloudPayload));
-              const docRef = doc(firestore, "users", user.uid, "chats", chat.id);
-              return setDoc(docRef, cleanPayload, { merge: true });
+              return saveChatToCloud(user.uid, chat);
             });
 
             await Promise.all(syncPromises);
-            console.log("[ChatStorage] Backup de expirados concluído com sucesso.");
+            console.log('[ChatStorage] Backup de expirados concluído com sucesso.');
           }
         } catch (e) {
-          console.error("[ChatStorage] Falha no backup (cleanup abortado):", e);
+          console.error('[ChatStorage] Falha no backup (cleanup abortado):', e);
           return; // Safety abort
         }
       }
 
       // 3. Delete Local
-      // Nova transação write
-      const txDelete = db.transaction(STORE_NAME, "readwrite");
+      const txDelete = db.transaction(STORE_NAME, 'readwrite');
       const storeDelete = txDelete.objectStore(STORE_NAME);
       let deletedCount = 0;
 
@@ -531,7 +570,7 @@ export const ChatStorageService = {
             deletedCount++;
             resolve();
           };
-          req.onerror = () => resolve(); // Ignore individual errors to continue
+          req.onerror = () => resolve();
         });
       });
 
@@ -539,10 +578,10 @@ export const ChatStorageService = {
       console.log(`[ChatStorage] Removidos ${deletedCount} chats expirados.`);
 
       if (deletedCount > 0) {
-        window.dispatchEvent(new CustomEvent("chat-list-updated"));
+        window.dispatchEvent(new CustomEvent('chat-list-updated'));
       }
     } catch (e) {
-      console.warn("Erro no cleanup:", e);
+      console.warn('Erro no cleanup:', e);
     }
   },
 };
@@ -550,9 +589,7 @@ export const ChatStorageService = {
 // Auto-start cleanup periodically
 setInterval(
   () => {
-    ChatStorageService.cleanupExpired().catch((e) =>
-      console.error("Auto-cleanup error", e),
-    );
+    ChatStorageService.cleanupExpired().catch((e) => console.error('Auto-cleanup error', e));
   },
   5 * 60 * 1000,
 ); // 5 mins

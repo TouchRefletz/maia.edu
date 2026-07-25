@@ -1,21 +1,23 @@
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 
-const statsFile = "./experiments/stats_summary_apendice_a.json";
-const outputFile = "./experiments/dashboard_resultados_apendice_a.html";
+const statsFile = './experiments/stats_summary_apendice_a.json';
+const outputFile = './experiments/dashboard_resultados_apendice_a.html';
 
 function run() {
   console.log(`=== Gerando Dashboard do Apêndice A ===`);
 
   if (!fs.existsSync(statsFile)) {
-    console.error(`Erro: Arquivo estatístico ${statsFile} não encontrado. Execute scripts/compile-apendice-a.js primeiro.`);
+    console.error(
+      `Erro: Arquivo estatístico ${statsFile} não encontrado. Execute scripts/compile-apendice-a.js primeiro.`,
+    );
     process.exit(1);
   }
 
-  const stats = JSON.parse(fs.readFileSync(statsFile, "utf-8"));
+  const stats = JSON.parse(fs.readFileSync(statsFile, 'utf-8'));
   const htmlContent = generateHtml(stats);
 
-  fs.writeFileSync(outputFile, htmlContent, "utf-8");
+  fs.writeFileSync(outputFile, htmlContent, 'utf-8');
   console.log(`✅ Dashboard visual gerado com sucesso em: ${outputFile}`);
 }
 
@@ -400,7 +402,7 @@ function generateHtml(stats) {
     <!-- Gráfico 3: Confronto de Modelos -->
     <div class="chart-container">
       <div class="chart-header">
-        <h4 class="chart-title">Impacto Líquido do RAG por Modelo de IA ($\Delta$ Likert Total)</h4>
+        <h4 class="chart-title">Impacto Líquido do RAG por Modelo de IA ($Delta$ Likert Total)</h4>
         <p class="chart-desc">Mostra quanto cada modelo evoluiu ao sair do modo bruto para a arquitetura Maia.edu.</p>
       </div>
       <div class="chart-wrapper">

@@ -1,4 +1,4 @@
-import { mostrarModalAvisoImagens } from "./modal-aviso-imagens.js";
+import { mostrarModalAvisoImagens } from './modal-aviso-imagens.js';
 
 export function calcularMetricasQuestao() {
   let slotsEsperados = 0;
@@ -16,7 +16,7 @@ export function calcularMetricasQuestao() {
   let imgIndex = 0;
   if (Array.isArray(q.estrutura)) {
     q.estrutura.forEach((b) => {
-      if (b.tipo === "imagem") {
+      if (b.tipo === 'imagem') {
         slotsEsperados++;
         const filled = isImageBlockFilled(
           b,
@@ -34,7 +34,7 @@ export function calcularMetricasQuestao() {
       if (Array.isArray(alt.estrutura)) {
         let structureAltCount = 0;
         alt.estrutura.forEach((b) => {
-          if (b.tipo === "imagem") {
+          if (b.tipo === 'imagem') {
             slotsEsperados++;
             if (b.pdf_page || b.url) structureAltCount++;
           }
@@ -65,16 +65,14 @@ export function calcularMetricasGabarito() {
     g.explicacao.forEach((passo, idx) => {
       if (Array.isArray(passo.estrutura)) {
         passo.estrutura.forEach((b) => {
-          if (b.tipo === "imagem") {
+          if (b.tipo === 'imagem') {
             slotsEsperados++;
-            if (b.pdf_page || b.pdfjs_x !== undefined || b.url)
-              imagensPreenchidas++;
+            if (b.pdf_page || b.pdfjs_x !== undefined || b.url) imagensPreenchidas++;
           }
         });
       }
 
-      const imgsSalvasPasso =
-        window.__imagensLimpas?.gabarito_passos?.[idx] || [];
+      const imgsSalvasPasso = window.__imagensLimpas?.gabarito_passos?.[idx] || [];
       imagensPreenchidas += imgsSalvasPasso.filter(Boolean).length;
     });
   }
@@ -82,18 +80,18 @@ export function calcularMetricasGabarito() {
   return { slotsEsperados, imagensPreenchidas };
 }
 
-export async function validarProgressoImagens(contexto = "questao") {
+export async function validarProgressoImagens(contexto = 'questao') {
   return new Promise((resolve) => {
     let dados = null;
     let dadosQuestao = null;
     let dadosGabarito = null;
 
     // 1. Decide qual cálculo fazer baseando-se no contexto
-    if (contexto === "questao") {
+    if (contexto === 'questao') {
       dados = calcularMetricasQuestao();
-    } else if (contexto === "gabarito") {
+    } else if (contexto === 'gabarito') {
       dados = calcularMetricasGabarito();
-    } else if (contexto === "tudo") {
+    } else if (contexto === 'tudo') {
       dadosQuestao = calcularMetricasQuestao();
       dadosGabarito = calcularMetricasGabarito();
 
@@ -121,7 +119,7 @@ export async function validarProgressoImagens(contexto = "questao") {
     if (slotsEsperados > imagensPreenchidas) {
       // Prepara relatório detalhado se for 'tudo'
       let reportDetalhado = null;
-      if (contexto === "tudo") {
+      if (contexto === 'tudo') {
         const qEsp = dadosQuestao ? dadosQuestao.slotsEsperados : 0;
         const qPre = dadosQuestao ? dadosQuestao.imagensPreenchidas : 0;
         const gEsp = dadosGabarito ? dadosGabarito.slotsEsperados : 0;

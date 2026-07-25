@@ -74,7 +74,7 @@ body.print-preview-mode {
   right: 0;
   height: 55px;
   z-index: 10000;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   font-family: Arial, Helvetica, sans-serif;
   box-sizing: border-box;
 }
@@ -131,7 +131,7 @@ body.print-preview-mode .print-block-destaque,
 body.print-preview-mode .print-block-lista,
 body.print-preview-mode .markdown-content,
 body.print-preview-mode .markdown-content p {
-  font-family: 'Georgia', 'Times New Roman', Times, serif !important;
+  font-family: "Georgia", "Times New Roman", Times, serif !important;
   color: #000 !important;
 }
 
@@ -145,7 +145,7 @@ body.print-preview-mode .cover-page,
 body.print-preview-mode .cover-page *,
 body.print-preview-mode .print-page-header-line,
 body.print-preview-mode .vestibular-field-label {
-  font-family: 'Inter', 'Arial', sans-serif !important;
+  font-family: "Inter", "Arial", sans-serif !important;
 }
 
 /* Cover Page Specific Styles */
@@ -294,7 +294,7 @@ body.print-preview-mode .vestibular-field-label {
 .questions-header-line span,
 .questions-header-line i,
 .questions-header-line em {
-  font-family: 'Inter', 'Arial', sans-serif !important;
+  font-family: "Inter", "Arial", sans-serif !important;
   font-style: normal !important;
   text-transform: none !important; /* Disable runtime text-transform to prevent accent Combining Character bug in Chrome */
   font-weight: bold !important;
@@ -497,7 +497,7 @@ body.print-preview-mode .vestibular-field-label {
 }
 
 .print-block-titulo {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 11pt;
   font-weight: bold;
   margin: 15px 0 8px 0;
@@ -506,7 +506,7 @@ body.print-preview-mode .vestibular-field-label {
 }
 
 .print-block-subtitulo {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 10pt;
   font-weight: bold;
   margin: 12px 0 6px 0;
@@ -548,7 +548,7 @@ body.print-preview-mode .vestibular-field-label {
 }
 
 .print-image-caption {
-  font-family: 'Georgia', serif !important;
+  font-family: "Georgia", serif !important;
   font-size: 8pt;
   text-align: center;
   font-style: italic;
@@ -557,13 +557,12 @@ body.print-preview-mode .vestibular-field-label {
 }
 
 .print-image-credit {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 7.5pt !important;
   text-align: center;
   color: #555 !important;
   margin-top: 4px;
 }
-
 
 /* Math/KaTeX blocks */
 body.print-preview-mode .math-block,
@@ -617,7 +616,7 @@ body.print-preview-mode .katex-html {
   height: 20px;
   border: 1.5px solid #000;
   border-radius: 50%;
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 8pt;
   font-weight: bold;
   color: #000 !important;
@@ -668,7 +667,7 @@ body.print-preview-mode .katex-html {
 }
 
 .print-answer-sheet-title {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 16pt;
   font-weight: 800;
   text-align: center;
@@ -705,7 +704,7 @@ body.print-preview-mode .katex-html {
 .print-answer-sheet-q {
   font-weight: bold;
   width: 32px;
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
 }
 
 .print-answer-sheet-bubbles {
@@ -723,7 +722,7 @@ body.print-preview-mode .katex-html {
   justify-content: center;
   font-size: 8pt;
   font-weight: bold;
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   background-color: #fff !important;
 }
 
@@ -775,7 +774,7 @@ body.print-preview-mode .katex-html {
 }
 
 .print-section-header {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-size: 11pt;
   font-weight: 700;
   text-transform: uppercase;
@@ -814,7 +813,7 @@ body.print-preview-mode .katex-html {
     margin: 0 !important;
     padding: 0 !important;
   }
-  
+
   .print-container {
     background: #fff !important;
     height: auto !important;
@@ -928,7 +927,7 @@ body.print-preview-mode .print-bubble {
   border-top: 1px solid #ddd !important;
   padding-top: 8px !important;
   font-size: 7.5pt !important;
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   color: #555 !important;
   background-color: transparent !important;
   box-sizing: border-box !important;
@@ -936,7 +935,7 @@ body.print-preview-mode .print-bubble {
 }
 
 .print-page-footer span {
-  font-family: 'Inter', Arial, sans-serif !important;
+  font-family: "Inter", Arial, sans-serif !important;
   font-weight: bold !important;
   color: #555 !important;
   text-transform: none !important;

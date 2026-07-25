@@ -1,6 +1,4 @@
-import { cleanQuestionDataForAI } from "../../utils/question-cleaner.js";
-
-
+import { cleanQuestionDataForAI } from '../../utils/question-cleaner.js';
 
 export const ScaffoldingService = {
   /**
@@ -33,8 +31,7 @@ export const ScaffoldingService = {
     // Se era Falso (0), guess < 50 é acerto.
     // Se era Verdadeiro (100), guess > 50 é acerto.
     // Nota: guess = 50 é considerado erro aqui (ou incerteza total)
-    const taxaDeAcerto =
-      extremidadeCorreta === 0 ? (guess < 50 ? 1 : 0) : guess > 50 ? 1 : 0;
+    const taxaDeAcerto = extremidadeCorreta === 0 ? (guess < 50 ? 1 : 0) : guess > 50 ? 1 : 0;
 
     // 4. Peso do Tempo
     const diferenca = tempoGasto - tempoIdeal;
@@ -79,50 +76,47 @@ export const ScaffoldingService = {
    */
   generateStepPrompt: (questaoAlvo, proximoStatus, historicoLinear = []) => {
     const temHistorico = historicoLinear.length > 0;
-    const ultimoPasso = temHistorico
-      ? historicoLinear[historicoLinear.length - 1]
-      : null;
+    const ultimoPasso = temHistorico ? historicoLinear[historicoLinear.length - 1] : null;
 
     // 1. FORMATAR HISTÓRICO
-    let historicoFormatado = "";
-    let listaEnunciadosAnteriores = [];
+    let historicoFormatado = '';
+    const listaEnunciadosAnteriores = [];
 
     if (temHistorico) {
       historicoFormatado =
-        "\n\n**HISTÓRICO DE RASTREAMENTO (O que já foi perguntado e explicado):**\n";
+        '\n\n**HISTÓRICO DE RASTREAMENTO (O que já foi perguntado e explicado):**\n';
 
       historicoLinear.forEach((passo, index) => {
         // Assume check de estrutura para evitar erros
         const contexto = passo.contexto || {};
         const stats = passo.stats || {};
 
-        listaEnunciadosAnteriores.push(contexto.pergunta || "");
+        listaEnunciadosAnteriores.push(contexto.pergunta || '');
 
         historicoFormatado += `\nPasso ${index + 1}:`;
-        historicoFormatado += `\n   - Pergunta Feita: "${contexto.pergunta || "N/A"}"`;
-        historicoFormatado += `\n   - Explicação dada: "${contexto.explicacao || "N/A"}"`;
-        historicoFormatado += `\n   - O usuário acertou? ${stats.acertou ? "SIM" : "NÃO"}`;
+        historicoFormatado += `\n   - Pergunta Feita: "${contexto.pergunta || 'N/A'}"`;
+        historicoFormatado += `\n   - Explicação dada: "${contexto.explicacao || 'N/A'}"`;
+        historicoFormatado += `\n   - O usuário acertou? ${stats.acertou ? 'SIM' : 'NÃO'}`;
         historicoFormatado += `\n   - Confiança do usuário: ${(stats.taxaDeCerteza * 100).toFixed(1)}%`;
         historicoFormatado += `\n   - Proficiência atual: ${(stats.proficiencia * 100).toFixed(1)}%\n`;
       });
     }
 
     // 2. ENUNCIADOS PROIBIDOS
-    let secaoEnunciadosProibidos = "";
+    let secaoEnunciadosProibidos = '';
     if (listaEnunciadosAnteriores.length > 0) {
       secaoEnunciadosProibidos = `\n\n**⚠️ ENUNCIADOS JÁ UTILIZADOS (PROIBIDO REPETIR):**\n`;
       listaEnunciadosAnteriores.forEach((enunciado, index) => {
-        if (enunciado)
-          secaoEnunciadosProibidos += `${index + 1}. "${enunciado}"\n`;
+        if (enunciado) secaoEnunciadosProibidos += `${index + 1}. "${enunciado}"\n`;
       });
       secaoEnunciadosProibidos += `\n🚫 Você DEVE fazer uma pergunta COMPLETAMENTE DIFERENTE.`;
     }
 
     // 3. CONSTRUÇÃO DO PROMPT
-    const alvo = proximoStatus ? "VERDADEIRA" : "FALSA";
+    const alvo = proximoStatus ? 'VERDADEIRA' : 'FALSA';
     // Formatação do Contexto Rico (Se disponível)
-    let contextoRico = "";
-    if (typeof questaoAlvo === "object") {
+    let contextoRico = '';
+    if (typeof questaoAlvo === 'object') {
       contextoRico += `\n    === CONTEXTO COMPLETO DA QUESTÃO (METADADOS E GABARITO) ===\n`;
       // Tenta extrair partes comuns do JSON rico (ex: dados_questao, dados_gabarito)
       if (questaoAlvo.dados_questao || questaoAlvo.dados_gabarito) {
@@ -130,8 +124,8 @@ export const ScaffoldingService = {
         contextoRico += JSON.stringify(cleanedQuestao, null, 2);
       } else {
         // Fallback para objetos simples
-        contextoRico += `    Questão: "${questaoAlvo.questao || questaoAlvo.enunciado || "N/A"}"\n`;
-        contextoRico += `    Resposta Correta: "${questaoAlvo.resposta_correta || questaoAlvo.gabarito || "N/A"}"\n`;
+        contextoRico += `    Questão: "${questaoAlvo.questao || questaoAlvo.enunciado || 'N/A'}"\n`;
+        contextoRico += `    Resposta Correta: "${questaoAlvo.resposta_correta || questaoAlvo.gabarito || 'N/A'}"\n`;
         if (questaoAlvo.explicacao)
           contextoRico += `    Explicação Original: "${questaoAlvo.explicacao}"\n`;
       }
@@ -157,14 +151,14 @@ export const ScaffoldingService = {
     3. **AUTONOMIA**: A pergunta deve ser autocontida e clara.
     4. **USO DO CONTEXTO**: Use o JSON fornecido (dados_questao, dados_gabarito) para criar passos que explorem as nuances, alternativas incorretas e conceitos teóricos da questão original.
 
-    ${temHistorico ? historicoFormatado : "\n**HISTÓRICO:** Nenhum (Início do Scaffolding)."}
+    ${temHistorico ? historicoFormatado : '\n**HISTÓRICO:** Nenhum (Início do Scaffolding).'}
     `;
 
     // 4. ESTRATÉGIA ADAPTATIVA
     if (temHistorico && ultimoPasso) {
       const stats = ultimoPasso.stats || {};
       prompt += `\n\n**ANÁLISE ESTRATÉGICA DO ÚLTIMO PASSO:**
-        - Resultado: ${stats.acertou ? "✓ Acertou" : "✗ Errou"}
+        - Resultado: ${stats.acertou ? '✓ Acertou' : '✗ Errou'}
         - Proficiência: ${(stats.proficiencia * 100).toFixed(1)}%
 
         --- REGRA DE ENCERRAMENTO POR "SPOILER" ---
@@ -178,10 +172,10 @@ export const ScaffoldingService = {
         Se não houve spoiler:
         ${
           stats.proficiencia < 0.3
-            ? "⚠️ O usuário está com dificuldades. Simplifique com um conceito mais básico, mas PERGUNTA INÉDITA."
+            ? '⚠️ O usuário está com dificuldades. Simplifique com um conceito mais básico, mas PERGUNTA INÉDITA.'
             : stats.proficiencia > 0.8
-              ? "🚀 High Performer. Vá para um conceito avançado ou finalize se já cobriu o necessário."
-              : "Avance um passo lógico na complexidade."
+              ? '🚀 High Performer. Vá para um conceito avançado ou finalize se já cobriu o necessário.'
+              : 'Avance um passo lógico na complexidade.'
         }
       `;
     }

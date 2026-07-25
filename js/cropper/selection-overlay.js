@@ -1,5 +1,5 @@
-import { viewerState } from "../main.js";
-import { CropperState } from "./cropper-state.js";
+import { viewerState } from '../main.js';
+import { CropperState } from './cropper-state.js';
 
 /**
  * MODULE: selection-overlay.js
@@ -21,17 +21,17 @@ let rafId = null;
 
 // Enum
 const DragType = {
-  NONE: "none",
-  CREATE: "create",
-  BOX: "box",
-  NW: "nw",
-  NE: "ne",
-  SW: "sw",
-  SE: "se",
-  N: "n",
-  S: "s",
-  W: "w",
-  E: "e",
+  NONE: 'none',
+  CREATE: 'create',
+  BOX: 'box',
+  NW: 'nw',
+  NE: 'ne',
+  SW: 'sw',
+  SE: 'se',
+  N: 'n',
+  S: 's',
+  W: 'w',
+  E: 'e',
   // Adicione outros tipos se necessário
 };
 
@@ -46,7 +46,7 @@ let creationStartY = 0;
 let highlightedGroupId = null;
 
 export function initSelectionOverlay() {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container) return;
 
   if (!overlayElement) {
@@ -76,13 +76,13 @@ export function initSelectionOverlay() {
   // Listeners Robustos
   // Remove anterior se existir para nÃ£o duplicar
   if (scrollListener) {
-    container.removeEventListener("scroll", scrollListener);
+    container.removeEventListener('scroll', scrollListener);
   }
 
   scrollListener = () => {
     updateOverlayDimensions();
   };
-  container.addEventListener("scroll", scrollListener);
+  container.addEventListener('scroll', scrollListener);
 
   if (window.ResizeObserver) {
     if (resizeObserver) resizeObserver.disconnect();
@@ -107,25 +107,21 @@ function setupKeyboardShortcuts() {
   if (keyboardListenerAdded) return;
   keyboardListenerAdded = true;
 
-  document.addEventListener("keydown", (e) => {
+  document.addEventListener('keydown', (e) => {
     // Só funciona se tiver grupo ativo (modo edição)
     if (!CropperState.getActiveGroup()) return;
 
     // Ignora se estiver em um input/textarea
     if (
-      e.target.tagName === "INPUT" ||
-      e.target.tagName === "TEXTAREA" ||
+      e.target.tagName === 'INPUT' ||
+      e.target.tagName === 'TEXTAREA' ||
       e.target.isContentEditable
     ) {
       return;
     }
 
     // Ctrl+Z = Undo
-    if (
-      (e.ctrlKey || e.metaKey) &&
-      e.key.toLowerCase() === "z" &&
-      !e.shiftKey
-    ) {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
       e.preventDefault();
       CropperState.undo();
     }
@@ -133,8 +129,7 @@ function setupKeyboardShortcuts() {
     // Ctrl+Shift+Z ou Ctrl+Y = Redo
     if (
       (e.ctrlKey || e.metaKey) &&
-      ((e.key.toLowerCase() === "z" && e.shiftKey) ||
-        e.key.toLowerCase() === "y")
+      ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y')
     ) {
       e.preventDefault();
       CropperState.redo();
@@ -149,119 +144,113 @@ function updateInteractivity() {
   // Porém, se clicarmos num crop existente em modo passivo, talvez queiramos selecionar o grupo?
   // Por simplicidade v1: Só edita se tiver grupo ativo.
   if (activeGroup) {
-    overlayElement.style.display = "block";
-    overlayElement.style.pointerEvents = "auto";
-    overlayElement.classList.add("mode-editing");
-    overlayElement.classList.remove("mode-viewing");
+    overlayElement.style.display = 'block';
+    overlayElement.style.pointerEvents = 'auto';
+    overlayElement.classList.add('mode-editing');
+    overlayElement.classList.remove('mode-viewing');
 
     // Adiciona classe específica para estilização simplificada se necessário
-    if (activeGroup.tags && activeGroup.tags.includes("slot-mode")) {
-      overlayElement.classList.add("mode-slot");
+    if (activeGroup.tags && activeGroup.tags.includes('slot-mode')) {
+      overlayElement.classList.add('mode-slot');
     } else {
-      overlayElement.classList.remove("mode-slot");
+      overlayElement.classList.remove('mode-slot');
     }
 
     // FIX: Se o grupo estiver vazio (criando nova questao), não "lockar" visualmente nem scroll
     if (activeGroup.crops.length === 0) {
-      overlayElement.style.cursor = "crosshair";
-      overlayElement.style.touchAction = "pan-y"; // Permite scroll vertical
-      if (dimmingPath) dimmingPath.style.display = "block"; // Re-habilita fundo escuro (pedido do user)
+      overlayElement.style.cursor = 'crosshair';
+      overlayElement.style.touchAction = 'pan-y'; // Permite scroll vertical
+      if (dimmingPath) dimmingPath.style.display = 'block'; // Re-habilita fundo escuro (pedido do user)
     } else {
-      overlayElement.style.cursor = "crosshair";
-      overlayElement.style.touchAction = "none"; // Bloqueia scroll para precisão na edição
-      if (dimmingPath) dimmingPath.style.display = "block";
+      overlayElement.style.cursor = 'crosshair';
+      overlayElement.style.touchAction = 'none'; // Bloqueia scroll para precisão na edição
+      if (dimmingPath) dimmingPath.style.display = 'block';
     }
 
     // Forçar atualização de dimensões ao mostrar
     updateOverlayDimensions();
   } else {
     // Mantém VISÍVEL (block) para ver os crops, mas SEM INTERAÇÃO (none) para scrollar
-    overlayElement.style.display = "block";
-    overlayElement.style.pointerEvents = "none";
-    overlayElement.style.cursor = "default";
-    overlayElement.classList.add("mode-viewing");
-    overlayElement.classList.remove("mode-editing");
+    overlayElement.style.display = 'block';
+    overlayElement.style.pointerEvents = 'none';
+    overlayElement.style.cursor = 'default';
+    overlayElement.classList.add('mode-viewing');
+    overlayElement.classList.remove('mode-editing');
     // Remove o fundo escuro
-    if (dimmingPath) dimmingPath.style.display = "none";
+    if (dimmingPath) dimmingPath.style.display = 'none';
   }
 }
 
 function updateOverlayDimensions() {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!container || !overlayElement) return;
 
   const w = Math.max(container.scrollWidth, container.clientWidth);
   const h = Math.max(container.scrollHeight, container.clientHeight);
 
-  if (
-    overlayElement.style.width === `${w}px` &&
-    overlayElement.style.height === `${h}px`
-  ) {
+  if (overlayElement.style.width === `${w}px` && overlayElement.style.height === `${h}px`) {
     return;
   }
 
   overlayElement.style.width = `${w}px`;
   overlayElement.style.height = `${h}px`;
 
-  if (
-    overlayElement.firstChild &&
-    overlayElement.firstChild.tagName === "svg"
-  ) {
-    overlayElement.firstChild.setAttribute("width", "100%");
-    overlayElement.firstChild.setAttribute("height", "100%");
-    overlayElement.firstChild.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  if (overlayElement.firstChild && overlayElement.firstChild.tagName === 'svg') {
+    overlayElement.firstChild.setAttribute('width', '100%');
+    overlayElement.firstChild.setAttribute('height', '100%');
+    overlayElement.firstChild.setAttribute('viewBox', `0 0 ${w} ${h}`);
   }
 
   updateDimmingMask();
 }
 
 function createOverlayDOM(container) {
-  overlayElement = document.createElement("div");
-  overlayElement.id = "selection-overlay";
-  overlayElement.style.position = "absolute";
-  overlayElement.style.top = "0";
-  overlayElement.style.left = "0";
-  overlayElement.style.width = "100%";
-  overlayElement.style.zIndex = "999";
-  overlayElement.style.backgroundColor = "transparent";
-  overlayElement.style.touchAction = "none";
+  overlayElement = document.createElement('div');
+  overlayElement.id = 'selection-overlay';
+  overlayElement.style.position = 'absolute';
+  overlayElement.style.top = '0';
+  overlayElement.style.left = '0';
+  overlayElement.style.width = '100%';
+  overlayElement.style.zIndex = '999';
+  overlayElement.style.backgroundColor = 'transparent';
+  overlayElement.style.touchAction = 'none';
 
   // SVG Mask Layer
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.style.position = "absolute";
-  svg.style.top = "0";
-  svg.style.left = "0";
-  svg.style.width = "100%";
-  svg.style.height = "100%";
-  svg.style.pointerEvents = "none";
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.style.position = 'absolute';
+  svg.style.top = '0';
+  svg.style.left = '0';
+  svg.style.width = '100%';
+  svg.style.height = '100%';
+  svg.style.pointerEvents = 'none';
 
-  dimmingPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  dimmingPath.setAttribute("fill", "rgba(0, 0, 0, 0.5)");
-  dimmingPath.setAttribute("fill-rule", "evenodd");
+  dimmingPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  dimmingPath.setAttribute('fill', 'rgba(0, 0, 0, 0.5)');
+  dimmingPath.setAttribute('fill-rule', 'evenodd');
 
   svg.appendChild(dimmingPath);
   overlayElement.appendChild(svg);
 
   container.appendChild(overlayElement);
 
-  overlayElement.addEventListener("pointerdown", handlePointerDown);
-  document.addEventListener("pointermove", handlePointerMove);
-  document.addEventListener("pointerup", handlePointerUp);
+  overlayElement.addEventListener('pointerdown', handlePointerDown);
+  document.addEventListener('pointermove', handlePointerMove);
+  document.addEventListener('pointerup', handlePointerUp);
 
   // Listener para detectar hover em handles "abaixo" de outras boxes e ajustar cursor
-  overlayElement.addEventListener("mousemove", handleHoverCursor);
+  overlayElement.addEventListener('mousemove', handleHoverCursor);
 }
 
 // Mapa de handles para cursores CSS
 const handleCursorMap = {
-  nw: "nwse-resize",
-  se: "nwse-resize",
-  ne: "nesw-resize",
-  sw: "nesw-resize",
-  n: "ns-resize",
-  s: "ns-resize",
-  w: "ew-resize",
-  e: "ew-resize",
+  nw: 'nwse-resize',
+  se: 'nwse-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+  n: 'ns-resize',
+  s: 'ns-resize',
+  w: 'ew-resize',
+  e: 'ew-resize',
 };
 
 function handleHoverCursor(e) {
@@ -271,44 +260,40 @@ function handleHoverCursor(e) {
   const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
 
   // Procura por resize-handle em QUALQUER camada
-  const handleEl = elementsAtPoint.find((el) =>
-    el.classList.contains("resize-handle")
-  );
+  const handleEl = elementsAtPoint.find((el) => el.classList.contains('resize-handle'));
   if (handleEl && handleEl.dataset.handle) {
-    const cursor = handleCursorMap[handleEl.dataset.handle] || "pointer";
+    const cursor = handleCursorMap[handleEl.dataset.handle] || 'pointer';
     overlayElement.style.cursor = cursor;
     return;
   }
 
   // Procura por selection-box do grupo ativo
   const boxEl = elementsAtPoint.find(
-    (el) =>
-      el.classList.contains("selection-box") &&
-      el.classList.contains("is-active-group")
+    (el) => el.classList.contains('selection-box') && el.classList.contains('is-active-group'),
   );
   if (boxEl) {
-    overlayElement.style.cursor = "move";
+    overlayElement.style.cursor = 'move';
     return;
   }
 
   // Default: crosshair para criar nova seleção
-  overlayElement.style.cursor = "crosshair";
+  overlayElement.style.cursor = 'crosshair';
 }
 
 // Helper para criar caixa DOM
 function createSelectionBoxDOM(isActiveGroup) {
-  const box = document.createElement("div");
-  box.className = "selection-box";
+  const box = document.createElement('div');
+  box.className = 'selection-box';
   // Posicionamento absoluto é necessário para o funcionamento
-  box.style.position = "absolute";
+  box.style.position = 'absolute';
 
   if (isActiveGroup) {
-    box.classList.add("is-active-group");
+    box.classList.add('is-active-group');
 
     // Criar handles apenas se for do grupo ativo
-    const handles = ["nw", "ne", "sw", "se", "n", "s", "w", "e"];
+    const handles = ['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'];
     handles.forEach((h) => {
-      const el = document.createElement("div");
+      const el = document.createElement('div');
       // As classes handle-nw, handle-n, etc já cuidam do posicionamento e cursor no CSS
       el.className = `resize-handle handle-${h}`;
       el.dataset.handle = h;
@@ -316,7 +301,7 @@ function createSelectionBoxDOM(isActiveGroup) {
     });
   } else {
     // Passivo / Outros grupos
-    box.classList.add("is-inactive-group");
+    box.classList.add('is-inactive-group');
   }
 
   return box;
@@ -325,7 +310,7 @@ function createSelectionBoxDOM(isActiveGroup) {
 export function removeSelectionOverlay() {
   // Nós não removemos mais totalmente, apenas escondemos/desativamos
   // Mas para manter compatibilidade com limpar tudo:
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (overlayElement && container) {
     // Se quiser hard remove:
     // container.removeChild(overlayElement);
@@ -345,11 +330,11 @@ export function removeSelectionOverlay() {
   dimmingPath = null;
 
   // Limpar listeners
-  document.removeEventListener("pointermove", handlePointerMove);
-  document.removeEventListener("pointerup", handlePointerUp);
+  document.removeEventListener('pointermove', handlePointerMove);
+  document.removeEventListener('pointerup', handlePointerUp);
 
   if (container && scrollListener) {
-    container.removeEventListener("scroll", scrollListener);
+    container.removeEventListener('scroll', scrollListener);
   }
   if (resizeObserver) {
     resizeObserver.disconnect();
@@ -377,7 +362,7 @@ function handlePointerDown(e) {
   // GUARD: Slot-Mode
   // Se for modo de slot (preenchimento de imagem), permitimos o fluxo básico
   // ignorando qualquer verificação potencial de metadados de questão.
-  const isSlotMode = activeGroup.tags && activeGroup.tags.includes("slot-mode");
+  const isSlotMode = activeGroup.tags && activeGroup.tags.includes('slot-mode');
 
   const target = e.target;
 
@@ -390,14 +375,12 @@ function handlePointerDown(e) {
   const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
 
   // 1. Procura por resize-handle em QUALQUER camada (não só e.target)
-  const handleEl = elementsAtPoint.find((el) =>
-    el.classList.contains("resize-handle")
-  );
+  const handleEl = elementsAtPoint.find((el) => el.classList.contains('resize-handle'));
   if (handleEl) {
     const box = handleEl.parentElement;
 
     // Check ownership (safety) - só permite editar boxes do grupo ativo
-    if (box && box.classList.contains("is-active-group")) {
+    if (box && box.classList.contains('is-active-group')) {
       draggingBox = box;
       currentDragType = handleEl.dataset.handle;
       e.preventDefault();
@@ -418,9 +401,7 @@ function handlePointerDown(e) {
 
   // 2. Procura por selection-box do grupo ativo em QUALQUER camada
   const boxEl = elementsAtPoint.find(
-    (el) =>
-      el.classList.contains("selection-box") &&
-      el.classList.contains("is-active-group")
+    (el) => el.classList.contains('selection-box') && el.classList.contains('is-active-group'),
   );
   if (boxEl) {
     draggingBox = boxEl;
@@ -443,7 +424,7 @@ function handlePointerDown(e) {
   {
     // 3a. CHECK: Start strictly inside a page?
     const elements = document.elementsFromPoint(e.clientX, e.clientY);
-    const pageEl = elements.find((el) => el.classList.contains("pdf-page"));
+    const pageEl = elements.find((el) => el.classList.contains('pdf-page'));
 
     if (!pageEl) return;
 
@@ -462,11 +443,7 @@ function handlePointerDown(e) {
     // "não possa selecionar fora de algum crop da questão"
     let imposedConstraint = null;
 
-    if (
-      activeGroup &&
-      activeGroup.tags &&
-      activeGroup.tags.includes("slot-mode")
-    ) {
+    if (activeGroup && activeGroup.tags && activeGroup.tags.includes('slot-mode')) {
       const clickedPageNum = parseInt(pageEl.dataset.pageNum);
 
       // Get all potential parent crops on this page
@@ -492,15 +469,11 @@ function handlePointerDown(e) {
       const currentScale = viewerState.pdfScale;
       const foundParent = parentCrops.find((crop) => {
         const anchorData = crop.anchorData;
-        const pageWrapper = document.getElementById(
-          `page-wrapper-${anchorData.anchorPageNum}`
-        );
+        const pageWrapper = document.getElementById(`page-wrapper-${anchorData.anchorPageNum}`);
         if (!pageWrapper) return false;
 
-        const pLeft =
-          pageWrapper.offsetLeft + anchorData.relativeLeft * currentScale;
-        const pTop =
-          pageWrapper.offsetTop + anchorData.relativeTop * currentScale;
+        const pLeft = pageWrapper.offsetLeft + anchorData.relativeLeft * currentScale;
+        const pTop = pageWrapper.offsetTop + anchorData.relativeTop * currentScale;
         const pWidth = anchorData.unscaledW * currentScale;
         const pHeight = anchorData.unscaledH * currentScale;
 
@@ -535,20 +508,14 @@ function handlePointerDown(e) {
       // pois é isso que `updateSelectionBox` e o resto da lógica usam.
       const oRect = overlayElement.getBoundingClientRect();
       const pageWrapper = document.getElementById(
-        `page-wrapper-${foundParent.anchorData.anchorPageNum}`
+        `page-wrapper-${foundParent.anchorData.anchorPageNum}`,
       );
       // Pega rect da pagina relativo ao overlay
       const pRect = pageWrapper.getBoundingClientRect();
 
       // Coords relativas ao overlay
-      const cropLeft =
-        pRect.left -
-        oRect.left +
-        foundParent.anchorData.relativeLeft * currentScale;
-      const cropTop =
-        pRect.top -
-        oRect.top +
-        foundParent.anchorData.relativeTop * currentScale;
+      const cropLeft = pRect.left - oRect.left + foundParent.anchorData.relativeLeft * currentScale;
+      const cropTop = pRect.top - oRect.top + foundParent.anchorData.relativeTop * currentScale;
       const cropW = foundParent.anchorData.unscaledW * currentScale;
       const cropH = foundParent.anchorData.unscaledH * currentScale;
 
@@ -567,11 +534,7 @@ function handlePointerDown(e) {
     e.preventDefault();
 
     // Fix: In slot-mode (single crop), clear previous crops immediately upon starting new drag
-    if (
-      activeGroup &&
-      activeGroup.tags &&
-      activeGroup.tags.includes("slot-mode")
-    ) {
+    if (activeGroup && activeGroup.tags && activeGroup.tags.includes('slot-mode')) {
       CropperState.clearActiveGroupCrops();
     }
 
@@ -585,11 +548,11 @@ function handlePointerDown(e) {
     if (activeGroup) {
       const color = CropperState.getGroupColor(activeGroup);
       newBox.style.borderColor = color;
-      newBox.style.setProperty("--color-primary", color);
+      newBox.style.setProperty('--color-primary', color);
 
       const rgb = hexToRgb(color);
       if (rgb) {
-        newBox.style.setProperty("--color-primary-rgb", rgb);
+        newBox.style.setProperty('--color-primary-rgb', rgb);
       }
 
       newBox.style.backgroundColor = `${color}1A`;
@@ -629,7 +592,7 @@ function refreshBoxConstraint(box) {
   const centerY = boxRect.top + boxRect.height / 2;
 
   const elements = document.elementsFromPoint(centerX, centerY);
-  const pageEl = elements.find((el) => el.classList.contains("pdf-page"));
+  const pageEl = elements.find((el) => el.classList.contains('pdf-page'));
 
   if (pageEl && overlayElement) {
     // --- DEFAULT CONSTRAINT: PAGE BOUNDS ---
@@ -647,11 +610,7 @@ function refreshBoxConstraint(box) {
     // --- SLOT MODE CONSTRAINT (Strict Parent Logic) ---
     // Aplica a mesma restrição do handlePointerDown durante a edição/move
     const activeGroup = CropperState.getActiveGroup();
-    if (
-      activeGroup &&
-      activeGroup.tags &&
-      activeGroup.tags.includes("slot-mode")
-    ) {
+    if (activeGroup && activeGroup.tags && activeGroup.tags.includes('slot-mode')) {
       const clickedPageNum = parseInt(pageEl.dataset.pageNum);
       let parentCrops = CropperState.getQuestaoContextCrops(clickedPageNum);
 
@@ -671,9 +630,7 @@ function refreshBoxConstraint(box) {
         // Tenta achar o crop pai que contem o centro da box atual
         const foundParent = parentCrops.find((crop) => {
           const anchorData = crop.anchorData;
-          const pageWrapper = document.getElementById(
-            `page-wrapper-${anchorData.anchorPageNum}`
-          );
+          const pageWrapper = document.getElementById(`page-wrapper-${anchorData.anchorPageNum}`);
           if (!pageWrapper) return false;
 
           const rect = pageWrapper.getBoundingClientRect();
@@ -683,28 +640,20 @@ function refreshBoxConstraint(box) {
           const visBottom = visTop + anchorData.unscaledH * currentScale;
 
           return (
-            centerX >= visLeft &&
-            centerX <= visRight &&
-            centerY >= visTop &&
-            centerY <= visBottom
+            centerX >= visLeft && centerX <= visRight && centerY >= visTop && centerY <= visBottom
           );
         });
 
         // Se achou um pai valido onde o centro está
         if (foundParent) {
           const wrapper = document.getElementById(
-            `page-wrapper-${foundParent.anchorData.anchorPageNum}`
+            `page-wrapper-${foundParent.anchorData.anchorPageNum}`,
           );
           const wRect = wrapper.getBoundingClientRect();
 
           const cropLeft =
-            wRect.left -
-            oRect.left +
-            foundParent.anchorData.relativeLeft * currentScale;
-          const cropTop =
-            wRect.top -
-            oRect.top +
-            foundParent.anchorData.relativeTop * currentScale;
+            wRect.left - oRect.left + foundParent.anchorData.relativeLeft * currentScale;
+          const cropTop = wRect.top - oRect.top + foundParent.anchorData.relativeTop * currentScale;
           const cropW = foundParent.anchorData.unscaledW * currentScale;
           const cropH = foundParent.anchorData.unscaledH * currentScale;
 
@@ -777,13 +726,13 @@ function handlePointerMove(e) {
         newTop += deltaY;
       } else {
         const type = currentDragType;
-        if (type.includes("e")) newWidth += deltaX;
-        if (type.includes("w")) {
+        if (type.includes('e')) newWidth += deltaX;
+        if (type.includes('w')) {
           newLeft += deltaX;
           newWidth -= deltaX;
         }
-        if (type.includes("s")) newHeight += deltaY;
-        if (type.includes("n")) {
+        if (type.includes('s')) newHeight += deltaY;
+        if (type.includes('n')) {
           newTop += deltaY;
           newHeight -= deltaY;
         }
@@ -804,10 +753,7 @@ function handlePointerMove(e) {
         if (newLeft < c.left) {
           newLeft = c.left;
           // If resizing West (Left), we must Recalculate Width to preserve Right Anchor
-          if (
-            currentDragType !== DragType.BOX &&
-            currentDragType.includes("w")
-          ) {
+          if (currentDragType !== DragType.BOX && currentDragType.includes('w')) {
             newWidth = initialRight - newLeft;
           }
         }
@@ -816,10 +762,7 @@ function handlePointerMove(e) {
         if (newTop < c.top) {
           newTop = c.top;
           // If resizing North (Top), we must Recalculate Height to preserve Bottom Anchor
-          if (
-            currentDragType !== DragType.BOX &&
-            currentDragType.includes("n")
-          ) {
+          if (currentDragType !== DragType.BOX && currentDragType.includes('n')) {
             newHeight = initialBottom - newTop;
           }
         }
@@ -931,13 +874,13 @@ function updateSelectionBox(box, left, top, w, h) {
 // --- CALCULO ANCORA ---
 
 function calculateAnchor(box, currentRect) {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   const boxLeft = currentRect.left;
   const boxTop = currentRect.top;
   const boxCX = boxLeft + currentRect.width / 2;
   const boxCY = boxTop + currentRect.height / 2;
 
-  const pages = Array.from(container.querySelectorAll(".pdf-page"));
+  const pages = Array.from(container.querySelectorAll('.pdf-page'));
   let bestPage = null;
 
   for (const page of pages) {
@@ -971,7 +914,7 @@ function calculateAnchor(box, currentRect) {
 // --- RENDERIZADOR PRINCIPAL ---
 
 export function refreshOverlayPosition() {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   if (!overlayElement || !viewerState.pdfDoc || !container) return;
 
   if (overlayElement.parentNode !== container) {
@@ -981,9 +924,7 @@ export function refreshOverlayPosition() {
   updateOverlayDimensions();
 
   // 1. Limpar boxes existentes do DOM
-  const existingBoxes = Array.from(
-    overlayElement.querySelectorAll(".selection-box")
-  );
+  const existingBoxes = Array.from(overlayElement.querySelectorAll('.selection-box'));
   existingBoxes.forEach((b) => {
     // Se for o que estamos arrastando agora, NÃO REMOVE
     // (Para permitir update suave enquanto o subscribe é chamado)
@@ -1002,13 +943,10 @@ export function refreshOverlayPosition() {
     // Simplesmente renderiza todos que estão no STORE. O draggingBox temporário é extra-store.
 
     const anchorData = crop.anchorData;
-    const anchorPage = document.getElementById(
-      `page-wrapper-${anchorData.anchorPageNum}`
-    );
+    const anchorPage = document.getElementById(`page-wrapper-${anchorData.anchorPageNum}`);
     if (!anchorPage) return; // Pagina não renderizada
 
-    const newLeft =
-      anchorPage.offsetLeft + anchorData.relativeLeft * currentScale;
+    const newLeft = anchorPage.offsetLeft + anchorData.relativeLeft * currentScale;
     const newTop = anchorPage.offsetTop + anchorData.relativeTop * currentScale;
     const newWidth = anchorData.unscaledW * currentScale;
     const newHeight = anchorData.unscaledH * currentScale;
@@ -1023,16 +961,16 @@ export function refreshOverlayPosition() {
     if (crop.color) {
       box.style.borderColor = crop.color;
       // Set CSS variable so handles (children) inherit the color
-      box.style.setProperty("--color-primary", crop.color);
+      box.style.setProperty('--color-primary', crop.color);
 
       const rgb = hexToRgb(crop.color);
       if (rgb) {
-        box.style.setProperty("--color-primary-rgb", rgb);
+        box.style.setProperty('--color-primary-rgb', rgb);
       }
 
       // Background with opacity (unless draft/gray, then keep gray default or handle here)
       // Note: We use the rgb variable for background in CSS, but explicit set here ensures it works if class fails
-      if (crop.status !== "draft") {
+      if (crop.status !== 'draft') {
         box.style.backgroundColor = `${crop.color}1A`; // ~10% opacity
       } else {
         // Drafts also get color now
@@ -1041,29 +979,29 @@ export function refreshOverlayPosition() {
     }
 
     // Apply Line Style (Dashed vs Solid)
-    if (crop.tipo === "parte_questao") {
-      box.style.borderStyle = "dashed";
+    if (crop.tipo === 'parte_questao') {
+      box.style.borderStyle = 'dashed';
     } else {
-      box.style.borderStyle = "solid";
+      box.style.borderStyle = 'solid';
     }
 
     // Add status class
-    if (crop.status === "verified") {
-      box.classList.add("status-verified");
-    } else if (crop.status === "draft") {
+    if (crop.status === 'verified') {
+      box.classList.add('status-verified');
+    } else if (crop.status === 'draft') {
       // box.classList.add("status-draft"); // Optional, default is ok
     }
 
     // HIGHLIGHT LOGIC: Aplica classes de destaque quando hover na sidebar
     if (highlightedGroupId !== null) {
       if (crop.groupId === highlightedGroupId) {
-        box.classList.add("is-highlighted");
+        box.classList.add('is-highlighted');
         // Adiciona glow com a cor do crop
         if (crop.color) {
           box.style.boxShadow = `0 0 20px 5px ${crop.color}80, 0 0 40px 10px ${crop.color}40`;
         }
       } else {
-        box.classList.add("is-dimmed");
+        box.classList.add('is-dimmed');
       }
     }
 
@@ -1087,9 +1025,9 @@ export function highlightGroup(groupId) {
   // Atualiza a classe no overlay para controlar o dimming geral
   if (overlayElement) {
     if (groupId !== null) {
-      overlayElement.classList.add("highlight-mode");
+      overlayElement.classList.add('highlight-mode');
     } else {
-      overlayElement.classList.remove("highlight-mode");
+      overlayElement.classList.remove('highlight-mode');
     }
   }
 
@@ -1106,26 +1044,24 @@ export function highlightGroup(groupId) {
 function updateHighlightClasses() {
   if (!overlayElement) return;
 
-  const boxes = overlayElement.querySelectorAll(".selection-box");
+  const boxes = overlayElement.querySelectorAll('.selection-box');
 
   boxes.forEach((box) => {
     const groupId = parseFloat(box.dataset.groupId);
 
     // Remove classes anteriores
-    box.classList.remove("is-highlighted", "is-dimmed");
-    box.style.boxShadow = "";
+    box.classList.remove('is-highlighted', 'is-dimmed');
+    box.style.boxShadow = '';
 
     // Aplica novas classes baseado no estado de highlight
     if (highlightedGroupId !== null) {
       if (groupId === highlightedGroupId) {
-        box.classList.add("is-highlighted");
+        box.classList.add('is-highlighted');
         // Pega a cor do CSS variable ou usa default
-        const color =
-          getComputedStyle(box).getPropertyValue("--color-primary").trim() ||
-          "#3b82f6";
+        const color = getComputedStyle(box).getPropertyValue('--color-primary').trim() || '#3b82f6';
         // box.style.boxShadow = `0 0 20px 5px ${color}80, 0 0 40px 10px ${color}40`;
       } else {
-        box.classList.add("is-dimmed");
+        box.classList.add('is-dimmed');
       }
     }
   });
@@ -1150,11 +1086,9 @@ function updateDimmingMask() {
   // HIGHLIGHT MODE: Apenas os crops destacados criam "spotlight"
   if (highlightedGroupId !== null) {
     // Só adiciona buracos para os crops do grupo em destaque
-    const boxes = overlayElement.querySelectorAll(
-      ".selection-box.is-highlighted"
-    );
+    const boxes = overlayElement.querySelectorAll('.selection-box.is-highlighted');
     boxes.forEach((box) => {
-      if (box.style.display === "none") return;
+      if (box.style.display === 'none') return;
       const bx = parseFloat(box.style.left) || 0;
       const by = parseFloat(box.style.top) || 0;
       const bw = parseFloat(box.style.width) || 0;
@@ -1166,11 +1100,7 @@ function updateDimmingMask() {
     });
   }
   // OPTIMIZATION: During drag, use cached positions for other boxes
-  else if (
-    currentDragType !== DragType.NONE &&
-    draggingBox &&
-    cachedBoxPositions
-  ) {
+  else if (currentDragType !== DragType.NONE && draggingBox && cachedBoxPositions) {
     // Use cached positions for all boxes except the one being dragged
     cachedBoxPositions.forEach((pos) => {
       d += `M ${pos.x} ${pos.y} h ${pos.w} v ${pos.h} h -${pos.w} Z `;
@@ -1186,9 +1116,9 @@ function updateDimmingMask() {
     }
   } else {
     // Not dragging and not highlighting - do full DOM query (only happens on init/refresh)
-    const boxes = overlayElement.querySelectorAll(".selection-box");
+    const boxes = overlayElement.querySelectorAll('.selection-box');
     boxes.forEach((box) => {
-      if (box.style.display === "none") return;
+      if (box.style.display === 'none') return;
       const bx = parseFloat(box.style.left) || 0;
       const by = parseFloat(box.style.top) || 0;
       const bw = parseFloat(box.style.width) || 0;
@@ -1200,16 +1130,16 @@ function updateDimmingMask() {
     });
   }
 
-  dimmingPath.setAttribute("d", d);
+  dimmingPath.setAttribute('d', d);
 }
 
 // Helper to cache box positions when drag starts
 function cacheBoxPositionsForDrag() {
   if (!overlayElement) return;
   cachedBoxPositions = [];
-  const boxes = overlayElement.querySelectorAll(".selection-box");
+  const boxes = overlayElement.querySelectorAll('.selection-box');
   boxes.forEach((box) => {
-    if (box === draggingBox || box.style.display === "none") return;
+    if (box === draggingBox || box.style.display === 'none') return;
     const bx = parseFloat(box.style.left) || 0;
     const by = parseFloat(box.style.top) || 0;
     const bw = parseFloat(box.style.width) || 0;
@@ -1237,13 +1167,11 @@ export async function extractImageFromSelection() {
 
 // Necessário para exportar porem usar lógica nova (extração baseada em crop data)
 export async function extractImageFromCropData(anchorData) {
-  const container = document.getElementById("canvasContainer");
+  const container = document.getElementById('canvasContainer');
   const currentScale = viewerState.pdfScale;
 
   // Reconstruir coordenadas atuais
-  const anchorPage = document.getElementById(
-    `page-wrapper-${anchorData.anchorPageNum}`
-  );
+  const anchorPage = document.getElementById(`page-wrapper-${anchorData.anchorPageNum}`);
   if (!anchorPage) return null; // Pagina nao visivel
 
   const x = anchorPage.offsetLeft + anchorData.relativeLeft * currentScale;
@@ -1252,11 +1180,11 @@ export async function extractImageFromCropData(anchorData) {
   const height = anchorData.unscaledH * currentScale;
 
   // Lógica de canvas drawImage
-  const finalCanvas = document.createElement("canvas");
+  const finalCanvas = document.createElement('canvas');
   finalCanvas.width = width;
   finalCanvas.height = height;
-  const ctx = finalCanvas.getContext("2d");
-  const pages = Array.from(container.querySelectorAll(".pdf-page"));
+  const ctx = finalCanvas.getContext('2d');
+  const pages = Array.from(container.querySelectorAll('.pdf-page'));
 
   // Mesma lógica de interseção de extractImageFromSelection original
   for (const pageWrapper of pages) {
@@ -1265,14 +1193,8 @@ export async function extractImageFromCropData(anchorData) {
     const pWidth = pageWrapper.offsetWidth;
     const pHeight = pageWrapper.offsetHeight;
 
-    const x_overlap = Math.max(
-      0,
-      Math.min(x + width, pLeft + pWidth) - Math.max(x, pLeft)
-    );
-    const y_overlap = Math.max(
-      0,
-      Math.min(y + height, pTop + pHeight) - Math.max(y, pTop)
-    );
+    const x_overlap = Math.max(0, Math.min(x + width, pLeft + pWidth) - Math.max(x, pLeft));
+    const y_overlap = Math.max(0, Math.min(y + height, pTop + pHeight) - Math.max(y, pTop));
 
     if (x_overlap > 0 && y_overlap > 0) {
       const sourceX = Math.max(0, x - pLeft);
@@ -1284,12 +1206,9 @@ export async function extractImageFromCropData(anchorData) {
 
       try {
         const pageNum = parseInt(pageWrapper.dataset.pageNum);
-        const pageCanvasOnScreen = document.getElementById(
-          `page-canvas-${pageNum}`
-        );
+        const pageCanvasOnScreen = document.getElementById(`page-canvas-${pageNum}`);
         if (pageCanvasOnScreen) {
-          const pRatio =
-            pageCanvasOnScreen.width / pageCanvasOnScreen.clientWidth;
+          const pRatio = pageCanvasOnScreen.width / pageCanvasOnScreen.clientWidth;
           ctx.drawImage(
             pageCanvasOnScreen,
             sourceX * pRatio,
@@ -1299,7 +1218,7 @@ export async function extractImageFromCropData(anchorData) {
             destX,
             destY,
             drawW,
-            drawH
+            drawH,
           );
         }
       } catch (err) {}
@@ -1309,9 +1228,9 @@ export async function extractImageFromCropData(anchorData) {
   return new Promise((resolve) => {
     finalCanvas.toBlob((blob) => {
       const url = URL.createObjectURL(blob);
-      const base64 = finalCanvas.toDataURL("image/png");
+      const base64 = finalCanvas.toDataURL('image/png');
       resolve({ blobUrl: url, base64 });
-    }, "image/png");
+    }, 'image/png');
   });
 }
 
@@ -1319,21 +1238,21 @@ export async function extractImageFromCropData(anchorData) {
 function hexToRgb(hex) {
   if (!hex) return null;
   // Remove # if present
-  hex = hex.replace(/^#/, "");
+  hex = hex.replace(/^#/, '');
 
   // Handle shorthand (e.g. #FFF)
   if (hex.length === 3) {
     hex = hex
-      .split("")
+      .split('')
       .map((char) => char + char)
-      .join("");
+      .join('');
   }
 
   // Parse
-  let bigint = parseInt(hex, 16);
-  let r = (bigint >> 16) & 255;
-  let g = (bigint >> 8) & 255;
-  let b = bigint & 255;
+  const bigint = parseInt(hex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
 
   return `${r}, ${g}, ${b}`;
 }

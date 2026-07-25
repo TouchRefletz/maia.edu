@@ -85,7 +85,7 @@ sequenceDiagram
     CS->>IDB: put({ ...chat, updatedAt: now, expiresAt: now+30dias })
 
     alt Usuário logado (Firebase Auth)
-        CS->>FS: setDoc(users/{uid}/chats/{id}, payload, {merge: true})
+        CS->>FS: writeBatch (Subcoleção chats/{id}/messages em lotes de 400)
     end
 
     Note over IDB: 30 dias sem interação...

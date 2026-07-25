@@ -1,4 +1,4 @@
-import { resolverImagensEnvio } from "../render/final/json-e-modal.js";
+import { resolverImagensEnvio } from '../render/final/json-e-modal.js';
 
 export function prepararGabaritoEnvio(g) {
   const gabaritoLimpo = JSON.parse(JSON.stringify(g));
@@ -11,7 +11,7 @@ export function prepararGabaritoEnvio(g) {
   } else {
     imgsReais = resolverImagensEnvio(
       window.__BACKUP_IMGS_G,
-      window.__imagensLimpas?.gabarito_original
+      window.__imagensLimpas?.gabarito_original,
     );
   }
 
@@ -25,12 +25,12 @@ export function prepararGabaritoEnvio(g) {
   if (gabaritoLimpo.creditos) {
     // Lista de campos para remover (com e sem underscore, mantendo sua lógica)
     const camposParaRemover = [
-      "como_identificou",
-      "precisa_credito_generico",
-      "texto_credito_sugerido",
-      "comoidentificou",
-      "precisacreditogenerico",
-      "textocreditosugerido",
+      'como_identificou',
+      'precisa_credito_generico',
+      'texto_credito_sugerido',
+      'comoidentificou',
+      'precisacreditogenerico',
+      'textocreditosugerido',
     ];
     camposParaRemover.forEach((campo) => delete gabaritoLimpo.creditos[campo]);
   }
@@ -49,7 +49,7 @@ export function prepararQuestaoEnvio(q) {
   } else {
     imgsReais = resolverImagensEnvio(
       window.__BACKUP_IMGS_Q,
-      window.__imagensLimpas?.questao_original
+      window.__imagensLimpas?.questao_original,
     );
   }
 
@@ -66,8 +66,8 @@ export function prepararQuestaoEnvio(q) {
 
 export function construirDadosParaEnvio(q, g) {
   // 1. Sanitiza o Título
-  const rawTitle = window.__viewerArgs?.rawTitle || "Material_Geral";
-  const tituloMaterial = rawTitle.replace(/[.#$/[\]]/g, "_");
+  const rawTitle = window.__viewerArgs?.rawTitle || 'Material_Geral';
+  const tituloMaterial = rawTitle.replace(/[.#$/[\]]/g, '_');
 
   // 2. Processa os Objetos
   const questaoFinal = prepararQuestaoEnvio(q);
@@ -84,21 +84,21 @@ export function construirDadosParaEnvio(q, g) {
 export function sanitizarID(texto) {
   // ✅ Codifica para Base64URL (reversível, só usa [A-Za-z0-9_-])
   // Lógica: UTF-8 -> URI -> Base64 -> URL Safe
-  const encoded = btoa(unescape(encodeURIComponent(texto || "")));
+  const encoded = btoa(unescape(encodeURIComponent(texto || '')));
   return encoded
-    .replace(/\+/g, "-") // RFC 4648 Base64URL
-    .replace(/\//g, "_")
-    .replace(/=/g, ""); // Remove padding
+    .replace(/\+/g, '-') // RFC 4648 Base64URL
+    .replace(/\//g, '_')
+    .replace(/=/g, ''); // Remove padding
 }
 
 export function gerarIdentificadoresEnvio(tituloMaterial, q) {
   // 1. Define chave da prova
-  const chaveProva = tituloMaterial || "MATERIAL_SEM_TITULO";
+  const chaveProva = tituloMaterial || 'MATERIAL_SEM_TITULO';
 
   // 2. Define ID único da questão
   // Remove caracteres proibidos no caminho do Firebase (., #, $, /, [, ])
-  const rawId = q.identificacao || "QUESTAO_" + Date.now();
-  const idQuestaoUnico = rawId.replace(/[.#$/[\]]/g, "-");
+  const rawId = q.identificacao || 'QUESTAO_' + Date.now();
+  const idQuestaoUnico = rawId.replace(/[.#$/[\]]/g, '-');
 
   // 3. Gera o ID Pinecone combinando os dois sanitizados
   const idPinecone = `${sanitizarID(chaveProva)}--${sanitizarID(idQuestaoUnico)}`;
@@ -111,20 +111,20 @@ export function gerarIdentificadoresEnvio(tituloMaterial, q) {
 }
 
 export const construirTextoQuestao = (q) => {
-  let txt = "";
+  let txt = '';
 
   // 1. Contexto (Matéria e Keywords)
   if (q.materias_possiveis && Array.isArray(q.materias_possiveis)) {
-    txt += `MATÉRIA: ${q.materias_possiveis.join(", ")}. `;
+    txt += `MATÉRIA: ${q.materias_possiveis.join(', ')}. `;
   }
   if (q.palavras_chave && Array.isArray(q.palavras_chave)) {
-    txt += `PALAVRAS-CHAVE: ${q.palavras_chave.join(", ")}. `;
+    txt += `PALAVRAS-CHAVE: ${q.palavras_chave.join(', ')}. `;
   }
 
   // 2. Enunciado
-  let textoEnunciado = "";
+  let textoEnunciado = '';
   if (q.estrutura && Array.isArray(q.estrutura)) {
-    textoEnunciado = q.estrutura.map((item) => item.conteudo || "").join(" ");
+    textoEnunciado = q.estrutura.map((item) => item.conteudo || '').join(' ');
   }
   txt += `ENUNCIADO: ${textoEnunciado} `;
 
@@ -132,14 +132,14 @@ export const construirTextoQuestao = (q) => {
   if (q.alternativas && Array.isArray(q.alternativas)) {
     const textoAlts = q.alternativas
       .map((alt) => {
-        let conteudoAlt = alt.texto || "";
+        let conteudoAlt = alt.texto || '';
         // Prioriza estrutura se existir
         if (alt.estrutura && Array.isArray(alt.estrutura)) {
-          conteudoAlt = alt.estrutura.map((i) => i.conteudo).join(" ");
+          conteudoAlt = alt.estrutura.map((i) => i.conteudo).join(' ');
         }
-        return `${alt.letra || "?"}: ${conteudoAlt}`;
+        return `${alt.letra || '?'}: ${conteudoAlt}`;
       })
-      .join(" | ");
+      .join(' | ');
     txt += `ALTERNATIVAS: ${textoAlts} `;
   }
 
@@ -147,8 +147,8 @@ export const construirTextoQuestao = (q) => {
 };
 
 export const construirTextoSolucao = (g) => {
-  if (!g) return "";
-  let txt = "";
+  if (!g) return '';
+  let txt = '';
 
   // Letra Correta
   if (g.dados_gabarito?.alternativa_correta) {
@@ -158,10 +158,8 @@ export const construirTextoSolucao = (g) => {
   // Explicação Detalhada
   if (g.explicacao && Array.isArray(g.explicacao)) {
     const textoExpl = g.explicacao
-      .flatMap((bloco) =>
-        bloco.estrutura ? bloco.estrutura.map((i) => i.conteudo) : []
-      )
-      .join(" ");
+      .flatMap((bloco) => (bloco.estrutura ? bloco.estrutura.map((i) => i.conteudo) : []))
+      .join(' ');
     txt += `EXPLICAÇÃO: ${textoExpl} `;
   }
 
@@ -171,8 +169,8 @@ export const construirTextoSolucao = (g) => {
     Array.isArray(g.dados_gabarito.alternativas_analisadas)
   ) {
     const textoMotivos = g.dados_gabarito.alternativas_analisadas
-      .map((analise) => `(${analise.letra}) ${analise.motivo || ""}`)
-      .join(" ");
+      .map((analise) => `(${analise.letra}) ${analise.motivo || ''}`)
+      .join(' ');
     txt += `ANÁLISE DOS DISTRATORES: ${textoMotivos} `;
   }
 
@@ -185,9 +183,9 @@ export const construirTextoSolucao = (g) => {
 };
 
 export const construirTextoComplexidade = (g) => {
-  if (!g || !g.dados_gabarito?.analise_complexidade) return "";
+  if (!g || !g.dados_gabarito?.analise_complexidade) return '';
 
-  let txt = "";
+  let txt = '';
   const complex = g.dados_gabarito.analise_complexidade;
 
   // Justificativa da Dificuldade
@@ -200,7 +198,7 @@ export const construirTextoComplexidade = (g) => {
     const fatoresAtivos = Object.entries(complex.fatores)
       .filter(([key, value]) => value === true) // Pega só o que é true
       .map(([key]) => key)
-      .join(", ");
+      .join(', ');
 
     if (fatoresAtivos) {
       txt += `Fatores: ${fatoresAtivos}.`;
@@ -212,9 +210,5 @@ export const construirTextoComplexidade = (g) => {
 
 export const construirTextoSemantico = (q, g) => {
   // Concatena os resultados das 3 funções
-  return (
-    construirTextoQuestao(q) +
-    construirTextoSolucao(g) +
-    construirTextoComplexidade(g)
-  );
+  return construirTextoQuestao(q) + construirTextoSolucao(g) + construirTextoComplexidade(g);
 };

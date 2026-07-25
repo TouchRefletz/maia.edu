@@ -1,30 +1,20 @@
-import { aiState } from "../main.js";
-import { montarResizerLateral } from "../viewer/resizer.js";
-import {
-  configurarSidebarMobile,
-  garantirSidebarEBackdrop,
-} from "../viewer/sidebar-mobile.js";
-import {
-  configurarResizer,
-  getScrollContainer,
-  mostrarPainel,
-} from "../viewer/sidebar.js";
+import { aiState } from '../main.js';
+import { montarResizerLateral } from '../viewer/resizer.js';
+import { configurarResizer, getScrollContainer, mostrarPainel } from '../viewer/sidebar.js';
+import { configurarSidebarMobile, garantirSidebarEBackdrop } from '../viewer/sidebar-mobile.js';
 import {
   construirSkeletonLoader,
   criarElementoCardPensamento,
   limparResultadosAnteriores,
   splitThought,
-} from "./thoughts-base.js";
+} from './thoughts-base.js';
 
 export function executarSmartScroll(thoughtListEl) {
   // 1. Tenta pegar o container principal de scroll (definido em outros lugares do app)
   const scrollEl = getScrollContainer();
 
   // 2. Backup: Scrolla o container interno de pensamentos se necessário
-  if (
-    thoughtListEl &&
-    thoughtListEl.scrollHeight > thoughtListEl.clientHeight
-  ) {
+  if (thoughtListEl && thoughtListEl.scrollHeight > thoughtListEl.clientHeight) {
     thoughtListEl.scrollTop = thoughtListEl.scrollHeight;
   }
 
@@ -34,13 +24,13 @@ export function executarSmartScroll(thoughtListEl) {
     setTimeout(() => {
       scrollEl.scrollTo({
         top: scrollEl.scrollHeight,
-        behavior: "auto", // 'auto' é melhor no mobile para evitar conflitos
+        behavior: 'auto', // 'auto' é melhor no mobile para evitar conflitos
       });
     }, 10);
   } else if (window.__userInterruptedScroll) {
     // Usuário subiu a tela -> Mostra botão "Resume"
-    const btnResume = document.getElementById("resumeScrollBtn");
-    if (btnResume) btnResume.classList.add("visible");
+    const btnResume = document.getElementById('resumeScrollBtn');
+    if (btnResume) btnResume.classList.add('visible');
   }
 }
 
@@ -59,26 +49,24 @@ export function pushThought(t, tabId = null) {
   // --- NOVA LÓGICA DE ABAS ---
   if (tabId) {
     // Se temos um tabId, enviamos o log para o sistema de abas
-    import("../ui/sidebar-tabs.js").then(
-      ({ addLogToQuestionTab, getActiveTab }) => {
-        // Formata a mensagem de log
-        const logMsg = `${title}: ${body}`;
-        addLogToQuestionTab(tabId, logMsg);
+    import('../ui/sidebar-tabs.js').then(({ addLogToQuestionTab, getActiveTab }) => {
+      // Formata a mensagem de log
+      const logMsg = `${title}: ${body}`;
+      addLogToQuestionTab(tabId, logMsg);
 
-        // Se a aba estiver ativa, podemos fazer extras (scroll etc)
-        // Mas o addLogToQuestionTab já manipula o DOM se ele existir.
-      },
-    );
+      // Se a aba estiver ativa, podemos fazer extras (scroll etc)
+      // Mas o addLogToQuestionTab já manipula o DOM se ele existir.
+    });
     return; // Se estamos usando abas, não usamos a lógica legada de DOM direto
   }
 
   // --- LÓGICA LEGADA (Sem Abas ou Aba Indefinida) ---
-  const listEl = document.getElementById("maiaThoughts");
+  const listEl = document.getElementById('maiaThoughts');
   if (!listEl) return;
 
   const card = criarElementoCardPensamento(title, body);
 
-  const firstSkeleton = listEl.querySelector(".maia-thought-card--skeleton");
+  const firstSkeleton = listEl.querySelector('.maia-thought-card--skeleton');
   if (firstSkeleton) {
     listEl.insertBefore(card, firstSkeleton);
   } else {
@@ -89,16 +77,16 @@ export function pushThought(t, tabId = null) {
 }
 
 export function montarBotaoResumeScroll() {
-  const sidebarMain = document.getElementById("viewerSidebar");
-  let btnResume = document.getElementById("resumeScrollBtn");
+  const sidebarMain = document.getElementById('viewerSidebar');
+  let btnResume = document.getElementById('resumeScrollBtn');
 
   // Se não tiver sidebar, não tem onde por botão. Se o botão já existe, não recria.
   if (!sidebarMain || btnResume) return btnResume;
 
-  btnResume = document.createElement("button");
-  btnResume.id = "resumeScrollBtn";
-  btnResume.innerHTML = "⬇"; // Down arrow
-  btnResume.title = "Voltar ao topo das novidades";
+  btnResume = document.createElement('button');
+  btnResume.id = 'resumeScrollBtn';
+  btnResume.innerHTML = '⬇'; // Down arrow
+  btnResume.title = 'Voltar ao topo das novidades';
 
   sidebarMain.appendChild(btnResume); // Anexa ao Pai Relativo
 
@@ -111,10 +99,10 @@ export function montarBotaoResumeScroll() {
     const el = getScrollContainer();
 
     if (el) {
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
 
-    btnResume.classList.remove("visible");
+    btnResume.classList.remove('visible');
   };
 
   return btnResume;
@@ -124,26 +112,25 @@ export function anexarListenerDeScroll(scrollTarget) {
   if (!scrollTarget) return;
 
   scrollTarget.addEventListener(
-    "scroll",
+    'scroll',
     () => {
       // Só importa se a IA estiver gerando texto
       if (!window.__isProcessing) return;
 
       const distanceToBottom =
-        scrollTarget.scrollHeight -
-        (scrollTarget.scrollTop + scrollTarget.clientHeight);
+        scrollTarget.scrollHeight - (scrollTarget.scrollTop + scrollTarget.clientHeight);
       const isAtBottom = distanceToBottom < 50; // Tolerância
 
-      const btnResume = document.getElementById("resumeScrollBtn");
+      const btnResume = document.getElementById('resumeScrollBtn');
 
       if (isAtBottom) {
         // Usuário voltou ao fundo manualmente
         window.__userInterruptedScroll = false;
-        if (btnResume) btnResume.classList.remove("visible");
+        if (btnResume) btnResume.classList.remove('visible');
       } else {
         // Usuário subiu a tela
         window.__userInterruptedScroll = true;
-        if (btnResume) btnResume.classList.add("visible");
+        if (btnResume) btnResume.classList.add('visible');
       }
     },
     { passive: true },
@@ -158,7 +145,7 @@ export function configurarSmartScroll() {
   if (!scrollTarget || scrollTarget.dataset.scrollListenerAdded) return;
 
   // Marca como configurado para não duplicar
-  scrollTarget.dataset.scrollListenerAdded = "true";
+  scrollTarget.dataset.scrollListenerAdded = 'true';
 
   // 1. Cria o botão na interface
   montarBotaoResumeScroll();
@@ -184,14 +171,14 @@ export function prepararAreaDeResposta() {
 
   // 3. Configura Scroll e Fecha Modal
   configurarSmartScroll();
-  document.getElementById("cropConfirmModal").classList.remove("visible");
+  document.getElementById('cropConfirmModal').classList.remove('visible');
 
   // 4. Cria a função de Status (Closure)
   const { textElement } = refsLoader;
 
   const setStatus = (_s) => {
     if (textElement) {
-      textElement.innerText = _s || "Maia está pensando...";
+      textElement.innerText = _s || 'Maia está pensando...';
     }
   };
 

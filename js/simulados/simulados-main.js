@@ -3,27 +3,21 @@
  * Controla o dashboard, criação, simulação online e compartilhamento
  */
 
-import {
-  get,
-  ref,
-} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-import { db, bancoState, auth, onAuthStateChanged } from "../main.js";
-import { renderLatexIn } from "../libs/loader.tsx";
-import { renderUserButton, loadSidebarChats } from "../app/telas.js";
-import {
-  renderizarEstruturaHTML,
-  renderizar_estrutura_alternativa,
-} from "../render/structure.js";
-import { gerarPDFSimulado } from "./pdf-generator.js";
-import { showConfirmModal } from "../ui/modal-confirm.js";
-import { showGenericModal } from "../ui/modal-generic.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { get, ref } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import { loadSidebarChats, renderUserButton } from '../app/telas.js';
+import { renderLatexIn } from '../libs/loader.tsx';
+import { auth, bancoState, db, onAuthStateChanged } from '../main.js';
+import { renderizar_estrutura_alternativa, renderizarEstruturaHTML } from '../render/structure.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
+import { showConfirmModal } from '../ui/modal-confirm.js';
+import { showGenericModal } from '../ui/modal-generic.js';
+import { gerarPDFSimulado } from './pdf-generator.js';
 
 // Estado local do módulo
 let questionsPool = []; // Todas as questões do banco
 let selectedQuestions = []; // Questões adicionadas ao simulado atual
-let simuladoTitle = "Simulado Maia";
-let simuladoType = "teste"; // 'teste' (objetiva) ou 'dissertativa'
+let simuladoTitle = 'Simulado Maia';
+let simuladoType = 'teste'; // 'teste' (objetiva) ou 'dissertativa'
 
 // Estado da sessão de simulação ativa (aluno fazendo prova)
 let activeSimIndex = 0;
@@ -34,12 +28,12 @@ let isResultPhase = false;
 export async function iniciarModoSimulados() {
   // Para qualquer animação de sugestão da tela inicial
   try {
-    const { stopSuggestionRotation } = await import("../ui/dynamic-suggestions.js");
+    const { stopSuggestionRotation } = await import('../ui/dynamic-suggestions.js');
     stopSuggestionRotation();
   } catch (e) {}
 
-  document.body.innerHTML = "";
-  const viewer = document.getElementById("pdfViewerContainer");
+  document.body.innerHTML = '';
+  const viewer = document.getElementById('pdfViewerContainer');
   if (viewer) viewer.remove();
 
   // Renderiza layout básico do Dashboard (Split View)
@@ -213,7 +207,7 @@ export async function iniciarModoSimulados() {
 // Busca questões diretamente do Firebase RTDB
 async function fetchQuestionsPool() {
   try {
-    const dbRef = ref(db, "questoes");
+    const dbRef = ref(db, 'questoes');
     const snapshot = await get(dbRef);
 
     if (snapshot.exists()) {
@@ -221,23 +215,21 @@ async function fetchQuestionsPool() {
       questionsPool = [];
 
       Object.entries(data).forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === "object") {
+        if (mapQuestoes && typeof mapQuestoes === 'object') {
           Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
             if (!fullData.dados_questao) return;
 
             // Injeta dados de prova se faltarem
             if (!fullData.meta) fullData.meta = {};
             if (!fullData.meta.material_origem) {
-              fullData.meta.material_origem = nomeProva.replace(/_/g, " ");
+              fullData.meta.material_origem = nomeProva.replace(/_/g, ' ');
             }
 
             const materias = fullData.dados_questao.materias_possiveis || [];
             const textPreview =
-              (fullData.dados_questao.estrutura || [])
-                .map((b) => b.conteudo || "")
-                .join(" ") ||
+              (fullData.dados_questao.estrutura || []).map((b) => b.conteudo || '').join(' ') ||
               fullData.dados_questao.enunciado ||
-              "";
+              '';
 
             questionsPool.push({
               id: idQuestao,
@@ -249,7 +241,7 @@ async function fetchQuestionsPool() {
           });
         }
       });
-      
+
       // Inverte para as mais recentes virem primeiro
       questionsPool.reverse();
     }
@@ -257,8 +249,8 @@ async function fetchQuestionsPool() {
     renderQuestionsBankList();
     populateSubjectDropdown();
   } catch (e) {
-    console.error("Erro fetchQuestionsPool:", e);
-    const container = document.getElementById("simBankList");
+    console.error('Erro fetchQuestionsPool:', e);
+    const container = document.getElementById('simBankList');
     if (container) {
       container.innerHTML = `<p style="color:var(--color-error); text-align:center;">Erro ao carregar banco: ${e.message}</p>`;
     }
@@ -267,7 +259,7 @@ async function fetchQuestionsPool() {
 
 // Preenche o seletor de matérias
 function populateSubjectDropdown() {
-  const select = document.getElementById("simSubjectSelect");
+  const select = document.getElementById('simSubjectSelect');
   if (!select) return;
 
   const subjects = new Set();
@@ -277,7 +269,7 @@ function populateSubjectDropdown() {
 
   const sortedSubjects = Array.from(subjects).sort();
   sortedSubjects.forEach((s) => {
-    const opt = document.createElement("option");
+    const opt = document.createElement('option');
     opt.value = s;
     opt.textContent = s;
     select.appendChild(opt);
@@ -286,14 +278,11 @@ function populateSubjectDropdown() {
 
 // Renderiza a listagem de questões do banco (com filtros aplicados)
 function renderQuestionsBankList() {
-  const container = document.getElementById("simBankList");
+  const container = document.getElementById('simBankList');
   if (!container) return;
 
-  const queryText = (document.getElementById("simSearchInput")?.value || "")
-    .trim()
-    .toLowerCase();
-  const subjectFilter =
-    document.getElementById("simSubjectSelect")?.value || "";
+  const queryText = (document.getElementById('simSearchInput')?.value || '').trim().toLowerCase();
+  const subjectFilter = document.getElementById('simSubjectSelect')?.value || '';
 
   const filtered = questionsPool.filter((q) => {
     // Filtro por Matéria
@@ -304,10 +293,7 @@ function renderQuestionsBankList() {
     if (queryText) {
       const idMatch = String(q.id).toLowerCase().includes(queryText);
       const textMatch = q.text.toLowerCase().includes(queryText);
-      const subMatch = (q.subjects || [])
-        .join(" ")
-        .toLowerCase()
-        .includes(queryText);
+      const subMatch = (q.subjects || []).join(' ').toLowerCase().includes(queryText);
       return idMatch || textMatch || subMatch;
     }
     return true;
@@ -318,29 +304,27 @@ function renderQuestionsBankList() {
     return;
   }
 
-  container.innerHTML = "";
+  container.innerHTML = '';
   filtered.forEach((q) => {
-    const isAdded = selectedQuestions.some(
-      (sq) => sq.id === q.id && sq.prova === q.prova
-    );
+    const isAdded = selectedQuestions.some((sq) => sq.id === q.id && sq.prova === q.prova);
 
-    const card = document.createElement("div");
-    card.className = "simulados-item-card";
+    const card = document.createElement('div');
+    card.className = 'simulados-item-card';
 
     // Pega o início do enunciado
     let textShort = q.text;
-    if (textShort.length > 90) textShort = textShort.substring(0, 90) + "...";
+    if (textShort.length > 90) textShort = textShort.substring(0, 90) + '...';
 
     const labelMateria = q.subjects[0]
       ? `<span class="simulados-item-tag">${q.subjects[0]}</span>`
-      : "";
+      : '';
 
     card.innerHTML = `
       <div class="simulados-item-info">
         <div class="simulados-item-meta">
           <span class="simulados-item-id">${q.id}</span>
           <span>•</span>
-          <span>${q.fullData.meta?.material_origem || "Banco"}</span>
+          <span>${q.fullData.meta?.material_origem || 'Banco'}</span>
           ${labelMateria}
         </div>
         <div class="simulados-item-text markdown-content"></div>
@@ -360,37 +344,34 @@ function renderQuestionsBankList() {
         ">
           👁️
         </button>
-        <button class="simulados-add-btn ${isAdded ? "added" : ""}" 
+        <button class="simulados-add-btn ${isAdded ? 'added' : ''}" 
                 data-id="${q.id}" data-prova="${q.prova}">
-          ${isAdded ? "Adicionado" : "Adicionar +"}
+          ${isAdded ? 'Adicionado' : 'Adicionar +'}
         </button>
       </div>
     `;
 
     // Configura o texto com markdown de forma segura
-    const textDiv = card.querySelector(".simulados-item-text");
-    textDiv.setAttribute("data-raw", textShort);
+    const textDiv = card.querySelector('.simulados-item-text');
+    textDiv.setAttribute('data-raw', textShort);
     textDiv.textContent = textShort;
 
     // Clique no card
-    card.addEventListener("click", (e) => {
-      if (
-        e.target.closest(".simulados-add-btn") ||
-        e.target.closest(".simulados-preview-btn")
-      ) {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.simulados-add-btn') || e.target.closest('.simulados-preview-btn')) {
         return;
       }
       toggleAddQuestion(q);
     });
 
     // Clique no botão visualizar
-    card.querySelector(".simulados-preview-btn").addEventListener("click", (e) => {
+    card.querySelector('.simulados-preview-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       showQuestionPreviewModal(q);
     });
 
     // Clique no botão adicionar
-    card.querySelector(".simulados-add-btn").addEventListener("click", (e) => {
+    card.querySelector('.simulados-add-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       if (!isAdded) toggleAddQuestion(q);
     });
@@ -406,34 +387,33 @@ function renderQuestionsBankList() {
 function showQuestionPreviewModal(qObj) {
   const q = qObj.fullData?.dados_questao || {};
   const qId = qObj.id;
-  const labelMateria = qObj.subjects[0] ? ` • ${qObj.subjects[0]}` : "";
+  const labelMateria = qObj.subjects[0] ? ` • ${qObj.subjects[0]}` : '';
   const title = `Visualização da Questão ${qId}${labelMateria}`;
 
   // Container principal do preview
-  const previewContainer = document.createElement("div");
-  previewContainer.className = "question-preview-modal-body";
-  previewContainer.style.cssText = "display: flex; flex-direction: column; gap: 20px; color: var(--color-text);";
+  const previewContainer = document.createElement('div');
+  previewContainer.className = 'question-preview-modal-body';
+  previewContainer.style.cssText =
+    'display: flex; flex-direction: column; gap: 20px; color: var(--color-text);';
 
   // Enunciado / Corpo da questão
-  const bodyDiv = document.createElement("div");
-  bodyDiv.className = "simulados-exam-q-body";
+  const bodyDiv = document.createElement('div');
+  bodyDiv.className = 'simulados-exam-q-body';
   bodyDiv.innerHTML = renderizarEstruturaHTML(
     q.estrutura,
     q.fotos_originais || [],
-    "simulado_q_preview",
-    true
+    'simulado_q_preview',
+    true,
   );
 
   previewContainer.appendChild(bodyDiv);
 
   // Alternativas ou Campo Dissertativo
   const isQDissert =
-    q.tipo_resposta === "dissertativa" ||
-    !q.alternativas ||
-    q.alternativas.length === 0;
+    q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
   if (isQDissert) {
-    const essayDiv = document.createElement("div");
+    const essayDiv = document.createElement('div');
     essayDiv.innerHTML = `
       <h4 style="margin: 0 0 8px 0; font-size: 13px; color: var(--color-text-secondary); text-transform: uppercase;">Questão Dissertativa</h4>
       <div style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-radius: 8px; font-style: italic; color: var(--color-text-secondary);">
@@ -442,41 +422,38 @@ function showQuestionPreviewModal(qObj) {
     `;
     previewContainer.appendChild(essayDiv);
   } else {
-    const optionsDiv = document.createElement("div");
-    optionsDiv.className = "simulados-exam-options";
-    
+    const optionsDiv = document.createElement('div');
+    optionsDiv.className = 'simulados-exam-options';
+
     // Gabarito oficial se disponível
-    const correta = qObj.fullData?.dados_gabarito?.alternativa_correta || "";
+    const correta = qObj.fullData?.dados_gabarito?.alternativa_correta || '';
 
     (q.alternativas || []).forEach((alt) => {
-      const letter = String(alt.letra || "").trim().toUpperCase();
-      let altText = "";
+      const letter = String(alt.letra || '')
+        .trim()
+        .toUpperCase();
+      let altText = '';
       if (alt.estrutura) {
-        altText = renderizar_estrutura_alternativa(
-          alt.estrutura,
-          letter,
-          [],
-          "banco"
-        );
+        altText = renderizar_estrutura_alternativa(alt.estrutura, letter, [], 'banco');
       } else {
-        altText = alt.texto || "";
+        altText = alt.texto || '';
       }
 
       const isCorrect = letter === correta;
 
-      const optBtn = document.createElement("div");
-      optBtn.className = `simulados-exam-opt-btn ${isCorrect ? "correct" : ""}`;
+      const optBtn = document.createElement('div');
+      optBtn.className = `simulados-exam-opt-btn ${isCorrect ? 'correct' : ''}`;
       optBtn.style.cssText = `
         pointer-events: none;
         cursor: default;
         margin-bottom: 8px;
-        ${isCorrect ? "border-color: var(--color-success) !important; background: rgba(var(--color-success-rgb), 0.08) !important;" : ""}
+        ${isCorrect ? 'border-color: var(--color-success) !important; background: rgba(var(--color-success-rgb), 0.08) !important;' : ''}
       `;
 
       optBtn.innerHTML = `
-        <span class="simulados-exam-opt-letter" style="${isCorrect ? "color: var(--color-success);" : ""}">${letter})</span>
+        <span class="simulados-exam-opt-letter" style="${isCorrect ? 'color: var(--color-success);' : ''}">${letter})</span>
         <div class="simulados-exam-opt-content">${altText}</div>
-        ${isCorrect ? `<span style="color: var(--color-success); font-weight: bold; margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 4px;">✔ Gabarito</span>` : ""}
+        ${isCorrect ? `<span style="color: var(--color-success); font-weight: bold; margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 4px;">✔ Gabarito</span>` : ''}
       `;
 
       optionsDiv.appendChild(optBtn);
@@ -488,9 +465,10 @@ function showQuestionPreviewModal(qObj) {
   // Se tiver Gabarito/Resolução, exibe a seção correspondente
   const g = qObj.fullData?.dados_gabarito || {};
   if ((g.explicacao && g.explicacao.length > 0) || g.resposta_modelo || g.respostaModelo) {
-    const gabaritoDiv = document.createElement("div");
-    gabaritoDiv.style.cssText = "margin-top: 10px; border-top: 1px dashed var(--color-border); padding-top: 15px;";
-    
+    const gabaritoDiv = document.createElement('div');
+    gabaritoDiv.style.cssText =
+      'margin-top: 10px; border-top: 1px dashed var(--color-border); padding-top: 15px;';
+
     gabaritoDiv.innerHTML = renderGabaritoCardSection(qObj, `preview_${qId}`);
     previewContainer.appendChild(gabaritoDiv);
   }
@@ -499,7 +477,7 @@ function showQuestionPreviewModal(qObj) {
   showGenericModal({
     title,
     content: previewContainer,
-    maxWidth: "90%"
+    maxWidth: '90%',
   });
 
   // Renderiza Markdown/LaTeX após a inserção no DOM
@@ -508,9 +486,7 @@ function showQuestionPreviewModal(qObj) {
 
 // Adiciona ou remove questão do simulado
 function toggleAddQuestion(q) {
-  const index = selectedQuestions.findIndex(
-    (sq) => sq.id === q.id && sq.prova === q.prova
-  );
+  const index = selectedQuestions.findIndex((sq) => sq.id === q.id && sq.prova === q.prova);
 
   if (index === -1) {
     selectedQuestions.push(q);
@@ -524,18 +500,18 @@ function toggleAddQuestion(q) {
 
 // Renderiza a lista de selecionadas no painel direito
 function renderSelectedList() {
-  const container = document.getElementById("simSelectedList");
-  const countSpan = document.getElementById("selectedCount");
+  const container = document.getElementById('simSelectedList');
+  const countSpan = document.getElementById('selectedCount');
   if (!container) return;
 
   if (countSpan) countSpan.textContent = selectedQuestions.length;
 
   // Atualiza desabilitar botões
   const hasItems = selectedQuestions.length > 0;
-  document.getElementById("btnSimularOnline").disabled = !hasItems;
-  document.getElementById("btnPDFProva").disabled = !hasItems;
-  document.getElementById("btnPDFGabarito").disabled = !hasItems;
-  document.getElementById("btnCopiarLink").disabled = !hasItems;
+  document.getElementById('btnSimularOnline').disabled = !hasItems;
+  document.getElementById('btnPDFProva').disabled = !hasItems;
+  document.getElementById('btnPDFGabarito').disabled = !hasItems;
+  document.getElementById('btnCopiarLink').disabled = !hasItems;
 
   if (!hasItems) {
     container.innerHTML = `
@@ -546,13 +522,13 @@ function renderSelectedList() {
     return;
   }
 
-  container.innerHTML = "";
+  container.innerHTML = '';
   selectedQuestions.forEach((q, idx) => {
-    const card = document.createElement("div");
-    card.className = "simulados-selected-card";
+    const card = document.createElement('div');
+    card.className = 'simulados-selected-card';
 
     let titleText = q.text;
-    if (titleText.length > 40) titleText = titleText.substring(0, 40) + "...";
+    if (titleText.length > 40) titleText = titleText.substring(0, 40) + '...';
 
     card.innerHTML = `
       <span class="simulados-selected-num">${idx + 1}</span>
@@ -567,9 +543,9 @@ function renderSelectedList() {
     `;
 
     // Click handlers para controles
-    card.querySelector(".move-up").addEventListener("click", () => moveQuestion(idx, -1));
-    card.querySelector(".move-down").addEventListener("click", () => moveQuestion(idx, 1));
-    card.querySelector(".remove").addEventListener("click", () => {
+    card.querySelector('.move-up').addEventListener('click', () => moveQuestion(idx, -1));
+    card.querySelector('.move-down').addEventListener('click', () => moveQuestion(idx, 1));
+    card.querySelector('.remove').addEventListener('click', () => {
       selectedQuestions.splice(idx, 1);
       renderQuestionsBankList();
       renderSelectedList();
@@ -593,64 +569,70 @@ function moveQuestion(index, direction) {
 
 // Detecta dinamicamente o tipo de simulado com base nas questões selecionadas
 function detectarSimuladoType(questoes) {
-  if (!questoes || questoes.length === 0) return "teste";
+  if (!questoes || questoes.length === 0) return 'teste';
   const hasObjective = questoes.some((qObj) => {
     const q = qObj.fullData?.dados_questao || {};
-    return !(q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0);
+    return !(q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0);
   });
   const hasWritten = questoes.some((qObj) => {
     const q = qObj.fullData?.dados_questao || {};
-    return q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+    return q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
   });
 
-  if (hasObjective && hasWritten) return "misto";
-  if (hasWritten) return "dissertativa";
-  return "teste";
+  if (hasObjective && hasWritten) return 'misto';
+  if (hasWritten) return 'dissertativa';
+  return 'teste';
 }
 
 // Configura ouvintes da aba Dashboard
 function setupDashboardListeners() {
-  const searchInput = document.getElementById("simSearchInput");
-  const subjectSelect = document.getElementById("simSubjectSelect");
-  const titleInput = document.getElementById("simTitleInput");
+  const searchInput = document.getElementById('simSearchInput');
+  const subjectSelect = document.getElementById('simSubjectSelect');
+  const titleInput = document.getElementById('simTitleInput');
 
   if (searchInput) {
-    searchInput.addEventListener("input", renderQuestionsBankList);
+    searchInput.addEventListener('input', renderQuestionsBankList);
   }
   if (subjectSelect) {
-    subjectSelect.addEventListener("change", renderQuestionsBankList);
+    subjectSelect.addEventListener('change', renderQuestionsBankList);
   }
 
   if (titleInput) {
-    titleInput.addEventListener("input", (e) => {
+    titleInput.addEventListener('input', (e) => {
       simuladoTitle = e.target.value;
     });
   }
 
   // Ações
-  document.getElementById("btnPDFProva")?.addEventListener("click", () => {
+  document.getElementById('btnPDFProva')?.addEventListener('click', () => {
     const activeType = detectarSimuladoType(selectedQuestions);
-    gerarPDFSimulado({ titulo: simuladoTitle, tipo: activeType, questoes: selectedQuestions }, false);
+    gerarPDFSimulado(
+      { titulo: simuladoTitle, tipo: activeType, questoes: selectedQuestions },
+      false,
+    );
   });
 
-  document.getElementById("btnPDFGabarito")?.addEventListener("click", () => {
+  document.getElementById('btnPDFGabarito')?.addEventListener('click', () => {
     const activeType = detectarSimuladoType(selectedQuestions);
-    gerarPDFSimulado({ titulo: simuladoTitle, tipo: activeType, questoes: selectedQuestions }, true);
+    gerarPDFSimulado(
+      { titulo: simuladoTitle, tipo: activeType, questoes: selectedQuestions },
+      true,
+    );
   });
 
-  document.getElementById("btnSimularOnline")?.addEventListener("click", () => {
+  document.getElementById('btnSimularOnline')?.addEventListener('click', () => {
     const activeType = detectarSimuladoType(selectedQuestions);
     iniciarSimulacaoOnline(selectedQuestions, activeType, simuladoTitle);
   });
 
-  document.getElementById("btnCopiarLink")?.addEventListener("click", (e) => {
+  document.getElementById('btnCopiarLink')?.addEventListener('click', (e) => {
     const activeType = detectarSimuladoType(selectedQuestions);
-    const ids = selectedQuestions.map((q) => `${q.prova}:${q.id}`).join(",");
+    const ids = selectedQuestions.map((q) => `${q.prova}:${q.id}`).join(',');
     const shareUrl = `${window.location.origin}${window.location.pathname}?mode=simular&type=${activeType}&title=${encodeURIComponent(simuladoTitle)}&ids=${ids}`;
-    
+
     // Mostra o link num popup simples estilizado
     const container = e.target.parentElement;
-    const oldContainer = document.getElementById("shareLinkBox");
+    const oldContainer = document.getElementById('shareLinkBox');
     if (oldContainer) oldContainer.remove();
 
     const linkBoxHtml = `
@@ -659,15 +641,15 @@ function setupDashboardListeners() {
         <button class="simulados-btn-primary" style="padding:6px 12px; font-size:11px; width:auto; margin:0;" id="btnCopyExec">Copiar</button>
       </div>
     `;
-    container.insertAdjacentHTML("beforeend", linkBoxHtml);
+    container.insertAdjacentHTML('beforeend', linkBoxHtml);
 
-    const input = document.getElementById("shareUrlInput");
+    const input = document.getElementById('shareUrlInput');
     input.select();
 
-    document.getElementById("btnCopyExec").addEventListener("click", () => {
+    document.getElementById('btnCopyExec').addEventListener('click', () => {
       navigator.clipboard.writeText(shareUrl);
-      customAlert("✅ Link copiado com sucesso!", 2000);
-      document.getElementById("shareLinkBox").remove();
+      customAlert('✅ Link copiado com sucesso!', 2000);
+      document.getElementById('shareLinkBox').remove();
     });
   });
 }
@@ -695,10 +677,10 @@ export function iniciarSimulacaoOnline(questoes, tipo, titulo) {
 
 // Renderiza a casca do simulador
 function renderExamUI(questoes, tipo, titulo) {
-  document.body.innerHTML = "";
-  
-  const container = document.createElement("div");
-  container.className = "simulados-exam-container";
+  document.body.innerHTML = '';
+
+  const container = document.createElement('div');
+  container.className = 'simulados-exam-container';
   document.body.appendChild(container);
 
   renderActiveExamQuestion(container, questoes, tipo, titulo);
@@ -715,42 +697,38 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
   // Calcula progresso
   const totalRespondidas = Object.keys(studentAnswers).length;
 
-  let contentHtml = "";
+  let contentHtml = '';
 
   if (isResultPhase) {
     // FASE DE GABARITO (RESULTADO)
     // Mostra se o aluno acertou ou errou na parte superior
     const isQDissert =
-      q.tipo_resposta === "dissertativa" ||
-      !q.alternativas ||
-      q.alternativas.length === 0;
+      q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
-    let correcaoHeaderHtml = "";
+    let correcaoHeaderHtml = '';
     if (isQDissert) {
       correcaoHeaderHtml = `
         <div style="background:rgba(var(--color-primary-rgb),0.08); border:1px solid var(--color-border); border-radius:8px; padding:15px; margin-bottom:20px;">
           <h4 style="margin:0 0 8px 0; color:var(--color-primary);">Sua resposta descrita:</h4>
           <p style="font-style:italic; margin:0; line-height:1.5; font-size:13px; color:var(--color-text); white-space:pre-wrap;">${
-            studentAnswers[qId] || "Sem resposta rascunhada."
+            studentAnswers[qId] || 'Sem resposta rascunhada.'
           }</p>
         </div>
       `;
     } else {
-      const escolheu = studentAnswers[qId] || "Nenhuma";
-      const correta = qObj.fullData.dados_gabarito?.alternativa_correta || "";
+      const escolheu = studentAnswers[qId] || 'Nenhuma';
+      const correta = qObj.fullData.dados_gabarito?.alternativa_correta || '';
       const acertou = escolheu === correta;
 
       correcaoHeaderHtml = `
         <div style="display:flex; align-items:center; gap:12px; padding:12px 15px; border-radius:8px; margin-bottom:20px; font-weight:bold;
-             background:${
-               acertou ? "rgba(40,167,69,0.08)" : "rgba(220,53,69,0.08)"
-             };
-             border:1px solid ${acertou ? "var(--color-success)" : "var(--color-error)"};
-             color:${acertou ? "var(--color-success)" : "var(--color-error)"};">
-          <span style="font-size:20px;">${acertou ? "✅" : "❌"}</span>
+             background:${acertou ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)'};
+             border:1px solid ${acertou ? 'var(--color-success)' : 'var(--color-error)'};
+             color:${acertou ? 'var(--color-success)' : 'var(--color-error)'};">
+          <span style="font-size:20px;">${acertou ? '✅' : '❌'}</span>
           <span>Sua Resposta: ${escolheu} ${
-        acertou ? "(Correto)" : `(Incorreto. O gabarito é: ${correta})`
-      }</span>
+            acertou ? '(Correto)' : `(Incorreto. O gabarito é: ${correta})`
+          }</span>
         </div>
       `;
     }
@@ -760,14 +738,9 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
 
     contentHtml = `
       <div class="simulados-exam-card fade-in" id="card_${qId}">
-        <div class="simulados-exam-q-num">Questão ${String(activeSimIndex + 1).padStart(2, "0")}</div>
+        <div class="simulados-exam-q-num">Questão ${String(activeSimIndex + 1).padStart(2, '0')}</div>
         <div class="simulados-exam-q-body">
-          ${renderizarEstruturaHTML(
-            q.estrutura,
-            q.fotos_originais || [],
-            "simulado_q_view",
-            true
-          )}
+          ${renderizarEstruturaHTML(q.estrutura, q.fotos_originais || [], 'simulado_q_view', true)}
         </div>
 
         ${correcaoHeaderHtml}
@@ -782,12 +755,10 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
     `;
   } else {
     // FASE DE RESOLUÇÃO (TESTANDO CONHECIMENTO)
-    let workspaceHtml = "";
+    let workspaceHtml = '';
 
     const isQDissert =
-      q.tipo_resposta === "dissertativa" ||
-      !q.alternativas ||
-      q.alternativas.length === 0;
+      q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
     if (isQDissert) {
       workspaceHtml = `
@@ -795,39 +766,34 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
           class="simulados-exam-essay-input" 
           id="simEssayArea"
           placeholder="Escreva ou rascunhe sua resposta dissertativa aqui..."
-        >${studentAnswers[qId] || ""}</textarea>
+        >${studentAnswers[qId] || ''}</textarea>
       `;
     } else {
       workspaceHtml = `
         <div class="simulados-exam-options">
           ${(q.alternativas || [])
             .map((alt) => {
-              const letter = String(alt.letra || "")
+              const letter = String(alt.letra || '')
                 .trim()
                 .toUpperCase();
-              let altText = "";
+              let altText = '';
               if (alt.estrutura) {
-                altText = renderizar_estrutura_alternativa(
-                  alt.estrutura,
-                  letter,
-                  [],
-                  "banco"
-                );
+                altText = renderizar_estrutura_alternativa(alt.estrutura, letter, [], 'banco');
               } else {
-                altText = alt.texto || "";
+                altText = alt.texto || '';
               }
 
               const isSelected = studentAnswers[qId] === letter;
 
               return `
               <button class="simulados-exam-opt-btn ${
-                isSelected ? "selected" : ""
+                isSelected ? 'selected' : ''
               }" data-letter="${letter}">
                 <span class="simulados-exam-opt-letter">${letter})</span>
                 <div class="simulados-exam-opt-content">${altText}</div>
               </button>`;
             })
-            .join("")}
+            .join('')}
         </div>
       `;
     }
@@ -836,12 +802,7 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
       <div class="simulados-exam-card fade-in">
         <div class="simulados-exam-q-num">Questão ${activeSimIndex + 1} de ${total}</div>
         <div class="simulados-exam-q-body">
-          ${renderizarEstruturaHTML(
-            q.estrutura,
-            q.fotos_originais || [],
-            "simulado_q_solve",
-            true
-          )}
+          ${renderizarEstruturaHTML(q.estrutura, q.fotos_originais || [], 'simulado_q_solve', true)}
         </div>
         ${workspaceHtml}
       </div>
@@ -862,9 +823,7 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
 
     <!-- Menu Inferior (Bottom Nav) -->
     <div class="simulados-bottom-nav">
-      <button class="simulados-nav-btn" id="btnSimPrev" ${
-        activeSimIndex === 0 ? "disabled" : ""
-      }>
+      <button class="simulados-nav-btn" id="btnSimPrev" ${activeSimIndex === 0 ? 'disabled' : ''}>
         ← Voltar
       </button>
 
@@ -872,48 +831,46 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
         ${questoes
           .map((_, i) => {
             const hasAns = studentAnswers[questoes[i].id] !== undefined;
-            let dotClass = "";
-            if (activeSimIndex === i) dotClass = "active";
-            else if (hasAns) dotClass = "answered";
+            let dotClass = '';
+            if (activeSimIndex === i) dotClass = 'active';
+            else if (hasAns) dotClass = 'answered';
 
             // Cores do resultado no gabarito
             if (isResultPhase) {
               const qs = questoes[i];
               const qst = qs.fullData?.dados_questao || {};
               const isQD =
-                qst.tipo_resposta === "dissertativa" ||
+                qst.tipo_resposta === 'dissertativa' ||
                 !qst.alternativas ||
                 qst.alternativas.length === 0;
 
               if (isQD) {
-                dotClass += " answered";
+                dotClass += ' answered';
               } else {
                 const escolheu = studentAnswers[qs.id];
                 const correta = qs.fullData.dados_gabarito?.alternativa_correta;
                 if (escolheu === correta) {
-                  dotClass += " correct";
+                  dotClass += ' correct';
                 } else {
-                  dotClass += " incorrect";
+                  dotClass += ' incorrect';
                 }
               }
             }
 
-            return `<span class="simulados-dot ${dotClass}" data-goto="${i}">${
-              i + 1
-            }</span>`;
+            return `<span class="simulados-dot ${dotClass}" data-goto="${i}">${i + 1}</span>`;
           })
-          .join("")}
+          .join('')}
       </div>
 
       <button class="simulados-nav-btn ${
-        activeSimIndex === total - 1 ? "finish" : ""
+        activeSimIndex === total - 1 ? 'finish' : ''
       }" id="btnSimNext">
         ${
           activeSimIndex === total - 1
             ? isResultPhase
-              ? "Resultado Geral"
-              : "Finalizar"
-            : "Avançar →"
+              ? 'Resultado Geral'
+              : 'Finalizar'
+            : 'Avançar →'
         }
       </button>
     </div>
@@ -923,17 +880,17 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
   renderLatexIn(container);
 
   // Scrolla o dot ativo para ser visível em celulares
-  const activeDot = container.querySelector(".simulados-dot.active");
-  activeDot?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  const activeDot = container.querySelector('.simulados-dot.active');
+  activeDot?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 
   // Event Listeners
-  document.getElementById("btnAbortExam").addEventListener("click", async () => {
+  document.getElementById('btnAbortExam').addEventListener('click', async () => {
     const confirmSair = await showConfirmModal(
-      "Sair da Simulação",
-      "Deseja mesmo sair desta simulação? Todo o progresso será perdido.",
-      "Sair",
-      "Cancelar",
-      false
+      'Sair da Simulação',
+      'Deseja mesmo sair desta simulação? Todo o progresso será perdido.',
+      'Sair',
+      'Cancelar',
+      false,
     );
     if (confirmSair) {
       iniciarModoSimulados();
@@ -941,8 +898,8 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
   });
 
   // Listener para botões do dot nav
-  container.querySelectorAll(".simulados-dot").forEach((dot) => {
-    dot.addEventListener("click", (e) => {
+  container.querySelectorAll('.simulados-dot').forEach((dot) => {
+    dot.addEventListener('click', (e) => {
       saveActiveResponse(tipo);
       activeSimIndex = Number(e.target.dataset.goto);
       renderActiveExamQuestion(container, questoes, tipo, titulo);
@@ -950,14 +907,14 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
   });
 
   // Voltar
-  document.getElementById("btnSimPrev").addEventListener("click", () => {
+  document.getElementById('btnSimPrev').addEventListener('click', () => {
     saveActiveResponse(tipo);
     activeSimIndex--;
     renderActiveExamQuestion(container, questoes, tipo, titulo);
   });
 
   // Avançar / Finalizar
-  document.getElementById("btnSimNext").addEventListener("click", () => {
+  document.getElementById('btnSimNext').addEventListener('click', () => {
     saveActiveResponse(tipo);
     if (activeSimIndex === total - 1) {
       if (isResultPhase) {
@@ -972,19 +929,20 @@ function renderActiveExamQuestion(container, questoes, tipo, titulo) {
   });
 
   // Clique nas alternativas no modo responder
-  const isQDissert = q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+  const isQDissert =
+    q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
   if (!isResultPhase && !isQDissert) {
-    container.querySelectorAll(".simulados-exam-opt-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        const optionBtn = e.target.closest(".simulados-exam-opt-btn");
+    container.querySelectorAll('.simulados-exam-opt-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const optionBtn = e.target.closest('.simulados-exam-opt-btn');
         const letter = optionBtn.dataset.letter;
 
         // Desmarca outras
-        container.querySelectorAll(".simulados-exam-opt-btn").forEach((b) => {
-          b.classList.remove("selected");
+        container.querySelectorAll('.simulados-exam-opt-btn').forEach((b) => {
+          b.classList.remove('selected');
         });
 
-        optionBtn.classList.add("selected");
+        optionBtn.classList.add('selected');
         studentAnswers[qId] = letter;
       });
     });
@@ -997,10 +955,11 @@ function saveActiveResponse(tipo) {
   if (!qObj) return;
 
   const q = qObj.fullData?.dados_questao || {};
-  const isQDissert = q.tipo_resposta === "dissertativa" || !q.alternativas || q.alternativas.length === 0;
+  const isQDissert =
+    q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
   if (isQDissert) {
-    const area = document.getElementById("simEssayArea");
+    const area = document.getElementById('simEssayArea');
     if (area) {
       const val = area.value.trim();
       if (val) {
@@ -1019,15 +978,15 @@ async function finishExamSession(container, questoes, tipo, titulo) {
 
   let msg = `Você respondeu ${respondidas} de ${total} questões.`;
   if (respondidas < total) {
-    msg += "\n\nAtenção: Questões não respondidas serão marcadas como erradas.";
+    msg += '\n\nAtenção: Questões não respondidas serão marcadas como erradas.';
   }
 
   const confirmFinalizar = await showConfirmModal(
-    "Finalizar Simulado",
+    'Finalizar Simulado',
     msg,
-    "Finalizar",
-    "Voltar para a Prova",
-    true
+    'Finalizar',
+    'Voltar para a Prova',
+    true,
   );
 
   if (confirmFinalizar) {
@@ -1041,20 +1000,20 @@ async function finishExamSession(container, questoes, tipo, titulo) {
 function prepareResultAlternativesHtml(qObj, q, cardId) {
   const g = qObj.fullData?.dados_gabarito || {};
   const escolheu = studentAnswers[qObj.id];
-  const correta = (g.alternativa_correta || "").trim().toUpperCase();
+  const correta = (g.alternativa_correta || '').trim().toUpperCase();
 
   const motivoMap = {};
   (g.alternativas_analisadas || []).forEach((aa) => {
-    const letraKey = String(aa.letra || "").trim().toUpperCase();
+    const letraKey = String(aa.letra || '')
+      .trim()
+      .toUpperCase();
     if (letraKey && aa.motivo) motivoMap[letraKey] = aa.motivo;
   });
 
   const isQDissert =
-    q.tipo_resposta === "dissertativa" ||
-    !q.alternativas ||
-    q.alternativas.length === 0;
+    q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
-  let htmlAlts = "";
+  let htmlAlts = '';
 
   if (isQDissert) {
     htmlAlts = `
@@ -1065,7 +1024,7 @@ function prepareResultAlternativesHtml(qObj, q, cardId) {
           readonly
           style="background:rgba(255,255,255,0.03); opacity:0.85;"
           rows="4"
-        >${studentAnswers[qObj.id] || ""}</textarea>
+        >${studentAnswers[qObj.id] || ''}</textarea>
         
         <div class="q-dissert-actions">
           <button 
@@ -1094,22 +1053,22 @@ function prepareResultAlternativesHtml(qObj, q, cardId) {
     htmlAlts = (q.alternativas || [])
       .map((alt) => {
         const letter = alt.letra.trim().toUpperCase();
-        let altHtml = "";
+        let altHtml = '';
         if (alt.estrutura) {
-          altHtml = renderizar_estrutura_alternativa(alt.estrutura, letter, [], "banco");
+          altHtml = renderizar_estrutura_alternativa(alt.estrutura, letter, [], 'banco');
         } else {
-          altHtml = alt.texto || "";
+          altHtml = alt.texto || '';
         }
 
-        let stateClass = "";
+        let stateClass = '';
         if (letter === correta) {
-          stateClass = "correct";
+          stateClass = 'correct';
         }
         if (letter === escolheu && letter !== correta) {
-          stateClass = "incorrect-selected";
+          stateClass = 'incorrect-selected';
         }
 
-        const motivoRaw = motivoMap[letter] || "";
+        const motivoRaw = motivoMap[letter] || '';
 
         return `
           <button 
@@ -1125,11 +1084,11 @@ function prepareResultAlternativesHtml(qObj, q, cardId) {
               ${
                 motivoRaw
                   ? `<div class="q-opt-motivo" style="display:block; margin-top:8px; font-size:11px; opacity:0.8; font-style:italic; padding-left: 28px; width: 100%; border-top: 1px dashed var(--color-border); padding-top: 6px;">${motivoRaw}</div>`
-                  : ""
+                  : ''
               }
           </button>`;
       })
-      .join("");
+      .join('');
   }
 
   return { card: null, htmlAlts };
@@ -1137,13 +1096,13 @@ function prepareResultAlternativesHtml(qObj, q, cardId) {
 
 // Helper function to escape HTML special characters
 function escapeHtml(text) {
-  if (!text) return "";
+  if (!text) return '';
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 // Renders the correct answer details, justifications, steps and metadata
@@ -1152,23 +1111,23 @@ function renderGabaritoCardSection(qObj, cardId) {
   const confianca = Math.round((g.confianca || 0) * 100);
 
   // Converte passos de resolução para HTML
-  let passosHtml = "";
+  let passosHtml = '';
   if (g.explicacao && g.explicacao.length > 0) {
     const listPassos = g.explicacao
       .map((p, i) => {
         const est = Array.isArray(p.estrutura)
           ? p.estrutura
-          : [{ tipo: "texto", conteudo: p.passo || "" }];
+          : [{ tipo: 'texto', conteudo: p.passo || '' }];
 
         const stepContentHtml = renderizarEstruturaHTML(est, [], `simulado_step_${i}`, true);
 
         // Metadados do passo
-        const origemLabel = (p.origem || "").includes("extraido")
-          ? "📄 Material Original"
-          : "🤖 Gerado por IA";
-        const origemCor = (p.origem || "").includes("extraido")
-          ? "var(--color-success)"
-          : "var(--color-primary)";
+        const origemLabel = (p.origem || '').includes('extraido')
+          ? '📄 Material Original'
+          : '🤖 Gerado por IA';
+        const origemCor = (p.origem || '').includes('extraido')
+          ? 'var(--color-success)'
+          : 'var(--color-primary)';
 
         return `
           <div class="q-step-wrapper">
@@ -1188,13 +1147,13 @@ function renderGabaritoCardSection(qObj, cardId) {
                 ${
                   p.fontematerial
                     ? `<div class="q-step-row"><span class="q-step-key">Fonte:</span><span>${p.fontematerial}</span></div>`
-                    : ""
+                    : ''
                 }
               </div>
             </details>
           </div>`;
       })
-      .join("");
+      .join('');
 
     passosHtml = `
       <div style="margin-top:20px;">
@@ -1207,30 +1166,30 @@ function renderGabaritoCardSection(qObj, cardId) {
   }
 
   // Resposta modelo
-  const resModeloRaw = g.resposta_modelo || g.respostaModelo || "";
-  let respModeloHtml = "";
+  const resModeloRaw = g.resposta_modelo || g.respostaModelo || '';
+  let respModeloHtml = '';
   if (resModeloRaw) {
     let padronizado = String(resModeloRaw)
-      .replace(/```[a-zA-Z]*\n?/g, "")
-      .replace(/```/g, "");
+      .replace(/```[a-zA-Z]*\n?/g, '')
+      .replace(/```/g, '');
     padronizado = padronizado
-      .split("\n")
+      .split('\n')
       .map((l) => l.trimStart())
-      .join("\n")
+      .join('\n')
       .trim();
 
     respModeloHtml = `
       <div style="margin-top: 15px;">
         <h4 style="margin:0 0 8px 0; font-size:12px; text-transform:uppercase; color:var(--color-text-secondary);">Resposta Esperada (Tutor)</h4>
         <div class="markdown-content" data-raw="${escapeHtml(
-          padronizado
+          padronizado,
         )}" style="padding: 10px; background: rgba(34,197,94,0.05); border-left: 3px solid var(--color-success); border-radius: 4px; font-size:13px;"></div>
       </div>
     `;
   }
 
   // Fontes Externas
-  let fontesHtml = "";
+  let fontesHtml = '';
   if (g.fontes_externas && g.fontes_externas.length > 0) {
     const listFontes = g.fontes_externas
       .map(
@@ -1240,9 +1199,9 @@ function renderGabaritoCardSection(qObj, cardId) {
           ${f.title || f.uri} ↗
         </a>
       </li>
-    `
+    `,
       )
-      .join("");
+      .join('');
 
     fontesHtml = `
       <div style="margin-top: 15px;">
@@ -1260,9 +1219,7 @@ function renderGabaritoCardSection(qObj, cardId) {
       
       <div>
         <strong>Gabarito Oficial:</strong> ${
-          g.alternativa_correta
-            ? `Alternativa ${g.alternativa_correta}`
-            : "Dissertativa"
+          g.alternativa_correta ? `Alternativa ${g.alternativa_correta}` : 'Dissertativa'
         }
         <span style="font-size:11px; color:var(--color-text-secondary); margin-left:8px;">(Confiança IA: ${confianca}%)</span>
       </div>
@@ -1270,7 +1227,7 @@ function renderGabaritoCardSection(qObj, cardId) {
       <div style="margin-top: 10px; font-size: 13px; line-height: 1.5;">
         <strong>Justificativa:</strong>
         <span class="markdown-content" data-raw="${escapeHtml(
-          g.justificativa_curta || "Sem justificativa."
+          g.justificativa_curta || 'Sem justificativa.',
         )}"></span>
       </div>
 
@@ -1283,7 +1240,7 @@ function renderGabaritoCardSection(qObj, cardId) {
 
 // Renderiza a tela final de resumo do simulado (Score Geral)
 function renderSimResultSummary(container, questoes, tipo, titulo) {
-  document.body.innerHTML = "";
+  document.body.innerHTML = '';
 
   const total = questoes.length;
   let correctCount = 0;
@@ -1293,9 +1250,7 @@ function renderSimResultSummary(container, questoes, tipo, titulo) {
   questoes.forEach((qObj) => {
     const q = qObj.fullData?.dados_questao || {};
     const isQD =
-      q.tipo_resposta === "dissertativa" ||
-      !q.alternativas ||
-      q.alternativas.length === 0;
+      q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
     if (isQD) {
       hasDissertative = true;
@@ -1312,8 +1267,8 @@ function renderSimResultSummary(container, questoes, tipo, titulo) {
 
   const percentage = total > 0 ? Math.round((correctCount / total) * 100) : 0;
 
-  let circularScoreHtml = "";
-  let summaryGridHtml = "";
+  let circularScoreHtml = '';
+  let summaryGridHtml = '';
 
   if (hasDissertative) {
     circularScoreHtml = `
@@ -1354,8 +1309,8 @@ function renderSimResultSummary(container, questoes, tipo, titulo) {
     `;
   }
 
-  const summaryCard = document.createElement("div");
-  summaryCard.className = "simulados-exam-container";
+  const summaryCard = document.createElement('div');
+  summaryCard.className = 'simulados-exam-container';
 
   summaryCard.innerHTML = `
     <div class="simulados-results-card fade-in">
@@ -1380,13 +1335,13 @@ function renderSimResultSummary(container, questoes, tipo, titulo) {
   document.body.appendChild(summaryCard);
 
   // Voltar a revisar questões
-  document.getElementById("btnReviewExam").addEventListener("click", () => {
+  document.getElementById('btnReviewExam').addEventListener('click', () => {
     activeSimIndex = 0;
     renderExamUI(questoes, tipo, titulo);
   });
 
   // Voltar ao dashboard
-  document.getElementById("btnGoBackDash").addEventListener("click", () => {
+  document.getElementById('btnGoBackDash').addEventListener('click', () => {
     iniciarModoSimulados();
   });
 }
@@ -1415,9 +1370,9 @@ export async function carregarSimuladoCompartilhado(tipo, titulo, idsString) {
   `;
 
   try {
-    const entries = idsString.split(",");
+    const entries = idsString.split(',');
     const promises = entries.map(async (entry) => {
-      const parts = entry.split(":");
+      const parts = entry.split(':');
       const prova = parts[0];
       const id = parts[1];
 
@@ -1429,15 +1384,12 @@ export async function carregarSimuladoCompartilhado(tipo, titulo, idsString) {
         // Garante metadados
         if (!fullData.meta) fullData.meta = {};
         if (!fullData.meta.material_origem) {
-          fullData.meta.material_origem = prova.replace(/_/g, " ");
+          fullData.meta.material_origem = prova.replace(/_/g, ' ');
         }
 
         const q = fullData.dados_questao || {};
-        const textPreview = (q.estrutura || [])
-          .map((b) => b.conteudo || "")
-          .join(" ") ||
-          q.enunciado ||
-          "";
+        const textPreview =
+          (q.estrutura || []).map((b) => b.conteudo || '').join(' ') || q.enunciado || '';
 
         return {
           id: id,
@@ -1455,17 +1407,16 @@ export async function carregarSimuladoCompartilhado(tipo, titulo, idsString) {
     const validQuestions = results.filter((q) => q !== null);
 
     if (validQuestions.length === 0) {
-      throw new Error("Nenhuma questão válida encontrada para este simulado.");
+      throw new Error('Nenhuma questão válida encontrada para este simulado.');
     }
 
     // Copia as questões para as variáveis locais do dashboard
     selectedQuestions = validQuestions;
-    simuladoTitle = titulo || "Simulado Compartilhado";
+    simuladoTitle = titulo || 'Simulado Compartilhado';
     simuladoType = tipo || detectarSimuladoType(validQuestions);
 
     // Inicializa a tela de simulados no painel principal
     await iniciarModoSimulados();
-
   } catch (e) {
     document.body.innerHTML = `
       <div style="

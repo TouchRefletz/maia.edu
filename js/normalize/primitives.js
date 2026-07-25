@@ -1,14 +1,13 @@
 // --- 1. NORMALIZAÇÃO DOS DADOS ---f
-export const joinLines = (arr) =>
-  Array.isArray(arr) ? arr.join("\n") : arr || "";
+export const joinLines = (arr) => (Array.isArray(arr) ? arr.join('\n') : arr || '');
 
 // --- ADICIONE ESTA LINHA AQUI ---
 export const safe = (s) =>
-  String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 // --------------------------------
 // helper: sempre devolve array (ou [])
 export const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
@@ -17,12 +16,12 @@ export const asArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
 export const asStringArray = (v) => {
   if (v == null) return [];
   if (Array.isArray(v)) return v.map((x) => String(x));
-  if (typeof v === "string")
+  if (typeof v === 'string')
     return v
-      .split("\n")
+      .split('\n')
       .map((s) => s.trim())
       .filter(Boolean);
-  if (typeof v === "object") return Object.values(v).map((x) => String(x));
+  if (typeof v === 'object') return Object.values(v).map((x) => String(x));
   return [String(v)];
 };
 
@@ -35,17 +34,17 @@ export const safeClone = (obj) => {
 };
 
 export const escapeHTML = (s) =>
-  String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+  String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 
 export function sanitizeInlineMarkdown(s) {
-  return String(s || "")
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/\*\*/g, "")
-    .replace(/__/g, "")
+  return String(s || '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
     .trim();
 }
 
@@ -54,11 +53,11 @@ export function sanitizeInlineMarkdown(s) {
  * Útil quando texto vem da IA com &quot; ao invés de "
  */
 export const decodeEntities = (s) =>
-  String(s ?? "")
+  String(s ?? '')
     .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'");
 
@@ -68,10 +67,10 @@ export const decodeEntities = (s) =>
  */
 // Helper para processar LaTeX inline ($...$ -> \(...\))
 export const processLatex = (s) => {
-  if (!s) return "";
-  
+  if (!s) return '';
+
   // 1. Escapa moedas R$ não escapadas para R\$ antes de varrer cifrões
-  let cleaned = String(s).replace(/(^|[^\\])R\$/g, "$1R\\$");
+  const cleaned = String(s).replace(/(^|[^\\])R\$/g, '$1R\\$');
 
   // 2. Substitui $...$ por \(...\) garantindo que não pegue \$ escapado nem quebras de linha
   return cleaned.replace(/([^\\]|^)\$([^$\n]+)\$/g, (match, prefix, content) => {
@@ -84,7 +83,7 @@ export const processLatex = (s) => {
     // Precisamos de 4 barras invertidas na string literal para resultar em 2 no output (\),
     // que o markdown consome para virar 1 na renderização final.
     // ESCAPA backslashes no conteúdo para sobreviverem ao markdown (ex: \text -> \\text)
-    return `${prefix}\\\\(${content.replace(/\\/g, "\\\\")}\\\\)`;
+    return `${prefix}\\\\(${content.replace(/\\/g, '\\\\')}\\\\)`;
   });
 };
 
@@ -100,41 +99,42 @@ export const safeMarkdown = (s) => {
   decoded = processLatex(decoded);
 
   // Verifica se o texto possui indícios de formatação markdown ou HTML
-  const temMarkdown = /[*_`#\[\]()]/.test(decoded) || 
-                      /^([-+*])\s/m.test(decoded) || 
-                      /^(\d+)[.)]\s/m.test(decoded) || 
-                      /^>\s/m.test(decoded) || 
-                      /\|/.test(decoded) ||
-                      /<[a-zA-Z\/][^>]*>/.test(decoded);
+  const temMarkdown =
+    /[*_`#[\]()]/.test(decoded) ||
+    /^([-+*])\s/m.test(decoded) ||
+    /^(\d+)[.)]\s/m.test(decoded) ||
+    /^>\s/m.test(decoded) ||
+    /\|/.test(decoded) ||
+    /<[a-zA-Z/][^>]*>/.test(decoded);
 
   if (!temMarkdown) {
     // Se só tiver latex (\(...\)), não precisa de markdown, mas precisamos garantir que o HTML escape funcione para o resto
-    if (decoded.includes("\\(") || decoded.includes("\\[")) {
+    if (decoded.includes('\\(') || decoded.includes('\\[')) {
       // Deixa cair no bloco do marked abaixo ou fallback
     } else {
       return decoded
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\n/g, "<br>");
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
     }
   }
 
   // Se tiver marked disponível globalmente, usa
-  if (typeof window !== "undefined" && window.marked) {
+  if (typeof window !== 'undefined' && window.marked) {
     try {
       // breaks: true garante que \n vire <br> (GFM style)
       return window.marked.parse(decoded, { breaks: true });
     } catch (e) {
-      console.warn("Erro ao parsear markdown:", e);
+      console.warn('Erro ao parsear markdown:', e);
     }
   }
 
   // Fallback: converte markdown básico manualmente
   return decoded
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/_(.+?)_/g, "<em>$1</em>")
-    .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/\n/g, "<br>");
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
 };

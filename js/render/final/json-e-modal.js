@@ -1,7 +1,7 @@
-import { prepararDadosGerais } from "./render-components.js";
 // Importamos a função de montagem do React (assumindo que seu build system permite isso)
-import { customAlert } from "../../ui/GlobalAlertsLogic.tsx";
-import { mountJsonReviewModal } from "./JsonReviewModal.tsx";
+import { customAlert } from '../../ui/GlobalAlertsLogic.tsx';
+import { mountJsonReviewModal } from './JsonReviewModal.tsx';
+import { prepararDadosGerais } from './render-components.js';
 
 // --- MANTER EXPORTS DE LÓGICA AUXILIAR ---
 // Algumas partes do sistema podem importar isso diretamente, então mantemos wrappers
@@ -10,9 +10,7 @@ import { mountJsonReviewModal } from "./JsonReviewModal.tsx";
 // Assumindo que podem ser usadas externamente, mantemos referências simples ou duplicamos a lógica mínima.
 
 export function resolverImagensPrioritarias(backupGlobal, originalLimpas) {
-  return backupGlobal && backupGlobal.length > 0
-    ? backupGlobal
-    : originalLimpas || [];
+  return backupGlobal && backupGlobal.length > 0 ? backupGlobal : originalLimpas || [];
 }
 
 // Estas funções de preparação agora existem dentro do TSX,
@@ -33,7 +31,7 @@ export function prepararObjetoGabarito(g) {
   } else {
     imgsReais = resolverImagensPrioritarias(
       window.__BACKUP_IMGS_G,
-      window.__imagensLimpas?.gabarito_original
+      window.__imagensLimpas?.gabarito_original,
     );
   }
 
@@ -54,7 +52,7 @@ export function prepararObjetoQuestao(q) {
   } else {
     imgsReais = resolverImagensPrioritarias(
       window.__BACKUP_IMGS_Q,
-      window.__imagensLimpas?.questao_original
+      window.__imagensLimpas?.questao_original,
     );
   }
 
@@ -69,8 +67,8 @@ export function prepararObjetoQuestao(q) {
 export function gerarJsonFinal(q, g, tituloMaterial) {
   const gabaritoLimpo = prepararObjetoGabarito(g);
   const questaoFinal = prepararObjetoQuestao(q);
-  const chaveProva = tituloMaterial || "MATERIAL_SEM_TITULO";
-  const chaveQuestao = q.identificacao || "QUESTAO_SEM_ID";
+  const chaveProva = tituloMaterial || 'MATERIAL_SEM_TITULO';
+  const chaveQuestao = q.identificacao || 'QUESTAO_SEM_ID';
 
   const payloadFinal = {
     [chaveProva]: {
@@ -87,16 +85,16 @@ export function gerarJsonFinal(q, g, tituloMaterial) {
 // Funções de HTML string não são mais necessárias para o funcionamento interno,
 // mas mantemos export vazios ou deprecated caso alguém importe.
 export function gerarHtmlHeaderModal(tituloMaterial) {
-  return "";
+  return '';
 }
 export function gerarHtmlJsonDebug(jsonString) {
-  return "";
+  return '';
 }
 export function montarHtmlModalCompleto() {
-  return "";
+  return '';
 }
 export function exibirModalRevisaoFinal() {
-  console.warn("Função depreciada. O React controla o modal.");
+  console.warn('Função depreciada. O React controla o modal.');
 }
 
 // --- FUNÇÃO PRINCIPAL ---
@@ -113,11 +111,11 @@ export function renderizarTelaFinal() {
   // [REFACTOR] Passamos objetos diretos agora
 
   // Criar container para o React
-  const existingModal = document.getElementById("finalModalReactRoot");
+  const existingModal = document.getElementById('finalModalReactRoot');
   if (existingModal) existingModal.remove();
 
-  const container = document.createElement("div");
-  container.id = "finalModalReactContainer"; // Container temporário
+  const container = document.createElement('div');
+  container.id = 'finalModalReactContainer'; // Container temporário
   document.body.appendChild(container);
 
   // Montar o componente React
@@ -133,26 +131,26 @@ export function renderizarTelaFinal() {
       // Callback opcional: Lógica que deve rodar quando o usuário clica em Enviar
       // Caso existam event listeners globais atrelados à classe .js-confirmar-envio
       // O React já lida com a UI de loading.
-      console.log("Evento de confirmação disparado pelo React");
+      console.log('Evento de confirmação disparado pelo React');
     },
   });
 }
 
 // Função auxiliar para envio, mantida para compatibilidade
 export function iniciarPreparacaoEnvio(overrideQ, overrideG) {
-  const btnEnviar = document.getElementById("btnConfirmarEnvioFinal");
+  const btnEnviar = document.getElementById('btnConfirmarEnvioFinal');
   const q = overrideQ || window.__ultimaQuestaoExtraida;
   const g = overrideG || window.__ultimoGabaritoExtraido;
 
   if (!q || !g) {
-    customAlert("❌ Erro: Dados incompletos. Processe a questão e o gabarito.");
+    customAlert('❌ Erro: Dados incompletos. Processe a questão e o gabarito.');
     return null;
   }
 
   // O React já gerencia o estado disabled/loading, mas se algo externo chamar isso:
   if (btnEnviar) {
     btnEnviar.disabled = true;
-    btnEnviar.innerText = "⏳ Preparando JSON...";
+    btnEnviar.innerText = '⏳ Preparando JSON...';
   }
 
   return { btnEnviar, q, g };

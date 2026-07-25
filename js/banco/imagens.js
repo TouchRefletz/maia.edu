@@ -10,7 +10,7 @@ export function normalizarArrayImagens(obj) {
 }
 
 export function serializarParaAtributo(arr) {
-  return JSON.stringify(arr).replace(/"/g, "&quot;");
+  return JSON.stringify(arr).replace(/"/g, '&quot;');
 }
 
 export function gerarHtmlImagensSuporte(fullData, q) {
@@ -21,9 +21,7 @@ export function gerarHtmlImagensSuporte(fullData, q) {
   ];
 
   // Remove duplicatas (opcional, mas boa prática) e gera HTML
-  return [...new Set(lista)]
-    .map((url) => `<img src="${url}" class="q-support-img">`)
-    .join("");
+  return [...new Set(lista)].map((url) => `<img src="${url}" class="q-support-img">`).join('');
 }
 
 export function prepararImagensVisualizacao(fullData) {

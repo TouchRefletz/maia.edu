@@ -5,9 +5,9 @@
  * aguardando extração de imagens antes de avançar para a próxima.
  */
 
-import { CropperState } from "../cropper/cropper-state.js";
-import { salvarQuestaoEmLote } from "../cropper/save-handlers.js";
-import { customAlert } from "../ui/GlobalAlertsLogic.tsx";
+import { CropperState } from '../cropper/cropper-state.js';
+import { salvarQuestaoEmLote } from '../cropper/save-handlers.js';
+import { customAlert } from '../ui/GlobalAlertsLogic.tsx';
 
 class BatchProcessorClass {
   constructor() {
@@ -30,28 +30,24 @@ class BatchProcessorClass {
   async start() {
     // Coletar grupos criados pela IA que ainda não foram processados
     const iaGroups = CropperState.groups.filter(
-      (g) =>
-        g.tags &&
-        g.tags.includes("ia") &&
-        g.status !== "sent" &&
-        g.status !== "ready",
+      (g) => g.tags && g.tags.includes('ia') && g.status !== 'sent' && g.status !== 'ready',
     );
 
     if (iaGroups.length === 0) {
-      console.log("[BatchProcessor] Nenhum grupo para processar");
+      console.log('[BatchProcessor] Nenhum grupo para processar');
 
       // Mostra popup informando que nenhuma questão foi extraída
       customAlert(
-        "⚠️ Nenhuma questão foi extraída automaticamente. Verifique se o PDF contém questões ou tente novamente.",
+        '⚠️ Nenhuma questão foi extraída automaticamente. Verifique se o PDF contém questões ou tente novamente.',
         5000,
       );
 
       // Finaliza o scanner (remove glow, reseta header)
       try {
-        const { AiScanner } = await import("./ai-scanner.js");
+        const { AiScanner } = await import('./ai-scanner.js');
         AiScanner.finish();
       } catch (e) {
-        console.warn("[BatchProcessor] Erro ao finalizar AiScanner:", e);
+        console.warn('[BatchProcessor] Erro ao finalizar AiScanner:', e);
       }
 
       return;
@@ -62,16 +58,11 @@ class BatchProcessorClass {
     this.processedCount = 0;
     this.isRunning = true;
 
-    console.log(
-      `[BatchProcessor] Iniciando processamento de ${this.totalCount} questões`,
-    );
+    console.log(`[BatchProcessor] Iniciando processamento de ${this.totalCount} questões`);
 
     // Registrar event listeners
-    window.addEventListener("batch-slot-filled", this._onSlotFilled);
-    window.addEventListener(
-      "question-processing-complete",
-      this._onQuestionComplete,
-    );
+    window.addEventListener('batch-slot-filled', this._onSlotFilled);
+    window.addEventListener('question-processing-complete', this._onQuestionComplete);
 
     // Iniciar processamento da primeira questão
     await this.processNext();
@@ -91,9 +82,7 @@ class BatchProcessorClass {
 
     const group = CropperState.groups.find((g) => g.id === this.currentGroupId);
     if (!group) {
-      console.warn(
-        `[BatchProcessor] Grupo ${this.currentGroupId} não encontrado, pulando`,
-      );
+      console.warn(`[BatchProcessor] Grupo ${this.currentGroupId} não encontrado, pulando`);
       await this.processNext();
       return;
     }
@@ -111,8 +100,9 @@ class BatchProcessorClass {
     // Dispara o processamento via IA
     // O salvarQuestaoEmLote cria a aba e chama confirmarEnvioIA
     try {
-      const { createQuestionTab, updateTabStatus, addLogToQuestionTab } =
-        await import("../ui/sidebar-tabs.js");
+      const { createQuestionTab, updateTabStatus, addLogToQuestionTab } = await import(
+        '../ui/sidebar-tabs.js'
+      );
 
       // [BATCH FIX] Cria aba em BACKGROUND (autoActivate: false) para evitar que
       // o Hub perca foco e as abas anteriores sejam escondidas enquanto ainda renderizam.
@@ -126,13 +116,10 @@ class BatchProcessorClass {
       CropperState.notify();
 
       updateTabStatus(this.currentTabId, {
-        status: "processing",
+        status: 'processing',
         progress: 10,
       });
-      addLogToQuestionTab(
-        this.currentTabId,
-        "Iniciando processamento batch...",
-      );
+      addLogToQuestionTab(this.currentTabId, 'Iniciando processamento batch...');
 
       // Scroll para o card da questão no Hub (sidebar)
       this._scrollToQuestionCard(group.id);
@@ -169,15 +156,12 @@ class BatchProcessorClass {
   async _triggerAutoImageExtraction(slotIds) {
     const group = CropperState.groups.find((g) => g.id === this.currentGroupId);
     if (!group || !group.crops || group.crops.length === 0) {
-      console.log(
-        "[BatchProcessor] Sem bounds de questão para extração de imagem",
-      );
+      console.log('[BatchProcessor] Sem bounds de questão para extração de imagem');
       return;
     }
 
     try {
-      const { extractImagesFromRegion } =
-        await import("./ai-image-extractor.js");
+      const { extractImagesFromRegion } = await import('./ai-image-extractor.js');
 
       // Pega a primeira página dos crops como base
       const firstCrop = group.crops[0];
@@ -186,7 +170,7 @@ class BatchProcessorClass {
       // Calcula bounds normalizados (0-1000)
       const wrapper = document.getElementById(`page-wrapper-${pageNum}`);
       if (!wrapper) {
-        console.log("[BatchProcessor] Page wrapper não encontrado");
+        console.log('[BatchProcessor] Page wrapper não encontrado');
         return;
       }
 
@@ -202,31 +186,21 @@ class BatchProcessorClass {
         h: Math.round((anchorData.unscaledH / wrapperHeight) * 1000),
       };
 
-      console.log(
-        `[BatchProcessor] Iniciando extração automática de imagem (página ${pageNum})`,
-      );
+      console.log(`[BatchProcessor] Iniciando extração automática de imagem (página ${pageNum})`);
 
       const result = await extractImagesFromRegion(pageNum, questionBounds, {
         onStatus: (msg) => console.log(`[BatchProcessor AI] ${msg}`),
         onThought: (thought) =>
-          console.log(
-            `[BatchProcessor AI] Pensando: ${thought.slice(0, 50)}...`,
-          ),
+          console.log(`[BatchProcessor AI] Pensando: ${thought.slice(0, 50)}...`),
       });
 
       if (result.success && result.crops && result.crops.length > 0) {
         // Preenche os slots com as imagens encontradas
-        for (
-          let i = 0;
-          i < Math.min(slotIds.length, result.crops.length);
-          i++
-        ) {
+        for (let i = 0; i < Math.min(slotIds.length, result.crops.length); i++) {
           const slotId = slotIds[i];
           const crop = result.crops[i];
 
-          console.log(
-            `[BatchProcessor] Preenchendo slot ${slotId} com imagem detectada`,
-          );
+          console.log(`[BatchProcessor] Preenchendo slot ${slotId} com imagem detectada`);
 
           // Usa a função global para preencher o slot
           if (window.confirmAISlotDirectly) {
@@ -235,13 +209,13 @@ class BatchProcessorClass {
         }
       } else {
         console.log(
-          `[BatchProcessor] Nenhuma imagem encontrada: ${result.error || "desconhecido"}`,
+          `[BatchProcessor] Nenhuma imagem encontrada: ${result.error || 'desconhecido'}`,
         );
         // Se não encontrou imagens, remove os slots pendentes e continua
         slotIds.forEach((id) => this.pendingImageSlots.delete(id));
       }
     } catch (err) {
-      console.error("[BatchProcessor] Erro na extração de imagem:", err);
+      console.error('[BatchProcessor] Erro na extração de imagem:', err);
       // Em caso de erro, remove os slots pendentes para não travar
       slotIds.forEach((id) => this.pendingImageSlots.delete(id));
     }
@@ -259,9 +233,7 @@ class BatchProcessorClass {
     // [FIX] O slotId pode vir como número (0, 1, 2) ou como string prefixada ("questao_img_0")
     // Tentamos remover ambos os formatos para garantir compatibilidade
     const numericId =
-      typeof slotId === "number"
-        ? slotId
-        : parseInt(String(slotId).match(/(\d+)$/)?.[1] || slotId);
+      typeof slotId === 'number' ? slotId : parseInt(String(slotId).match(/(\d+)$/)?.[1] || slotId);
     const prefixedId = `questao_img_${numericId}`;
 
     // Remove o que estiver no Set
@@ -277,7 +249,7 @@ class BatchProcessorClass {
 
     // [FIX] Quando todos os slots foram preenchidos, avança para a próxima questão
     if (this.pendingImageSlots.size === 0) {
-      console.log("[BatchProcessor] Todos os slots preenchidos! Avançando...");
+      console.log('[BatchProcessor] Todos os slots preenchidos! Avançando...');
       // skipWait=true porque já esperamos pelo preenchimento dos slots
       this._markCurrentAsReady(true);
     }
@@ -293,9 +265,7 @@ class BatchProcessorClass {
 
     if (tabId !== this.currentTabId) return;
 
-    console.log(
-      `[BatchProcessor] Questão processada. hasImageSlots: ${hasImageSlots}`,
-    );
+    console.log(`[BatchProcessor] Questão processada. hasImageSlots: ${hasImageSlots}`);
 
     if (hasImageSlots && slotIds && slotIds.length > 0) {
       // Tem slots pendentes, registrar e aguardar
@@ -313,7 +283,7 @@ class BatchProcessorClass {
     // Aguarda um pouco para o card ser renderizado
     setTimeout(() => {
       // Busca o card pelo groupId no DOM
-      const allCards = document.querySelectorAll(".cropper-group-item");
+      const allCards = document.querySelectorAll('.cropper-group-item');
       const group = CropperState.groups.find((g) => g.id === groupId);
 
       if (!group) return;
@@ -322,13 +292,13 @@ class BatchProcessorClass {
         // Encontra o card baseado no label do grupo
         if (card.textContent.includes(group.label)) {
           // Abre a página que contém o card
-          const parentDetails = card.closest(".page-details-group");
+          const parentDetails = card.closest('.page-details-group');
           if (parentDetails) {
             parentDetails.open = true;
           }
 
           // Scroll para centralizar o card
-          card.scrollIntoView({ behavior: "smooth", block: "center" });
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
           break;
         }
       }
@@ -342,7 +312,7 @@ class BatchProcessorClass {
   async _markCurrentAsReady(skipWait = false) {
     const group = CropperState.groups.find((g) => g.id === this.currentGroupId);
     if (group) {
-      group.status = "ready";
+      group.status = 'ready';
       CropperState.notify(); // Dispara re-render da sidebar
     }
 
@@ -357,9 +327,7 @@ class BatchProcessorClass {
       await new Promise((r) => setTimeout(r, 3000));
     }
 
-    console.log(
-      `[BatchProcessor] Questão ${group?.label} pronta! Avançando...`,
-    );
+    console.log(`[BatchProcessor] Questão ${group?.label} pronta! Avançando...`);
 
     // Scroll para o card da próxima questão (se houver)
     if (this.queue.length > 0) {
@@ -388,7 +356,7 @@ class BatchProcessorClass {
       const checkSlots = () => {
         // Todos preenchidos?
         if (this.pendingImageSlots.size === 0) {
-          console.log("[BatchProcessor] Todos os slots preenchidos!");
+          console.log('[BatchProcessor] Todos os slots preenchidos!');
           resolve();
           return;
         }
@@ -418,22 +386,17 @@ class BatchProcessorClass {
     this.isRunning = false;
 
     // Remove listeners
-    window.removeEventListener("batch-slot-filled", this._onSlotFilled);
-    window.removeEventListener(
-      "question-processing-complete",
-      this._onQuestionComplete,
-    );
+    window.removeEventListener('batch-slot-filled', this._onSlotFilled);
+    window.removeEventListener('question-processing-complete', this._onQuestionComplete);
 
-    console.log(
-      `[BatchProcessor] Concluído! ${this.processedCount} questões processadas`,
-    );
+    console.log(`[BatchProcessor] Concluído! ${this.processedCount} questões processadas`);
 
     // [IMPORTANTE] Finaliza o AiScanner (remove glow, reseta header, etc)
     try {
-      const { AiScanner } = await import("./ai-scanner.js");
+      const { AiScanner } = await import('./ai-scanner.js');
       AiScanner.finish();
     } catch (err) {
-      console.error("[BatchProcessor] Erro ao finalizar AiScanner:", err);
+      console.error('[BatchProcessor] Erro ao finalizar AiScanner:', err);
     }
 
     // Mostra popup de conclusão
@@ -445,8 +408,8 @@ class BatchProcessorClass {
    */
   _showCompletionModal() {
     // Criar modal overlay
-    const overlay = document.createElement("div");
-    overlay.id = "batch-completion-modal-overlay";
+    const overlay = document.createElement('div');
+    overlay.id = 'batch-completion-modal-overlay';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -462,7 +425,7 @@ class BatchProcessorClass {
       animation: fadeIn 0.3s ease;
     `;
 
-    const modal = document.createElement("div");
+    const modal = document.createElement('div');
     modal.style.cssText = `
       background: var(--color-surface, #1e1e2e);
       border: 1px solid var(--border-color, #333);
@@ -518,15 +481,15 @@ class BatchProcessorClass {
     document.body.appendChild(overlay);
 
     // Fechar ao clicar no botão
-    document.getElementById("batch-completion-ok-btn").onclick = () => {
-      overlay.style.animation = "fadeOut 0.2s ease";
+    document.getElementById('batch-completion-ok-btn').onclick = () => {
+      overlay.style.animation = 'fadeOut 0.2s ease';
       setTimeout(() => overlay.remove(), 200);
     };
 
     // Fechar ao clicar fora
     overlay.onclick = (e) => {
       if (e.target === overlay) {
-        overlay.style.animation = "fadeOut 0.2s ease";
+        overlay.style.animation = 'fadeOut 0.2s ease';
         setTimeout(() => overlay.remove(), 200);
       }
     };
@@ -538,17 +501,14 @@ class BatchProcessorClass {
   cancel() {
     if (!this.isRunning) return;
 
-    console.log("[BatchProcessor] Cancelado pelo usuário");
+    console.log('[BatchProcessor] Cancelado pelo usuário');
     this.queue = [];
     this.isRunning = false;
 
-    window.removeEventListener("batch-slot-filled", this._onSlotFilled);
-    window.removeEventListener(
-      "question-processing-complete",
-      this._onQuestionComplete,
-    );
+    window.removeEventListener('batch-slot-filled', this._onSlotFilled);
+    window.removeEventListener('question-processing-complete', this._onQuestionComplete);
 
-    customAlert("Processamento batch cancelado", 2000);
+    customAlert('Processamento batch cancelado', 2000);
   }
 }
 

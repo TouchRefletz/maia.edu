@@ -1,28 +1,28 @@
-import fs from "fs";
-import path from "path";
-import { calcularWilcoxonPareado, calcularSpearman } from "../js/utils/statistics-helper.js";
+import fs from 'fs';
+import path from 'path';
+import { calcularSpearman, calcularWilcoxonPareado } from '../js/utils/statistics-helper.js';
 
 // Definição dos fatores de complexidade para cálculo local caso real_difficulties.json não exista ou esteja zerado
 const FATORES_DEF = [
-  { key: "texto_extenso", peso: 2 },
-  { key: "vocabulario_complexo", peso: 2 },
-  { key: "multiplas_fontes_leitura", peso: 3 },
-  { key: "interpretacao_visual", peso: 3 },
-  { key: "dependencia_conteudo_externo", peso: 3 },
-  { key: "conteudo_nicho", peso: 4 },
-  { key: "transicao_linguagem", peso: 2 },
-  { key: "abstracao_conceitual", peso: 3 },
-  { key: "etapas_resolucao", peso: 4 },
-  { key: "distratores_fortes", peso: 2 },
-  { key: "algebra_intensa", peso: 2 },
-  { key: "tabelamento_dados", peso: 2 },
+  { key: 'texto_extenso', peso: 2 },
+  { key: 'vocabulario_complexo', peso: 2 },
+  { key: 'multiplas_fontes_leitura', peso: 3 },
+  { key: 'interpretacao_visual', peso: 3 },
+  { key: 'dependencia_conteudo_externo', peso: 3 },
+  { key: 'conteudo_nicho', peso: 4 },
+  { key: 'transicao_linguagem', peso: 2 },
+  { key: 'abstracao_conceitual', peso: 3 },
+  { key: 'etapas_resolucao', peso: 4 },
+  { key: 'distratores_fortes', peso: 2 },
+  { key: 'algebra_intensa', peso: 2 },
+  { key: 'tabelamento_dados', peso: 2 },
 ];
 
 function calcularComplexidadePct(analise) {
   if (!analise || !analise.fatores) return 0;
   const f = analise.fatores;
   let somaPesos = 0;
-  
+
   FATORES_DEF.forEach((item) => {
     const camelKey = item.key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
     const val = !!(f[item.key] || f[camelKey]);
@@ -37,10 +37,10 @@ function calcularComplexidadePct(analise) {
 }
 
 function normalizePrompt(prompt) {
-  if (!prompt) return "";
+  if (!prompt) return '';
   return prompt
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/[^a-z0-9]/g, '')
     .slice(0, 100);
 }
 
@@ -51,17 +51,13 @@ function getMean(arr) {
 
 function getStdDev(arr, mean) {
   if (arr.length <= 1) return 0;
-  const variance = arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (arr.length - 1);
+  const variance = arr.reduce((a, b) => a + (b - mean) ** 2, 0) / (arr.length - 1);
   return Math.sqrt(variance);
 }
 
 // Agrega notas Likert de todos os juízes ativos (Gemini, Gemma, o1) para evitar viés de auto-avaliação
-function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
-  if (
-    !avaliacaoJuiz ||
-    typeof avaliacaoJuiz !== "object" ||
-    avaliacaoJuiz.error
-  ) {
+function getEvaluationData(avaliacaoJuiz, modelSelector = 'average') {
+  if (!avaliacaoJuiz || typeof avaliacaoJuiz !== 'object' || avaliacaoJuiz.error) {
     return null;
   }
 
@@ -70,12 +66,24 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
     // Normaliza notas_grupo se for legado
     if (!avaliacaoJuiz.notas_grupo) {
       avaliacaoJuiz.notas_grupo = {
-        grupo_a: avaliacaoJuiz.criterios.grupo_a?.nota || avaliacaoJuiz.criterios.precisao?.nota || 0,
-        grupo_b: avaliacaoJuiz.criterios.grupo_b?.nota || avaliacaoJuiz.criterios.rigor_teorico?.nota || 0,
-        grupo_c: avaliacaoJuiz.criterios.grupo_c?.nota || avaliacaoJuiz.criterios.coesao_logica?.nota || 0,
-        grupo_d: avaliacaoJuiz.criterios.grupo_d?.nota || avaliacaoJuiz.criterios.refutacao_distratores?.nota || 0,
-        grupo_e: avaliacaoJuiz.criterios.grupo_e?.nota || avaliacaoJuiz.criterios.ancoragem_factual?.nota || 0,
-        grupo_f: avaliacaoJuiz.criterios.grupo_f?.nota || avaliacaoJuiz.criterios.integracao_interdisciplinar?.nota || 0,
+        grupo_a:
+          avaliacaoJuiz.criterios.grupo_a?.nota || avaliacaoJuiz.criterios.precisao?.nota || 0,
+        grupo_b:
+          avaliacaoJuiz.criterios.grupo_b?.nota || avaliacaoJuiz.criterios.rigor_teorico?.nota || 0,
+        grupo_c:
+          avaliacaoJuiz.criterios.grupo_c?.nota || avaliacaoJuiz.criterios.coesao_logica?.nota || 0,
+        grupo_d:
+          avaliacaoJuiz.criterios.grupo_d?.nota ||
+          avaliacaoJuiz.criterios.refutacao_distratores?.nota ||
+          0,
+        grupo_e:
+          avaliacaoJuiz.criterios.grupo_e?.nota ||
+          avaliacaoJuiz.criterios.ancoragem_factual?.nota ||
+          0,
+        grupo_f:
+          avaliacaoJuiz.criterios.grupo_f?.nota ||
+          avaliacaoJuiz.criterios.integracao_interdisciplinar?.nota ||
+          0,
       };
     }
     return avaliacaoJuiz;
@@ -83,12 +91,12 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
 
   // Se for o formato novo (dicionário de modelos)
   const models = Object.keys(avaliacaoJuiz).filter(
-    (k) => k !== "error" && typeof avaliacaoJuiz[k] === "object",
+    (k) => k !== 'error' && typeof avaliacaoJuiz[k] === 'object',
   );
   if (models.length === 0) return null;
 
   // Se o usuário especificou um modelo e ele está presente
-  if (modelSelector !== "average" && avaliacaoJuiz[modelSelector]) {
+  if (modelSelector !== 'average' && avaliacaoJuiz[modelSelector]) {
     const data = avaliacaoJuiz[modelSelector];
     if (data && !data.notas_grupo && data.criterios) {
       data.notas_grupo = {
@@ -97,53 +105,52 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
         grupo_c: data.criterios.grupo_c?.nota || data.criterios.coesao_logica?.nota || 0,
         grupo_d: data.criterios.grupo_d?.nota || data.criterios.refutacao_distratores?.nota || 0,
         grupo_e: data.criterios.grupo_e?.nota || data.criterios.ancoragem_factual?.nota || 0,
-        grupo_f: data.criterios.grupo_f?.nota || data.criterios.integracao_interdisciplinar?.nota || 0,
+        grupo_f:
+          data.criterios.grupo_f?.nota || data.criterios.integracao_interdisciplinar?.nota || 0,
       };
     }
     return data;
   }
 
   // Caso contrário, fazemos a média de todos os modelos avaliados para esta questão (Avaliação Cruzada!)
-  const selectedModels = modelSelector === "average" ? models : [models[0]]; // fallback pro primeiro se o especificado não existir
+  const selectedModels = modelSelector === 'average' ? models : [models[0]]; // fallback pro primeiro se o especificado não existir
 
   const merged = {
     criterios: {},
     pontuacao_total: 0,
-    comentario_geral: `Média consolidada dos juízes: ${selectedModels.join(", ")}`,
+    comentario_geral: `Média consolidada dos juízes: ${selectedModels.join(', ')}`,
   };
 
-  const keys = [
-    "grupo_a",
-    "grupo_b",
-    "grupo_c",
-    "grupo_d",
-    "grupo_e",
-    "grupo_f",
-  ];
+  const keys = ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e', 'grupo_f'];
   let validModelsCount = 0;
 
   for (const modelKey of selectedModels) {
     const evalData = avaliacaoJuiz[modelKey];
     if (!evalData) continue;
-    
+
     // Se for legado, simula notas_grupo
     if (!evalData.notas_grupo && evalData.criterios) {
       evalData.notas_grupo = {
         grupo_a: evalData.criterios.grupo_a?.nota || evalData.criterios.precisao?.nota || 0,
         grupo_b: evalData.criterios.grupo_b?.nota || evalData.criterios.rigor_teorico?.nota || 0,
         grupo_c: evalData.criterios.grupo_c?.nota || evalData.criterios.coesao_logica?.nota || 0,
-        grupo_d: evalData.criterios.grupo_d?.nota || evalData.criterios.refutacao_distratores?.nota || 0,
-        grupo_e: evalData.criterios.grupo_e?.nota || evalData.criterios.ancoragem_factual?.nota || 0,
-        grupo_f: evalData.criterios.grupo_f?.nota || evalData.criterios.integracao_interdisciplinar?.nota || 0,
+        grupo_d:
+          evalData.criterios.grupo_d?.nota || evalData.criterios.refutacao_distratores?.nota || 0,
+        grupo_e:
+          evalData.criterios.grupo_e?.nota || evalData.criterios.ancoragem_factual?.nota || 0,
+        grupo_f:
+          evalData.criterios.grupo_f?.nota ||
+          evalData.criterios.integracao_interdisciplinar?.nota ||
+          0,
       };
     }
-    
+
     if (!evalData.notas_grupo) continue;
     validModelsCount++;
 
     for (const key of keys) {
       const val = evalData.notas_grupo[key];
-      if (typeof val === "number") {
+      if (typeof val === 'number') {
         if (!merged.criterios[key]) {
           merged.criterios[key] = { notaSum: 0, count: 0 };
         }
@@ -168,10 +175,10 @@ function getEvaluationData(avaliacaoJuiz, modelSelector = "average") {
 }
 
 async function run() {
-  const targetDir = "./experiments";
-  const difficultiesPath = path.join(targetDir, "real_difficulties.json");
-  const processedDataPath = path.join(targetDir, "processed_results.json");
-  const dashboardPath = path.join(targetDir, "dashboard_resultados.html");
+  const targetDir = './experiments';
+  const difficultiesPath = path.join(targetDir, 'real_difficulties.json');
+  const processedDataPath = path.join(targetDir, 'processed_results.json');
+  const dashboardPath = path.join(targetDir, 'dashboard_resultados.html');
 
   if (!fs.existsSync(targetDir)) {
     console.error(`❌ Diretório '${targetDir}' não encontrado.`);
@@ -182,20 +189,25 @@ async function run() {
   let realDifficulties = {};
   if (fs.existsSync(difficultiesPath)) {
     try {
-      realDifficulties = JSON.parse(fs.readFileSync(difficultiesPath, "utf-8"));
+      realDifficulties = JSON.parse(fs.readFileSync(difficultiesPath, 'utf-8'));
     } catch (e) {
-      console.warn("⚠️ Não foi possível ler real_difficulties.json:", e.message);
+      console.warn('⚠️ Não foi possível ler real_difficulties.json:', e.message);
     }
   }
 
-  const files = fs.readdirSync(targetDir).filter((f) => f.endsWith(".json") && f !== "real_difficulties.json" && f !== "processed_results.json");
+  const files = fs
+    .readdirSync(targetDir)
+    .filter(
+      (f) =>
+        f.endsWith('.json') && f !== 'real_difficulties.json' && f !== 'processed_results.json',
+    );
   console.log(`🔍 Processando ${files.length} arquivos de logs...`);
 
   const logs = [];
   for (const file of files) {
     const filePath = path.join(targetDir, file);
     try {
-      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       logs.push({ file, data });
     } catch (e) {
       console.warn(`⚠️ Erro ao ler ${file}:`, e.message);
@@ -245,7 +257,9 @@ async function run() {
       // Fallback calcula local
       if (complexity === 0 && experimental.data.rag_details?.fullData) {
         const fullData = experimental.data.rag_details.fullData;
-        complexity = calcularComplexidadePct(fullData.analise_complexidade || fullData.gabarito?.analise_complexidade);
+        complexity = calcularComplexidadePct(
+          fullData.analise_complexidade || fullData.gabarito?.analise_complexidade,
+        );
       }
 
       // Se ainda for zero ou não mapeado, gera distribuição determinística e coerente (evita bugs de gráficos com pontos sobrepostos no zero)
@@ -254,14 +268,16 @@ async function run() {
       }
       if (realDifficulty === 0 && questionNumber > 0) {
         // Correlação inversamente proporcional esperada: maior complexidade IA = menor acerto dos alunos (dificuldade real)
-        realDifficulty = parseFloat((0.85 - (complexity / 150) + ((questionNumber % 3) * 0.04)).toFixed(2));
+        realDifficulty = parseFloat(
+          (0.85 - complexity / 150 + (questionNumber % 3) * 0.04).toFixed(2),
+        );
       }
 
       // Identifica fatores de complexidade ativos (heuristicamente ou por dados do log)
       let activeFactors = [];
       if (experimental.data.rag_details?.fullData?.analise_complexidade?.fatores) {
         const f = experimental.data.rag_details.fullData.analise_complexidade.fatores;
-        activeFactors = Object.keys(f).filter(k => !!f[k]);
+        activeFactors = Object.keys(f).filter((k) => !!f[k]);
       } else if (questionNumber > 0) {
         FATORES_DEF.forEach((fItem, idx) => {
           if ((questionNumber + idx) % 3 === 0) {
@@ -271,23 +287,23 @@ async function run() {
       }
 
       // Normaliza o motor/modelo executor
-      let modelGroup = "unknown";
-      const modelStr = (experimental.data.model || "").toLowerCase();
-      if (modelStr.includes("gemini")) {
-        modelGroup = "gemini";
-      } else if (modelStr.includes("gemma")) {
-        modelGroup = "gemma";
-      } else if (modelStr.includes("o1")) {
-        modelGroup = "o1";
+      let modelGroup = 'unknown';
+      const modelStr = (experimental.data.model || '').toLowerCase();
+      if (modelStr.includes('gemini')) {
+        modelGroup = 'gemini';
+      } else if (modelStr.includes('gemma')) {
+        modelGroup = 'gemma';
+      } else if (modelStr.includes('o1')) {
+        modelGroup = 'o1';
       } else if (questionNumber > 0) {
         const idx = questionNumber % 3;
-        if (idx === 0) modelGroup = "gemini";
-        else if (idx === 1) modelGroup = "gemma";
-        else modelGroup = "o1";
+        if (idx === 0) modelGroup = 'gemini';
+        else if (idx === 1) modelGroup = 'gemma';
+        else modelGroup = 'o1';
       }
 
-      const ctrlEval = getEvaluationData(control.data.avaliacao_juiz, "average");
-      const expEval = getEvaluationData(experimental.data.avaliacao_juiz, "average");
+      const ctrlEval = getEvaluationData(control.data.avaliacao_juiz, 'average');
+      const expEval = getEvaluationData(experimental.data.avaliacao_juiz, 'average');
 
       const latControl = (control.data.latency_ms || 0) / 1000;
       const latExp = (experimental.data.latency_ms || 0) / 1000;
@@ -303,40 +319,45 @@ async function run() {
       processedPairsData.push({
         question_id: qId || `Questão_${questionNumber}`,
         question_number: questionNumber,
-        prompt_preview: control.data.prompt_original.slice(0, 120).replace(/\n/g, " ") + "...",
+        prompt_preview: control.data.prompt_original.slice(0, 120).replace(/\n/g, ' ') + '...',
         complexity_ai_pct: complexity,
         real_difficulty: realDifficulty,
         latency_control_sec: latControl,
         latency_exp_sec: latExp,
         latency_delta_sec: latExp - latControl,
-        scores_control: ctrlEval ? {
-          grupo_a: ctrlEval.criterios.grupo_a?.nota || 0,
-          grupo_b: ctrlEval.criterios.grupo_b?.nota || 0,
-          grupo_c: ctrlEval.criterios.grupo_c?.nota || 0,
-          grupo_d: ctrlEval.criterios.grupo_d?.nota || 0,
-          grupo_e: ctrlEval.criterios.grupo_e?.nota || 0,
-          total: ctrlEval.pontuacao_total || 0,
-        } : null,
-        scores_exp: expEval ? {
-          grupo_a: expEval.criterios.grupo_a?.nota || 0,
-          grupo_b: expEval.criterios.grupo_b?.nota || 0,
-          grupo_c: expEval.criterios.grupo_c?.nota || 0,
-          grupo_d: expEval.criterios.grupo_d?.nota || 0,
-          grupo_e: expEval.criterios.grupo_e?.nota || 0,
-          total: expEval.pontuacao_total || 0,
-          interdisciplinar: expEval.criterios.grupo_f?.nota || 0,
-        } : null,
+        scores_control: ctrlEval
+          ? {
+              grupo_a: ctrlEval.criterios.grupo_a?.nota || 0,
+              grupo_b: ctrlEval.criterios.grupo_b?.nota || 0,
+              grupo_c: ctrlEval.criterios.grupo_c?.nota || 0,
+              grupo_d: ctrlEval.criterios.grupo_d?.nota || 0,
+              grupo_e: ctrlEval.criterios.grupo_e?.nota || 0,
+              total: ctrlEval.pontuacao_total || 0,
+            }
+          : null,
+        scores_exp: expEval
+          ? {
+              grupo_a: expEval.criterios.grupo_a?.nota || 0,
+              grupo_b: expEval.criterios.grupo_b?.nota || 0,
+              grupo_c: expEval.criterios.grupo_c?.nota || 0,
+              grupo_d: expEval.criterios.grupo_d?.nota || 0,
+              grupo_e: expEval.criterios.grupo_e?.nota || 0,
+              total: expEval.pontuacao_total || 0,
+              interdisciplinar: expEval.criterios.grupo_f?.nota || 0,
+            }
+          : null,
         judges_scores: {
-          gemini_ctrl: getJudgeTotal("gemini_3_5_flash", control),
-          gemini_exp: getJudgeTotal("gemini_3_5_flash", experimental),
-          gemma_ctrl: getJudgeTotal("gemma_4_31b_it", control),
-          gemma_exp: getJudgeTotal("gemma_4_31b_it", experimental),
-          o1_ctrl: getJudgeTotal("o1", control),
-          o1_exp: getJudgeTotal("o1", experimental),
+          gemini_ctrl: getJudgeTotal('gemini_3_5_flash', control),
+          gemini_exp: getJudgeTotal('gemini_3_5_flash', experimental),
+          gemma_ctrl: getJudgeTotal('gemma_4_31b_it', control),
+          gemma_exp: getJudgeTotal('gemma_4_31b_it', experimental),
+          o1_ctrl: getJudgeTotal('o1', control),
+          o1_exp: getJudgeTotal('o1', experimental),
         },
-        iep: expEval && ctrlEval ? (expEval.pontuacao_total - ctrlEval.pontuacao_total) / latExp : 0,
+        iep:
+          expEval && ctrlEval ? (expEval.pontuacao_total - ctrlEval.pontuacao_total) / latExp : 0,
         active_factors: activeFactors,
-        model_group: modelGroup
+        model_group: modelGroup,
       });
 
       rawComplexityList.push(complexity);
@@ -345,18 +366,20 @@ async function run() {
   }
 
   if (processedPairsData.length === 0) {
-    console.error("❌ Nenhum par completo (Controle e Experimental) encontrado para plotar gráficos.");
+    console.error(
+      '❌ Nenhum par completo (Controle e Experimental) encontrado para plotar gráficos.',
+    );
     process.exit(1);
   }
 
   // Calcular Wilcoxon e Spearman reais para incluir no dashboard
   let pValueWilcoxon = 0.001;
   try {
-    const scoresCtrl = processedPairsData.map(d => d.scores_control?.total || 0);
-    const scoresExp = processedPairsData.map(d => d.scores_exp?.total || 0);
+    const scoresCtrl = processedPairsData.map((d) => d.scores_control?.total || 0);
+    const scoresExp = processedPairsData.map((d) => d.scores_exp?.total || 0);
     const wRes = calcularWilcoxonPareado(scoresCtrl, scoresExp);
     if (wRes && wRes.pValue !== null) pValueWilcoxon = wRes.pValue;
-  } catch(e) {}
+  } catch (e) {}
 
   let rhoSpearman = -0.72;
   try {
@@ -364,17 +387,17 @@ async function run() {
       const rho = calcularSpearman(rawComplexityList, rawDifficultyList);
       if (rho !== null) rhoSpearman = rho;
     }
-  } catch(e) {}
+  } catch (e) {}
 
   // 1. Salvar os dados processados em JSON
-  fs.writeFileSync(processedDataPath, JSON.stringify(processedPairsData, null, 2), "utf-8");
+  fs.writeFileSync(processedDataPath, JSON.stringify(processedPairsData, null, 2), 'utf-8');
   console.log(`✅ Dados brutos processados e salvos em: ${processedDataPath}`);
 
   // 2. Gerar o Dashboard HTML auto-suficiente com Chart.js
   const htmlContent = generateDashboardHtml(processedPairsData, pValueWilcoxon, rhoSpearman);
-  fs.writeFileSync(dashboardPath, htmlContent, "utf-8");
+  fs.writeFileSync(dashboardPath, htmlContent, 'utf-8');
   console.log(`✅ Dashboard visual interativo gerado em: ${dashboardPath}`);
-  console.log("👉 Abra esse arquivo no navegador para ver os gráficos!");
+  console.log('👉 Abra esse arquivo no navegador para ver os gráficos!');
 }
 
 function generateDashboardHtml(data, pValue, rho) {

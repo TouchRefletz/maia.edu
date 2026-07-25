@@ -1,30 +1,26 @@
-import { viewerState } from "../main.js";
-import { CropperState } from "./cropper-state.js";
+import { viewerState } from '../main.js';
+import { CropperState } from './cropper-state.js';
 
-export function loadSelectionsFromJson(
-  jsonInput,
-  targetPageNum = 2,
-  options = {}
-) {
-  console.log("📥 Loading selections from JSON...", jsonInput);
+export function loadSelectionsFromJson(jsonInput, targetPageNum = 2, options = {}) {
+  console.log('📥 Loading selections from JSON...', jsonInput);
 
   let data = jsonInput;
-  if (typeof jsonInput === "string") {
+  if (typeof jsonInput === 'string') {
     try {
       data = JSON.parse(jsonInput);
     } catch (e) {
-      console.error("❌ Invalid JSON format", e);
+      console.error('❌ Invalid JSON format', e);
       return;
     }
   }
 
   if (!data.regions || !Array.isArray(data.regions)) {
-    console.error("❌ No regions found in JSON");
+    console.error('❌ No regions found in JSON');
     return;
   }
 
   // Determine coordinate system
-  const isY1X1 = data.coordinateSystem === "normalized_0_1000_y1x1y2x2";
+  const isY1X1 = data.coordinateSystem === 'normalized_0_1000_y1x1y2x2';
 
   data.regions.forEach((region) => {
     // Tenta encontrar grupo existente para fazer merging (caso seja split question ou atualização de rascunho)
@@ -40,24 +36,21 @@ export function loadSelectionsFromJson(
         // Limpamos os crops antigos para substituir pelos novos refinados.
         // Assim evitamos "sombra" ou duplicidade.
         if (
-          existingGroup.status === "draft" &&
-          (options.status === "verified" || options.status === "sent")
+          existingGroup.status === 'draft' &&
+          (options.status === 'verified' || options.status === 'sent')
         ) {
           // Smart Merge/Upgrade Logic
           // Determine types involved
-          const isNewComplete =
-            (region.tipo || "questao_completa") === "questao_completa";
-          const isNewPart = region.tipo === "parte_questao";
+          const isNewComplete = (region.tipo || 'questao_completa') === 'questao_completa';
+          const isNewPart = region.tipo === 'parte_questao';
 
           const hasExistingComplete = existingGroup.crops.some(
-            (c) => (c.tipo || "questao_completa") === "questao_completa"
+            (c) => (c.tipo || 'questao_completa') === 'questao_completa',
           );
-          const hasExistingPart = existingGroup.crops.some(
-            (c) => c.tipo === "parte_questao"
-          );
+          const hasExistingPart = existingGroup.crops.some((c) => c.tipo === 'parte_questao');
 
           console.log(
-            `🔄 Upgrading Draft Q${questionId}. New: ${region.tipo}, Existing Has: [Complete:${hasExistingComplete}, Part:${hasExistingPart}]`
+            `🔄 Upgrading Draft Q${questionId}. New: ${region.tipo}, Existing Has: [Complete:${hasExistingComplete}, Part:${hasExistingPart}]`,
           );
 
           if (isNewComplete && hasExistingComplete) {
@@ -65,14 +58,12 @@ export function loadSelectionsFromJson(
             // Filter out old complete, keep parts.
             console.log("   -> Replacing old 'questao_completa' crops.");
             existingGroup.crops = existingGroup.crops.filter(
-              (c) => (c.tipo || "questao_completa") !== "questao_completa"
+              (c) => (c.tipo || 'questao_completa') !== 'questao_completa',
             );
           } else if (isNewPart && hasExistingPart) {
             // Collision: New Part (Support Text) with Existing Part.
             // We APPEND instead of replacing, because support text can be split across multiple boxes (multicast).
-            console.log(
-              "   -> Appending new 'parte_questao' to existing parts."
-            );
+            console.log("   -> Appending new 'parte_questao' to existing parts.");
           }
 
           // If we didn't clear above, we are Merging (Appending).
@@ -103,14 +94,14 @@ export function loadSelectionsFromJson(
       const newOptions = {
         ...options,
         externalId: questionId,
-        tipo: region.tipo || "questao_completa",
-        status: options.status || "sent", // Default to sent if not provided
+        tipo: region.tipo || 'questao_completa',
+        status: options.status || 'sent', // Default to sent if not provided
       };
       group = CropperState.createGroup(newOptions);
     }
 
     // Calculate functionality
-    let [c1, c2, c3, c4] = region.box;
+    const [c1, c2, c3, c4] = region.box;
     let top, left, bottom, right;
 
     if (isY1X1) {
@@ -129,7 +120,7 @@ export function loadSelectionsFromJson(
 
     // APLY PADDING IF PROVIDED (options.padding)
     // Expand the box by 'padding' amount in all directions, clamping to 0..1000
-    if (options.padding && typeof options.padding === "number") {
+    if (options.padding && typeof options.padding === 'number') {
       const p = options.padding;
       top = Math.max(0, top - p);
       left = Math.max(0, left - p);
@@ -147,9 +138,7 @@ export function loadSelectionsFromJson(
     const relHeight = relBottom - relTop;
 
     // We need the PAGE DIMENSIONS to convert normalized -> unscaled pixels.
-    const pageContainer = document.getElementById(
-      `page-wrapper-${targetPageNum}`
-    );
+    const pageContainer = document.getElementById(`page-wrapper-${targetPageNum}`);
     if (!pageContainer) {
       console.warn(`⚠️ Page ${targetPageNum} not found/rendered yet.`);
       return;
@@ -174,7 +163,7 @@ export function loadSelectionsFromJson(
     // Store type on crop data as well for rendering
     const cropData = {
       anchorData,
-      tipo: region.tipo || "questao_completa", // IMPORTANT: Pass type to crop
+      tipo: region.tipo || 'questao_completa', // IMPORTANT: Pass type to crop
     };
 
     if (isMerge) {
@@ -190,5 +179,5 @@ export function loadSelectionsFromJson(
   // Força o fim da edição (fecha o painel de edição e mostra a lista)
   CropperState.setActiveGroup(null);
 
-  console.log("✅ Selections loaded successfully!");
+  console.log('✅ Selections loaded successfully!');
 }

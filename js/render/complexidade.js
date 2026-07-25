@@ -3,7 +3,7 @@ import ReactDOMServer from 'react-dom/server';
 import {
   ComplexityCard,
   _calcularComplexidade as calcComp,
-  _getComplexidadeConfig as getConfig
+  _getComplexidadeConfig as getConfig,
 } from './ComplexityCard.tsx'; // Ajuste o caminho conforme sua estrutura
 
 /**
@@ -28,12 +28,12 @@ export const _renderGrupoComplexidade = (catKey, grupos, CFG) => {
   // Nota: Isso é um hack para manter a função existente funcionando.
   // Idealmente, o código consumidor deveria usar o componente React completo.
   // Aqui instanciamos apenas um pedaço da UI, se necessário.
-  
+
   // Como as funções internas do TSX não são exportadas isoladamente (apenas o componente principal),
   // se esta função for crucial, recomendo refatorar o consumidor.
   // Pelo seu código original, ela parecia ser usada apenas internamente pelo renderComplexidade.
   // Se for interna, deixamos vazia ou retornamos string vazia, pois o renderComplexidade abaixo já cuida de tudo.
-  return ''; 
+  return '';
 };
 
 /**
@@ -44,6 +44,6 @@ export const renderComplexidade = (complexidadeObj) => {
   // Renderiza o componente React para uma string HTML estática
   // Isso satisfaz o requisito de retornar HTML puro para o sistema legado.
   return ReactDOMServer.renderToStaticMarkup(
-    React.createElement(ComplexityCard, { data: complexidadeObj })
+    React.createElement(ComplexityCard, { data: complexidadeObj }),
   );
 };

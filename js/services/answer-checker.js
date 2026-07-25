@@ -5,7 +5,7 @@
  * OPTIONAL: AI correction with full JSON context (Gemini 3 Flash)
  */
 
-import { WORKER_URL } from "../api/worker.js";
+import { WORKER_URL } from '../api/worker.js';
 
 // ─── DEFAULT: Embedding-Based Correction ─────────────────────
 
@@ -19,20 +19,15 @@ import { WORKER_URL } from "../api/worker.js";
  * @param {string} apiKey - API key para embedding
  * @returns {Promise<{score: number, similarity: number, keywordsFound: string[], keywordsMissing: string[], feedback: string}>}
  */
-export async function checkAnswerWithEmbeddings(
-  userAnswer,
-  expectedAnswer,
-  questionData,
-  apiKey,
-) {
+export async function checkAnswerWithEmbeddings(userAnswer, expectedAnswer, questionData, apiKey) {
   if (!userAnswer || !expectedAnswer) {
     return {
       score: 0,
       similarity: 0,
       keywordsFound: [],
       keywordsMissing: [],
-      feedback: "Impossível corrigir (resposta modelo ou do aluno vazia).",
-      method: "error",
+      feedback: 'Impossível corrigir (resposta modelo ou do aluno vazia).',
+      method: 'error',
     };
   }
 
@@ -51,8 +46,8 @@ export async function checkAnswerWithEmbeddings(
     const keywords = extractKeywords(expectedAnswer, questionData);
     const normalizedUserAnswer = userAnswer
       .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
 
     const keywordsFound = [];
     const keywordsMissing = [];
@@ -60,8 +55,8 @@ export async function checkAnswerWithEmbeddings(
     for (const kw of keywords) {
       const normalizedKw = kw
         .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
       if (normalizedUserAnswer.includes(normalizedKw)) {
         keywordsFound.push(kw);
       } else {
@@ -78,18 +73,18 @@ export async function checkAnswerWithEmbeddings(
       keywordsFound,
       keywordsMissing,
       feedback,
-      method: "embeddings",
+      method: 'embeddings',
     };
   } catch (error) {
-    console.error("[AnswerChecker] Embedding check error:", error);
+    console.error('[AnswerChecker] Embedding check error:', error);
     return {
       score: 0,
       similarity: 0,
       keywordsFound: [],
       keywordsMissing: [],
       feedback:
-        "Não foi possível verificar sua resposta. Tente novamente ou use a correção com IA.",
-      method: "error",
+        'Não foi possível verificar sua resposta. Tente novamente ou use a correção com IA.',
+      method: 'error',
     };
   }
 }
@@ -107,71 +102,70 @@ export async function checkAnswerWithEmbeddings(
  */
 export async function checkAnswerWithAI(userAnswer, fullQuestionJson, apiKey) {
   const schema = {
-    type: "object",
+    type: 'object',
     additionalProperties: false,
     properties: {
       score: {
-        type: "number",
+        type: 'number',
         minimum: 0,
         maximum: 100,
-        description: "Nota de 0 a 100",
+        description: 'Nota de 0 a 100',
       },
       feedback_geral: {
-        type: "string",
-        description: "Avaliação geral da resposta (2-3 frases)",
+        type: 'string',
+        description: 'Avaliação geral da resposta (2-3 frases)',
       },
       criterios_avaliados: {
-        type: "array",
+        type: 'array',
         items: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
           properties: {
             criterio: {
-              type: "string",
-              description: "Ponto/Critério esperado pela questão",
+              type: 'string',
+              description: 'Ponto/Critério esperado pela questão',
             },
             atendido: {
-              type: "boolean",
-              description: "Se o estudante atendeu ou não a esse critério",
+              type: 'boolean',
+              description: 'Se o estudante atendeu ou não a esse critério',
             },
             feedback: {
-              type: "string",
-              description: "Pequeno comentário justificando se atendeu ou não",
-            }
+              type: 'string',
+              description: 'Pequeno comentário justificando se atendeu ou não',
+            },
           },
-          required: ["criterio", "atendido", "feedback"],
+          required: ['criterio', 'atendido', 'feedback'],
         },
-        description: "Lista de pontos cobrados na resposta modelo e se o estudante cumpriu",
+        description: 'Lista de pontos cobrados na resposta modelo e se o estudante cumpriu',
       },
       pontos_fortes: {
-        type: "array",
-        items: { type: "string" },
-        description: "O que o aluno acertou ou abordou bem",
+        type: 'array',
+        items: { type: 'string' },
+        description: 'O que o aluno acertou ou abordou bem',
       },
       pontos_fracos: {
-        type: "array",
-        items: { type: "string" },
-        description: "O que ficou faltando ou incorreto",
+        type: 'array',
+        items: { type: 'string' },
+        description: 'O que ficou faltando ou incorreto',
       },
       sugestoes: {
-        type: "array",
-        items: { type: "string" },
-        description: "Sugestões de melhoria para a resposta",
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Sugestões de melhoria para a resposta',
       },
       comparacao_com_gabarito: {
-        type: "string",
-        description:
-          "Comparação direta entre a resposta do aluno e a resposta modelo",
+        type: 'string',
+        description: 'Comparação direta entre a resposta do aluno e a resposta modelo',
       },
     },
     required: [
-      "score",
-      "feedback_geral",
-      "criterios_avaliados",
-      "pontos_fortes",
-      "pontos_fracos",
-      "sugestoes",
-      "comparacao_com_gabarito",
+      'score',
+      'feedback_geral',
+      'criterios_avaliados',
+      'pontos_fortes',
+      'pontos_fracos',
+      'sugestoes',
+      'comparacao_com_gabarito',
     ],
   };
 
@@ -192,18 +186,36 @@ INSTRUÇÕES:
 Responda com o JSON estruturado.`;
 
   try {
-    const specificModel = typeof window !== "undefined" ? window.selectedModelCorrector : null;
-    const modelToUse = (specificModel && specificModel !== "automatico") ? specificModel : "models/gemini-3.5-flash";
+    const specificModel = typeof window !== 'undefined' ? window.selectedModelCorrector : null;
+    const modelToUse =
+      specificModel && specificModel !== 'automatico' ? specificModel : 'models/gemini-3.5-flash';
 
     const response = await fetch(`${WORKER_URL}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
-        githubApiKey: (typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("GITHUB_PAT_KEY") || sessionStorage.getItem("githubApiKey")) : undefined) || undefined,
-        vertexProjectId: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
-        vertexLocation: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
-        vertexCredentials: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
+        apiKey:
+          apiKey ||
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
+            : undefined) ||
+          undefined,
+        githubApiKey:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('GITHUB_PAT_KEY') || sessionStorage.getItem('githubApiKey')
+            : undefined) || undefined,
+        vertexProjectId:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_PROJECT_ID')
+            : undefined) || undefined,
+        vertexLocation:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_LOCATION')
+            : undefined) || undefined,
+        vertexCredentials:
+          (typeof sessionStorage !== 'undefined'
+            ? sessionStorage.getItem('VERTEX_CREDENTIALS')
+            : undefined) || undefined,
         texto: prompt,
         schema,
         model: modelToUse,
@@ -218,9 +230,9 @@ Responda com o JSON estruturado.`;
 
     // Process streamed response
     const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let answerText = "";
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let answerText = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -228,14 +240,14 @@ Responda com o JSON estruturado.`;
       const chunk = decoder.decode(value, { stream: true });
       buffer += chunk;
 
-      let parts = buffer.split("\n");
-      buffer = parts.pop() || "";
+      const parts = buffer.split('\n');
+      buffer = parts.pop() || '';
 
       for (const line of parts) {
         if (!line.trim()) continue;
         try {
           const msg = JSON.parse(line);
-          if (msg.type === "answer") {
+          if (msg.type === 'answer') {
             answerText += msg.text;
           }
         } catch {
@@ -247,23 +259,22 @@ Responda com o JSON estruturado.`;
     const jsonMatch = answerText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const result = JSON.parse(jsonMatch[0]);
-      result.method = "ai";
+      result.method = 'ai';
       return result;
     }
 
-    throw new Error("Could not parse AI response");
+    throw new Error('Could not parse AI response');
   } catch (error) {
-    console.error("[AnswerChecker] AI correction error:", error);
+    console.error('[AnswerChecker] AI correction error:', error);
     return {
       score: 0,
-      feedback_geral:
-        "Erro na correção com IA. Tente novamente ou use a correção por embeddings.",
+      feedback_geral: 'Erro na correção com IA. Tente novamente ou use a correção por embeddings.',
       criterios_avaliados: [],
       pontos_fortes: [],
       pontos_fracos: [],
       sugestoes: [],
-      comparacao_com_gabarito: "",
-      method: "error",
+      comparacao_com_gabarito: '',
+      method: 'error',
     };
   }
 }
@@ -272,14 +283,28 @@ Responda com o JSON estruturado.`;
 
 async function generateEmbedding(text, apiKey) {
   const response = await fetch(`${WORKER_URL}/embed`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       texto: text,
-      apiKey: apiKey || (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("GOOGLE_GENAI_API_KEY") : undefined) || undefined,
-      vertexProjectId: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_PROJECT_ID") : undefined) || undefined,
-      vertexLocation: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_LOCATION") : undefined) || undefined,
-      vertexCredentials: (typeof sessionStorage !== "undefined" ? sessionStorage.getItem("VERTEX_CREDENTIALS") : undefined) || undefined,
+      apiKey:
+        apiKey ||
+        (typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('GOOGLE_GENAI_API_KEY')
+          : undefined) ||
+        undefined,
+      vertexProjectId:
+        (typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('VERTEX_PROJECT_ID')
+          : undefined) || undefined,
+      vertexLocation:
+        (typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('VERTEX_LOCATION')
+          : undefined) || undefined,
+      vertexCredentials:
+        (typeof sessionStorage !== 'undefined'
+          ? sessionStorage.getItem('VERTEX_CREDENTIALS')
+          : undefined) || undefined,
     }),
   });
 
@@ -316,10 +341,10 @@ function extractKeywords(expectedAnswer, questionData) {
     // Extract meaningful terms: normalize, drop short words (covers most PT stopwords), rank by frequency
     const terms = expectedAnswer
       .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
       .split(/\s+/)
-      .map((w) => w.replace(/[^\w]/g, ""))
+      .map((w) => w.replace(/[^\w]/g, ''))
       .filter((w) => w.length > 4);
 
     const freq = {};
@@ -336,23 +361,23 @@ function extractKeywords(expectedAnswer, questionData) {
 
 function generateFeedback(score, keywordsFound, keywordsMissing) {
   if (score >= 85) {
-    return `Excelente! Sua resposta demonstra boa compreensão do tema. ${keywordsFound.length > 0 ? `Você abordou corretamente: ${keywordsFound.slice(0, 5).join(", ")}.` : ""}`;
+    return `Excelente! Sua resposta demonstra boa compreensão do tema. ${keywordsFound.length > 0 ? `Você abordou corretamente: ${keywordsFound.slice(0, 5).join(', ')}.` : ''}`;
   } else if (score >= 65) {
     let msg = `Boa resposta, mas há espaço para melhoria.`;
     if (keywordsFound.length > 0) {
-      msg += ` Pontos abordados: ${keywordsFound.slice(0, 3).join(", ")}.`;
+      msg += ` Pontos abordados: ${keywordsFound.slice(0, 3).join(', ')}.`;
     }
     if (keywordsMissing.length > 0) {
-      msg += ` Conceitos que poderiam ser incluídos: ${keywordsMissing.slice(0, 3).join(", ")}.`;
+      msg += ` Conceitos que poderiam ser incluídos: ${keywordsMissing.slice(0, 3).join(', ')}.`;
     }
     return msg;
   } else if (score >= 40) {
     let msg = `Resposta parcial. Alguns conceitos-chave estão ausentes.`;
     if (keywordsMissing.length > 0) {
-      msg += ` Faltaram: ${keywordsMissing.slice(0, 5).join(", ")}.`;
+      msg += ` Faltaram: ${keywordsMissing.slice(0, 5).join(', ')}.`;
     }
     return msg;
   } else {
-    return `Sua resposta precisa de mais desenvolvimento. Revise os conceitos principais: ${keywordsMissing.slice(0, 5).join(", ") || "verifique o gabarito"}.`;
+    return `Sua resposta precisa de mais desenvolvimento. Revise os conceitos principais: ${keywordsMissing.slice(0, 5).join(', ') || 'verifique o gabarito'}.`;
   }
 }

@@ -67,18 +67,12 @@ function boxDownscale(srcData, srcW, srcH, dstW, dstH) {
   return dstData;
 }
 
-export function computeDHash(
-  sourceCanvas,
-  width,
-  height,
-  createCanvasFn,
-  debug = false
-) {
+export function computeDHash(sourceCanvas, width, height, createCanvasFn, debug = false) {
   const w = CONFIG.GRID_SIZE;
   const h = CONFIG.GRID_SIZE;
 
   // Get Source Pixels
-  const ctx = sourceCanvas.context || sourceCanvas.getContext("2d");
+  const ctx = sourceCanvas.context || sourceCanvas.getContext('2d');
   const srcImageData = ctx.getImageData(0, 0, width, height);
 
   // Manual Deterministic Downscale
@@ -88,18 +82,16 @@ export function computeDHash(
   // We use the raw grayscale value to ensure maximum sensitivity.
   // Stored as 2-digit Hex to keep the string manageable but precise.
 
-  let hash = "";
-  let debugGrid = [];
+  let hash = '';
+  const debugGrid = [];
 
   for (let i = 0; i < w * h; i++) {
     const idx = i * 4;
     // Grayscale
-    const val = Math.floor(
-      data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114
-    );
+    const val = Math.floor(data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114);
 
     // Convert to Hex (00-FF)
-    const hexVal = val.toString(16).padStart(2, "0");
+    const hexVal = val.toString(16).padStart(2, '0');
 
     if (debug) {
       debugGrid.push(val); // Push raw grayscale value (0-255)
@@ -109,7 +101,7 @@ export function computeDHash(
   }
 
   if (debug) {
-    console.log(`[Hash Debug] Grid (${w}x${h}):`, debugGrid.join(","));
+    console.log(`[Hash Debug] Grid (${w}x${h}):`, debugGrid.join(','));
     console.log(`[Hash Debug] Quantized:`, hash);
   }
 
@@ -129,13 +121,12 @@ export async function computePdfDocHash(
   createCanvasFn,
   sha256Fn,
   onStatusUpdate,
-  debug = false
+  debug = false,
 ) {
-  let combinedVisualData = "";
+  let combinedVisualData = '';
 
   for (let i = 1; i <= pdfDoc.numPages; i++) {
-    if (onStatusUpdate)
-      onStatusUpdate(`Processando página ${i}/${pdfDoc.numPages}...`);
+    if (onStatusUpdate) onStatusUpdate(`Processando página ${i}/${pdfDoc.numPages}...`);
 
     const page = await pdfDoc.getPage(i);
 
@@ -155,10 +146,10 @@ export async function computePdfDocHash(
 
       const renderObj = createCanvasFn(renderWidth, renderHeight);
       const renderCanvas = renderObj.canvas || renderObj;
-      const renderCtx = renderObj.context || renderCanvas.getContext("2d");
+      const renderCtx = renderObj.context || renderCanvas.getContext('2d');
 
       // Ensure white background
-      renderCtx.fillStyle = "#FFFFFF";
+      renderCtx.fillStyle = '#FFFFFF';
       renderCtx.fillRect(0, 0, renderWidth, renderHeight);
 
       // Render parameters
@@ -171,19 +162,13 @@ export async function computePdfDocHash(
         // canvasFactory: ... we don't pass it here, assumed global or not needed if we provide context
       }).promise;
 
-      const hash = computeDHash(
-        renderCanvas,
-        renderWidth,
-        renderHeight,
-        createCanvasFn,
-        debug
-      );
+      const hash = computeDHash(renderCanvas, renderWidth, renderHeight, createCanvasFn, debug);
       combinedVisualData += hash;
     } finally {
       if (page.cleanup) page.cleanup();
     }
   }
 
-  if (onStatusUpdate) onStatusUpdate("Gerando assinatura digital...");
+  if (onStatusUpdate) onStatusUpdate('Gerando assinatura digital...');
   return await sha256Fn(combinedVisualData);
 }

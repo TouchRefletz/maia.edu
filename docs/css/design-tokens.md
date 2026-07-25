@@ -65,18 +65,41 @@ O maia.edu usa **dark mode por padrão**, com cores cuidadosamente selecionadas 
 }
 ```
 
-### Modo Claro
+### Alternância Dinâmica de Tema (`ThemeService`)
+
+A alternância entre o **Modo Claro (Light Mode)** e o **Modo Escuro (Dark Mode)** é gerida programmaticamente pelo `ThemeService` (`js/services/theme-service.js`).
+
+```javascript
+import { ThemeService } from './services/theme-service.js';
+
+// Alterna o tema ativo e dispara o evento customizado maia-theme-change
+ThemeService.setTheme('light'); // ou 'dark'
+```
+
+#### Seletores CSS de Tema
 
 ```css
-:root.light-theme {
+/* Modo Escuro (Padrão) */
+[data-color-scheme="dark"], :root {
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1a;
+  --color-text-primary: #e5e5e5;
+  --color-text-secondary: #a3a3a3;
+  --color-border: #2a2a2a;
+}
+
+/* Modo Claro */
+[data-color-scheme="light"] {
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #f5f5f5;
-  --color-bg-tertiary: #eeeeee;
-  --color-text-primary: #171717;
-  --color-text-secondary: #525252;
-  /* ... */
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-border: #e2e8f0;
 }
 ```
+
+Ao alternar o tema, o `ThemeService` emite o evento `window.dispatchEvent(new CustomEvent('maia-theme-change'))`, forçando a re-renderização de componentes visuais que dependem de paleta dinâmica (como gráficos Mermaid e diagramas Canvas).
 
 ---
 

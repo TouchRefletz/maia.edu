@@ -1,12 +1,12 @@
 textarea,
-input[type='text'] {
+input[type="text"] {
   cursor: text;
 }
 
 button,
 a,
 .answerOption,
-input[type='range'],
+input[type="range"],
 .btn {
   cursor: pointer;
 }

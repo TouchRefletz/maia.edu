@@ -1,9 +1,9 @@
-import { gerarConteudoEmJSONComImagemStream } from "../api/worker.js";
+import { gerarConteudoEmJSONComImagemStream } from '../api/worker.js';
 import {
-  TRIAGEM_SYSTEM_PROMPT,
-  TRIAGEM_RESPONSE_SCHEMA,
   buildTriagemPrompt,
-} from "./prompts/triagem-prompt.js";
+  TRIAGEM_RESPONSE_SCHEMA,
+  TRIAGEM_SYSTEM_PROMPT,
+} from './prompts/triagem-prompt.js';
 
 // Helper para converter URL da imagem em objeto Base64
 async function fetchImageAsBase64(url) {
@@ -13,17 +13,17 @@ async function fetchImageAsBase64(url) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const base64 = reader.result.split(",")[1];
+        const base64 = reader.result.split(',')[1];
         resolve({
           data: base64,
-          mimeType: blob.type || "image/jpeg",
+          mimeType: blob.type || 'image/jpeg',
         });
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.warn("[Apêndice B] Erro ao carregar/converter imagem:", url, error);
+    console.warn('[Apêndice B] Erro ao carregar/converter imagem:', url, error);
     return null;
   }
 }
@@ -54,20 +54,20 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
 
   // 1. Constrói o texto do enunciado e gabarito para o prompt
   const enunciadoTexto = q.estrutura
-    ? q.estrutura.map((b) => b.conteudo || "").join(" ")
-    : q.enunciado || "";
+    ? q.estrutura.map((b) => b.conteudo || '').join(' ')
+    : q.enunciado || '';
   const gabaritoTexto = g.explicacao
-    ? g.explicacao
-        .flatMap((b) => (b.estrutura ? b.estrutura.map((i) => i.conteudo) : []))
-        .join(" ")
-    : g.justificativa_curta || "";
-  const correctOption = g.alternativa_correta ? `Alternativa Correta: ${g.alternativa_correta}` : "";
+    ? g.explicacao.flatMap((b) => (b.estrutura ? b.estrutura.map((i) => i.conteudo) : [])).join(' ')
+    : g.justificativa_curta || '';
+  const correctOption = g.alternativa_correta
+    ? `Alternativa Correta: ${g.alternativa_correta}`
+    : '';
   const fullGabaritoRef = `${correctOption}\n${gabaritoTexto}`;
 
   const promptOriginal = buildTriagemPrompt(enunciadoTexto, fullGabaritoRef);
 
   // 2. Resolve e carrega as imagens da questão e gabarito em base64
-  if (handlers.onStatus) handlers.onStatus("Baixando imagens da questão e do gabarito...");
+  if (handlers.onStatus) handlers.onStatus('Baixando imagens da questão e do gabarito...');
   const qImgs = normalizarArrayImagens(q);
   const gImgs = normalizarArrayImagens(g);
   const allImgs = [...new Set([...qImgs, ...gImgs])];
@@ -81,15 +81,15 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
   }
 
   // 3. Executa a chamada streamed
-  if (handlers.onStatus) handlers.onStatus("Conectando ao modelo Gemma 4 31B IT...");
+  if (handlers.onStatus) handlers.onStatus('Conectando ao modelo Gemma 4 31B IT...');
 
-  let thoughtsAccumulated = "";
-  let rawResponseAccumulated = "";
+  let thoughtsAccumulated = '';
+  let rawResponseAccumulated = '';
 
   const options = {
-    model: "models/gemma-4-31b-it", // Gemma 4 travado para o experimento
+    model: 'models/gemma-4-31b-it', // Gemma 4 travado para o experimento
     generationConfig: {
-      responseMimeType: "application/json",
+      responseMimeType: 'application/json',
       responseSchema: TRIAGEM_RESPONSE_SCHEMA,
     },
     systemInstruction: TRIAGEM_SYSTEM_PROMPT,
@@ -118,7 +118,7 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
       promptOriginal,
       TRIAGEM_RESPONSE_SCHEMA,
       attachments,
-      "image/jpeg",
+      'image/jpeg',
       localHandlers,
       options,
     );
@@ -131,14 +131,14 @@ export async function executarTriageApendiceB(questaoObj, handlers = {}, signal 
       question_id: id,
       prova: prova,
       timestamp: new Date().toISOString(),
-      model: "models/gemma-4-31b-it",
+      model: 'models/gemma-4-31b-it',
       prompt_original: promptOriginal,
       response_text: finalResult,
       thoughts: thoughtsAccumulated,
       latency_sec: latencySec,
     };
   } catch (error) {
-    console.error("[Apêndice B] Erro na execução do pipeline:", error);
+    console.error('[Apêndice B] Erro na execução do pipeline:', error);
     throw error;
   }
 }

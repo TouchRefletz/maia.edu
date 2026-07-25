@@ -1,268 +1,282 @@
 /* Scaffolding / Passo a Passo Visual Styles */
 
 .passo {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .passo:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 .passoText {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 
 .passoText h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--color-primary);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .passoText p {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: var(--color-text);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--color-text);
 }
 
 /* Context Badge Styling */
 .passoContext {
-    margin-top: 16px;
-    padding: 12px;
-    width: 100%;
-    background: var(--color-background-soft);
-    border-radius: 8px;
-    border-left: 3px solid var(--color-info);
+  margin-top: 16px;
+  padding: 12px;
+  width: 100%;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+  border-left: 3px solid var(--color-info);
 }
 
 .context-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    color: var(--color-text);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Container Global do Componente */
 .scaffolding-container {
-    position: relative;
-    width: 100%;
+  position: relative;
+  width: 100%;
 }
 
 .scaffolding-slides-wrapper {
-    position: relative;
-    width: 100%;
-    min-height: 400px;
-    /* Evita pulos de layout */
-    overflow: hidden;
-    /* Para animações de slide se houver */
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+  /* Evita pulos de layout */
+  overflow: hidden;
+  /* Para animações de slide se houver */
 }
 
 /* Slide Individual */
 .scaffolding-slide {
-    display: none;
-    width: 100%;
-    animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: none;
+  width: 100%;
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .scaffolding-slide.active-slide {
-    display: block;
+  display: block;
 }
 
 /* Animações */
 @keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(20px);
-    }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .fade-in {
-    animation: fadeIn 0.4s ease forwards;
+  animation: fadeIn 0.4s ease forwards;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Explanation Section - Clean Logic (No Blur) */
 .explicacao {
-    margin-top: 24px;
-    padding: 24px;
-    background: var(--color-background-soft);
-    border-radius: 8px;
-    border-left: 4px solid var(--color-primary);
+  margin-top: 24px;
+  padding: 24px;
+  background: var(--color-background-soft);
+  border-radius: 8px;
+  border-left: 4px solid var(--color-primary);
 }
 
 .explicacao h1 {
-    display: none;
-    /* Remove overlay antigo */
+  display: none;
+  /* Remove overlay antigo */
 }
 
 .explicacao h3 {
-    font-weight: 700;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .color-success {
-    color: var(--color-success);
+  color: var(--color-success);
 }
 
 .color-error {
-    color: var(--color-error);
+  color: var(--color-error);
 }
 
 /* Input Answer Area */
 .input {
-    margin-top: 32px;
-    width: 100%;
+  margin-top: 32px;
+  width: 100%;
 }
 
 .inputArea {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 24px;
-    border-radius: 999px;
-    /* Pill shape */
-    border: 2px solid var(--color-border);
-    background: var(--color-surface);
-    transition: all 0.3s ease;
-    gap: 20px;
-    position: relative;
-    width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-radius: 999px;
+  /* Pill shape */
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  transition: all 0.3s ease;
+  gap: 20px;
+  position: relative;
+  width: 100%;
 }
 
 .falseLabel,
 .trueLabel {
-    font-size: 1.5rem;
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
-    cursor: pointer;
-    user-select: none;
+  font-size: 1.5rem;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.2s ease;
+  cursor: pointer;
+  user-select: none;
 }
 
 /* Slider Styling */
 .guessRange {
-    flex: 1;
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    cursor: pointer;
-    --thumb-size: 28px;
-    outline: none;
+  flex: 1;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+  --thumb-size: 28px;
+  outline: none;
 }
 
 .guessRange::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 8px;
-    background: linear-gradient(to right, var(--color-error-light, #ffcccb), var(--color-success-light, #90ee90));
-    border-radius: 4px;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(
+    to right,
+    var(--color-error-light, #ffcccb),
+    var(--color-success-light, #90ee90)
+  );
+  border-radius: 4px;
 }
 
 .guessRange::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    height: var(--thumb-size);
-    width: var(--thumb-size);
-    border-radius: 50%;
-    background: #fff;
-    border: 2px solid var(--color-border);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    margin-top: -10px;
-    /* Center regarding track height (8px track, 28px thumb -> -10px) */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  height: var(--thumb-size);
+  width: var(--thumb-size);
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: -10px;
+  /* Center regarding track height (8px track, 28px thumb -> -10px) */
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .guessRange:active::-webkit-slider-thumb {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    border-color: var(--color-primary);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border-color: var(--color-primary);
 }
 
 .range-value-label {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 4px;
-    background: var(--color-background-soft);
-    font-weight: 500;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: var(--color-background-soft);
+  font-weight: 500;
 }
 
 /* Buttons */
 .passoButton {
-    display: flex;
-    gap: 12px;
-    margin-top: 24px;
-    justify-content: flex-end;
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
 }
 
 .passoButton button {
-    padding: 12px 24px;
-    border-radius: 8px;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.95rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .newPassoButton {
-    background: transparent;
-    border: 1px solid var(--color-border) !important;
-    color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary);
 }
 
 .newPassoButton:hover {
-    background: var(--color-background-soft);
-    color: var(--color-text);
+  background: var(--color-background-soft);
+  color: var(--color-text);
 }
 
 .guessButton {
-    background: var(--color-primary);
-    color: white;
-    box-shadow: 0 4px 6px rgba(var(--color-primary-rgb), 0.2);
+  background: var(--color-primary);
+  color: white;
+  box-shadow: 0 4px 6px rgba(var(--color-primary-rgb), 0.2);
 }
 
 .guessButton:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(var(--color-primary-rgb), 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .guessButton:disabled {
-    background: var(--color-disabled);
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+  background: var(--color-disabled);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ========================================
@@ -273,177 +287,186 @@
    was designed for dark theme. Light mode is the override.
    ======================================== */
 
-[data-color-scheme='light'] .passo,
-:root:not([data-color-scheme='dark']) .passo {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+[data-color-scheme="light"] .passo,
+:root:not([data-color-scheme="dark"]) .passo {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
-[data-color-scheme='light'] .inputArea,
-:root:not([data-color-scheme='dark']) .inputArea {
-    background: var(--color-surface);
-    border: 2px solid var(--color-border);
+[data-color-scheme="light"] .inputArea,
+:root:not([data-color-scheme="dark"]) .inputArea {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
 }
 
-[data-color-scheme='light'] .guessRange::-webkit-slider-thumb,
-:root:not([data-color-scheme='dark']) .guessRange::-webkit-slider-thumb {
-    background: #fff;
-    border-color: var(--color-border);
+[data-color-scheme="light"] .guessRange::-webkit-slider-thumb,
+:root:not([data-color-scheme="dark"]) .guessRange::-webkit-slider-thumb {
+  background: #fff;
+  border-color: var(--color-border);
 }
 
-[data-color-scheme='light'] .guessRange::-webkit-slider-runnable-track,
-:root:not([data-color-scheme='dark']) .guessRange::-webkit-slider-runnable-track {
-    background: linear-gradient(to right, var(--color-error-light, #ffcccb), var(--color-success-light, #90ee90));
+[data-color-scheme="light"] .guessRange::-webkit-slider-runnable-track,
+:root:not([data-color-scheme="dark"]) .guessRange::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    to right,
+    var(--color-error-light, #ffcccb),
+    var(--color-success-light, #90ee90)
+  );
 }
 
-[data-color-scheme='light'] .explicacao,
-:root:not([data-color-scheme='dark']) .explicacao {
-    background: rgba(var(--color-primary-rgb), 0.05);
-    border-left: 4px solid var(--color-primary);
+[data-color-scheme="light"] .explicacao,
+:root:not([data-color-scheme="dark"]) .explicacao {
+  background: rgba(var(--color-primary-rgb), 0.05);
+  border-left: 4px solid var(--color-primary);
 }
 
-[data-color-scheme='light'] .passoContext,
-:root:not([data-color-scheme='dark']) .passoContext {
-    background: rgba(var(--color-info-rgb), 0.05);
-    border-left: 3px solid var(--color-info);
+[data-color-scheme="light"] .passoContext,
+:root:not([data-color-scheme="dark"]) .passoContext {
+  background: rgba(var(--color-info-rgb), 0.05);
+  border-left: 3px solid var(--color-info);
 }
 
-[data-color-scheme='light'] .context-badge,
-:root:not([data-color-scheme='dark']) .context-badge {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+[data-color-scheme="light"] .context-badge,
+:root:not([data-color-scheme="dark"]) .context-badge {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
-[data-color-scheme='light'] .range-value-label,
-:root:not([data-color-scheme='dark']) .range-value-label {
-    background: rgba(0, 0, 0, 0.05);
+[data-color-scheme="light"] .range-value-label,
+:root:not([data-color-scheme="dark"]) .range-value-label {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .persona-toggle-btn {
-    background: transparent;
-    border: 1px solid var(--color-primary) !important;
-    color: var(--color-primary) !important;
+  background: transparent;
+  border: 1px solid var(--color-primary) !important;
+  color: var(--color-primary) !important;
 }
 
 .persona-toggle-btn:hover {
-    background: rgba(var(--color-primary-rgb), 0.08);
+  background: rgba(var(--color-primary-rgb), 0.08);
 }
 
 .persona-toggle-btn.active-persona {
-    border-color: var(--color-warning) !important;
-    color: var(--color-warning) !important;
+  border-color: var(--color-warning) !important;
+  color: var(--color-warning) !important;
 }
 
 .persona-toggle-btn.active-persona:hover {
-    background: rgba(var(--color-warning-rgb), 0.08);
+  background: rgba(var(--color-warning-rgb), 0.08);
 }
 
 /* 👥 Persona Simulation Interface Styles */
 .personas-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-top: 15px;
-    margin-bottom: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 15px;
+  margin-bottom: 15px;
 }
 
 .persona-card {
-    background: var(--color-background-soft);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  background: var(--color-background-soft);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .persona-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-color: var(--color-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary);
 }
 
 .persona-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 4px;
-    align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  align-self: flex-start;
 }
 
 .persona-badge.avancado {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
 }
 
 .persona-badge.inseguro {
-    background: rgba(245, 158, 11, 0.15);
-    color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
 }
 
 .persona-badge.chutador {
-    background: rgba(168, 85, 247, 0.15);
-    color: #a855f7;
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
 }
 
 .persona-meta {
-    font-size: 0.8rem;
-    color: var(--color-text-secondary);
-    display: flex;
-    justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  display: flex;
+  justify-content: space-between;
 }
 
 .persona-thought {
-    font-size: 0.9rem;
-    font-style: italic;
-    line-height: 1.4;
-    color: var(--color-text);
-    margin: 4px 0;
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--color-text);
+  margin: 4px 0;
 }
 
 .persona-btn {
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease;
-    text-align: center;
-    width: 100%;
-    margin-top: auto;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: center;
+  width: 100%;
+  margin-top: auto;
 }
 
 .persona-btn:hover {
-    background: var(--color-primary-dark, #2563eb);
+  background: var(--color-primary-dark, #2563eb);
 }
 
 .simulation-panel {
-    background: rgba(var(--color-primary-rgb), 0.05);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 15px;
+  background: rgba(var(--color-primary-rgb), 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 15px;
 }
 
 .simulation-console {
-    background: #1e1e1e;
-    color: #d4d4d4;
-    font-family: 'Courier New', Courier, monospace;
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    max-height: 180px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    border: 1px solid #333;
-}
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: "Courier New", Courier, monospace;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid #333;
+}

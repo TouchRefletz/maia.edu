@@ -6,7 +6,7 @@ export function obterConfiguracaoIA(modo) {
   let promptDaIA;
   let JSONEsperado;
 
-  if (modo === "gabarito") {
+  if (modo === 'gabarito') {
     // ============================================================
     // ÁREA DE COLAGEM: GABARITO
     // Cole aqui exatamente o conteúdo que estava no 'if' do gabarito
@@ -55,340 +55,324 @@ export function obterConfiguracaoIA(modo) {
         `;
 
     JSONEsperado = {
-      type: "object",
+      type: 'object',
       properties: {
         alternativa_correta: {
-          type: "string",
+          type: 'string',
           description:
             "A alternativa correta, indicada no gabarito (ex.: 'A'). Deixe vazio para questões dissertativas.",
         },
 
         resposta_modelo: {
-          type: "string",
+          type: 'string',
           description:
-            "Para questões dissertativas: resposta modelo esperada. Para objetivas, pode ficar vazio.",
+            'Para questões dissertativas: resposta modelo esperada. Para objetivas, pode ficar vazio.',
         },
 
         justificativa_curta: {
-          type: "string",
-          description:
-            "Resumo curto do porquê a alternativa correta está correta (1-2 frases).",
+          type: 'string',
+          description: 'Resumo curto do porquê a alternativa correta está correta (1-2 frases).',
         },
 
         // --- NOVA SEÇÃO: MATRIZ DE COMPLEXIDADE ---
         analise_complexidade: {
-          type: "object",
-          description: "Análise técnica da dificuldade da questão.",
+          type: 'object',
+          description: 'Análise técnica da dificuldade da questão.',
           additionalProperties: false,
           properties: {
             fatores: {
-              type: "object",
+              type: 'object',
               additionalProperties: false,
               properties: {
                 // Suporte e Leitura
                 texto_extenso: {
-                  type: "boolean",
-                  description: "Enunciado muito longo ou cansativo.",
+                  type: 'boolean',
+                  description: 'Enunciado muito longo ou cansativo.',
                 },
                 vocabulario_complexo: {
-                  type: "boolean",
-                  description:
-                    "Termos arcaicos, técnicos densos ou outra língua.",
+                  type: 'boolean',
+                  description: 'Termos arcaicos, técnicos densos ou outra língua.',
                 },
                 multiplas_fontes_leitura: {
-                  type: "boolean",
-                  description:
-                    "Exige cruzar dados de Texto 1 x Texto 2 ou Texto x Gráfico.",
+                  type: 'boolean',
+                  description: 'Exige cruzar dados de Texto 1 x Texto 2 ou Texto x Gráfico.',
                 },
                 interpretacao_visual: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
-                    "A resolução depende crucialmente de ler um gráfico, mapa ou figura.",
+                    'A resolução depende crucialmente de ler um gráfico, mapa ou figura.',
                 },
 
                 // Conhecimento Prévio
                 dependencia_conteudo_externo: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
-                    "A resposta NÃO está no texto. Exige memória de fórmulas, datas ou regras.",
+                    'A resposta NÃO está no texto. Exige memória de fórmulas, datas ou regras.',
                 },
                 interdisciplinaridade: {
-                  type: "boolean",
-                  description:
-                    "Envolve conceitos de duas disciplinas distintas.",
+                  type: 'boolean',
+                  description: 'Envolve conceitos de duas disciplinas distintas.',
                 },
                 contexto_abstrato: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
-                    "Exige imaginar cenários hipotéticos ou contextos históricos não explicados.",
+                    'Exige imaginar cenários hipotéticos ou contextos históricos não explicados.',
                 },
 
                 // Raciocínio
                 raciocinio_contra_intuitivo: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
                     "A resposta desafia o senso comum ou parece 'errada' à primeira vista.",
                 },
                 abstracao_teorica: {
-                  type: "boolean",
-                  description:
-                    "Conceitos puramente teóricos sem representação física direta.",
+                  type: 'boolean',
+                  description: 'Conceitos puramente teóricos sem representação física direta.',
                 },
                 deducao_logica: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
-                    "A resposta é construída por silogismo ou eliminação lógica complexa.",
+                    'A resposta é construída por silogismo ou eliminação lógica complexa.',
                 },
 
                 // Operacional (Universal)
                 resolucao_multiplas_etapas: {
-                  type: "boolean",
-                  description:
-                    "Passo A leva a Passo B que leva a Passo C (cálculo ou lógica).",
+                  type: 'boolean',
+                  description: 'Passo A leva a Passo B que leva a Passo C (cálculo ou lógica).',
                 },
                 transformacao_informacao: {
-                  type: "boolean",
+                  type: 'boolean',
                   description:
-                    "Converter unidades, traduzir metáforas ou passar de gráfico para função.",
+                    'Converter unidades, traduzir metáforas ou passar de gráfico para função.',
                 },
                 distratores_semanticos: {
-                  type: "boolean",
-                  description:
-                    "Alternativas erradas muito parecidas com a correta (pegadinhas).",
+                  type: 'boolean',
+                  description: 'Alternativas erradas muito parecidas com a correta (pegadinhas).',
                 },
                 analise_nuance_julgamento: {
-                  type: "boolean",
-                  description:
-                    "Exige escolher a 'mais correta' dentre opções plausíveis.",
+                  type: 'boolean',
+                  description: "Exige escolher a 'mais correta' dentre opções plausíveis.",
                 },
               },
               required: [
-                "texto_extenso",
-                "vocabulario_complexo",
-                "multiplas_fontes_leitura",
-                "interpretacao_visual",
-                "dependencia_conteudo_externo",
-                "interdisciplinaridade",
-                "contexto_abstrato",
-                "raciocinio_contra_intuitivo",
-                "abstracao_teorica",
-                "deducao_logica",
-                "resolucao_multiplas_etapas",
-                "transformacao_informacao",
-                "distratores_semanticos",
-                "analise_nuance_julgamento",
+                'texto_extenso',
+                'vocabulario_complexo',
+                'multiplas_fontes_leitura',
+                'interpretacao_visual',
+                'dependencia_conteudo_externo',
+                'interdisciplinaridade',
+                'contexto_abstrato',
+                'raciocinio_contra_intuitivo',
+                'abstracao_teorica',
+                'deducao_logica',
+                'resolucao_multiplas_etapas',
+                'transformacao_informacao',
+                'distratores_semanticos',
+                'analise_nuance_julgamento',
               ],
             },
             justificativa_dificuldade: {
-              type: "string",
-              description: "Explicação curta do nível de dificuldade.",
+              type: 'string',
+              description: 'Explicação curta do nível de dificuldade.',
             },
           },
-          required: ["fatores", "justificativa_dificuldade"],
+          required: ['fatores', 'justificativa_dificuldade'],
         },
         // ------------------------------------------
 
         confianca: {
-          type: "number",
-          description: "Confiança do corretor na alternativa correta (0 a 1).",
+          type: 'number',
+          description: 'Confiança do corretor na alternativa correta (0 a 1).',
           minimum: 0,
           maximum: 1,
         },
 
         creditos: {
-          type: "object",
+          type: 'object',
           description:
-            "Tentativa de identificar o material/fonte do gabarito/resolução. Se não for possível, sinaliza necessidade de crédito genérico.",
+            'Tentativa de identificar o material/fonte do gabarito/resolução. Se não for possível, sinaliza necessidade de crédito genérico.',
           additionalProperties: false,
           properties: {
             origem_resolucao: {
-              type: "string",
-              description: "Origem geral da resolução apresentada.",
-              enum: ["extraido_do_material", "gerado_pela_ia"],
+              type: 'string',
+              description: 'Origem geral da resolução apresentada.',
+              enum: ['extraido_do_material', 'gerado_pela_ia'],
             },
             material_identificado: {
-              type: "boolean",
+              type: 'boolean',
               description:
-                "True se foi possível identificar algum material/fonte com confiança mínima; false caso contrário.",
+                'True se foi possível identificar algum material/fonte com confiança mínima; false caso contrário.',
             },
             confianca_identificacao: {
-              type: "number",
-              description:
-                "Confiança na identificação do material/fonte (0 a 1).",
+              type: 'number',
+              description: 'Confiança na identificação do material/fonte (0 a 1).',
               minimum: 0,
               maximum: 1,
             },
             material: {
-              type: "string",
+              type: 'string',
               description:
                 "Nome do material/fonte identificado (ex.: 'Apostila Anglo 2022', 'FUVEST 2023', 'Coleção X - Capítulo Y').",
             },
             autor_ou_instituicao: {
-              type: "string",
-              description: "Autor/instituição editora, se reconhecível.",
+              type: 'string',
+              description: 'Autor/instituição editora, se reconhecível.',
             },
             ano: {
-              type: "string",
+              type: 'string',
               description:
                 "Ano associado ao material, se houver (string para aceitar '2023/2024', 's/d', etc.).",
             },
             como_identificou: {
-              type: "string",
+              type: 'string',
               description:
-                "Breve justificativa de como o material foi identificado (ex.: cabeçalho, rodapé, padrão de diagramação, nome da banca).",
+                'Breve justificativa de como o material foi identificado (ex.: cabeçalho, rodapé, padrão de diagramação, nome da banca).',
             },
             precisa_credito_generico: {
-              type: "boolean",
+              type: 'boolean',
               description:
-                "True quando não há como identificar a fonte e deve-se exibir um alerta/pedido de crédito genérico.",
+                'True quando não há como identificar a fonte e deve-se exibir um alerta/pedido de crédito genérico.',
             },
             texto_credito_sugerido: {
-              type: "string",
+              type: 'string',
               description:
-                "Texto curto sugerido para dar crédito quando a fonte não for identificável.",
+                'Texto curto sugerido para dar crédito quando a fonte não for identificável.',
             },
           },
-          required: [
-            "origem_resolucao",
-            "material_identificado",
-            "precisa_credito_generico",
-          ],
+          required: ['origem_resolucao', 'material_identificado', 'precisa_credito_generico'],
         },
 
         alertas_credito: {
-          type: "array",
+          type: 'array',
           description:
-            "Alertas de crédito/fonte quando o material não puder ser identificado com segurança.",
-          items: { type: "string" },
+            'Alertas de crédito/fonte quando o material não puder ser identificado com segurança.',
+          items: { type: 'string' },
         },
 
         explicacao: {
-          type: "array",
+          type: 'array',
           description:
-            "Lista de passos da resolução. Se não houver resolução no conteúdo enviado, gere a sua própria e sinalize isso em cada passo.",
+            'Lista de passos da resolução. Se não houver resolução no conteúdo enviado, gere a sua própria e sinalize isso em cada passo.',
           items: {
-            type: "object",
+            type: 'object',
             additionalProperties: false,
             properties: {
               estrutura: {
-                type: "array",
-                description:
-                  "Conteúdo rico deste passo (texto, equações, imagens).",
-                items: { $ref: "#/$defs/blocoConteudo" },
+                type: 'array',
+                description: 'Conteúdo rico deste passo (texto, equações, imagens).',
+                items: { $ref: '#/$defs/blocoConteudo' },
               },
               origem: {
-                type: "string",
-                enum: ["extraido_do_material", "gerado_pela_ia"],
+                type: 'string',
+                enum: ['extraido_do_material', 'gerado_pela_ia'],
                 description:
-                  "Defina se, na maioria da estrutura, há conteúdos gerados com IA ou retirados e adaptados do material.",
+                  'Defina se, na maioria da estrutura, há conteúdos gerados com IA ou retirados e adaptados do material.',
               },
               fonte_material: {
-                type: "string",
+                type: 'string',
                 description:
                   "Se reconhecível, identifica material/fonte relacionada a este passo (pode repetir o 'creditos.material'). Caso não reconhecível, diga que foi tua, e coloque sua identificação aqui.",
               },
               evidencia: {
-                type: "string",
+                type: 'string',
                 description:
                   "Sinal curto do porquê a fonte foi atribuída (ex.: 'cabeçalho', 'padrão de numeração', 'nome da instituição'). Caso tenha sido gerado por inteligência artificial, coloque aqui que não há evidências.",
               },
             },
-            required: ["estrutura", "origem", "fonte_material", "evidencia"],
+            required: ['estrutura', 'origem', 'fonte_material', 'evidencia'],
           },
         },
 
         alternativas_analisadas: {
-          type: "array",
-          description:
-            "Análise curta de cada alternativa (por que está correta/errada).",
+          type: 'array',
+          description: 'Análise curta de cada alternativa (por que está correta/errada).',
           items: {
-            type: "object",
+            type: 'object',
             additionalProperties: false,
             properties: {
-              letra: { type: "string" },
-              correta: { type: "boolean" },
-              motivo: { type: "string" },
+              letra: { type: 'string' },
+              correta: { type: 'boolean' },
+              motivo: { type: 'string' },
             },
-            required: ["letra", "correta", "motivo"],
+            required: ['letra', 'correta', 'motivo'],
           },
         },
 
         coerencia: {
-          type: "object",
+          type: 'object',
           description:
-            "Checagens internas de consistência baseadas na questão fornecida (ajuda a detectar mismatch de gabarito).",
+            'Checagens internas de consistência baseadas na questão fornecida (ajuda a detectar mismatch de gabarito).',
           additionalProperties: false,
           properties: {
             alternativa_correta_existe: {
-              type: "boolean",
-              description:
-                "True se a letra retornada existe nas alternativas da questão.",
+              type: 'boolean',
+              description: 'True se a letra retornada existe nas alternativas da questão.',
             },
             tem_analise_para_todas: {
-              type: "boolean",
+              type: 'boolean',
               description:
-                "True se alternativas_analisadas cobre todas as alternativas fornecidas na questão.",
+                'True se alternativas_analisadas cobre todas as alternativas fornecidas na questão.',
             },
             observacoes: {
-              type: "array",
+              type: 'array',
               description:
                 "Observações curtas de consistência (ex.: 'gabarito parece de outra questão').",
-              items: { type: "string" },
+              items: { type: 'string' },
             },
           },
-          required: ["alternativa_correta_existe"],
+          required: ['alternativa_correta_existe'],
         },
       },
       required: [
-        "alternativa_correta",
-        "analise_complexidade",
-        "explicacao",
-        "creditos",
-        "coerencia",
-        "alternativas_analisadas",
-        "confianca",
-        "justificativa_curta",
+        'alternativa_correta',
+        'analise_complexidade',
+        'explicacao',
+        'creditos',
+        'coerencia',
+        'alternativas_analisadas',
+        'confianca',
+        'justificativa_curta',
       ],
       additionalProperties: false,
       $defs: {
         blocoConteudo: {
-          type: "object",
+          type: 'object',
           additionalProperties: false,
           properties: {
             tipo: {
-              type: "string",
+              type: 'string',
               enum: [
-                "texto",
-                "imagem",
-                "citacao",
-                "lista",
-                "equacao",
-                "codigo",
-                "destaque",
-                "separador",
-                "titulo",
-                "subtitulo",
-                "fonte",
-                "tabela",
+                'texto',
+                'imagem',
+                'citacao',
+                'lista',
+                'equacao',
+                'codigo',
+                'destaque',
+                'separador',
+                'titulo',
+                'subtitulo',
+                'fonte',
+                'tabela',
               ],
             },
             conteudo: {
-              type: "string",
+              type: 'string',
               description:
                 "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
             },
           },
-          required: ["tipo", "conteudo"],
+          required: ['tipo', 'conteudo'],
         },
       },
     };
   } else {
-      // ============================================================
-      // ÁREA DE COLAGEM: QUESTÃO (MODO NORMAL)
-      // Cole aqui exatamente o conteúdo que estava no 'else'
-      // ============================================================
+    // ============================================================
+    // ÁREA DE COLAGEM: QUESTÃO (MODO NORMAL)
+    // Cole aqui exatamente o conteúdo que estava no 'else'
+    // ============================================================
 
-      promptDaIA = `
+    promptDaIA = `
           Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
 
           REGRAS DE ESTRUTURAÇÃO ("estrutura"):
@@ -406,7 +390,7 @@ export function obterConfiguracaoIA(modo) {
           2. **MATEMÁTICA E QUÍMICA (LATEX):** - TODA fórmula matemática, símbolo, variável (como 'x', 'y') ou equação química DEVE ser escrita exclusivamente em LaTeX.
               - **INLINE (No meio do texto):** Se a fórmula faz parte da frase, use o bloco do tipo 'texto' e envolva o LaTeX entre cifrões unitários. Exemplo: "A massa de $H_2O$ é..." ou "Sendo $x = 2$, calcule...".
               - **DISPLAY (Isolada):** Se a fórmula aparece centralizada, sozinha em uma linha ou é muito complexa, use um bloco do tipo 'equacao' contendo APENAS o código LaTeX cru (sem cifrões).
-              - **MOEDAS (R$):** NUNCA use o cifrão da moeda Real ($) solto dentro de blocos LaTeX sem escape. Use R\$ (com barra de escape) ou escreva a moeda fora dos cifrões (ex: R\$ $2,00$ ou \text{R\$ } 2,00).
+              - **MOEDAS (R$):** NUNCA use o cifrão da moeda Real ($) solto dentro de blocos LaTeX sem escape. Use R$ (com barra de escape) ou escreva a moeda fora dos cifrões (ex: R$ $2,00$ ou \text{R$ } 2,00).
 
           3. **ESTRUTURA:**
               - Se houver Texto -> Equação Isolada -> Texto, gere 3 blocos: {tipo: 'texto'}, {tipo: 'equacao'}, {tipo: 'texto'}.
@@ -417,123 +401,123 @@ export function obterConfiguracaoIA(modo) {
           Analise as imagens fornecidas. Junte as informações de todas as imagens.
           `;
 
-      JSONEsperado = {
-        type: "object",
-        properties: {
-          identificacao: {
-            type: "string",
-            description: "Identificação da questão (ex: 'ENEM 2023 - Q45').",
-          },
-          materias_possiveis: { type: "array", items: { type: "string" } },
-          estrutura: {
-            type: "array",
-            description:
-              "Lista ordenada que representa o fluxo visual da questão, mantendo a ordem exata de textos e imagens. IMPORTANTÍSSIMO: não inclua a identificação da questão (ex: 'Questão 12', 'ENEM 2023 - Q45', 'FUVEST 2022') em nenhum item desta lista; isso deve ficar exclusivamente no campo 'identificacao'. Use 'titulo' e 'subtitulo' apenas para cabeçalhos internos do conteúdo (ex: 'Texto I', 'Considere o gráfico', 'Fragmento', 'Leia o texto a seguir').",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              properties: {
-                tipo: {
-                  type: "string",
-                  enum: [
-                    "texto",
-                    "imagem",
-                    "citacao",
-                    "titulo",
-                    "subtitulo",
-                    "lista",
-                    "equacao",
-                    "codigo",
-                    "destaque",
-                    "separador",
-                    "fonte",
-                    "tabela",
-                  ],
-                  description: "O tipo de conteúdo deste bloco.",
-                },
-                conteudo: {
-                  type: "string",
-                  description:
-                    "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) use formato Markdown Table (para tabelas simples) ou HTML <table> (para tabelas complexas com mesclagem/colspan/rowspan).",
-                },
-              },
-              required: ["tipo", "conteudo"],
-            },
-          },
-          palavras_chave: {
-            type: "array",
-            description: "Principais termos chave.",
-            items: { type: "string" },
-          },
-          tipo_resposta: {
-            type: "string",
-            enum: ["objetiva", "dissertativa"],
-            description:
-              "Se a questão tem alternativas (A, B, C...), é 'objetiva'. Se pede resposta escrita/discursiva, é 'dissertativa'.",
-          },
-          alternativas: {
-            type: "array",
-            description:
-              "Lista de alternativas. Para questões dissertativas, este array deve estar VAZIO [].",
-            items: { $ref: "#/$defs/alternativa" },
-          },
+    JSONEsperado = {
+      type: 'object',
+      properties: {
+        identificacao: {
+          type: 'string',
+          description: "Identificação da questão (ex: 'ENEM 2023 - Q45').",
         },
-        required: [
-          "identificacao",
-          "materias_possiveis",
-          "palavras_chave",
-          "alternativas",
-          "estrutura",
-          "tipo_resposta",
-        ],
-        $defs: {
-          blocoConteudo: {
-            type: "object",
+        materias_possiveis: { type: 'array', items: { type: 'string' } },
+        estrutura: {
+          type: 'array',
+          description:
+            "Lista ordenada que representa o fluxo visual da questão, mantendo a ordem exata de textos e imagens. IMPORTANTÍSSIMO: não inclua a identificação da questão (ex: 'Questão 12', 'ENEM 2023 - Q45', 'FUVEST 2022') em nenhum item desta lista; isso deve ficar exclusivamente no campo 'identificacao'. Use 'titulo' e 'subtitulo' apenas para cabeçalhos internos do conteúdo (ex: 'Texto I', 'Considere o gráfico', 'Fragmento', 'Leia o texto a seguir').",
+          items: {
+            type: 'object',
             additionalProperties: false,
             properties: {
               tipo: {
-                type: "string",
+                type: 'string',
                 enum: [
-                  "texto",
-                  "imagem",
-                  "citacao",
-                  "titulo",
-                  "subtitulo",
-                  "lista",
-                  "equacao",
-                  "codigo",
-                  "destaque",
-                  "separador",
-                  "fonte",
-                  "tabela",
+                  'texto',
+                  'imagem',
+                  'citacao',
+                  'titulo',
+                  'subtitulo',
+                  'lista',
+                  'equacao',
+                  'codigo',
+                  'destaque',
+                  'separador',
+                  'fonte',
+                  'tabela',
                 ],
-                description: "O tipo de conteúdo deste bloco.",
+                description: 'O tipo de conteúdo deste bloco.',
               },
               conteudo: {
-                type: "string",
+                type: 'string',
                 description:
-                  "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
+                  "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) use formato Markdown Table (para tabelas simples) ou HTML <table> (para tabelas complexas com mesclagem/colspan/rowspan).",
               },
             },
-            required: ["tipo", "conteudo"],
-          },
-          alternativa: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              letra: { type: "string" },
-              estrutura: {
-                type: "array",
-                description:
-                  "Lista ordenada que representa o fluxo visual das alternativas, mantendo a ordem exata de textos e imagens.",
-                items: { $ref: "#/$defs/blocoConteudo" },
-              },
-            },
-            required: ["letra", "estrutura"],
+            required: ['tipo', 'conteudo'],
           },
         },
-      };
-    }
+        palavras_chave: {
+          type: 'array',
+          description: 'Principais termos chave.',
+          items: { type: 'string' },
+        },
+        tipo_resposta: {
+          type: 'string',
+          enum: ['objetiva', 'dissertativa'],
+          description:
+            "Se a questão tem alternativas (A, B, C...), é 'objetiva'. Se pede resposta escrita/discursiva, é 'dissertativa'.",
+        },
+        alternativas: {
+          type: 'array',
+          description:
+            'Lista de alternativas. Para questões dissertativas, este array deve estar VAZIO [].',
+          items: { $ref: '#/$defs/alternativa' },
+        },
+      },
+      required: [
+        'identificacao',
+        'materias_possiveis',
+        'palavras_chave',
+        'alternativas',
+        'estrutura',
+        'tipo_resposta',
+      ],
+      $defs: {
+        blocoConteudo: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            tipo: {
+              type: 'string',
+              enum: [
+                'texto',
+                'imagem',
+                'citacao',
+                'titulo',
+                'subtitulo',
+                'lista',
+                'equacao',
+                'codigo',
+                'destaque',
+                'separador',
+                'fonte',
+                'tabela',
+              ],
+              description: 'O tipo de conteúdo deste bloco.',
+            },
+            conteudo: {
+              type: 'string',
+              description:
+                "Conteúdo do bloco conforme o tipo: (texto/citacao/destaque) texto literal em parágrafos; (titulo/subtitulo) cabeçalho interno do conteúdo, nunca a identificação da questão; (lista) itens em linhas separadas; (equacao) somente expressão em LaTeX; (codigo) somente o código; (imagem) descrição visual curta (alt-text) sem OCR; (separador) pode ser vazio; (fonte) créditos/referência exibível (ex: 'Fonte: ...', 'Adaptado de ...', autor/obra/URL); (tabela) USE FORMATO MARKDOWN TABLE.",
+            },
+          },
+          required: ['tipo', 'conteudo'],
+        },
+        alternativa: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            letra: { type: 'string' },
+            estrutura: {
+              type: 'array',
+              description:
+                'Lista ordenada que representa o fluxo visual das alternativas, mantendo a ordem exata de textos e imagens.',
+              items: { $ref: '#/$defs/blocoConteudo' },
+            },
+          },
+          required: ['letra', 'estrutura'],
+        },
+      },
+    };
+  }
 
   return { promptDaIA, JSONEsperado };
 }

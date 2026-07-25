@@ -1,27 +1,27 @@
 export function renderizarGaleriaModal() {
-  const gallery = document.getElementById("cropPreviewGallery");
-  const counter = document.getElementById("countImagens");
+  const gallery = document.getElementById('cropPreviewGallery');
+  const counter = document.getElementById('countImagens');
 
-  gallery.innerHTML = ""; // Limpa anterior
+  gallery.innerHTML = ''; // Limpa anterior
   counter.textContent = window.__recortesAcumulados.length;
 
   window.__recortesAcumulados.forEach((imgSrc, index) => {
     // 1. Cria o container
-    const wrap = document.createElement("div");
-    wrap.className = "gallery-item";
+    const wrap = document.createElement('div');
+    wrap.className = 'gallery-item';
 
     // 2. Cria a imagem
-    const img = document.createElement("img");
+    const img = document.createElement('img');
     img.src = imgSrc;
 
     // 3. Cria o botão
-    const btn = document.createElement("button");
-    btn.textContent = "✕";
-    btn.title = "Remover";
+    const btn = document.createElement('button');
+    btn.textContent = '✕';
+    btn.title = 'Remover';
 
     // --- AQUI ESTÁ O EVENT LISTENER ---
     // O javascript "lembra" qual é o index correto para cada botão
-    btn.addEventListener("click", () => {
+    btn.addEventListener('click', () => {
       removerRecorte(index);
     });
 
@@ -33,9 +33,9 @@ export function renderizarGaleriaModal() {
 }
 
 export function fecharModalConfirmacao() {
-  const modal = document.getElementById("cropConfirmModal");
+  const modal = document.getElementById('cropConfirmModal');
   if (modal) {
-    modal.classList.remove("visible");
+    modal.classList.remove('visible');
   }
 }
 

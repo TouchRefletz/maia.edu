@@ -4,8 +4,7 @@
  */
 
 // Verifica suporte à Web Speech API
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 let recognition = null;
 let isListening = false;
@@ -27,9 +26,7 @@ export function isSupported() {
  */
 export function startListening(callbacks = {}) {
   if (!isSupported()) {
-    callbacks.onError?.(
-      "Seu navegador não suporta reconhecimento de voz. Use o Chrome ou Edge.",
-    );
+    callbacks.onError?.('Seu navegador não suporta reconhecimento de voz. Use o Chrome ou Edge.');
     return false;
   }
 
@@ -48,8 +45,8 @@ export function startListening(callbacks = {}) {
 
   // Evento: resultado de transcrição
   recognition.onresult = (event) => {
-    let interimTranscript = "";
-    let finalTranscript = "";
+    let interimTranscript = '';
+    let finalTranscript = '';
 
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const transcript = event.results[i][0].transcript;
@@ -78,21 +75,21 @@ export function startListening(callbacks = {}) {
   recognition.onerror = (event) => {
     isListening = false;
 
-    let errorMessage = "Erro no reconhecimento de voz.";
+    let errorMessage = 'Erro no reconhecimento de voz.';
 
     switch (event.error) {
-      case "not-allowed":
+      case 'not-allowed':
         errorMessage =
-          "Permissão de microfone negada. Clique no ícone de cadeado na barra de endereço para permitir.";
+          'Permissão de microfone negada. Clique no ícone de cadeado na barra de endereço para permitir.';
         break;
-      case "no-speech":
-        errorMessage = "Nenhuma fala detectada. Tente novamente.";
+      case 'no-speech':
+        errorMessage = 'Nenhuma fala detectada. Tente novamente.';
         break;
-      case "network":
-        errorMessage = "Erro de rede. Verifique sua conexão.";
+      case 'network':
+        errorMessage = 'Erro de rede. Verifique sua conexão.';
         break;
-      case "aborted":
-        errorMessage = ""; // Silencioso - foi cancelado intencionalmente
+      case 'aborted':
+        errorMessage = ''; // Silencioso - foi cancelado intencionalmente
         break;
     }
 
@@ -107,7 +104,7 @@ export function startListening(callbacks = {}) {
     isListening = true;
     return true;
   } catch (e) {
-    callbacks.onError?.("Erro ao iniciar o microfone: " + e.message);
+    callbacks.onError?.('Erro ao iniciar o microfone: ' + e.message);
     return false;
   }
 }

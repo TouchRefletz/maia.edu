@@ -1,292 +1,291 @@
 /* Mobile responsive styles at 480px breakpoint */
 @media (max-width: 480px) {
-    #promptTitle {
-        font-size: var(--font-size-2xl);
-    }
+  #promptTitle {
+    font-size: var(--font-size-2xl);
+  }
 
-    .question {
-        max-width: 100%;
-        padding: var(--space-16);
-        border-radius: var(--radius-md);
-    }
+  .question {
+    max-width: 100%;
+    padding: var(--space-16);
+    border-radius: var(--radius-md);
+  }
 
-    .answerOption {
-        padding: var(--space-8);
-    }
+  .answerOption {
+    padding: var(--space-8);
+  }
 
-    .answerOption {
-        min-height: 50px;
-        font-size: var(--font-size-sm);
-    }
+  .answerOption {
+    min-height: 50px;
+    font-size: var(--font-size-sm);
+  }
 
-    #customAlert {
-        top: var(--space-10);
-        padding: var(--space-12) var(--space-20);
-        font-size: var(--font-size-sm);
-        max-width: calc(100% - var(--space-24));
-    }
+  #customAlert {
+    top: var(--space-10);
+    padding: var(--space-12) var(--space-20);
+    font-size: var(--font-size-sm);
+    max-width: calc(100% - var(--space-24));
+  }
 
-    .passo {
-        max-width: 100%;
-        padding: var(--space-20);
-        margin-top: var(--space-20);
-        margin-bottom: var(--space-20);
-    }
+  .passo {
+    max-width: 100%;
+    padding: var(--space-20);
+    margin-top: var(--space-20);
+    margin-bottom: var(--space-20);
+  }
 
-    .passoText {
-        font-size: var(--font-size-md);
-        width: 100%;
-        padding: var(--space-12);
-    }
+  .passoText {
+    font-size: var(--font-size-md);
+    width: 100%;
+    padding: var(--space-12);
+  }
 
-    .explicacao {
-        width: 100%;
-        padding: var(--space-12);
-    }
+  .explicacao {
+    width: 100%;
+    padding: var(--space-12);
+  }
 }
-
 
 /* Responsividade Layout Geral */
 @media (max-width: 900px) {
-    #viewerBody {
-        flex-direction: column;
-    }
+  #viewerBody {
+    flex-direction: column;
+  }
 
-    #viewerSidebar {
-        width: 100%;
-        height: auto;
-        flex-direction: row;
-        padding: var(--space-12);
-        border-right: none;
-        border-bottom: 1px solid var(--color-border);
-    }
+  #viewerSidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    padding: var(--space-12);
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
 
-    .sidebar-actions {
-        flex-direction: row;
-        flex: 1;
-    }
+  .sidebar-actions {
+    flex-direction: row;
+    flex: 1;
+  }
 
-    .review-grid {
-        display: flex !important;
-        flex-direction: column;
-        overflow-y: scroll !important;
-        height: auto !important;
-    }
+  .review-grid {
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: scroll !important;
+    height: auto !important;
+  }
 
-    .review-col {
-        height: 100% !important;
-    }
+  .review-col {
+    height: 100% !important;
+  }
 
-    .review-grid {
-        grid-template-columns: 1fr;
-    }
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
 
-    /* Page body stays locked — only #chatMessages scrolls horizontally */
-    html,
-    body {
-        overflow-x: hidden !important;
-        width: 100%;
-        position: relative;
-    }
+  /* Page body stays locked — only #chatMessages scrolls horizontally */
+  html,
+  body {
+    overflow-x: hidden !important;
+    width: 100%;
+    position: relative;
+  }
 
-    /* 1. Ajuste do Container Pai */
-    #viewerBody {
-        position: relative;
-        z-index: 1;
-    }
+  /* 1. Ajuste do Container Pai */
+  #viewerBody {
+    position: relative;
+    z-index: 1;
+  }
 
-    /* 2. O Backdrop */
-    #sidebarBackdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: var(--color-background-0-8);
-        /* Escuro neutro */
-        z-index: 99990 !important;
-        backdrop-filter: blur(2px);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s var(--ease-standard);
-    }
+  /* 2. O Backdrop */
+  #sidebarBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--color-background-0-8);
+    /* Escuro neutro */
+    z-index: 99990 !important;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s var(--ease-standard);
+  }
 
-    /* 3. O Painel (Bottom Sheet) */
-    #viewerSidebar {
-        position: fixed !important;
-        bottom: 0;
-        left: 0 !important;
-        right: 0 !important;
-        /* Forces full width without overflow issues */
-        width: auto !important;
-        /* Let left/right control width */
-        height: auto;
-        max-height: 85vh;
-        /* Mais alto se precisar, mas adaptável ao conteúdo */
-        margin: 0 !important;
-        z-index: 99999 !important;
-        box-sizing: border-box !important;
-        min-width: 100vw !important;
+  /* 3. O Painel (Bottom Sheet) */
+  #viewerSidebar {
+    position: fixed !important;
+    bottom: 0;
+    left: 0 !important;
+    right: 0 !important;
+    /* Forces full width without overflow issues */
+    width: auto !important;
+    /* Let left/right control width */
+    height: auto;
+    max-height: 85vh;
+    /* Mais alto se precisar, mas adaptável ao conteúdo */
+    margin: 0 !important;
+    z-index: 99999 !important;
+    box-sizing: border-box !important;
+    min-width: 100vw !important;
 
-        /* USANDO SUAS VARIÁVEIS DE TEMA */
-        background-color: var(--color-surface);
-        border-top: 1px solid var(--color-border);
-        color: var(--color-text);
+    /* USANDO SUAS VARIÁVEIS DE TEMA */
+    background-color: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text);
 
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-        /* Sombra mais forte para destaque */
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+    /* Sombra mais forte para destaque */
 
-        display: flex;
-        flex-direction: column;
+    display: flex;
+    flex-direction: column;
 
-        transition: transform 0.3s var(--ease-standard);
-        transform: translateY(0);
-    }
+    transition: transform 0.3s var(--ease-standard);
+    transform: translateY(0);
+  }
 
-    /* [ALTERAÇÃO] Estado "Minimizado" (Peeking) */
-    #viewerBody.sidebar-collapsed #viewerSidebar {
-        /* Em vez de esconder tudo (100%), deixamos 50px visíveis */
-        transform: translateY(calc(100% - 50px)) !important;
-        width: 100% !important;
-        /* Força largura total mesmo 'fechado' */
-        min-width: 0 !important;
-        max-width: none !important;
-        border-right: none !important;
-        overflow: hidden !important;
-        /* Evita scroll lateral indesejado no preview */
-        height: auto;
-    }
+  /* [ALTERAÇÃO] Estado "Minimizado" (Peeking) */
+  #viewerBody.sidebar-collapsed #viewerSidebar {
+    /* Em vez de esconder tudo (100%), deixamos 50px visíveis */
+    transform: translateY(calc(100% - 50px)) !important;
+    width: 100% !important;
+    /* Força largura total mesmo 'fechado' */
+    min-width: 0 !important;
+    max-width: none !important;
+    border-right: none !important;
+    overflow: hidden !important;
+    /* Evita scroll lateral indesejado no preview */
+    height: auto;
+  }
 
-    /* [OPCIONAL] Quando minimizado, o header deve parecer clicável */
-    .sidebar-collapsed #header-mobile-toggle {
-        background-color: var(--color-surface);
-        /* Garante que destaque do fundo */
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-        /* Sombra suave para separar do site */
-    }
+  /* [OPCIONAL] Quando minimizado, o header deve parecer clicável */
+  .sidebar-collapsed #header-mobile-toggle {
+    background-color: var(--color-surface);
+    /* Garante que destaque do fundo */
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    /* Sombra suave para separar do site */
+  }
 
-    /* 4. O Cabeçalho (Área de "Pega") */
-    #header-mobile-toggle {
-        flex: 0 0 auto;
-        width: 100%;
-        text-align: center;
-        padding: var(--space-12) 0;
-        cursor: grab;
-        /* Indica que dá pra arrastar */
-        border-bottom: 1px solid var(--color-border);
-        background-color: var(--color-surface);
-        /* Garante consistência */
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    }
+  /* 4. O Cabeçalho (Área de "Pega") */
+  #header-mobile-toggle {
+    flex: 0 0 auto;
+    width: 100%;
+    text-align: center;
+    padding: var(--space-12) 0;
+    cursor: grab;
+    /* Indica que dá pra arrastar */
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    /* Garante consistência */
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
 
-    #header-mobile-toggle:active {
-        cursor: grabbing;
-    }
+  #header-mobile-toggle:active {
+    cursor: grabbing;
+  }
 
-    /* A Pílula Visual (Handle) - Usando suas cores */
-    #header-mobile-toggle .drag-handle {
-        width: 40px;
-        height: 4px;
-        background-color: var(--color-border);
-        /* Cor sutil do tema */
-        border-radius: var(--radius-full);
-        margin: 0 auto var(--space-8) auto;
-    }
+  /* A Pílula Visual (Handle) - Usando suas cores */
+  #header-mobile-toggle .drag-handle {
+    width: 40px;
+    height: 4px;
+    background-color: var(--color-border);
+    /* Cor sutil do tema */
+    border-radius: var(--radius-full);
+    margin: 0 auto var(--space-8) auto;
+  }
 
-    /* 5. Conteúdo com Scroll */
-    #viewerSidebar>div:not(#header-mobile-toggle),
-    #maia-scroll-wrapper {
-        flex: 1;
-        padding-bottom: var(--space-32);
-        overscroll-behavior: contain;
-        min-height: 0;
-        /* Critical for flex scrolling */
-        width: 100%;
-    }
+  /* 5. Conteúdo com Scroll */
+  #viewerSidebar > div:not(#header-mobile-toggle),
+  #maia-scroll-wrapper {
+    flex: 1;
+    padding-bottom: var(--space-32);
+    overscroll-behavior: contain;
+    min-height: 0;
+    /* Critical for flex scrolling */
+    width: 100%;
+  }
 
-    /* Esconde redimensionador desktop */
-    #sidebarResizer {
-        display: none !important;
-    }
+  /* Esconde redimensionador desktop */
+  #sidebarResizer {
+    display: none !important;
+  }
 
-    /* Remove close button on mobile sidebar since it's a bottom sheet */
-    .sidebar-close-btn {
-        display: none !important;
-    }
+  /* Remove close button on mobile sidebar since it's a bottom sheet */
+  .sidebar-close-btn {
+    display: none !important;
+  }
 }
 
 /* MOBILE STYLES */
 @media (max-width: 768px) {
-    .api-modal-content {
-        flex-direction: column !important;
-        max-height: 90vh;
-        width: 95%;
-        overflow-y: auto !important;
-        /* Enable scrolling on modal body */
-    }
+  .api-modal-content {
+    flex-direction: column !important;
+    max-height: 90vh;
+    width: 95%;
+    overflow-y: auto !important;
+    /* Enable scrolling on modal body */
+  }
 
-    .modal-form-col {
-        padding: 20px !important;
-        order: 2;
-        /* Form below benefits? Or above? Let's keep Form TOP as it is primary action, but user wants benefits visible. */
-        order: 1;
-    }
+  .modal-form-col {
+    padding: 20px !important;
+    order: 2;
+    /* Form below benefits? Or above? Let's keep Form TOP as it is primary action, but user wants benefits visible. */
+    order: 1;
+  }
 
-    .modal-benefits-col {
-        width: 100% !important;
-        border-left: none !important;
-        border-top: 1px solid var(--color-border);
-        padding: 20px !important;
-        order: 2;
-        /* Benefits at bottom */
-        background: var(--color-bg-2);
-        /* Slightly different bg to distinguish */
-    }
+  .modal-benefits-col {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--color-border);
+    padding: 20px !important;
+    order: 2;
+    /* Benefits at bottom */
+    background: var(--color-bg-2);
+    /* Slightly different bg to distinguish */
+  }
 }
 
 @media (max-width: 900px) {
-    .startScreenDiv {
-        grid-template-columns: none !important;
-    }
+  .startScreenDiv {
+    grid-template-columns: none !important;
+  }
 }
 
 /* --- MÁGICA RESPONSIVA (CELULAR) --- */
 @media (max-width: 900px) {
-    .img-overlay {
-        padding: 10px;
-        /* Menos borda no celular */
-    }
+  .img-overlay {
+    padding: 10px;
+    /* Menos borda no celular */
+  }
 
-    .img-modal-body {
-        flex-direction: column;
-        /* Um em cima do outro */
-        gap: 10px;
-        margin-top: 40px;
-        /* Mais espaço pro dedo no topo */
-    }
+  .img-modal-body {
+    flex-direction: column;
+    /* Um em cima do outro */
+    gap: 10px;
+    margin-top: 40px;
+    /* Mais espaço pro dedo no topo */
+  }
 
-    .img-col {
-        width: 100%;
-        /* Largura total */
-        /* Altura dividida para ver os dois ou ajustar conforme conteúdo */
-        flex: 1;
-    }
+  .img-col {
+    width: 100%;
+    /* Largura total */
+    /* Altura dividida para ver os dois ou ajustar conforme conteúdo */
+    flex: 1;
+  }
 
-    .img-divider {
-        display: none;
-        /* Remove a linha vertical no celular */
-    }
+  .img-divider {
+    display: none;
+    /* Remove a linha vertical no celular */
+  }
 
-    .img-content {
-        width: 100%;
-    }
+  .img-content {
+    width: 100%;
+  }
 
-    .panel-label {
-        display: none !important;
-    }
+  .panel-label {
+    display: none !important;
+  }
 
-    #viewerHeader {
-        display: none !important;
-    }
+  #viewerHeader {
+    display: none !important;
+  }
 }

@@ -25,7 +25,7 @@ export class AsyncQueue {
     try {
       await task();
     } catch (error) {
-      console.error("Queue task failed:", error);
+      console.error('Queue task failed:', error);
     } finally {
       this.running--;
       this.process();

@@ -27,9 +27,7 @@ export const _normExplString = (v) => {
     .split('\n')
     .map((s) => s.trim())
     .filter(Boolean);
-  return linhas.map((linha) =>
-    _createStep([{ tipo: 'texto', conteudo: linha }])
-  );
+  return linhas.map((linha) => _createStep([{ tipo: 'texto', conteudo: linha }]));
 };
 
 /**
@@ -41,9 +39,7 @@ export const _normExplArray = (v) => {
 
   // LÓGICA ORIGINAL: Se o primeiro for string, trata TUDO como string
   if (typeof v[0] === 'string') {
-    return v.map((s) =>
-      _createStep([{ tipo: 'texto', conteudo: String(s).trim() }])
-    );
+    return v.map((s) => _createStep([{ tipo: 'texto', conteudo: String(s).trim() }]));
   }
 
   // Caso contrário, trata como array de objetos

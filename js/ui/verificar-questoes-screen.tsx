@@ -1,25 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
+// @ts-expect-error
+import { get, ref, set } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-// @ts-ignore
-import { ref, get, set } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
-import { db, auth } from '../main.js';
-import { customAlert } from './GlobalAlertsLogic';
 import { gerarTelaInicial } from '../app/telas.js';
+import { criarCardTecnico } from '../banco/card-template.js';
+import { indexarNoPinecone, processarEmbeddingSemantico } from '../ia/embedding-e-pinecone.js';
+import { construirDadosParaEnvio, gerarIdentificadoresEnvio } from '../ia/envio-textos.js';
+import { prepararPayloadComImagens } from '../ia/payload-imagens.js';
+import { renderLatexIn } from '../libs/loader';
+import { auth, db } from '../main.js';
+import { DataNormalizer } from '../normalizer/data-normalizer.js';
+import { type AuditItem, applyAuditFix, runFullTextAudit } from '../services/text-audit-service.js';
 import { openAddQuestionsModal } from './add-questions-modal.js';
 import { verificarSeAdmin } from './admin-panel.js';
-import { AuditItem, runFullTextAudit, applyAuditFix } from '../services/text-audit-service.js';
-import { construirDadosParaEnvio, gerarIdentificadoresEnvio } from '../ia/envio-textos.js';
-import { processarEmbeddingSemantico, indexarNoPinecone } from '../ia/embedding-e-pinecone.js';
-import { prepararPayloadComImagens } from '../ia/payload-imagens.js';
-import { DataNormalizer } from '../normalizer/data-normalizer.js';
+import { customAlert } from './GlobalAlertsLogic';
 import { IA_MODELS } from './ModelSelectorModal';
-import { criarCardTecnico } from '../banco/card-template.js';
-import { renderLatexIn } from '../libs/loader';
 
 export function iniciarModoVerificacaoQuestoes() {
   const user = auth.currentUser;
   if (!user) {
-    customAlert("⚠️ Faça login primeiro.");
+    customAlert('⚠️ Faça login primeiro.');
     gerarTelaInicial();
     return;
   }
@@ -34,7 +35,7 @@ export function iniciarModoVerificacaoQuestoes() {
 
   verificarSeAdmin(user.uid).then((isAdmin) => {
     if (!isAdmin) {
-      customAlert("⛔ Acesso negado: Você não possui privilégios de administrador.");
+      customAlert('⛔ Acesso negado: Você não possui privilégios de administrador.');
       gerarTelaInicial();
       return;
     }
@@ -55,17 +56,18 @@ export function iniciarModoVerificacaoQuestoes() {
 function highlightAuditItemsInCard(containerEl: HTMLElement, items: AuditItem[]) {
   if (!containerEl || !items || items.length === 0) return;
 
-  const activeItems = items.filter(i => i.status === 'pending' || i.status === 'accepted');
+  const activeItems = items.filter((i) => i.status === 'pending' || i.status === 'accepted');
   if (activeItems.length === 0) return;
 
-  activeItems.forEach(item => {
+  activeItems.forEach((item) => {
     const isAccepted = item.status === 'accepted';
     let targetSnippet = (isAccepted ? item.suggestedText : item.originalText) || '';
     targetSnippet = targetSnippet.trim();
     if (!targetSnippet || targetSnippet.length < 2) return;
 
     // Se o snippet for muito longo, usa os primeiros 60 caracteres significativos para localização limpa no DOM
-    const searchSnippet = targetSnippet.length > 80 ? targetSnippet.substring(0, 60).trim() : targetSnippet;
+    const searchSnippet =
+      targetSnippet.length > 80 ? targetSnippet.substring(0, 60).trim() : targetSnippet;
 
     const walker = document.createTreeWalker(containerEl, NodeFilter.SHOW_TEXT, null);
     const nodesToReplace: Array<{ textNode: Node; parentNode: HTMLElement; text: string }> = [];
@@ -75,7 +77,10 @@ function highlightAuditItemsInCard(containerEl: HTMLElement, items: AuditItem[])
       const val = currentNode.nodeValue || '';
       if (val.includes(searchSnippet)) {
         const pNode = currentNode.parentNode as HTMLElement | null;
-        if (pNode && !pNode.closest('mark, script, style, svg, .katex, .mjx-container, .MathJax, button')) {
+        if (
+          pNode &&
+          !pNode.closest('mark, script, style, svg, .katex, .mjx-container, .MathJax, button')
+        ) {
           nodesToReplace.push({ textNode: currentNode, parentNode: pNode, text: val });
         }
       }
@@ -199,13 +204,13 @@ const VerificarQuestoesApp: React.FC = () => {
       try {
         const metaPayload = {
           material_origem: chaveProva || 'ORIGEM',
-          source_url: sourceUrl || undefined
+          source_url: sourceUrl || undefined,
         };
 
         const cardEl = criarCardTecnico(idQuestao || 'QUESTAO_ID', {
           dados_questao: currentQ,
           dados_gabarito: currentG || {},
-          meta: metaPayload
+          meta: metaPayload,
         });
 
         cardRef.current.appendChild(cardEl);
@@ -262,12 +267,13 @@ const VerificarQuestoesApp: React.FC = () => {
       setCurrentQ(snapshotQ);
       setCurrentG(snapshotG);
 
-      const urlFound = metaObj.source_url ||
-                       metaObj.source_url_prova ||
-                       qObj?.source_url ||
-                       qObj?.source_url_prova ||
-                       (window as any).__pdfOriginalUrl ||
-                       '';
+      const urlFound =
+        metaObj.source_url ||
+        metaObj.source_url_prova ||
+        qObj?.source_url ||
+        qObj?.source_url_prova ||
+        (window as any).__pdfOriginalUrl ||
+        '';
       setSourceUrl(urlFound);
 
       const extractImgUrl = (img: any): string | null => {
@@ -279,7 +285,11 @@ const VerificarQuestoesApp: React.FC = () => {
 
       if (Array.isArray(qObj.fotos_originais) && qObj.fotos_originais.length > 0) {
         const imgStr = extractImgUrl(qObj.fotos_originais[0]);
-        if (imgStr && typeof imgStr === 'string' && (imgStr.startsWith('http') || imgStr.startsWith('data:'))) {
+        if (
+          imgStr &&
+          typeof imgStr === 'string' &&
+          (imgStr.startsWith('http') || imgStr.startsWith('data:'))
+        ) {
           setImageSrc(imgStr);
           if (imgStr.startsWith('data:')) {
             const parts = imgStr.split(',');
@@ -371,7 +381,8 @@ const VerificarQuestoesApp: React.FC = () => {
         chaveProva,
         idQuestao,
         identificacao: currentQ?.identificacao || idQuestao,
-        meta: currentQ?.meta || currentG?.meta || { material_origem: chaveProva, source_url: sourceUrl },
+        meta: currentQ?.meta ||
+          currentG?.meta || { material_origem: chaveProva, source_url: sourceUrl },
         useLanguageTool,
         useAI,
         modelId: selectedModel,
@@ -379,7 +390,7 @@ const VerificarQuestoesApp: React.FC = () => {
         imageMimeType,
         checkInconsistencies,
         onStatusUpdate: (msg) => setStatusText(msg),
-        signal: abortControllerRef.current.signal
+        signal: abortControllerRef.current.signal,
       });
 
       setItems(auditResults);
@@ -404,19 +415,19 @@ const VerificarQuestoesApp: React.FC = () => {
     window.__ultimaQuestaoExtraida = updatedQ;
     window.__ultimoGabaritoExtraido = updatedG;
 
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'accepted' } : i));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: 'accepted' } : i)));
   };
 
   const handleRejectItem = (item: AuditItem) => {
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'rejected' } : i));
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: 'rejected' } : i)));
   };
 
   const handleAcceptAll = () => {
     let workingQ = currentQ;
     let workingG = currentG;
 
-    const pendingItems = items.filter(i => i.status === 'pending');
-    pendingItems.forEach(item => {
+    const pendingItems = items.filter((i) => i.status === 'pending');
+    pendingItems.forEach((item) => {
       const { updatedQ, updatedG } = applyAuditFix(workingQ, workingG, item);
       workingQ = updatedQ;
       workingG = updatedG;
@@ -428,11 +439,15 @@ const VerificarQuestoesApp: React.FC = () => {
     window.__ultimaQuestaoExtraida = workingQ;
     window.__ultimoGabaritoExtraido = workingG;
 
-    setItems(prev => prev.map(i => i.status === 'pending' ? { ...i, status: 'accepted' } : i));
+    setItems((prev) =>
+      prev.map((i) => (i.status === 'pending' ? { ...i, status: 'accepted' } : i)),
+    );
   };
 
   const handleRejectAll = () => {
-    setItems(prev => prev.map(i => i.status === 'pending' ? { ...i, status: 'rejected' } : i));
+    setItems((prev) =>
+      prev.map((i) => (i.status === 'pending' ? { ...i, status: 'rejected' } : i)),
+    );
   };
 
   const originalSnapshotRef = useRef<{ q: any; g: any }>({ q: null, g: null });
@@ -467,20 +482,22 @@ const VerificarQuestoesApp: React.FC = () => {
       const { questaoFinal, gabaritoLimpo } = construirDadosParaEnvio(currentQ, currentG);
       const { idPinecone } = gerarIdentificadoresEnvio(chaveProva, currentQ);
 
-      const metaOriginal = originalSnapshotRef.current?.q?.meta ||
-                           originalSnapshotRef.current?.q?.dados_questao?.meta ||
-                           currentQ?.meta ||
-                           {};
+      const metaOriginal =
+        originalSnapshotRef.current?.q?.meta ||
+        originalSnapshotRef.current?.q?.dados_questao?.meta ||
+        currentQ?.meta ||
+        {};
 
-      const finalSourceUrl = sourceUrl.trim() ||
-                             metaOriginal.source_url ||
-                             metaOriginal.source_url_prova ||
-                             (window as any).__pdfOriginalUrl ||
-                             null;
+      const finalSourceUrl =
+        sourceUrl.trim() ||
+        metaOriginal.source_url ||
+        metaOriginal.source_url_prova ||
+        (window as any).__pdfOriginalUrl ||
+        null;
 
       const payloadParaSalvar = await prepararPayloadComImagens(null, questaoFinal, gabaritoLimpo, {
         ...metaOriginal,
-        source_url: finalSourceUrl || undefined
+        source_url: finalSourceUrl || undefined,
       });
 
       if (!(payloadParaSalvar as any).meta) {
@@ -491,9 +508,12 @@ const VerificarQuestoesApp: React.FC = () => {
       }
 
       // Preserva fotos_originais apenas se forem URLs HTTP/HTTPS reais (nunca salva base64)
-      const existingFotos = originalSnapshotRef.current?.q?.fotos_originais || currentQ?.fotos_originais || [];
+      const existingFotos =
+        originalSnapshotRef.current?.q?.fotos_originais || currentQ?.fotos_originais || [];
       if (Array.isArray(existingFotos) && existingFotos.length > 0) {
-        const cleanFotos = existingFotos.filter((f: any) => typeof f === 'string' && f.startsWith('http'));
+        const cleanFotos = existingFotos.filter(
+          (f: any) => typeof f === 'string' && f.startsWith('http'),
+        );
         if (cleanFotos.length > 0) {
           (payloadParaSalvar as any).fotos_originais = cleanFotos;
         }
@@ -507,9 +527,9 @@ const VerificarQuestoesApp: React.FC = () => {
         chaveProva,
         idQuestao,
         data_download: new Date().toISOString(),
-        tipo: "ANTE_CORRECAO_ORIGINAL",
+        tipo: 'ANTE_CORRECAO_ORIGINAL',
         dados_questao_original: originalSnapshotRef.current.q || currentQ,
-        dados_gabarito_original: originalSnapshotRef.current.g || currentG
+        dados_gabarito_original: originalSnapshotRef.current.g || currentG,
       };
 
       downloadJsonFile(`[ANTE-CORRECAO]_${safeProva}_${safeId}.json`, anteData);
@@ -523,14 +543,27 @@ const VerificarQuestoesApp: React.FC = () => {
       console.log('✅ Salvo no Firebase com sucesso:', caminhoFinal);
 
       try {
-        const { vetorEmbedding, textoParaVetorizar } = await processarEmbeddingSemantico(null, questaoFinal, gabaritoLimpo);
-        await indexarNoPinecone(null, vetorEmbedding, idPinecone, chaveProva, textoParaVetorizar, payloadParaSalvar);
+        const { vetorEmbedding, textoParaVetorizar } = await processarEmbeddingSemantico(
+          null,
+          questaoFinal,
+          gabaritoLimpo,
+        );
+        await indexarNoPinecone(
+          null,
+          vetorEmbedding,
+          idPinecone,
+          chaveProva,
+          textoParaVetorizar,
+          payloadParaSalvar,
+        );
         await DataNormalizer.flush();
       } catch (pineconeErr) {
         console.warn('Aviso: Erro no Pinecone, mas o Firebase foi atualizado:', pineconeErr);
       }
 
-      customAlert('🎉 Correções salvas no Firebase! 2 arquivos de backup ([ANTE-CORRECAO] e [POS-CORRECAO]) foram baixados no seu PC.');
+      customAlert(
+        '🎉 Correções salvas no Firebase! 2 arquivos de backup ([ANTE-CORRECAO] e [POS-CORRECAO]) foram baixados no seu PC.',
+      );
     } catch (err: any) {
       console.error('Erro ao salvar no Firebase:', err);
       customAlert('❌ Falha ao salvar alterações: ' + (err.message || err));
@@ -539,34 +572,61 @@ const VerificarQuestoesApp: React.FC = () => {
     }
   };
 
-  const pendingCount = items.filter(i => i.status === 'pending').length;
-  const acceptedCount = items.filter(i => i.status === 'accepted').length;
+  const pendingCount = items.filter((i) => i.status === 'pending').length;
+  const acceptedCount = items.filter((i) => i.status === 'accepted').length;
 
   return (
-    <div style={{
-      background: '#0f172a', color: '#f8fafc', minHeight: '100vh', padding: '24px',
-      fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box'
-    }}>
+    <div
+      style={{
+        background: '#0f172a',
+        color: '#f8fafc',
+        minHeight: '100vh',
+        padding: '24px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* HEADER */}
-      <div style={{
-        maxWidth: '1500px', margin: '0 auto 24px auto', display: 'flex',
-        justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155',
-        paddingBottom: '16px'
-      }}>
+      <div
+        style={{
+          maxWidth: '1500px',
+          margin: '0 auto 24px auto',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid #334155',
+          paddingBottom: '16px',
+        }}
+      >
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', color: '#38bdf8' }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: '1.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              color: '#38bdf8',
+            }}
+          >
             🔍 Verificar Questões & Auditoria Pós-Envio
           </h1>
           <div style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '4px' }}>
-            Selecione uma questão do Firebase, anexe a foto da prova original (Ctrl+V ou Upload) e corrija inconsistências com IA.
+            Selecione uma questão do Firebase, anexe a foto da prova original (Ctrl+V ou Upload) e
+            corrija inconsistências com IA.
           </div>
         </div>
 
         <button
           onClick={() => gerarTelaInicial()}
           style={{
-            background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155',
-            borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', fontWeight: 600
+            background: '#1e293b',
+            color: '#cbd5e1',
+            border: '1px solid #334155',
+            borderRadius: '6px',
+            padding: '8px 16px',
+            cursor: 'pointer',
+            fontWeight: 600,
           }}
         >
           ← Voltar para Tela Inicial
@@ -574,56 +634,139 @@ const VerificarQuestoesApp: React.FC = () => {
       </div>
 
       {/* MAIN LAYOUT */}
-      <div style={{ maxWidth: '1500px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        
+      <div
+        style={{
+          maxWidth: '1500px',
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px',
+        }}
+      >
         {/* BARRA DE SELEÇÃO E CLIPBOARD */}
-        <div style={{
-          background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px',
-          display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'space-between'
-        }}>
+        <div
+          style={{
+            background: '#1e293b',
+            border: '1px solid #334155',
+            borderRadius: '12px',
+            padding: '20px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '20px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={() => openAddQuestionsModal()}
               style={{
-                background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px',
-                padding: '10px 18px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+                background: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '10px 18px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
               }}
             >
               ➕ Selecionar Questão do Banco (Firebase)
             </button>
 
             {selectedQuestion && (
-              <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '6px', padding: '6px 14px', fontSize: '0.88rem' }}>
-                Selecionada: <strong style={{ color: '#38bdf8' }}>{chaveProva} / {idQuestao}</strong>
+              <div
+                style={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '6px',
+                  padding: '6px 14px',
+                  fontSize: '0.88rem',
+                }}
+              >
+                Selecionada:{' '}
+                <strong style={{ color: '#38bdf8' }}>
+                  {chaveProva} / {idQuestao}
+                </strong>
               </div>
             )}
 
-            {isLoadingQuestion && <span style={{ color: '#fbbf24', fontSize: '0.85rem' }}>⏳ Carregando dados do Firebase...</span>}
+            {isLoadingQuestion && (
+              <span style={{ color: '#fbbf24', fontSize: '0.85rem' }}>
+                ⏳ Carregando dados do Firebase...
+              </span>
+            )}
           </div>
 
           {/* PASTE / UPLOAD FOTO */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>💡 Dica: Pressione <strong>Ctrl+V</strong> em qualquer lugar para colar a foto</span>
-            <label style={{ fontSize: '0.88rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: '#334155', padding: '8px 14px', borderRadius: '6px' }}>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+              💡 Dica: Pressione <strong>Ctrl+V</strong> em qualquer lugar para colar a foto
+            </span>
+            <label
+              style={{
+                fontSize: '0.88rem',
+                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                background: '#334155',
+                padding: '8px 14px',
+                borderRadius: '6px',
+              }}
+            >
               <span>📷 Anexar Foto da Prova</span>
-              <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
             </label>
           </div>
 
           {/* CAMPO EDITÁVEL: LINK DA PROVA ORIGINAL (PDF/FONTE) */}
           {currentQ && (
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '12px', borderTop: '1px solid #334155', marginTop: '6px' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#38bdf8', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                paddingTop: '12px',
+                borderTop: '1px solid #334155',
+                marginTop: '6px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  color: '#38bdf8',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
                 🔗 Link da Prova Original (Fonte / PDF):
               </span>
               <input
                 type="url"
                 value={sourceUrl}
-                onChange={e => setSourceUrl(e.target.value)}
+                onChange={(e) => setSourceUrl(e.target.value)}
                 placeholder="Cole o link oficial HTTP/HTTPS da prova original em PDF (Ex: https://exemplo.com/prova.pdf)"
                 style={{
-                  flex: 1, background: '#0f172a', color: '#f8fafc', border: '1px solid #475569',
-                  borderRadius: '6px', padding: '8px 12px', fontSize: '0.88rem'
+                  flex: 1,
+                  background: '#0f172a',
+                  color: '#f8fafc',
+                  border: '1px solid #475569',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  fontSize: '0.88rem',
                 }}
               />
               {sourceUrl ? (
@@ -631,8 +774,14 @@ const VerificarQuestoesApp: React.FC = () => {
                   type="button"
                   onClick={() => window.open(sourceUrl, '_blank')}
                   style={{
-                    background: '#1e293b', color: '#38bdf8', border: '1px solid #38bdf8',
-                    borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600
+                    background: '#1e293b',
+                    color: '#38bdf8',
+                    border: '1px solid #38bdf8',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
                   }}
                   title="Testar link abrindo em nova aba"
                 >
@@ -645,25 +794,50 @@ const VerificarQuestoesApp: React.FC = () => {
 
         {/* CONTROLES DA IA E AUDITORIA */}
         {currentQ && (
-          <div style={{
-            background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '16px 20px',
-            display: 'flex', flexWrap: 'wrap', gap: '20px', alignItems: 'center', justifyContent: 'space-between'
-          }}>
+          <div
+            style={{
+              background: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '20px',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={useLanguageTool}
-                  onChange={e => setUseLanguageTool(e.target.checked)}
+                  onChange={(e) => setUseLanguageTool(e.target.checked)}
                 />
                 <span>LanguageTool (Sem IA)</span>
               </label>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={useAI}
-                  onChange={e => setUseAI(e.target.checked)}
+                  onChange={(e) => setUseAI(e.target.checked)}
                 />
                 <span>Auditoria com IA</span>
               </label>
@@ -674,20 +848,37 @@ const VerificarQuestoesApp: React.FC = () => {
                     <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Modelo IA:</span>
                     <select
                       value={selectedModel}
-                      onChange={e => setSelectedModel(e.target.value)}
-                      style={{ background: '#0f172a', color: '#fff', border: '1px solid #475569', borderRadius: '6px', padding: '6px 10px', fontSize: '0.85rem' }}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      style={{
+                        background: '#0f172a',
+                        color: '#fff',
+                        border: '1px solid #475569',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        fontSize: '0.85rem',
+                      }}
                     >
-                      {IA_MODELS.map(m => (
-                        <option key={m.id} value={m.id}>{m.title}</option>
+                      {IA_MODELS.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.title}
+                        </option>
                       ))}
                     </select>
                   </div>
 
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={checkInconsistencies}
-                      onChange={e => setCheckInconsistencies(e.target.checked)}
+                      onChange={(e) => setCheckInconsistencies(e.target.checked)}
                     />
                     <span>Verificar Incoerências Lógicas e Pedagógicas</span>
                   </label>
@@ -699,9 +890,16 @@ const VerificarQuestoesApp: React.FC = () => {
               <button
                 onClick={handleCancelAudit}
                 style={{
-                  background: '#ef4444', color: '#fff', border: 'none',
-                  borderRadius: '6px', padding: '10px 20px', fontWeight: 700, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '8px'
+                  background: '#ef4444',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
               >
                 ⛔ Cancelar Análise
@@ -710,9 +908,16 @@ const VerificarQuestoesApp: React.FC = () => {
               <button
                 onClick={handleRunAudit}
                 style={{
-                  background: '#8b5cf6', color: '#fff', border: 'none',
-                  borderRadius: '6px', padding: '10px 20px', fontWeight: 700, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '8px'
+                  background: '#8b5cf6',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 20px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
               >
                 🔍 Executar Verificação
@@ -723,14 +928,33 @@ const VerificarQuestoesApp: React.FC = () => {
 
         {/* STATUS DA AUDITORIA */}
         {isAuditing && (
-          <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b', borderRadius: '8px', border: '1px solid #3b82f6', color: '#60a5fa', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              padding: '20px',
+              textAlign: 'center',
+              background: '#1e293b',
+              borderRadius: '8px',
+              border: '1px solid #3b82f6',
+              color: '#60a5fa',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
             <div style={{ fontSize: '1.5rem' }}>⏳</div>
             <div style={{ fontWeight: 600 }}>{statusText}</div>
             <button
               onClick={handleCancelAudit}
               style={{
-                background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px',
-                padding: '8px 18px', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer'
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 18px',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                cursor: 'pointer',
               }}
             >
               ⛔ Cancelar Análise da IA
@@ -740,25 +964,57 @@ const VerificarQuestoesApp: React.FC = () => {
 
         {/* PAINEL DUAL: FOTO ORIGINAL vs CARD DA QUESTÃO COMPLETA */}
         {currentQ && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', minHeight: '600px' }}>
-            
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '24px',
+              minHeight: '600px',
+            }}
+          >
             {/* ESQUERDA: FOTO ORIGINAL / DROPZONE / PASTEZONE */}
             <div
-              onDragOver={e => e.preventDefault()}
+              onDragOver={(e) => e.preventDefault()}
               onDrop={handleDropImage}
               style={{
-                background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px',
-                display: 'flex', flexDirection: 'column', gap: '14px', minHeight: '600px'
+                background: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                minHeight: '600px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: '1.1rem',
+                    color: '#fbbf24',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
                   <span>📸</span> Foto Original da Prova
                 </h3>
                 {imageSrc && (
                   <button
-                    onClick={() => { setImageSrc(null); setImageBase64(null); }}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.82rem' }}
+                    onClick={() => {
+                      setImageSrc(null);
+                      setImageBase64(null);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      fontSize: '0.82rem',
+                    }}
                   >
                     ✕ Remover Foto
                   </button>
@@ -766,44 +1022,120 @@ const VerificarQuestoesApp: React.FC = () => {
               </div>
 
               {imageSrc ? (
-                <div style={{ flex: 1, overflow: 'auto', background: '#0f172a', borderRadius: '8px', padding: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <img src={imageSrc} alt="Foto da prova original" style={{ maxWidth: '100%', maxHeight: '650px', objectFit: 'contain', borderRadius: '4px' }} />
+                <div
+                  style={{
+                    flex: 1,
+                    overflow: 'auto',
+                    background: '#0f172a',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <img
+                    src={imageSrc}
+                    alt="Foto da prova original"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '650px',
+                      objectFit: 'contain',
+                      borderRadius: '4px',
+                    }}
+                  />
                 </div>
               ) : (
                 <div
                   style={{
-                    flex: 1, border: '2px dashed #475569', borderRadius: '8px', display: 'flex',
-                    flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '40px',
-                    color: '#64748b', background: '#0f172a'
+                    flex: 1,
+                    border: '2px dashed #475569',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: '40px',
+                    color: '#64748b',
+                    background: '#0f172a',
                   }}
                 >
                   <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📋</div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#94a3b8' }}>Cole a foto da prova (Ctrl+V)</div>
-                  <div style={{ fontSize: '0.85rem', marginTop: '6px', color: '#64748b' }}>ou Arraste o arquivo de imagem aqui</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#94a3b8' }}>
+                    Cole a foto da prova (Ctrl+V)
+                  </div>
+                  <div style={{ fontSize: '0.85rem', marginTop: '6px', color: '#64748b' }}>
+                    ou Arraste o arquivo de imagem aqui
+                  </div>
                 </div>
               )}
             </div>
 
             {/* DIREITA: CARD DA QUESTÃO TÉCNICO (LIVE RENDER) COM DESTAQUES VISUAIS */}
-            <div style={{
-              background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px',
-              display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '800px', overflowY: 'auto',
-              maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box'
-            }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div
+              style={{
+                background: '#1e293b',
+                border: '1px solid #334155',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                maxHeight: '800px',
+                overflowY: 'auto',
+                maxWidth: '100%',
+                overflowX: 'hidden',
+                boxSizing: 'border-box',
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.1rem',
+                  color: '#4ade80',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
                 <span>🎴</span> Card da Questão (Renderização Completa com Destaques)
               </h3>
 
               {/* CARD TÉCNICO DO MAIA.EDU COM HIGHLIGHTS DOM APLICADOS */}
-              <div ref={cardRef} style={{ background: '#0f172a', borderRadius: '8px', padding: '10px', width: '100%', maxWidth: '100%', overflowX: 'auto', boxSizing: 'border-box' }}></div>
+              <div
+                ref={cardRef}
+                style={{
+                  background: '#0f172a',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  width: '100%',
+                  maxWidth: '100%',
+                  overflowX: 'auto',
+                  boxSizing: 'border-box',
+                }}
+              ></div>
             </div>
           </div>
         )}
 
         {/* SUGESTÕES DA IA COM DIFF CARDS */}
         {items.length > 0 && (
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div
+            style={{
+              background: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '12px',
+              padding: '20px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
               <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#f59e0b' }}>
                 🚨 Alterações Sugeridas ({items.length} problemas encontrados)
               </h3>
@@ -812,13 +1144,28 @@ const VerificarQuestoesApp: React.FC = () => {
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
                     onClick={handleAcceptAll}
-                    style={{ background: '#166534', color: '#4ade80', border: '1px solid #22c55e', borderRadius: '6px', padding: '6px 14px', fontWeight: 600, cursor: 'pointer' }}
+                    style={{
+                      background: '#166534',
+                      color: '#4ade80',
+                      border: '1px solid #22c55e',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
                   >
                     ✅ Aceitar Todos Pendentes
                   </button>
                   <button
                     onClick={handleRejectAll}
-                    style={{ background: '#334155', color: '#cbd5e1', border: '1px solid #475569', borderRadius: '6px', padding: '6px 14px', cursor: 'pointer' }}
+                    style={{
+                      background: '#334155',
+                      color: '#cbd5e1',
+                      border: '1px solid #475569',
+                      borderRadius: '6px',
+                      padding: '6px 14px',
+                      cursor: 'pointer',
+                    }}
                   >
                     ❌ Recusar Todos
                   </button>
@@ -832,9 +1179,34 @@ const VerificarQuestoesApp: React.FC = () => {
                 const isRejected = item.status === 'rejected';
 
                 return (
-                  <div key={item.id} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '16px', opacity: isRejected ? 0.45 : 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center' }}>
-                      <span style={{ background: '#3b82f6', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>
+                  <div
+                    key={item.id}
+                    style={{
+                      background: '#0f172a',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      opacity: isRejected ? 0.45 : 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: '10px',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: '#3b82f6',
+                          color: '#fff',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                        }}
+                      >
                         {item.fieldPath}
                       </span>
                       <span style={{ fontSize: '0.85rem', color: '#fbbf24', fontStyle: 'italic' }}>
@@ -842,28 +1214,102 @@ const VerificarQuestoesApp: React.FC = () => {
                       </span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontFamily: 'monospace', fontSize: '0.88rem' }}>
-                      <div style={{ background: 'rgba(239, 68, 68, 0.12)', borderLeft: '4px solid #ef4444', padding: '10px', borderRadius: '4px', color: '#fca5a5' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ef4444', marginBottom: '4px' }}>- ORIGINAL NO BANCO:</div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '12px',
+                        fontFamily: 'monospace',
+                        fontSize: '0.88rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          borderLeft: '4px solid #ef4444',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          color: '#fca5a5',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: '#ef4444',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          - ORIGINAL NO BANCO:
+                        </div>
                         <div>{item.originalText}</div>
                       </div>
-                      <div style={{ background: 'rgba(34, 197, 94, 0.12)', borderLeft: '4px solid #22c55e', padding: '10px', borderRadius: '4px', color: '#86efac' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#22c55e', marginBottom: '4px' }}>+ CORREÇÃO SUGERIDA:</div>
+                      <div
+                        style={{
+                          background: 'rgba(34, 197, 94, 0.12)',
+                          borderLeft: '4px solid #22c55e',
+                          padding: '10px',
+                          borderRadius: '4px',
+                          color: '#86efac',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: '#22c55e',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          + CORREÇÃO SUGERIDA:
+                        </div>
                         <div>{item.suggestedText}</div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <div
+                      style={{
+                        marginTop: '12px',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        gap: '10px',
+                      }}
+                    >
                       {isAccepted ? (
-                        <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '0.85rem' }}>✓ Correção Aplicada ao Objeto</span>
+                        <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '0.85rem' }}>
+                          ✓ Correção Aplicada ao Objeto
+                        </span>
                       ) : isRejected ? (
-                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>✕ Sugestão Recusada</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                          ✕ Sugestão Recusada
+                        </span>
                       ) : (
                         <>
-                          <button onClick={() => handleRejectItem(item)} style={{ background: '#334155', color: '#cbd5e1', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer' }}>
+                          <button
+                            onClick={() => handleRejectItem(item)}
+                            style={{
+                              background: '#334155',
+                              color: '#cbd5e1',
+                              border: 'none',
+                              padding: '6px 14px',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                            }}
+                          >
                             ❌ Recusar
                           </button>
-                          <button onClick={() => handleAcceptItem(item)} style={{ background: '#15803d', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
+                          <button
+                            onClick={() => handleAcceptItem(item)}
+                            style={{
+                              background: '#15803d',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '6px 16px',
+                              borderRadius: '6px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
                             ✅ Aceitar Correção
                           </button>
                         </>
@@ -878,25 +1324,45 @@ const VerificarQuestoesApp: React.FC = () => {
 
         {/* GRAVAÇÃO FINAL NO FIREBASE & PINECONE */}
         {currentQ && (
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+          <div
+            style={{
+              background: '#1e293b',
+              border: '1px solid #334155',
+              borderRadius: '12px',
+              padding: '20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '40px',
+            }}
+          >
             <div style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>
-              {acceptedCount > 0 ? `✨ ${acceptedCount} alteração(ões) aceita(s) pronta(s) para gravação.` : 'Nenhuma alteração pendente.'}
+              {acceptedCount > 0
+                ? `✨ ${acceptedCount} alteração(ões) aceita(s) pronta(s) para gravação.`
+                : 'Nenhuma alteração pendente.'}
             </div>
 
             <button
               onClick={handleSaveToFirebase}
               disabled={isSaving}
               style={{
-                background: isSaving ? '#475569' : '#22c55e', color: '#fff', border: 'none',
-                borderRadius: '8px', padding: '12px 28px', fontSize: '1rem', fontWeight: 700,
-                cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)'
+                background: isSaving ? '#475569' : '#22c55e',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '12px 28px',
+                fontSize: '1rem',
+                fontWeight: 700,
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)',
               }}
             >
-              {isSaving ? '⏳ Salvando no Firebase & Pinecone...' : '💾 Salvar Correções no Banco de Dados'}
+              {isSaving
+                ? '⏳ Salvando no Firebase & Pinecone...'
+                : '💾 Salvar Correções no Banco de Dados'}
             </button>
           </div>
         )}
-
       </div>
     </div>
   );

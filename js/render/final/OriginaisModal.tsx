@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { createRoot } from 'react-dom/client';
 import { PdfEmbedRenderer } from '../../ui/PdfEmbedRenderer';
 
@@ -47,34 +47,39 @@ const ListaImagens: React.FC<{ lista: (string | any)[] }> = ({ lista }) => {
       {lista.map((item, index) => {
         // Se for string (legado) renderiza img
         if (typeof item === 'string') {
-           // Ignora se for a string "filled" sem dados, ou renderiza placeholder
-           if (item === 'filled') return <div key={index} style={{color:'gray'}}>Imagem sem dados de visualização</div>;
-           return <img key={index} src={item} className="img-content" alt={`Imagem ${index}`} />;
+          // Ignora se for a string "filled" sem dados, ou renderiza placeholder
+          if (item === 'filled')
+            return (
+              <div key={index} style={{ color: 'gray' }}>
+                Imagem sem dados de visualização
+              </div>
+            );
+          return <img key={index} src={item} className="img-content" alt={`Imagem ${index}`} />;
         }
-        
+
         // Se for objeto (novo sistema PDF), usa o PdfEmbedRenderer
         if (typeof item === 'object' && item !== null) {
-            console.log('[OriginaisModal] Renderizando Item:', item);
-            return (
-                    <PdfEmbedRenderer
-                        key={index}
-                        pdfUrl={item.pdf_url}
-                        pdf_page={item.pdf_page}
-                        pdf_zoom={item.pdf_zoom}
-                        pdf_left={item.pdf_left}
-                        pdf_top={item.pdf_top}
-                        pdf_width={item.pdf_width}
-                        pdf_height={item.pdf_height}
-                        pdfjs_source_w={item.pdfjs_source_w}
-                        pdfjs_source_h={item.pdfjs_source_h}
-                        pdfjs_x={item.pdfjs_x}
-                        pdfjs_y={item.pdfjs_y}
-                        pdfjs_crop_w={item.pdfjs_crop_w}
-                        pdfjs_crop_h={item.pdfjs_crop_h}
-                        scaleToFit={true} // Ajusta ao modal
-                        readOnly={true} // DEBUG: Allow finding local file
-                    />
-            );
+          console.log('[OriginaisModal] Renderizando Item:', item);
+          return (
+            <PdfEmbedRenderer
+              key={index}
+              pdfUrl={item.pdf_url}
+              pdf_page={item.pdf_page}
+              pdf_zoom={item.pdf_zoom}
+              pdf_left={item.pdf_left}
+              pdf_top={item.pdf_top}
+              pdf_width={item.pdf_width}
+              pdf_height={item.pdf_height}
+              pdfjs_source_w={item.pdfjs_source_w}
+              pdfjs_source_h={item.pdfjs_source_h}
+              pdfjs_x={item.pdfjs_x}
+              pdfjs_y={item.pdfjs_y}
+              pdfjs_crop_w={item.pdfjs_crop_w}
+              pdfjs_crop_h={item.pdfjs_crop_h}
+              scaleToFit={true} // Ajusta ao modal
+              readOnly={true} // DEBUG: Allow finding local file
+            />
+          );
         }
 
         return null;
@@ -84,7 +89,7 @@ const ListaImagens: React.FC<{ lista: (string | any)[] }> = ({ lista }) => {
 };
 
 // 3. Componente do Modal (Refatorado para 1 coluna só)
-const ModalOriginais: React.FC<{ onClose: () => void; imgsQ: (string|any)[] }> = ({
+const ModalOriginais: React.FC<{ onClose: () => void; imgsQ: (string | any)[] }> = ({
   onClose,
   imgsQ,
 }) => {
@@ -121,7 +126,7 @@ export function exibirModalOriginais(imgsOverride?: any[]): void {
 
   // Recupera dados: Usa override se existir, senão busca do backup
   let finalImgs: any[] = [];
-  
+
   if (imgsOverride && Array.isArray(imgsOverride) && imgsOverride.length > 0) {
     console.log('[OriginaisModal] Usando dados passados via argumento:', imgsOverride);
     finalImgs = imgsOverride;
@@ -140,7 +145,5 @@ export function exibirModalOriginais(imgsOverride?: any[]): void {
     overlay.remove();
   };
 
-  root.render(
-    <ModalOriginais onClose={handleClose} imgsQ={finalImgs} />
-  );
+  root.render(<ModalOriginais onClose={handleClose} imgsQ={finalImgs} />);
 }

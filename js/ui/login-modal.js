@@ -11,12 +11,12 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   updateProfile,
-} from "../firebase/init.js";
-import { customAlert } from "./GlobalAlertsLogic";
+} from '../firebase/init.js';
+import { customAlert } from './GlobalAlertsLogic';
 
 export function openLoginModal() {
   // Remove existing modal if any
-  const existing = document.getElementById("loginModal");
+  const existing = document.getElementById('loginModal');
   if (existing) existing.remove();
 
   const modalHtml = `
@@ -38,12 +38,12 @@ export function openLoginModal() {
     </div>
   `;
 
-  document.body.insertAdjacentHTML("beforeend", modalHtml);
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-  const overlay = document.getElementById("loginModal");
-  const closeBtn = document.getElementById("closeLoginModal");
-  const content = overlay.querySelector(".login-modal-content");
-  const rightPanel = document.getElementById("loginModalRight");
+  const overlay = document.getElementById('loginModal');
+  const closeBtn = document.getElementById('closeLoginModal');
+  const content = overlay.querySelector('.login-modal-content');
+  const rightPanel = document.getElementById('loginModalRight');
 
   // --- View Templates ---
 
@@ -163,31 +163,31 @@ export function openLoginModal() {
   // --- View Manager ---
 
   function switchView(viewName, data = null) {
-    rightPanel.style.opacity = "0";
+    rightPanel.style.opacity = '0';
     setTimeout(() => {
-      if (viewName === "LOGIN") {
+      if (viewName === 'LOGIN') {
         rightPanel.innerHTML = renderLoginView();
         attachLoginListeners();
-      } else if (viewName === "REGISTER") {
+      } else if (viewName === 'REGISTER') {
         rightPanel.innerHTML = renderRegisterView();
         attachRegisterListeners();
-      } else if (viewName === "FORGOT_PASSWORD") {
+      } else if (viewName === 'FORGOT_PASSWORD') {
         rightPanel.innerHTML = renderForgotPasswordView();
         attachForgotListeners();
-      } else if (viewName === "VERIFY_EMAIL") {
+      } else if (viewName === 'VERIFY_EMAIL') {
         rightPanel.innerHTML = renderVerificationView(data?.email);
         attachVerificationListeners();
       }
 
       // Fade in
-      rightPanel.style.opacity = "1";
+      rightPanel.style.opacity = '1';
     }, 200);
   }
 
   // --- Handlers & Listeners ---
 
   function closeModal() {
-    overlay.classList.add("closing");
+    overlay.classList.add('closing');
     setTimeout(() => {
       if (document.body.contains(overlay)) {
         overlay.remove();
@@ -207,8 +207,8 @@ export function openLoginModal() {
   // --- Google Handlers ---
 
   async function handleGoogleSignIn() {
-    const btn = document.getElementById("googleLoginBtn");
-    const originalContent = btn ? btn.innerHTML : "";
+    const btn = document.getElementById('googleLoginBtn');
+    const originalContent = btn ? btn.innerHTML : '';
 
     if (btn) {
       btn.innerHTML = "<span class='loader-spinner'></span>";
@@ -225,26 +225,24 @@ export function openLoginModal() {
     try {
       // Direct Sign In (No linking attempt)
       await loginWithGoogle();
-      console.log("Login com Google bem sucedido!");
+      console.log('Login com Google bem sucedido!');
       closeModal();
     } catch (error) {
-      console.error("Google Sign In Error:", error);
-      if (error.code === "auth/popup-blocked") {
-        customAlert(
-          "O popup de login foi bloqueado. Por favor, permita popups para este site.",
-        );
-      } else if (error.code === "auth/popup-closed-by-user") {
-        console.log("Popup fechado pelo usuário");
+      console.error('Google Sign In Error:', error);
+      if (error.code === 'auth/popup-blocked') {
+        customAlert('O popup de login foi bloqueado. Por favor, permita popups para este site.');
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        console.log('Popup fechado pelo usuário');
       } else {
-        customAlert("Erro ao entrar com Google: " + error.message);
+        customAlert('Erro ao entrar com Google: ' + error.message);
       }
       resetBtn();
     }
   }
 
   async function handleGoogleLink() {
-    const btn = document.getElementById("googleRegisterBtn");
-    const originalContent = btn ? btn.innerHTML : "";
+    const btn = document.getElementById('googleRegisterBtn');
+    const originalContent = btn ? btn.innerHTML : '';
 
     if (btn) {
       btn.innerHTML = "<span class='loader-spinner'></span>";
@@ -271,9 +269,7 @@ export function openLoginModal() {
       const result = await linkWithPopup(user, provider);
 
       // Update profile with Google data
-      const googleProfile = result.user.providerData.find(
-        (p) => p.providerId === "google.com",
-      );
+      const googleProfile = result.user.providerData.find((p) => p.providerId === 'google.com');
       if (googleProfile) {
         await updateProfile(result.user, {
           displayName: googleProfile.displayName,
@@ -282,59 +278,57 @@ export function openLoginModal() {
       }
 
       await user.reload();
-      window.dispatchEvent(new Event("auth-changed"));
+      window.dispatchEvent(new Event('auth-changed'));
 
-      console.log("Conta vinculada com Google com sucesso!");
+      console.log('Conta vinculada com Google com sucesso!');
       closeModal();
-      customAlert("Conta criada e vinculada com Google com sucesso!");
+      customAlert('Conta criada e vinculada com Google com sucesso!');
     } catch (error) {
-      console.error("Google Link Error:", error);
+      console.error('Google Link Error:', error);
 
-      if (error.code === "auth/credential-already-in-use") {
+      if (error.code === 'auth/credential-already-in-use') {
         // Fallback: Account exists, so just sign in normally
         try {
           await loginWithGoogle();
           closeModal();
           // customAlert("Esta conta já existia. Você foi conectado a ela.");
         } catch (signInError) {
-          console.error("Fallback Login Error:", signInError);
-          customAlert(
-            "Erro ao entrar na conta existente: " + signInError.message,
-          );
+          console.error('Fallback Login Error:', signInError);
+          customAlert('Erro ao entrar na conta existente: ' + signInError.message);
           resetBtn();
         }
-      } else if (error.code === "auth/popup-blocked") {
-        customAlert("O popup foi bloqueado. Permita popups.");
+      } else if (error.code === 'auth/popup-blocked') {
+        customAlert('O popup foi bloqueado. Permita popups.');
         resetBtn();
-      } else if (error.code === "auth/popup-closed-by-user") {
-        console.log("Cancelado pelo usuário");
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        console.log('Cancelado pelo usuário');
         resetBtn();
       } else {
-        customAlert("Erro ao criar conta com Google: " + error.message);
+        customAlert('Erro ao criar conta com Google: ' + error.message);
         resetBtn();
       }
     }
   }
 
   function attachLoginListeners() {
-    document.getElementById("goToRegister").onclick = (e) => {
+    document.getElementById('goToRegister').onclick = (e) => {
       e.preventDefault();
-      switchView("REGISTER");
+      switchView('REGISTER');
     };
-    document.getElementById("forgotPasswordLink").onclick = (e) => {
+    document.getElementById('forgotPasswordLink').onclick = (e) => {
       e.preventDefault();
-      switchView("FORGOT_PASSWORD");
+      switchView('FORGOT_PASSWORD');
     };
-    document.getElementById("googleLoginBtn").onclick = (e) => {
+    document.getElementById('googleLoginBtn').onclick = (e) => {
       e.preventDefault();
       handleGoogleSignIn();
     };
 
-    document.getElementById("loginForm").onsubmit = async (e) => {
+    document.getElementById('loginForm').onsubmit = async (e) => {
       e.preventDefault();
-      const email = document.getElementById("loginEmail").value;
-      const password = document.getElementById("loginPassword").value;
-      const btn = e.target.querySelector("button");
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const btn = e.target.querySelector('button');
 
       setBtnLoading(btn, true);
 
@@ -343,20 +337,16 @@ export function openLoginModal() {
         // We do NOT attempt to link anonymous users here anymore to prevent "Weak Password" errors
         // (which happen when mistakenly trying to link a new weak-password credential)
         // If the user wants to keep data, they should have used "Sign Up" or "Link Account" explicitly.
-        const userCredential = await signInWithEmailAndPassword(
-          auth,
-          email,
-          password,
-        );
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
         if (!user.emailVerified) {
-          switchView("VERIFY_EMAIL", { email: user.email });
+          switchView('VERIFY_EMAIL', { email: user.email });
         } else {
           closeModal();
         }
       } catch (error) {
-        console.error("Login Error:", error);
+        console.error('Login Error:', error);
         handleAuthError(error);
       } finally {
         setBtnLoading(btn, false);
@@ -365,21 +355,21 @@ export function openLoginModal() {
   }
 
   function attachRegisterListeners() {
-    document.getElementById("goToLogin").onclick = (e) => {
+    document.getElementById('goToLogin').onclick = (e) => {
       e.preventDefault();
-      switchView("LOGIN");
+      switchView('LOGIN');
     };
-    document.getElementById("googleRegisterBtn").onclick = (e) => {
+    document.getElementById('googleRegisterBtn').onclick = (e) => {
       e.preventDefault();
       handleGoogleLink();
     };
 
-    document.getElementById("registerForm").onsubmit = async (e) => {
+    document.getElementById('registerForm').onsubmit = async (e) => {
       e.preventDefault();
-      const name = document.getElementById("registerName").value;
-      const email = document.getElementById("registerEmail").value;
-      const password = document.getElementById("registerPassword").value;
-      const btn = e.target.querySelector("button");
+      const name = document.getElementById('registerName').value;
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      const btn = e.target.querySelector('button');
 
       setBtnLoading(btn, true);
 
@@ -391,14 +381,11 @@ export function openLoginModal() {
           // Link Anonymous to new Email Credential
           try {
             const credential = EmailAuthProvider.credential(email, password);
-            const userCredential = await linkWithCredential(
-              currentUser,
-              credential,
-            );
+            const userCredential = await linkWithCredential(currentUser, credential);
             user = userCredential.user;
-            console.log("Anonymous linked to new Email/Password!");
+            console.log('Anonymous linked to new Email/Password!');
           } catch (linkError) {
-            if (linkError.code === "auth/email-already-in-use") {
+            if (linkError.code === 'auth/email-already-in-use') {
               // Fallback: This email is taken. We cannot link. The user must sign in.
               throw linkError;
             }
@@ -407,11 +394,7 @@ export function openLoginModal() {
           }
         } else {
           // Standard Create
-          const userCredential = await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password,
-          );
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
           user = userCredential.user;
         }
 
@@ -422,9 +405,9 @@ export function openLoginModal() {
         await sendEmailVerification(user);
 
         // 4. Show Verification View
-        switchView("VERIFY_EMAIL", { email: user.email });
+        switchView('VERIFY_EMAIL', { email: user.email });
       } catch (error) {
-        console.error("Register Error:", error);
+        console.error('Register Error:', error);
         handleAuthError(error);
       } finally {
         setBtnLoading(btn, false);
@@ -433,26 +416,24 @@ export function openLoginModal() {
   }
 
   function attachForgotListeners() {
-    document.getElementById("backToLoginReset").onclick = (e) => {
+    document.getElementById('backToLoginReset').onclick = (e) => {
       e.preventDefault();
-      switchView("LOGIN");
+      switchView('LOGIN');
     };
 
-    document.getElementById("forgotPasswordForm").onsubmit = async (e) => {
+    document.getElementById('forgotPasswordForm').onsubmit = async (e) => {
       e.preventDefault();
-      const email = document.getElementById("forgotEmail").value;
-      const btn = e.target.querySelector("button");
+      const email = document.getElementById('forgotEmail').value;
+      const btn = e.target.querySelector('button');
 
       setBtnLoading(btn, true);
 
       try {
         await sendPasswordResetEmail(auth, email);
-        customAlert(
-          "Email de redefinição enviado! Verifique sua caixa de entrada.",
-        );
-        switchView("LOGIN");
+        customAlert('Email de redefinição enviado! Verifique sua caixa de entrada.');
+        switchView('LOGIN');
       } catch (error) {
-        console.error("Reset Password Error:", error);
+        console.error('Reset Password Error:', error);
         handleAuthError(error);
       } finally {
         setBtnLoading(btn, false);
@@ -461,31 +442,31 @@ export function openLoginModal() {
   }
 
   function attachVerificationListeners() {
-    document.getElementById("backToLoginVerify").onclick = async (e) => {
+    document.getElementById('backToLoginVerify').onclick = async (e) => {
       e.preventDefault();
       // Log out just in case
       await logoutUser();
-      switchView("LOGIN");
+      switchView('LOGIN');
     };
 
-    document.getElementById("resendVerificationBtn").onclick = async (e) => {
+    document.getElementById('resendVerificationBtn').onclick = async (e) => {
       e.preventDefault();
       try {
         if (auth.currentUser) {
           await sendEmailVerification(auth.currentUser);
-          customAlert("Email de verificação reenviado!");
+          customAlert('Email de verificação reenviado!');
         } else {
-          customAlert("Sessão expirada. Faça login novamente.");
-          switchView("LOGIN");
+          customAlert('Sessão expirada. Faça login novamente.');
+          switchView('LOGIN');
         }
       } catch (error) {
         handleAuthError(error);
       }
     };
 
-    document.getElementById("checkVerificationBtn").onclick = async (e) => {
+    document.getElementById('checkVerificationBtn').onclick = async (e) => {
       e.preventDefault();
-      const btn = e.target.closest("button"); // handle click on span
+      const btn = e.target.closest('button'); // handle click on span
       setBtnLoading(btn, true);
 
       try {
@@ -493,15 +474,13 @@ export function openLoginModal() {
           await auth.currentUser.reload(); // IMPORTANT: Refresh state from server
           if (auth.currentUser.emailVerified) {
             closeModal();
-            customAlert("Conta verificada com sucesso! Bem-vindo.");
+            customAlert('Conta verificada com sucesso! Bem-vindo.');
           } else {
-            customAlert(
-              "Ainda não verificado. Por favor, verifique seu email e tente novamente.",
-            );
+            customAlert('Ainda não verificado. Por favor, verifique seu email e tente novamente.');
           }
         } else {
-          customAlert("Sessão expirada. Faça login novamente.");
-          switchView("LOGIN");
+          customAlert('Sessão expirada. Faça login novamente.');
+          switchView('LOGIN');
         }
       } catch (error) {
         handleAuthError(error);
@@ -519,22 +498,20 @@ export function openLoginModal() {
       btn.innerHTML = "<span class='loader-spinner'></span>";
       btn.disabled = true;
     } else {
-      btn.innerHTML = btn.dataset.originalText || "Enviar";
+      btn.innerHTML = btn.dataset.originalText || 'Enviar';
       btn.disabled = false;
     }
   }
 
   function handleAuthError(error) {
     // Improve error messages map
-    let msg = "Ocorreu um erro. Tente novamente.";
-    if (error.code === "auth/email-already-in-use")
-      msg = "Este email já está cadastrado.";
-    if (error.code === "auth/invalid-email") msg = "Email inválido.";
-    if (error.code === "auth/weak-password")
-      msg = "A senha deve ter pelo menos 6 caracteres.";
-    if (error.code === "auth/wrong-password") msg = "Senha incorreta.";
-    if (error.code === "auth/user-not-found") msg = "Usuário não encontrado.";
-    if (error.code === "auth/invalid-credential") msg = "Senha incorreta!";
+    let msg = 'Ocorreu um erro. Tente novamente.';
+    if (error.code === 'auth/email-already-in-use') msg = 'Este email já está cadastrado.';
+    if (error.code === 'auth/invalid-email') msg = 'Email inválido.';
+    if (error.code === 'auth/weak-password') msg = 'A senha deve ter pelo menos 6 caracteres.';
+    if (error.code === 'auth/wrong-password') msg = 'Senha incorreta.';
+    if (error.code === 'auth/user-not-found') msg = 'Usuário não encontrado.';
+    if (error.code === 'auth/invalid-credential') msg = 'Senha incorreta!';
 
     customAlert(msg);
   }

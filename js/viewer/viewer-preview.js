@@ -1,4 +1,4 @@
-import { getProxyPdfUrl } from "../api/worker.js";
+import { getProxyPdfUrl } from '../api/worker.js';
 
 // NOTA: Importamos pdfjsLib do escopo global (assumindo que já foi carregado via CDN no index.html)
 // ou import dinamico se preferir. Para garantir isolamento, vamos configurar o worker aqui se precisar.
@@ -9,10 +9,11 @@ import { getProxyPdfUrl } from "../api/worker.js";
  */
 export async function gerarPreviewPDF(args) {
   const { rawTitle, fileProva } = args;
-  const displayTitle = (!rawTitle || rawTitle === 'Auto-Detect') ? (args.slug || 'Auto-Detect') : rawTitle;
+  const displayTitle =
+    !rawTitle || rawTitle === 'Auto-Detect' ? args.slug || 'Auto-Detect' : rawTitle;
 
   // 1. Limpa Viewer Antigo
-  const existing = document.getElementById("previewModalContainer");
+  const existing = document.getElementById('previewModalContainer');
   if (existing) existing.remove();
 
   // 2. Estrutura HTML do Modal
@@ -87,7 +88,7 @@ export async function gerarPreviewPDF(args) {
     </div>
     `;
 
-  document.body.insertAdjacentHTML("beforeend", modalHTML);
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
 
   // --- STATE MANAGER ISOLADO ---
   const state = {
@@ -102,14 +103,14 @@ export async function gerarPreviewPDF(args) {
 
   // --- ELEMENTS ---
   const els = {
-    container: document.getElementById("previewModalContainer"),
-    scroll: document.getElementById("pv_scrollContainer"),
-    canvas: document.getElementById("pv_canvas"),
-    spinner: document.getElementById("pv_loadingOverlay"),
-    label: document.getElementById("pv_pageLabel"),
-    modeToggle: document.getElementById("pv_modeToggle"),
-    btnProva: document.getElementById("pv_btnProva"),
-    btnGabarito: document.getElementById("pv_btnGabarito"),
+    container: document.getElementById('previewModalContainer'),
+    scroll: document.getElementById('pv_scrollContainer'),
+    canvas: document.getElementById('pv_canvas'),
+    spinner: document.getElementById('pv_loadingOverlay'),
+    label: document.getElementById('pv_pageLabel'),
+    modeToggle: document.getElementById('pv_modeToggle'),
+    btnProva: document.getElementById('pv_btnProva'),
+    btnGabarito: document.getElementById('pv_btnGabarito'),
   };
 
   // --- UTILS ---
@@ -124,8 +125,8 @@ export async function gerarPreviewPDF(args) {
                 <button id="pv_btnCloseError" style="margin-top:15px; padding:8px 16px; border-radius:6px; border:none; background:white; color:black; cursor:pointer;">Fechar</button>
             </div>
         `;
-    document.getElementById("pv_btnCloseError").onclick = () =>
-      document.getElementById("previewModalContainer").remove();
+    document.getElementById('pv_btnCloseError').onclick = () =>
+      document.getElementById('previewModalContainer').remove();
   };
 
   // Using centralized proxy helper
@@ -146,7 +147,7 @@ export async function gerarPreviewPDF(args) {
       els.canvas.width = viewport.width;
 
       const renderContext = {
-        canvasContext: els.canvas.getContext("2d"),
+        canvasContext: els.canvas.getContext('2d'),
         viewport: viewport,
       };
 
@@ -158,7 +159,7 @@ export async function gerarPreviewPDF(args) {
 
       // Update UI
       els.label.textContent = `${num} / ${state.pdfDoc.numPages}`;
-      els.spinner.style.display = "none"; // Hide spinner on success
+      els.spinner.style.display = 'none'; // Hide spinner on success
 
       if (state.pageNumPending !== null) {
         renderPage(state.pageNumPending);
@@ -166,7 +167,7 @@ export async function gerarPreviewPDF(args) {
       }
     } catch (err) {
       state.isRendering = false;
-      console.error("PV Render Error:", err);
+      console.error('PV Render Error:', err);
       // Non-fatal render error?
     }
   };
@@ -187,8 +188,8 @@ export async function gerarPreviewPDF(args) {
     let cleanUrlInput = url;
     try {
       let i = 0;
-      while (cleanUrlInput.includes("%") && i < 5) {
-        let d = decodeURIComponent(cleanUrlInput);
+      while (cleanUrlInput.includes('%') && i < 5) {
+        const d = decodeURIComponent(cleanUrlInput);
         if (d === cleanUrlInput) break;
         cleanUrlInput = d;
         i++;
@@ -196,10 +197,10 @@ export async function gerarPreviewPDF(args) {
     } catch (e) {}
 
     // Se já é um link de proxy, decodifica o parâmetro 'url' para evitar double-proxying
-    if (cleanUrlInput.includes("/proxy-pdf?url=")) {
+    if (cleanUrlInput.includes('/proxy-pdf?url=')) {
       try {
         const urlObj = new URL(cleanUrlInput);
-        const innerUrl = urlObj.searchParams.get("url");
+        const innerUrl = urlObj.searchParams.get('url');
         if (innerUrl) cleanUrlInput = innerUrl;
       } catch (e) {}
     }
@@ -214,19 +215,16 @@ export async function gerarPreviewPDF(args) {
     state.pageNumPending = null;
     state.currentUrl = cleanUrlInput;
 
-    els.spinner.style.display = "flex"; // Show spinner
+    els.spinner.style.display = 'flex'; // Show spinner
     els.spinner.innerHTML = `<img src="public/logo.png" class="spinner-logo" alt="Carregando..." onerror="this.src='./logo.png'">`;
 
     try {
       const finalUrl = getProxyUrl(cleanUrlInput);
-      console.log("PV Loading:", finalUrl);
+      console.log('PV Loading:', finalUrl);
 
-      if (
-        typeof pdfjsLib !== "undefined" &&
-        !pdfjsLib.GlobalWorkerOptions.workerSrc
-      ) {
+      if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
         pdfjsLib.GlobalWorkerOptions.workerSrc =
-          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       }
 
       const loadingTask = pdfjsLib.getDocument(finalUrl);
@@ -242,12 +240,12 @@ export async function gerarPreviewPDF(args) {
       updateUI();
       renderPage(state.pageNum);
     } catch (err) {
-      console.error("PV Load Error:", err);
-      let msg = "Arquivo não encontrado ou inacessível (Erro 404).";
+      console.error('PV Load Error:', err);
+      const msg = 'Arquivo não encontrado ou inacessível (Erro 404).';
 
       // Try Direct Load as absolute last resort (Safe fallback)
       try {
-        console.log("PV: Proxy failed, trying direct load...");
+        console.log('PV: Proxy failed, trying direct load...');
         const loadingTask = pdfjsLib.getDocument(cleanUrlInput);
         state.pdfDoc = await loadingTask.promise;
 
@@ -259,9 +257,17 @@ export async function gerarPreviewPDF(args) {
         updateUI();
         renderPage(state.pageNum);
       } catch (retryErr) {
-        console.error("PV Direct Retry Failed, trying Puter fallback...", retryErr);
+        console.error('PV Direct Retry Failed, trying Puter fallback...', retryErr);
         try {
-          if (cleanUrlInput.startsWith("http") && window.puter && window.puter.auth && typeof window.puter.auth.isSignedIn === "function" && window.puter.auth.isSignedIn() && window.puter.net && window.puter.net.fetch) {
+          if (
+            cleanUrlInput.startsWith('http') &&
+            window.puter &&
+            window.puter.auth &&
+            typeof window.puter.auth.isSignedIn === 'function' &&
+            window.puter.auth.isSignedIn() &&
+            window.puter.net &&
+            window.puter.net.fetch
+          ) {
             const res = await window.puter.net.fetch(cleanUrlInput);
             if (!res.ok) throw new Error(`Puter fetch status ${res.status}`);
             const arrayBuffer = await res.arrayBuffer();
@@ -279,7 +285,7 @@ export async function gerarPreviewPDF(args) {
             throw retryErr;
           }
         } catch (puterErr) {
-          console.error("PV Puter Fallback Failed:", puterErr);
+          console.error('PV Puter Fallback Failed:', puterErr);
           handleError(msg);
         }
       }
@@ -290,13 +296,13 @@ export async function gerarPreviewPDF(args) {
 
   // --- CONTROLS ---
 
-  document.getElementById("pv_btnNext").onclick = () => {
+  document.getElementById('pv_btnNext').onclick = () => {
     if (state.pageNum >= state.pdfDoc.numPages) return;
     state.pageNum++;
     queueRenderPage(state.pageNum);
   };
 
-  document.getElementById("pv_btnPrev").onclick = () => {
+  document.getElementById('pv_btnPrev').onclick = () => {
     if (state.pageNum <= 1) return;
     state.pageNum--;
     queueRenderPage(state.pageNum);
@@ -304,28 +310,27 @@ export async function gerarPreviewPDF(args) {
 
   // --- UI UPDATER ---
   const updateUI = () => {
-    if (els.label)
-      els.label.textContent = `${state.pageNum} / ${state.pdfDoc?.numPages || "?"}`;
-    const zoomStr = Math.round(state.scale * 100) + "%";
-    const zoomLabel = document.getElementById("pv_zoomLabel"); // Busca dinâmica
+    if (els.label) els.label.textContent = `${state.pageNum} / ${state.pdfDoc?.numPages || '?'}`;
+    const zoomStr = Math.round(state.scale * 100) + '%';
+    const zoomLabel = document.getElementById('pv_zoomLabel'); // Busca dinâmica
     if (zoomLabel) zoomLabel.textContent = zoomStr;
   };
 
-  document.getElementById("pv_btnZoomIn").onclick = () => {
+  document.getElementById('pv_btnZoomIn').onclick = () => {
     if (state.scale >= 3) return;
     state.scale += 0.2;
     updateUI(); // Immediate feedback
     queueRenderPage(state.pageNum);
   };
 
-  document.getElementById("pv_btnZoomOut").onclick = () => {
+  document.getElementById('pv_btnZoomOut').onclick = () => {
     if (state.scale <= 0.4) return;
     state.scale -= 0.2;
     updateUI(); // Immediate feedback
     queueRenderPage(state.pageNum);
   };
 
-  document.getElementById("pv_btnClose").onclick = () => {
+  document.getElementById('pv_btnClose').onclick = () => {
     // Cleanup State
     state.pdfDoc = null;
     state.pageNum = 1;

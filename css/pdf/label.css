@@ -1,7 +1,7 @@
 /* --- Ajuste do Input de Arquivo (Botão Falso) --- */
 /* Estiliza a label para parecer um botão secundário/outline */
-label[for='pdfFileInput'],
-label[for='gabaritoFileInput'] {
+label[for="pdfFileInput"],
+label[for="gabaritoFileInput"] {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -12,8 +12,8 @@ label[for='gabaritoFileInput'] {
   transition: all var(--duration-fast) var(--ease-standard);
 }
 
-label[for='pdfFileInput']:hover,
-label[for='gabaritoFileInput']:hover {
+label[for="pdfFileInput"]:hover,
+label[for="gabaritoFileInput"]:hover {
   background-color: rgba(var(--color-teal-500-rgb), 0.05);
   border-color: var(--color-primary-hover);
 }

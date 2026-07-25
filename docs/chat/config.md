@@ -114,13 +114,25 @@ scaffolding: {
 
 **Comportamento**: Ativa o [Scaffolding Service](/chat/scaffolding-service) que implementa tutoria baseada na Zona de Desenvolvimento Proximal (ZPD) de Vygotsky. O estudante é guiado por perguntas de verdadeiro/falso com dificuldade adaptativa.
 
+### Matriz de Provedores e Modelos Multi-Vendor (Dual Maia V2)
+
+O ecossistema suporta uma arquitetura **Multi-Vendor** que permite alternar programmaticamente ou manualmente entre múltiplos provedores e famílias de modelos:
+
+| Provedor | Modelo Padrão / Aliases | Propósito |
+|---|---|---|
+| **Google Gemini** | `models/gemini-3.5-flash`, `gemini-3.1-flash-lite`, `gemini-2.5-flash` | Padrão ultrarrápido para chat, OCR e estruturação JSON |
+| **Google Vertex AI** | `vertex/gemini-3.5-flash`, `vertex/gemini-3.1-flash-lite` | Fallback corporativo em nuvem GCP |
+| **Groq Acceleration** | `groq/gpt-oss-120b` | Processamento Mixture of Experts em altíssima velocidade |
+| **OpenAI / GitHub Models** | `github/gpt-5`, `github/gpt-4.1`, `github/o3-mini`, `github/o1` | Modelos de raciocínio lógico profundo e validação cruzada |
+
 ### `routerModel`
 
 ```javascript
-routerModel: "gemini-3-flash-preview",
+routerModel: "models/gemini-3.5-flash",
 ```
 
-Modelo usado exclusivamente pelo Router para classificar a complexidade da mensagem. Usa **JSON mode** para retornar classificação estruturada.
+Modelo usado por padrão pelo Router para classificar a complexidade da mensagem. Usa **JSON mode** para retornar classificação estruturada.
+
 
 ### `complexityToMode`
 

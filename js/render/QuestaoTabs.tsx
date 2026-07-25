@@ -1,26 +1,39 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { processarSalvamentoGabarito } from '../editor/gabarito-save.js';
-
-// Componente de revisão
-import { ReviewableTags, ReviewButtons } from './ReviewButtons';
-
+import type React from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 // Importações originais mantidas para garantir a mesma lógica de negócio e templates
-import { configurarEventosAlternativa, configurarEventosNovaAlternativa, gerarHtmlTemplateAlternativa } from '../editor/alternativas.js';
+import {
+  configurarEventosAlternativa,
+  configurarEventosNovaAlternativa,
+  gerarHtmlTemplateAlternativa,
+} from '../editor/alternativas.js';
+import { processarSalvamentoGabarito } from '../editor/gabarito-save.js';
 import { initBotaoAdicionarPasso, setupImageToggle } from '../editor/passos.js';
 import { processarSalvamentoQuestao } from '../editor/questao-save.js';
 import { initStepEditors } from '../editor/steps-ui.js';
-import { configurarDelecao, configurarDragAndDrop, criarHtmlBlocoEditor, iniciarEditorEstrutura } from '../editor/structure-editor.js';
+import {
+  configurarDelecao,
+  configurarDragAndDrop,
+  criarHtmlBlocoEditor,
+  iniciarEditorEstrutura,
+} from '../editor/structure-editor.js';
 import { renderLatexIn } from '../libs/loader';
 import { joinLines, safeMarkdown } from '../normalize/primitives.js';
+import { checkAnswerWithAI, checkAnswerWithEmbeddings } from '../services/answer-checker.js';
 // ... (imports)
 import { validarProgressoImagens } from '../validation/metricas-imagens.js';
 import { Alternativas } from './AlternativasRender';
 import { renderizarTelaFinal } from './final/json-e-modal.js';
 import { renderTags } from './final/render-components.js';
-import { AcoesGabaritoView, GabaritoCardView, GabaritoEditorView, prepararDadosGabarito } from './GabaritoCard.js';
+import {
+  AcoesGabaritoView,
+  GabaritoCardView,
+  GabaritoEditorView,
+  prepararDadosGabarito,
+} from './GabaritoCard.js';
 import { MobileInteractableHeader } from './MobileLayout';
+// Componente de revisão
+import { ReviewableTags, ReviewButtons } from './ReviewButtons';
 import { MainStructure } from './StructureRender';
-import { checkAnswerWithEmbeddings, checkAnswerWithAI } from '../services/answer-checker.js';
 
 // Interfaces básicas para Tipagem (adaptar conforme seus objetos reais)
 interface Bloco {
@@ -55,7 +68,16 @@ interface Props {
   aiThoughtsHtml?: string | null; // [NOVO] HTML pré-renderizado dos pensamentos
 }
 
-const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadOnly = false, isReviewMode = false, onReviewSubmit, onReviewChange, aiThoughtsHtml }) => {
+const QuestaoTabs: React.FC<Props> = ({
+  questao,
+  gabarito,
+  containerRef,
+  isReadOnly = false,
+  isReviewMode = false,
+  onReviewSubmit,
+  onReviewChange,
+  aiThoughtsHtml,
+}) => {
   // Estado para controlar as abas
   const [activeTab, setActiveTab] = useState<'questao' | 'gabarito'>('questao');
 
@@ -66,14 +88,16 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
   const [isGabaritoEditing, setIsGabaritoEditing] = useState(false);
 
   // Estado para revisões (modo review)
-  const [reviewState, setReviewState] = useState<Record<string, 'approved' | 'rejected' | null>>({});
-  
+  const [reviewState, setReviewState] = useState<Record<string, 'approved' | 'rejected' | null>>(
+    {},
+  );
+
   // Total de campos revisáveis (contados do DOM)
   const [totalReviewFields, setTotalReviewFields] = useState(0);
 
   // Referência para verificar se é a primeira renderização
   const isFirstRender = useRef(true);
-  
+
   // Referência para o container do componente
   const tabsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -84,12 +108,18 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
   const [isAIChecking, setIsAIChecking] = useState(false);
 
   // Estado para dissertativa (modo UI teste/dissertativa)
-  const isQuestaoDefaultDissertativa = questao.tipo_resposta === 'dissertativa' || (!questao.alternativas || questao.alternativas.length === 0);
-  const [tipoRespostaMenu, setTipoRespostaMenu] = useState<'objetiva' | 'dissertativa'>(isQuestaoDefaultDissertativa ? 'dissertativa' : 'objetiva');
-  
-  // Detecta se é dissertativa (depende se está no modo revisão/leitura ou edição)
-  const isDissertativa = isEditing ? tipoRespostaMenu === 'dissertativa' : isQuestaoDefaultDissertativa;
+  const isQuestaoDefaultDissertativa =
+    questao.tipo_resposta === 'dissertativa' ||
+    !questao.alternativas ||
+    questao.alternativas.length === 0;
+  const [tipoRespostaMenu, setTipoRespostaMenu] = useState<'objetiva' | 'dissertativa'>(
+    isQuestaoDefaultDissertativa ? 'dissertativa' : 'objetiva',
+  );
 
+  // Detecta se é dissertativa (depende se está no modo revisão/leitura ou edição)
+  const isDissertativa = isEditing
+    ? tipoRespostaMenu === 'dissertativa'
+    : isQuestaoDefaultDissertativa;
 
   // Handler: Check answer via embeddings (default)
   const handleCheckEmbeddings = async () => {
@@ -97,7 +127,8 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
     setIsCheckingAnswer(true);
     setAnswerResult(null);
     try {
-      const expectedAnswer = gabarito?.resposta_modelo || gabarito?.dados_gabarito?.resposta_modelo || '';
+      const expectedAnswer =
+        gabarito?.resposta_modelo || gabarito?.dados_gabarito?.resposta_modelo || '';
       const result = await checkAnswerWithEmbeddings(
         userAnswer,
         expectedAnswer,
@@ -130,26 +161,34 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
 
   // Handlers para revisão
   const handleApprove = (fieldId: string) => {
-    setReviewState(prev => ({ ...prev, [fieldId]: prev[fieldId] === 'approved' ? null : 'approved' }));
+    setReviewState((prev) => ({
+      ...prev,
+      [fieldId]: prev[fieldId] === 'approved' ? null : 'approved',
+    }));
   };
 
   const handleReject = (fieldId: string) => {
-    setReviewState(prev => ({ ...prev, [fieldId]: prev[fieldId] === 'rejected' ? null : 'rejected' }));
+    setReviewState((prev) => ({
+      ...prev,
+      [fieldId]: prev[fieldId] === 'rejected' ? null : 'rejected',
+    }));
   };
-  
+
   // Efeito para contar o total de campos revisáveis no DOM
   useEffect(() => {
     if (!isReviewMode) return;
-    
+
     // Esperar o DOM renderizar completamente
     const countReviewFields = () => {
       const container = tabsContainerRef.current;
       if (container) {
-        const reviewGroups = container.querySelectorAll('.review-btn-group, .review-btn-group-vertical');
+        const reviewGroups = container.querySelectorAll(
+          '.review-btn-group, .review-btn-group-vertical',
+        );
         setTotalReviewFields(reviewGroups.length);
       }
     };
-    
+
     // Pequeno delay para garantir que o DOM está completo
     const timer = setTimeout(countReviewFields, 100);
     return () => clearTimeout(timer);
@@ -159,7 +198,7 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
   useEffect(() => {
     if (onReviewChange) {
       // Verifica se há alguma chave com valor !== null
-      const hasChanges = Object.values(reviewState).some(v => v !== null);
+      const hasChanges = Object.values(reviewState).some((v) => v !== null);
       onReviewChange(hasChanges);
     }
   }, [reviewState, onReviewChange]);
@@ -203,7 +242,7 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
         });
       };
 
-      // Roda imediatamente 
+      // Roda imediatamente
       resizeAll();
 
       // E roda a cada 500ms para pegar novos elementos adicionados dinamicamente (fallback simples)
@@ -224,12 +263,11 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
         setupImageToggle(
           'editGabaritoPossuiImagem',
           'containerGaleriaGabarito',
-          (window as any).__ultimoGabaritoExtraido
+          (window as any).__ultimoGabaritoExtraido,
         );
       }, 0);
     }
   }, [activeTab, gabarito, containerRef, isGabaritoEditing]);
-
 
   // --- HELPERS (Lógica Original) ---
 
@@ -285,7 +323,7 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
     // Valida imagens antes de confirmar
     const ok = await validarProgressoImagens('questao');
     if (!ok) return;
-    
+
     // Questão confirmada - agora o usuário pode editar ou finalizar
     setActiveTab('gabarito');
   };
@@ -319,28 +357,50 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
 
   return (
     <div className="questao-tabs-react-root" ref={tabsContainerRef}>
-
       {/* HEADER MOBILE (Drag Handle) - Só aparece via CSS no mobile */}
       {/* Em modo review, o container pai já possui seu próprio header móvel */}
       {!isReviewMode && <MobileInteractableHeader />}
 
       {/* [NOVO] Raciocínio da IA (Se disponível e não estiver em modo Review) */}
       {aiThoughtsHtml && !isReviewMode && (
-        <details className="ai-thoughts-reveal" style={{ marginBottom: '15px', border: '1px solid var(--color-border)', borderRadius: '6px', backgroundColor: 'var(--color-surface)' }}>
-          <summary style={{ padding: '10px', cursor: 'pointer', fontWeight: '500', color: 'var(--color-text-secondary)', userSelect: 'none' }}>
+        <details
+          className="ai-thoughts-reveal"
+          style={{
+            marginBottom: '15px',
+            border: '1px solid var(--color-border)',
+            borderRadius: '6px',
+            backgroundColor: 'var(--color-surface)',
+          }}
+        >
+          <summary
+            style={{
+              padding: '10px',
+              cursor: 'pointer',
+              fontWeight: '500',
+              color: 'var(--color-text-secondary)',
+              userSelect: 'none',
+            }}
+          >
             🧠 Mostrar Raciocínio da IA
           </summary>
-          <div 
+          <div
             className="ai-thoughts-content-injected maia-thoughts"
             style={{ padding: '0 15px 15px 15px', maxHeight: '400px', overflowY: 'auto' }}
-            dangerouslySetInnerHTML={{ __html: aiThoughtsHtml }} 
+            dangerouslySetInnerHTML={{ __html: aiThoughtsHtml }}
           />
         </details>
       )}
 
       {/* TABS HEADER */}
       {/* ... (Header mantido igual, não precisa alterar aqui, apenas no final) ... */}
-      <div className="tabs-header" style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', marginBottom: '15px' }}>
+      <div
+        className="tabs-header"
+        style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--color-border)',
+          marginBottom: '15px',
+        }}
+      >
         <button
           className={`tab-btn ${activeTab === 'questao' ? 'active' : ''}`}
           style={{
@@ -350,8 +410,9 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             border: 'none',
             cursor: 'pointer',
             fontWeight: activeTab === 'questao' ? '600' : '400',
-            borderBottom: activeTab === 'questao' ? '2px solid var(--color-primary)' : 'transparent',
-            color: activeTab === 'questao' ? 'var(--color-primary)' : 'var(--color-text)'
+            borderBottom:
+              activeTab === 'questao' ? '2px solid var(--color-primary)' : 'transparent',
+            color: activeTab === 'questao' ? 'var(--color-primary)' : 'var(--color-text)',
           }}
           onClick={() => setActiveTab('questao')}
         >
@@ -366,9 +427,10 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             border: 'none',
             cursor: 'pointer',
             fontWeight: activeTab === 'gabarito' ? '600' : '400',
-            borderBottom: activeTab === 'gabarito' ? '2px solid var(--color-primary)' : 'transparent',
+            borderBottom:
+              activeTab === 'gabarito' ? '2px solid var(--color-primary)' : 'transparent',
             color: activeTab === 'gabarito' ? 'var(--color-primary)' : 'var(--color-text)',
-            opacity: (dadosGabarito || activeTab === 'gabarito') ? 1 : 0.6
+            opacity: dadosGabarito || activeTab === 'gabarito' ? 1 : 0.6,
           }}
           onClick={async () => {
             if (activeTab === 'gabarito') return;
@@ -386,7 +448,16 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
           {/* ... (Header Conteúdo Questão) ... */}
           <h3>Questão Extraída</h3>
           {questao.isRecitation ? (
-            <span className="badge-warning" style={{ backgroundColor: '#ff9800', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+            <span
+              className="badge-warning"
+              style={{
+                backgroundColor: '#ff9800',
+                color: '#fff',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+              }}
+            >
               Recitation / Manual
             </span>
           ) : (
@@ -408,7 +479,9 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                   onReject={handleReject}
                 />
               </div>
-              <div className={`data-box ${reviewState['identificacao'] === 'approved' ? 'field-approved' : reviewState['identificacao'] === 'rejected' ? 'field-rejected' : ''}`}>
+              <div
+                className={`data-box ${reviewState['identificacao'] === 'approved' ? 'field-approved' : reviewState['identificacao'] === 'rejected' ? 'field-rejected' : ''}`}
+              >
                 {questao.identificacao}
               </div>
             </div>
@@ -470,7 +543,12 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             ) : (
               <div className="field-group" style={{ flex: 1 }}>
                 <span className="field-label">Matéria</span>
-                <div className="data-box" dangerouslySetInnerHTML={{ __html: renderTags(questao.materias_possiveis, 'tag-subject') }} />
+                <div
+                  className="data-box"
+                  dangerouslySetInnerHTML={{
+                    __html: renderTags(questao.materias_possiveis, 'tag-subject'),
+                  }}
+                />
               </div>
             )}
           </div>
@@ -493,7 +571,12 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
           ) : (
             <div className="field-group">
               <span className="field-label">Palavras-Chave</span>
-              <div className="tags-wrapper" dangerouslySetInnerHTML={{ __html: renderTags(questao.palavras_chave, 'tag-keyword') }} />
+              <div
+                className="tags-wrapper"
+                dangerouslySetInnerHTML={{
+                  __html: renderTags(questao.palavras_chave, 'tag-keyword'),
+                }}
+              />
             </div>
           )}
 
@@ -501,49 +584,76 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
           {isDissertativa ? (
             /* === DISSERTATIVA MODE === */
             <div className="field-group dissertativa-section">
-              <span className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                className="field-label"
+                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
                 ✍️ Questão Dissertativa
-                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--color-primary)', color: '#fff', fontWeight: 500 }}>Dissertativa</span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontWeight: 500,
+                  }}
+                >
+                  Dissertativa
+                </span>
               </span>
-              
-              <div style={{
-                marginTop: '10px',
-                padding: '16px',
-                borderRadius: '10px',
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg-2)',
-              }}>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                  Esta é uma questão dissertativa estruturada. A forma de avaliação e a <strong>resposta modelo esperada</strong> encontram-se disponíveis e detalhadas na aba de <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Gabarito</span>.
+
+              <div
+                style={{
+                  marginTop: '10px',
+                  padding: '16px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg-2)',
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '13px',
+                    color: 'var(--color-text-secondary)',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  Esta é uma questão dissertativa estruturada. A forma de avaliação e a{' '}
+                  <strong>resposta modelo esperada</strong> encontram-se disponíveis e detalhadas na
+                  aba de{' '}
+                  <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>Gabarito</span>.
                 </p>
               </div>
             </div>
+          ) : /* === OBJETIVA MODE (original) === */
+          isReviewMode ? (
+            <div className="field-group">
+              <span className="field-label">
+                Alternativas ({questao.alternativas?.length || 0})
+              </span>
+              <div className="alts-list">
+                <Alternativas
+                  alts={questao.alternativas}
+                  isReviewMode={true}
+                  reviewState={reviewState}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                />
+              </div>
+            </div>
           ) : (
-            /* === OBJETIVA MODE (original) === */
-            isReviewMode ? (
-              <div className="field-group">
-                <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
-                <div className="alts-list">
-                  <Alternativas 
-                    alts={questao.alternativas} 
-                    isReviewMode={true}
-                    reviewState={reviewState}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                  />
-                </div>
+            <div className="field-group">
+              <span className="field-label">
+                Alternativas ({questao.alternativas?.length || 0})
+              </span>
+              <div className="alts-list">
+                <Alternativas alts={questao.alternativas} />
               </div>
-            ) : (
-              <div className="field-group">
-                <span className="field-label">Alternativas ({questao.alternativas?.length || 0})</span>
-                <div className="alts-list">
-                  <Alternativas alts={questao.alternativas} />
-                </div>
-              </div>
-            )
+            </div>
           )}
         </div>
-
 
         {/* MODO EDIÇÃO */}
         {isEditing && (
@@ -551,8 +661,21 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             <div className="field-group">
               <span className="field-label">Identificação</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <input id="edit_identificacao" className="form-control" type="text" defaultValue={questao.identificacao} style={{ flex: 1 }} />
-                <button type="button" className="btn btn--sm btn--outline" onClick={() => window.iniciar_ocr_campo?.('edit_identificacao')} title="Usar OCR">🔍</button>
+                <input
+                  id="edit_identificacao"
+                  className="form-control"
+                  type="text"
+                  defaultValue={questao.identificacao}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  className="btn btn--sm btn--outline"
+                  onClick={() => window.iniciar_ocr_campo?.('edit_identificacao')}
+                  title="Usar OCR"
+                >
+                  🔍
+                </button>
               </div>
             </div>
 
@@ -561,15 +684,44 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
               <div id="edit_estrutura_container">
                 {/* Wrapper do Editor de Estrutura */}
                 <div className="structure-editor-wrapper">
-                  <div id="editor-drag-container" className="structure-editor-container" dangerouslySetInnerHTML={{ __html: blocosHtml }} />
+                  <div
+                    id="editor-drag-container"
+                    className="structure-editor-container"
+                    dangerouslySetInnerHTML={{ __html: blocosHtml }}
+                  />
 
-                  <div id="editor-add-buttons" className="structure-toolbar structure-toolbar--addmenu">
-                    <button type="button" id="btnToggleAddMenu" className="btn btn--primary btn--full-width btn-add-main">
+                  <div
+                    id="editor-add-buttons"
+                    className="structure-toolbar structure-toolbar--addmenu"
+                  >
+                    <button
+                      type="button"
+                      id="btnToggleAddMenu"
+                      className="btn btn--primary btn--full-width btn-add-main"
+                    >
                       + Adicionar bloco
                     </button>
                     <div id="editorAddMenu" className="add-menu hidden">
-                      {['texto', 'titulo', 'subtitulo', 'citacao', 'lista', 'tabela', 'equacao', 'codigo', 'destaque', 'separador', 'fonte', 'imagem'].map(type => (
-                        <button key={type} type="button" className="btn-add-block" data-add-type={type}>
+                      {[
+                        'texto',
+                        'titulo',
+                        'subtitulo',
+                        'citacao',
+                        'lista',
+                        'tabela',
+                        'equacao',
+                        'codigo',
+                        'destaque',
+                        'separador',
+                        'fonte',
+                        'imagem',
+                      ].map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          className="btn-add-block"
+                          data-add-type={type}
+                        >
                           {type.charAt(0).toUpperCase() + type.slice(1)}
                         </button>
                       ))}
@@ -577,7 +729,9 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                   </div>
                 </div>
               </div>
-              <small style={{ color: 'gray', fontSize: '10px' }}>* Para alterar imagens, clique no botão "Trocar Imagem" na visualização acima.</small>
+              <small style={{ color: 'gray', fontSize: '10px' }}>
+                * Para alterar imagens, clique no botão "Trocar Imagem" na visualização acima.
+              </small>
             </div>
 
             <div className="field-group">
@@ -588,8 +742,16 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                 rows={2}
                 defaultValue={joinLines(questao.materias_possiveis)}
                 style={{ overflow: 'hidden', resize: 'none' }}
-                onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; }}
-                ref={(ref) => { if (ref) { ref.style.height = 'auto'; ref.style.height = ref.scrollHeight + 'px'; } }}
+                onInput={(e) => {
+                  e.currentTarget.style.height = 'auto';
+                  e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                }}
+                ref={(ref) => {
+                  if (ref) {
+                    ref.style.height = 'auto';
+                    ref.style.height = ref.scrollHeight + 'px';
+                  }
+                }}
               />
             </div>
 
@@ -601,8 +763,16 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                 rows={2}
                 defaultValue={joinLines(questao.palavras_chave)}
                 style={{ overflow: 'hidden', resize: 'none' }}
-                onInput={(e) => { e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px'; }}
-                ref={(ref) => { if (ref) { ref.style.height = 'auto'; ref.style.height = ref.scrollHeight + 'px'; } }}
+                onInput={(e) => {
+                  e.currentTarget.style.height = 'auto';
+                  e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
+                }}
+                ref={(ref) => {
+                  if (ref) {
+                    ref.style.height = 'auto';
+                    ref.style.height = ref.scrollHeight + 'px';
+                  }
+                }}
               />
             </div>
 
@@ -617,19 +787,22 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                   id="btn_toggle_objetiva"
                   className={`btn ${tipoRespostaMenu === 'objetiva' ? 'btn--primary' : 'btn--outline'}`}
                   onClick={(e) => {
-                     const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
-                     if (input) input.value = 'objetiva';
-                     e.currentTarget.className = "btn btn--primary";
-                     e.currentTarget.style.fontWeight = "bold";
-                     const btnDiss = document.getElementById('btn_toggle_dissertativa');
-                     if (btnDiss) {
-                       btnDiss.className = "btn btn--outline";
-                       btnDiss.style.fontWeight = "normal";
-                     }
-                     const altsContainer = document.getElementById('edit_alts_container');
-                     if (altsContainer) altsContainer.style.display = 'block';
+                    const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
+                    if (input) input.value = 'objetiva';
+                    e.currentTarget.className = 'btn btn--primary';
+                    e.currentTarget.style.fontWeight = 'bold';
+                    const btnDiss = document.getElementById('btn_toggle_dissertativa');
+                    if (btnDiss) {
+                      btnDiss.className = 'btn btn--outline';
+                      btnDiss.style.fontWeight = 'normal';
+                    }
+                    const altsContainer = document.getElementById('edit_alts_container');
+                    if (altsContainer) altsContainer.style.display = 'block';
                   }}
-                  style={{ flex: 1, fontWeight: tipoRespostaMenu === 'objetiva' ? 'bold' : 'normal' }}
+                  style={{
+                    flex: 1,
+                    fontWeight: tipoRespostaMenu === 'objetiva' ? 'bold' : 'normal',
+                  }}
                 >
                   📝 Questão Teste (Objetiva)
                 </button>
@@ -638,19 +811,22 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
                   id="btn_toggle_dissertativa"
                   className={`btn ${tipoRespostaMenu === 'dissertativa' ? 'btn--primary' : 'btn--outline'}`}
                   onClick={(e) => {
-                     const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
-                     if (input) input.value = 'dissertativa';
-                     e.currentTarget.className = "btn btn--primary";
-                     e.currentTarget.style.fontWeight = "bold";
-                     const btnObj = document.getElementById('btn_toggle_objetiva');
-                     if (btnObj) {
-                       btnObj.className = "btn btn--outline";
-                       btnObj.style.fontWeight = "normal";
-                     }
-                     const altsContainer = document.getElementById('edit_alts_container');
-                     if (altsContainer) altsContainer.style.display = 'none';
+                    const input = document.getElementById('edit_tipo_resposta') as HTMLInputElement;
+                    if (input) input.value = 'dissertativa';
+                    e.currentTarget.className = 'btn btn--primary';
+                    e.currentTarget.style.fontWeight = 'bold';
+                    const btnObj = document.getElementById('btn_toggle_objetiva');
+                    if (btnObj) {
+                      btnObj.className = 'btn btn--outline';
+                      btnObj.style.fontWeight = 'normal';
+                    }
+                    const altsContainer = document.getElementById('edit_alts_container');
+                    if (altsContainer) altsContainer.style.display = 'none';
                   }}
-                  style={{ flex: 1, fontWeight: tipoRespostaMenu === 'dissertativa' ? 'bold' : 'normal' }}
+                  style={{
+                    flex: 1,
+                    fontWeight: tipoRespostaMenu === 'dissertativa' ? 'bold' : 'normal',
+                  }}
                 >
                   ✍️ Questão Dissertativa
                 </button>
@@ -658,61 +834,200 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             </div>
 
             {/* Alternativas (Sempre geradas no DOM, visibility controlada) */}
-            <div className="field-group" id="edit_alts_container" style={{ display: tipoRespostaMenu === 'objetiva' ? 'block' : 'none' }}>
+            <div
+              className="field-group"
+              id="edit_alts_container"
+              style={{ display: tipoRespostaMenu === 'objetiva' ? 'block' : 'none' }}
+            >
               <span className="field-label">Alternativas da Questão (Testes)</span>
               <div id="edit_alts" className="alts-list">
-                  {(questao.alternativas || []).map((alt, i) => {
-                    const estruturaAlt = Array.isArray(alt.estrutura) ? alt.estrutura : [{ tipo: 'texto', conteudo: String(alt.texto ?? '') }];
-                    const blocosAltHtml = estruturaAlt.map((b) => criarHtmlBlocoEditor(b.tipo, b.conteudo)).join('');
-  
-                    return (
-                      <div key={i} className="alt-row alt-edit-row" data-alt-index={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                          <input className="form-control alt-letter" style={{ width: '60px', textAlign: 'center' }} defaultValue={alt.letra} placeholder="Letra" />
-                          <button type="button" className="btn btn--sm btn--outline btn-remove-alt" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)', minWidth: '30px' }} title="Remover alternativa">✕</button>
-                        </div>
-                        <div className="alt-editor">
-                          <div className="structure-editor-wrapper">
-                            <div className="structure-editor-container alt-drag-container" dangerouslySetInnerHTML={{ __html: blocosAltHtml }}></div>
-                            
-                            {/* MENU DROPDOWN (Nova UI) */}
-                            <div className="structure-toolbar alt-add-buttons" style={{ marginTop: '6px', position: 'relative' }}>
-                               <button type="button" className="btn btn--sm btn--secondary btn-alt-toggle-menu" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '5px', alignItems: 'center' }}>
-                                   <span>+</span> <span>Adicionar Conteúdo</span>
-                               </button>
-                               <div className="alt-add-menu hidden" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', padding: '8px', zIndex: 999, flexDirection: 'column', gap: '4px', marginTop: '5px', display: 'none' }}>
-                                   {['texto', 'equacao', 'imagem'].map(t => (
-                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                           {t === 'texto' ? '📄 Texto' : t === 'equacao' ? '∑ Equação' : '📷 Imagem'}
-                                       </button>
-                                   ))}
-                                   <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
-                                   {['lista', 'tabela', 'codigo', 'citacao', 'destaque'].map(t => (
-                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                           {t === 'lista' ? '≡ Lista' : t === 'tabela' ? '▦ Tabela' : t === 'codigo' ? '{ } Código' : t === 'citacao' ? '“ Citação' : '★ Destaque'}
-                                       </button>
-                                   ))}
-                                   <div style={{ height: '1px', background: 'var(--color-border)', margin: '4px 0' }}></div>
-                                    {['titulo', 'subtitulo', 'separador', 'fonte'].map(t => (
-                                       <button key={t} type="button" className="btn btn--sm btn--text btn-alt-add" style={{ justifyContent: 'flex-start', textAlign: 'left', width: '100%' }} data-add-type={t}>
-                                           {t === 'titulo' ? 'H1 Título' : t === 'subtitulo' ? 'H2 Subtítulo' : t === 'separador' ? '__ Separador' : '© Fonte'}
-                                       </button>
-                                   ))}
-                               </div>
+                {(questao.alternativas || []).map((alt, i) => {
+                  const estruturaAlt = Array.isArray(alt.estrutura)
+                    ? alt.estrutura
+                    : [{ tipo: 'texto', conteudo: String(alt.texto ?? '') }];
+                  const blocosAltHtml = estruturaAlt
+                    .map((b) => criarHtmlBlocoEditor(b.tipo, b.conteudo))
+                    .join('');
+
+                  return (
+                    <div
+                      key={i}
+                      className="alt-row alt-edit-row"
+                      data-alt-index={i}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        marginBottom: '10px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                        <input
+                          className="form-control alt-letter"
+                          style={{ width: '60px', textAlign: 'center' }}
+                          defaultValue={alt.letra}
+                          placeholder="Letra"
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--outline btn-remove-alt"
+                          style={{
+                            color: 'var(--color-error)',
+                            borderColor: 'var(--color-error)',
+                            minWidth: '30px',
+                          }}
+                          title="Remover alternativa"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="alt-editor">
+                        <div className="structure-editor-wrapper">
+                          <div
+                            className="structure-editor-container alt-drag-container"
+                            dangerouslySetInnerHTML={{ __html: blocosAltHtml }}
+                          ></div>
+
+                          {/* MENU DROPDOWN (Nova UI) */}
+                          <div
+                            className="structure-toolbar alt-add-buttons"
+                            style={{ marginTop: '6px', position: 'relative' }}
+                          >
+                            <button
+                              type="button"
+                              className="btn btn--sm btn--secondary btn-alt-toggle-menu"
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                gap: '5px',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <span>+</span> <span>Adicionar Conteúdo</span>
+                            </button>
+                            <div
+                              className="alt-add-menu hidden"
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                background: 'var(--color-surface)',
+                                border: '1px solid var(--color-border)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                borderRadius: '6px',
+                                padding: '8px',
+                                zIndex: 999,
+                                flexDirection: 'column',
+                                gap: '4px',
+                                marginTop: '5px',
+                                display: 'none',
+                              }}
+                            >
+                              {['texto', 'equacao', 'imagem'].map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  className="btn btn--sm btn--text btn-alt-add"
+                                  style={{
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                  }}
+                                  data-add-type={t}
+                                >
+                                  {t === 'texto'
+                                    ? '📄 Texto'
+                                    : t === 'equacao'
+                                      ? '∑ Equação'
+                                      : '📷 Imagem'}
+                                </button>
+                              ))}
+                              <div
+                                style={{
+                                  height: '1px',
+                                  background: 'var(--color-border)',
+                                  margin: '4px 0',
+                                }}
+                              ></div>
+                              {['lista', 'tabela', 'codigo', 'citacao', 'destaque'].map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  className="btn btn--sm btn--text btn-alt-add"
+                                  style={{
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                  }}
+                                  data-add-type={t}
+                                >
+                                  {t === 'lista'
+                                    ? '≡ Lista'
+                                    : t === 'tabela'
+                                      ? '▦ Tabela'
+                                      : t === 'codigo'
+                                        ? '{ } Código'
+                                        : t === 'citacao'
+                                          ? '“ Citação'
+                                          : '★ Destaque'}
+                                </button>
+                              ))}
+                              <div
+                                style={{
+                                  height: '1px',
+                                  background: 'var(--color-border)',
+                                  margin: '4px 0',
+                                }}
+                              ></div>
+                              {['titulo', 'subtitulo', 'separador', 'fonte'].map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  className="btn btn--sm btn--text btn-alt-add"
+                                  style={{
+                                    justifyContent: 'flex-start',
+                                    textAlign: 'left',
+                                    width: '100%',
+                                  }}
+                                  data-add-type={t}
+                                >
+                                  {t === 'titulo'
+                                    ? 'H1 Título'
+                                    : t === 'subtitulo'
+                                      ? 'H2 Subtítulo'
+                                      : t === 'separador'
+                                        ? '__ Separador'
+                                        : '© Fonte'}
+                                </button>
+                              ))}
                             </div>
-                            
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-                <button type="button" className="btn btn--secondary btn--full-width" id="btnAddAlt" style={{ marginTop: '5px' }} onClick={handleAdicionarAlternativa}>
-                  + Adicionar Alternativa Teste
-                </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="btn btn--secondary btn--full-width"
+                id="btnAddAlt"
+                style={{ marginTop: '5px' }}
+                onClick={handleAdicionarAlternativa}
+              >
+                + Adicionar Alternativa Teste
+              </button>
             </div>
 
-            <button type="button" className="btn btn--primary btn--full-width" id="btnSalvarEdicao" style={{ marginTop: '15px' }} onClick={handleSalvarEdicao}>
+            <button
+              type="button"
+              className="btn btn--primary btn--full-width"
+              id="btnSalvarEdicao"
+              style={{ marginTop: '15px' }}
+              onClick={handleSalvarEdicao}
+            >
               💾 Salvar Alterações
             </button>
           </form>
@@ -722,12 +1037,22 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
         {!isReviewMode && (
           <div className="result-actions" id="actionsLeitura" style={{ marginTop: '15px' }}>
             {!isEditing ? (
-              <button type="button" className="btn btn--secondary btn--full-width" id="btnEditar" onClick={() => setIsEditing(true)}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--full-width"
+                id="btnEditar"
+                onClick={() => setIsEditing(true)}
+              >
                 {questao.isRecitation ? '✏️ Transcrever Manualmente' : '✏️ Editar Conteúdo'}
               </button>
             ) : (
               <div id="questaoEditActions">
-                <button type="button" className="btn btn--secondary btn--full-width" id="btnCancelarEdicao" onClick={() => setIsEditing(false)}>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--full-width"
+                  id="btnCancelarEdicao"
+                  onClick={() => setIsEditing(false)}
+                >
                   Cancelar
                 </button>
               </div>
@@ -784,7 +1109,10 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
             )}
           </>
         ) : (
-          <div className="empty-state" style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+          <div
+            className="empty-state"
+            style={{ padding: '20px', textAlign: 'center', color: '#666' }}
+          >
             <p>Nenhum gabarito extraído ainda.</p>
             <small>Use a ferramenta de recorte para capturar o gabarito ou aguarde a IA.</small>
           </div>
@@ -792,68 +1120,84 @@ const QuestaoTabs: React.FC<Props> = ({ questao, gabarito, containerRef, isReadO
       </div>
 
       {/* Botão Enviar Revisão (só aparece no modo review) */}
-      {isReviewMode && (() => {
-        // Contar aprovados e rejeitados baseado no estado
-        const totalMarcados = Object.values(reviewState).filter(v => v !== null).length;
-        const totalAprovados = Object.values(reviewState).filter(v => v === 'approved').length;
-        const totalRejeitados = Object.values(reviewState).filter(v => v === 'rejected').length;
-        
-        // Usar o total contado do DOM
-        const totalCampos = totalReviewFields;
-        const totalPendentes = totalCampos - totalMarcados;
-        
-        // Botão só habilitado se TODOS os campos foram marcados
-        const todosPreenchidos = totalCampos > 0 && totalMarcados >= totalCampos;
-        
-        return (
-          <div style={{ padding: '15px 0' }}>
-            <div className="review-progress">
-              <span className="review-progress-item review-progress-item--approved">
-                ✓ {totalAprovados} aprovados
-              </span>
-              <span className="review-progress-item review-progress-item--rejected">
-                ✗ {totalRejeitados} rejeitados
-              </span>
-              <span className="review-progress-item review-progress-item--pending">
-                ○ {totalCampos === 0 ? '—' : totalPendentes > 0 ? totalPendentes : 0} pendentes
-              </span>
-              <span className="review-progress-item" style={{ marginLeft: 'auto', color: 'var(--color-text-secondary)', fontSize: '11px' }}>
-                Total: {totalMarcados}/{totalCampos}
-              </span>
-            </div>
-            
-            {!todosPreenchidos && totalCampos > 0 && (
-              <div className="review-warning" style={{ 
-                margin: '8px 0', 
-                padding: '8px 12px', 
-                background: 'rgba(251, 146, 60, 0.1)', 
-                border: '1px solid rgba(251, 146, 60, 0.3)', 
-                borderRadius: '6px',
-                fontSize: '12px',
-                color: '#fb923c'
-              }}>
-                ⚠️ Marque todos os {totalPendentes > 0 ? totalPendentes : 0} campos pendentes antes de enviar
-              </div>
-            )}
-            
-            <button
-              type="button"
-              className={`btn-enviar-revisao ${!todosPreenchidos ? 'btn-enviar-revisao--disabled' : ''}`}
-              onClick={() => {
-                const finalReview = Object.fromEntries(
-                  Object.entries(reviewState).filter(([_, v]) => v !== null)
-                ) as Record<string, 'approved' | 'rejected'>;
-                onReviewSubmit?.(finalReview);
-              }}
-              disabled={!todosPreenchidos}
-              title={!todosPreenchidos ? `Faltam ${totalPendentes > 0 ? totalPendentes : 0} campos para revisar` : 'Enviar revisão completa'}
-            >
-              📤 Enviar Revisão {todosPreenchidos ? '✓' : `(${totalPendentes > 0 ? totalPendentes : 0} pendentes)`}
-            </button>
-          </div>
-        );
-      })()}
+      {isReviewMode &&
+        (() => {
+          // Contar aprovados e rejeitados baseado no estado
+          const totalMarcados = Object.values(reviewState).filter((v) => v !== null).length;
+          const totalAprovados = Object.values(reviewState).filter((v) => v === 'approved').length;
+          const totalRejeitados = Object.values(reviewState).filter((v) => v === 'rejected').length;
 
+          // Usar o total contado do DOM
+          const totalCampos = totalReviewFields;
+          const totalPendentes = totalCampos - totalMarcados;
+
+          // Botão só habilitado se TODOS os campos foram marcados
+          const todosPreenchidos = totalCampos > 0 && totalMarcados >= totalCampos;
+
+          return (
+            <div style={{ padding: '15px 0' }}>
+              <div className="review-progress">
+                <span className="review-progress-item review-progress-item--approved">
+                  ✓ {totalAprovados} aprovados
+                </span>
+                <span className="review-progress-item review-progress-item--rejected">
+                  ✗ {totalRejeitados} rejeitados
+                </span>
+                <span className="review-progress-item review-progress-item--pending">
+                  ○ {totalCampos === 0 ? '—' : totalPendentes > 0 ? totalPendentes : 0} pendentes
+                </span>
+                <span
+                  className="review-progress-item"
+                  style={{
+                    marginLeft: 'auto',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '11px',
+                  }}
+                >
+                  Total: {totalMarcados}/{totalCampos}
+                </span>
+              </div>
+
+              {!todosPreenchidos && totalCampos > 0 && (
+                <div
+                  className="review-warning"
+                  style={{
+                    margin: '8px 0',
+                    padding: '8px 12px',
+                    background: 'rgba(251, 146, 60, 0.1)',
+                    border: '1px solid rgba(251, 146, 60, 0.3)',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    color: '#fb923c',
+                  }}
+                >
+                  ⚠️ Marque todos os {totalPendentes > 0 ? totalPendentes : 0} campos pendentes antes
+                  de enviar
+                </div>
+              )}
+
+              <button
+                type="button"
+                className={`btn-enviar-revisao ${!todosPreenchidos ? 'btn-enviar-revisao--disabled' : ''}`}
+                onClick={() => {
+                  const finalReview = Object.fromEntries(
+                    Object.entries(reviewState).filter(([_, v]) => v !== null),
+                  ) as Record<string, 'approved' | 'rejected'>;
+                  onReviewSubmit?.(finalReview);
+                }}
+                disabled={!todosPreenchidos}
+                title={
+                  !todosPreenchidos
+                    ? `Faltam ${totalPendentes > 0 ? totalPendentes : 0} campos para revisar`
+                    : 'Enviar revisão completa'
+                }
+              >
+                📤 Enviar Revisão{' '}
+                {todosPreenchidos ? '✓' : `(${totalPendentes > 0 ? totalPendentes : 0} pendentes)`}
+              </button>
+            </div>
+          );
+        })()}
     </div>
   );
 };

@@ -65,14 +65,7 @@ export const _normListaAlternativas = (arr) => {
     // Usa o 'pick' global que definimos antes
     const letra = pick(a?.letra, a?.option, a?.alternativa, a?.key, '?');
     const correta = !!pick(a?.correta, a?.isCorrect, a?.certa, false);
-    const motivo = pick(
-      a?.motivo,
-      a?.explain,
-      a?.explicacao,
-      a?.justificativa,
-      a?.reason,
-      ''
-    );
+    const motivo = pick(a?.motivo, a?.explain, a?.explicacao, a?.justificativa, a?.reason, '');
 
     return {
       letra: String(letra ?? '?'),
