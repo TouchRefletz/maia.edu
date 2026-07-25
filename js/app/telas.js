@@ -6918,6 +6918,48 @@ export async function verificarAdminEShowSidebar(user) {
     return;
   }
 
+  // Botões acessíveis a todos os usuários autenticados: Apêndice A e Apêndice B
+  // (renderizados FORA do try/catch do admin para garantir que apareçam mesmo se a
+  // checagem de admin falhar por permissão negada no Firebase)
+  const sidebarItems = document.querySelector('.nav-sidebar-items');
+  if (sidebarItems) {
+    const divider = sidebarItems.querySelector('.nav-divider');
+
+    if (!document.querySelector('.js-iniciar-apendice-a')) {
+      const btnApendiceA = document.createElement('button');
+      btnApendiceA.className = 'nav-sidebar-item nav-item--apendice-a js-iniciar-apendice-a';
+      btnApendiceA.innerHTML = `
+        <span class="nav-icon">🧪</span>
+        <span class="nav-label">
+          <span class="nav-title">Apêndice A</span>
+          <span class="nav-desc">Crossover de Modelos</span>
+        </span>
+      `;
+      if (divider) {
+        sidebarItems.insertBefore(btnApendiceA, divider);
+      } else {
+        sidebarItems.appendChild(btnApendiceA);
+      }
+    }
+
+    if (!document.querySelector('.js-iniciar-apendice-b')) {
+      const btnApendiceB = document.createElement('button');
+      btnApendiceB.className = 'nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b';
+      btnApendiceB.innerHTML = `
+        <span class="nav-icon">🔬</span>
+        <span class="nav-label">
+          <span class="nav-title">Apêndice B</span>
+          <span class="nav-desc">Triagem do Gemma 4</span>
+        </span>
+      `;
+      if (divider) {
+        sidebarItems.insertBefore(btnApendiceB, divider);
+      } else {
+        sidebarItems.appendChild(btnApendiceB);
+      }
+    }
+  }
+
   try {
     const { ref, get } = await import(
       'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
@@ -6928,44 +6970,8 @@ export async function verificarAdminEShowSidebar(user) {
 
     window.isAdmin = isAdmin;
 
-    const sidebarItems = document.querySelector('.nav-sidebar-items');
     if (sidebarItems) {
       const divider = sidebarItems.querySelector('.nav-divider');
-
-      // Botões acessíveis a todos os usuários autenticados: Apêndice A e Apêndice B
-      if (!document.querySelector('.js-iniciar-apendice-a')) {
-        const btnApendiceA = document.createElement('button');
-        btnApendiceA.className = 'nav-sidebar-item nav-item--apendice-a js-iniciar-apendice-a';
-        btnApendiceA.innerHTML = `
-          <span class="nav-icon">🧪</span>
-          <span class="nav-label">
-            <span class="nav-title">Apêndice A</span>
-            <span class="nav-desc">Crossover de Modelos</span>
-          </span>
-        `;
-        if (divider) {
-          sidebarItems.insertBefore(btnApendiceA, divider);
-        } else {
-          sidebarItems.appendChild(btnApendiceA);
-        }
-      }
-
-      if (!document.querySelector('.js-iniciar-apendice-b')) {
-        const btnApendiceB = document.createElement('button');
-        btnApendiceB.className = 'nav-sidebar-item nav-item--apendice-b js-iniciar-apendice-b';
-        btnApendiceB.innerHTML = `
-          <span class="nav-icon">🔬</span>
-          <span class="nav-label">
-            <span class="nav-title">Apêndice B</span>
-            <span class="nav-desc">Triagem do Gemma 4</span>
-          </span>
-        `;
-        if (divider) {
-          sidebarItems.insertBefore(btnApendiceB, divider);
-        } else {
-          sidebarItems.appendChild(btnApendiceB);
-        }
-      }
 
       if (isAdmin) {
         if (!document.querySelector('.js-iniciar-admin')) {
