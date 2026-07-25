@@ -12,11 +12,6 @@ import { customAlert } from './GlobalAlertsLogic.tsx';
  */
 export async function iniciarModoApendiceB() {
   const user = auth.currentUser;
-  if (!user) {
-    customAlert('⚠️ Faça login primeiro.');
-    gerarTelaInicial();
-    return;
-  }
 
   // Feedback de carregamento
   document.body.innerHTML = `
@@ -26,7 +21,7 @@ export async function iniciarModoApendiceB() {
     </div>
   `;
 
-  const isAdmin = await verificarSeAdmin(user.uid);
+  const isAdmin = user ? await verificarSeAdmin(user.uid) : false;
 
   // Renderiza layout principal com barra de abas integradas (estilo Maia.edu)
   document.body.innerHTML = `

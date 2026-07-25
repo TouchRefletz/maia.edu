@@ -41,21 +41,16 @@ let questoesExperimentoCache = null;
  */
 export async function iniciarModoApendiceA() {
   const user = auth.currentUser;
-  if (!user) {
-    customAlert('⚠️ Faça login primeiro.');
-    gerarTelaInicial();
-    return;
-  }
 
   // Feedback de carregamento
   document.body.innerHTML = `
     <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background:var(--color-bg); color:var(--color-text); font-family: system-ui, sans-serif;">
       <div class="admin-spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
-      <p style="margin-top:15px; font-weight:500;">Verificando permissões de administrador...</p>
+      <p style="margin-top:15px; font-weight:500;">Carregando Apêndice A...</p>
     </div>
   `;
 
-  const isAdmin = await verificarSeAdmin(user.uid);
+  const isAdmin = user ? await verificarSeAdmin(user.uid) : false;
 
   // Reset state
   state.selectedQuestion = null;

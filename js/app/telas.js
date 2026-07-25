@@ -6902,25 +6902,7 @@ function renderFileAttachment(file) {
  * Verifica se o usuário atual é admin e exibe o botão do painel administrativo no sidebar
  */
 export async function verificarAdminEShowSidebar(user) {
-  if (!user || user.isAnonymous) {
-    window.isAdmin = false;
-    document.querySelector('.js-iniciar-admin')?.remove();
-    document.querySelector('.js-iniciar-apendice-a')?.remove();
-    document.querySelector('.js-iniciar-apendice-b')?.remove();
-
-    const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
-    if (apendiceAPromptBtn) {
-      apendiceAPromptBtn.style.display = 'none';
-    }
-    if (typeof window.syncBlockExtractionVisibility === 'function') {
-      window.syncBlockExtractionVisibility();
-    }
-    return;
-  }
-
-  // Botões acessíveis a todos os usuários autenticados: Apêndice A e Apêndice B
-  // (renderizados FORA do try/catch do admin para garantir que apareçam mesmo se a
-  // checagem de admin falhar por permissão negada no Firebase)
+  // Botões acessíveis a TODOS os usuários (mesmo visitantes sem login): Apêndice A e Apêndice B
   const sidebarItems = document.querySelector('.nav-sidebar-items');
   if (sidebarItems) {
     const divider = sidebarItems.querySelector('.nav-divider');
@@ -6958,6 +6940,21 @@ export async function verificarAdminEShowSidebar(user) {
         sidebarItems.appendChild(btnApendiceB);
       }
     }
+  }
+
+  if (!user || user.isAnonymous) {
+    window.isAdmin = false;
+    document.querySelector('.js-iniciar-admin')?.remove();
+    document.querySelector('.js-iniciar-verificar-questoes')?.remove();
+
+    const apendiceAPromptBtn = document.getElementById('chatApendiceAPromptBtn');
+    if (apendiceAPromptBtn) {
+      apendiceAPromptBtn.style.display = 'none';
+    }
+    if (typeof window.syncBlockExtractionVisibility === 'function') {
+      window.syncBlockExtractionVisibility();
+    }
+    return;
   }
 
   try {
