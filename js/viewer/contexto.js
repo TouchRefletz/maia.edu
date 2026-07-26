@@ -1,4 +1,5 @@
 import { getProxyPdfUrl } from '../api/worker.js';
+import { customAlert } from '../ui/GlobalAlertsLogic';
 
 /**
  * Prepara o ambiente: configura worker, limpa tela anterior,
@@ -82,6 +83,13 @@ export async function inicializarContextoViewer(args) {
     } catch (e) {
       console.warn('[Contexto] Não foi possível obter link original do manifesto:', e.message);
     }
+  }
+
+  // Trava de obrigatoriedade de hf_url para Livros Didáticos
+  const isLivro = args.isLivroDidatico || args.materialType === 'livro';
+  if (isLivro && !window.__pdfOriginalUrl && !window.__pdfDownloadUrl) {
+    customAlert('❌ Erro: Este Livro Didático não possui hf_url sincronizado com o Hugging Face. A extração foi bloqueada.', 5000);
+    throw new Error('Livro Didático não possui hf_url sincronizado no Hugging Face.');
   }
 
   // Helper simples para lidar com File/Blob vs String URL

@@ -160,6 +160,7 @@ export const viewerState = {
   isRendering: false, // Prevines renderizaÃ§Ãµes simultÃ¢neas
   scrollPos: { top: 0, left: 0 },
 };
+window.viewerState = viewerState;
 window.__viewerArgs = null; // guarda os arquivos e title
 window.__pdfUrls = { prova: null };
 

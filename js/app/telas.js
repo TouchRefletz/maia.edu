@@ -169,7 +169,7 @@ function renderInitialUI() {
         <button class="nav-sidebar-item nav-item--search js-iniciar-busca">
           <span class="nav-icon">🔍</span>
           <span class="nav-label">
-            <span class="nav-title">Pesquisar Questões</span>
+            <span class="nav-title">Pesquisar Materiais</span>
             <span class="nav-desc">Busque e extraia da web</span>
           </span>
         </button>
@@ -177,8 +177,8 @@ function renderInitialUI() {
         <button class="nav-sidebar-item nav-item--upload js-iniciar-upload">
           <span class="nav-icon">✨</span>
           <span class="nav-label">
-            <span class="nav-title">Extrair Exercícios</span>
-            <span class="nav-desc">Através de IA em arquivos PDF</span>
+            <span class="nav-title">Extrair Materiais</span>
+            <span class="nav-desc">Extração de exercícios e livros didáticos através de IA</span>
           </span>
         </button>
         
@@ -337,6 +337,17 @@ function renderInitialUI() {
                                 <div class="model-item-content">
                                     <span class="model-item-title">Pesquisa (Beta)</span>
                                     <span class="model-item-desc">Ativa busca profunda para fundamentar resposta</span>
+                                </div>
+                            </button>
+
+                            <!-- Item 4b: Livros Didáticos (Beta) -->
+                            <button class="model-menu-item" id="chatTextbookToggleBtn" style="justify-content: flex-start; gap: 12px;">
+                                <div style="min-width: 24px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    📚
+                                </div>
+                                <div class="model-item-content">
+                                    <span class="model-item-title">Livros Didáticos (Beta)</span>
+                                    <span class="model-item-desc">Força a resposta a se basear em livros didáticos</span>
                                 </div>
                             </button>
                             
@@ -513,6 +524,13 @@ function renderInitialUI() {
                         <span class="metodologia-chip-icon">🔍</span>
                         <span class="metodologia-chip-label">Pesquisa Ativa</span>
                         <button class="metodologia-chip-close" id="researchChipClose" title="Desativar pesquisa">&times;</button>
+                    </div>
+
+                    <!-- Chip de Livros Didáticos Ativo -->
+                    <div class="metodologia-chip textbook-chip" id="textbookChip" style="display: none;">
+                        <span class="metodologia-chip-icon">📚</span>
+                        <span class="metodologia-chip-label">Livros Didáticos</span>
+                        <button class="metodologia-chip-close" id="textbookChipClose" title="Desativar livros didáticos">&times;</button>
                     </div>
 
                     <!-- Chip de Modelo Ativo -->
@@ -875,9 +893,18 @@ function renderInitialUI() {
         subtitleArquitetura.textContent = savedArch === 'vygotsky' ? 'Vygotsky (V1)' : 'Bloom (V2)';
       }
 
-      // Exibe Metodologia e Pesquisa
+      // Exibe Metodologia, Pesquisa e Livros Didáticos (Livros Didáticos SOMENTE na Arquitetura 2 - Bloom)
+      const chatTextbookToggleBtn = document.getElementById('chatTextbookToggleBtn');
       if (metodologiaTrigger) metodologiaTrigger.style.display = 'flex';
       if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = 'flex';
+      if (chatTextbookToggleBtn) {
+        chatTextbookToggleBtn.style.display = savedArch === 'bloom' ? 'flex' : 'none';
+      }
+      if (savedArch !== 'bloom') {
+        window.textbookEnabled = false;
+        const textbookChip = document.getElementById('textbookChip');
+        if (textbookChip) textbookChip.style.display = 'none';
+      }
     } else {
       if (toggleSlider) toggleSlider.style.backgroundColor = 'var(--color-border)';
       if (toggleKnob) toggleKnob.style.left = '2px';
@@ -898,9 +925,15 @@ function renderInitialUI() {
       if (subtitleArquitetura) subtitleArquitetura.textContent = 'Desativada';
       if (subtitleModo) subtitleModo.textContent = 'Desativado';
 
-      // Oculta Metodologia e Pesquisa
+      // Oculta Metodologia, Pesquisa e Livros Didáticos
+      const chatTextbookToggleBtn = document.getElementById('chatTextbookToggleBtn');
       if (metodologiaTrigger) metodologiaTrigger.style.display = 'none';
       if (chatSearchToggleBtn) chatSearchToggleBtn.style.display = 'none';
+      if (chatTextbookToggleBtn) chatTextbookToggleBtn.style.display = 'none';
+
+      window.textbookEnabled = false;
+      const textbookChip = document.getElementById('textbookChip');
+      if (textbookChip) textbookChip.style.display = 'none';
     }
 
     if (typeof window.syncBlockExtractionVisibility === 'function') {
@@ -957,6 +990,17 @@ function renderInitialUI() {
         if (checkBloom) checkBloom.style.display = 'none';
         setTimeout(() => cardVygotsky.classList.remove('just-selected'), 350);
       }
+    }
+
+    // Exibe Livros Didáticos (Beta) APENAS na Arquitetura 2 (Bloom)
+    const chatTextbookToggleBtn = document.getElementById('chatTextbookToggleBtn');
+    if (chatTextbookToggleBtn && window.useMaiaArchitecture !== false) {
+      chatTextbookToggleBtn.style.display = norm === 'bloom' ? 'flex' : 'none';
+    }
+    if (norm !== 'bloom') {
+      window.textbookEnabled = false;
+      const textbookChip = document.getElementById('textbookChip');
+      if (textbookChip) textbookChip.style.display = 'none';
     }
   }
 
@@ -1223,6 +1267,39 @@ function renderInitialUI() {
       window.researchEnabled = false;
       if (researchChip) researchChip.style.display = 'none';
       console.log('Pesquisa desativada');
+    });
+  }
+
+  // === SISTEMA DE LIVROS DIDÁTICOS (TEXTBOOK) ===
+  window.textbookEnabled = false;
+  const textbookToggleBtn = document.getElementById('chatTextbookToggleBtn');
+  const textbookChip = document.getElementById('textbookChip');
+  const textbookChipClose = document.getElementById('textbookChipClose');
+
+  if (textbookToggleBtn) {
+    textbookToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.textbookEnabled = !window.textbookEnabled;
+
+      if (textbookChip) {
+        textbookChip.style.display = window.textbookEnabled ? 'flex' : 'none';
+        if (window.textbookEnabled) {
+          textbookChip.classList.add('chip-enter');
+          setTimeout(() => textbookChip.classList.remove('chip-enter'), 300);
+        }
+      }
+
+      console.log('Livros Didáticos ativado:', window.textbookEnabled);
+      closeAllMenus();
+    });
+  }
+
+  if (textbookChipClose) {
+    textbookChipClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.textbookEnabled = false;
+      if (textbookChip) textbookChip.style.display = 'none';
+      console.log('Livros Didáticos desativado');
     });
   }
 
@@ -2852,6 +2929,7 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
       signal: options.signal, // Pass AbortSignal passed from Send Button
       selectedMetodologia: window.selectedMetodologia || 'automatico', // Metodologia ativa
       selectedSpecificModel: window.selectedSpecificModel || 'models/gemini-3.5-flash', // Modelo selecionado pelo usuário
+      isTextbookEnabled: !!window.textbookEnabled, // Livros Didáticos (Beta)
 
       // Callbacks de Persistência
       onChatCreated: (chat) => {
@@ -2898,13 +2976,50 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
           } else if (data.includes('Realizando pesquisa')) {
             window._currentChatPhase = 'research';
             getOrCreatePhaseContainer(messagesContainer, 'research', 'Pesquisando na web...');
+          } else if (data.includes('Consultando acervo') || data.includes('livros didáticos')) {
+            window._currentChatPhase = 'theory';
+            getOrCreatePhaseContainer(messagesContainer, 'theory', 'Consultando acervo de livros didáticos...');
           }
           return;
         }
 
         if (type === 'system_msg') return;
 
-        if (type === 'memory_found') {
+        if (type === 'theory_found') {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            'theory',
+            'Consultando acervo de livros didáticos...',
+          );
+          const { title, bookId, pageNum, resumo } = data;
+          const pageInfo = pageNum ? ` (Página ${pageNum})` : '';
+          const bodyHtml = `
+            <div style="margin-bottom:8px; font-size:13px; color:var(--color-text);">
+              <strong>📖 Material Didático:</strong> ${bookId || 'Livro didático'}${pageInfo}
+            </div>
+            ${resumo ? `<div style="font-size:12.5px; opacity:0.85; font-style:italic; background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">${resumo}</div>` : ''}
+          `;
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            title || `Teoria didática recuperada: ${bookId || 'Livro'}${pageInfo}`,
+            bodyHtml,
+          );
+          window._currentChatPhase = 'generation';
+        } else if (type === 'theory_done') {
+          const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
+            messagesContainer,
+            'theory',
+            'Consultando acervo de livros didáticos...',
+          );
+          concludePhaseContainer(
+            container,
+            thoughtListEl,
+            data?.title || 'Acervo de livros didáticos consultado',
+            null,
+          );
+          window._currentChatPhase = 'generation';
+        } else if (type === 'memory_found') {
           const { container, inner, thoughtListEl } = getOrCreatePhaseContainer(
             messagesContainer,
             'memory',
@@ -2989,8 +3104,19 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
                 ${sources
                   .slice(0, 8)
                   .map((s) => {
-                    const domain = s.uri ? new URL(s.uri).hostname.replace('www.', '') : 'Fonte';
-                    return `<span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(var(--color-surface-rgb), 0.8); color:var(--color-primary); border-radius:8px; border:1px solid var(--color-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${s.title}">${domain}</span>`;
+                    const domain =
+                      s.type === 'book' || s.isBook
+                        ? `📚 ${s.bookId || 'Livro Didático'}`
+                        : s.uri
+                          ? (() => {
+                              try {
+                                return new URL(s.uri).hostname.replace('www.', '');
+                              } catch (_) {
+                                return 'Fonte';
+                              }
+                            })()
+                          : 'Fonte';
+                    return `<span style="font-size:11px; font-weight:600; padding:4px 10px; background:rgba(var(--color-surface-rgb), 0.8); color:var(--color-primary); border-radius:8px; border:1px solid var(--color-border); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" title="${s.title}">${domain}</span>`;
                   })
                   .join('')}
                 ${sources.length > 8 ? `<span style="font-size:11px; opacity:0.6; padding-top:6px; font-weight:600; color:var(--color-text-secondary);">+${sources.length - 8} fontes</span>` : ''}
@@ -3630,6 +3756,7 @@ const STEP_ICONS = {
   vision: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>`,
   bloom_step1: `<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
   bloom_step2: `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`,
+  theory: `<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
 };
 
 const STEP_CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -6489,8 +6616,40 @@ async function showSourcesModal(btn) {
 
   const sourcesHtml = sources
     .map((src, idx) => {
-      const urlObj = src.uri ? new URL(src.uri) : { hostname: 'Fonte externa' };
-      const hostname = urlObj.hostname;
+      if (src.type === 'book' || src.isBook) {
+        const bookTitle = src.title || `Livro: ${src.bookId || 'Material Didático'}`;
+        const snippet = src.snippet || src.description || 'Conteúdo teórico recuperado do acervo de livros didáticos.';
+        const pageInfo = src.pageNum ? ` • Página ${src.pageNum}` : '';
+        const pdfUrl = src.uri || '#';
+        const hasPdf = Boolean(src.uri && src.uri !== '#');
+
+        return `
+        <div class="source-card-premium source-card-book" id="source-item-${idx}" ${hasPdf ? `onclick="window.open('${pdfUrl}', '_blank')"` : ''} style="border-left: 4px solid var(--color-primary, #6366f1); cursor: ${hasPdf ? 'pointer' : 'default'};">
+          <div class="source-card-thumb" style="display:flex; align-items:center; justify-content:center; background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.12); color: var(--color-primary, #6366f1); font-size: 32px;">
+            📚
+          </div>
+          <div class="source-card-body">
+            <div class="source-card-title" style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 6px; background:rgba(var(--color-primary-rgb, 99, 102, 241), 0.15); color:var(--color-primary, #6366f1); border-radius:4px;">Livro Didático</span>
+              <span>${bookTitle}</span>
+            </div>
+            <div class="source-card-description">${snippet.substring(0, 250)}</div>
+            <div class="source-card-link-wrapper">
+               <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:13px;">📖</span>
+                  <span class="source-card-hostname">${src.bookId || 'Acervo Didático'}${pageInfo}</span>
+               </div>
+               ${hasPdf ? `<span class="source-card-arrow">Abrir Material PDF →</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      }
+
+      let hostname = 'Fonte externa';
+      try {
+        if (src.uri) hostname = new URL(src.uri).hostname;
+      } catch (e) {}
       const faviconUrl = src.uri ? `https://icons.duckduckgo.com/ip3/${hostname}.ico` : null;
       // Open Graph thumbnail via microlink.io (free, no key needed)
       const ogThumb = src.uri

@@ -265,6 +265,14 @@ export const ScannerUI = {
     SidebarPageManager.updateAgentStatus(pageNum, agentType, text);
   },
 
+  updateGlobalProgress(current, total, text) {
+    this.ensureGlobalHeader();
+    const titleSpan = document.getElementById('ai-header-title');
+    if (titleSpan) {
+      titleSpan.innerText = text || `Extração... (${current}/${total})`;
+    }
+  },
+
   addThought(title, text) {
     if (!this.activePage) return;
     let type = 'analysis';
@@ -520,6 +528,41 @@ export const ScannerUI = {
         if (btnPause) btnPause.style.display = 'inline-flex';
         if (btnResume) btnResume.style.display = 'none';
       }
+    }
+  },
+
+  finishTextbookScanUI(slug, totalPages, wasStopped = false) {
+    this.stopUiObserver();
+    this.toggleGlow(false);
+    document.body.classList.remove('ai-scanning-active');
+
+    const mainHeader = document.getElementById('ai-scanner-global-header');
+    if (mainHeader) {
+      const mainTitle = document.getElementById('ai-header-title');
+      if (mainTitle) {
+        mainTitle.innerText = wasStopped
+          ? 'Escaneamento Interrompido'
+          : '✨ Escaneamento do Livro Concluído!';
+      }
+      const actions = mainHeader.querySelector('.ai-header-actions');
+      if (actions) actions.remove();
+    }
+
+    import('../viewer/sidebar-cropper.js')
+      .then((m) => {
+        if (typeof m.updateSubmitTextbookBtnState === 'function') {
+          m.updateSubmitTextbookBtnState(wasStopped);
+        }
+      })
+      .catch(() => {});
+
+    if (!wasStopped) {
+      import('./GlobalAlertsLogic').then((m) => {
+        m.customAlert(
+          '✨ Escaneamento do livro finalizado com sucesso! Clique no botão abaixo para revisar e sincronizar.',
+          5000,
+        );
+      });
     }
   },
 

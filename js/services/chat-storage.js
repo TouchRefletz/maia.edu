@@ -242,7 +242,7 @@ export const ChatStorageService = {
           promises.push(
             (async () => {
               try {
-                const msgsCollRef = collection(firestore, 'users', uid, docSnap.id, 'messages');
+                const msgsCollRef = collection(firestore, 'users', uid, 'chats', docSnap.id, 'messages');
                 const msgsQuery = query(msgsCollRef, orderBy('index', 'asc'));
                 const msgsSnap = await getDocs(msgsQuery);
                 const fetchedMessages = [];

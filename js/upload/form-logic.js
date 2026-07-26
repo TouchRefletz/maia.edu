@@ -48,6 +48,18 @@ async function uploadToTmpFiles(file, customName = null, signal = null) {
  * 3. LÓGICA DO FORMULÁRIO
  * Lida com preenchimento inicial, checkbox e submit.
  */
+async function isPdfBlob(blob) {
+  if (!blob || blob.size < 4) return false;
+  try {
+    const slice = blob.slice(0, 4);
+    const buffer = await slice.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    return bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  } catch (e) {
+    return false;
+  }
+}
+
 /**
  * Helper: Download PDF from URL (Blob)
  */
@@ -61,9 +73,10 @@ async function downloadPdfFromUrl(url, signal = null) {
       console.log('[Manual] Downloading PDF via Worker Proxy:', proxyUrl);
       const res = await fetch(proxyUrl, { signal });
       if (res.ok) {
-        return await res.blob();
+        const blob = await res.blob();
+        if (await isPdfBlob(blob)) return blob;
+        console.warn('[Manual] Worker Proxy retornou resposta não-PDF (HTML/Redirect).');
       }
-      console.warn(`[Manual] Worker Proxy HTTP ${res.status}, trying direct fetch...`);
     }
   } catch (proxyErr) {
     if (proxyErr.name === 'AbortError') throw proxyErr;
@@ -74,12 +87,13 @@ async function downloadPdfFromUrl(url, signal = null) {
   try {
     const res = await fetch(url, { signal });
     if (res.ok) {
-      return await res.blob();
+      const blob = await res.blob();
+      if (await isPdfBlob(blob)) return blob;
+      console.warn('[Manual] Direct fetch retornou resposta não-PDF.');
     }
-    throw new Error(`Direct fetch HTTP ${res.status}`);
   } catch (e) {
     if (e.name === 'AbortError') throw e;
-    console.warn('[Manual] Direct fetch failed, attempting Puter fallback:', url, e);
+    console.warn('[Manual] Direct fetch failed, tentando Puter fallback:', url, e);
   }
 
   // 3. Tertiary Attempt: Puter Fallback (Apenas no Upload Manual via Link)
@@ -90,17 +104,16 @@ async function downloadPdfFromUrl(url, signal = null) {
       window.puter.net &&
       typeof window.puter.net.fetch === 'function'
     ) {
-      // 3a. Tenta primeiro sem forçar login
       try {
         const res = await window.puter.net.fetch(url);
         if (res.ok) {
-          return await res.blob();
+          const blob = await res.blob();
+          if (await isPdfBlob(blob)) return blob;
         }
       } catch (silentErr) {
         console.warn('[Manual] Puter fetch direto falhou, verificando autenticação...', silentErr);
       }
 
-      // 3b. Se necessário para baixar no upload manual e o usuário não estiver logado, solicita o login
       if (
         window.puter.auth &&
         typeof window.puter.auth.isSignedIn === 'function' &&
@@ -113,9 +126,10 @@ async function downloadPdfFromUrl(url, signal = null) {
       }
 
       const res = await window.puter.net.fetch(url);
-      if (!res.ok) throw new Error(`Puter HTTP ${res.status}`);
-      const blob = await res.blob();
-      return blob;
+      if (res.ok) {
+        const blob = await res.blob();
+        if (await isPdfBlob(blob)) return blob;
+      }
     }
   } catch (puterErr) {
     if (puterErr.name === 'AbortError') throw puterErr;
@@ -132,6 +146,64 @@ export function setupFormLogic(elements, initialData) {
   // We will send a placeholder "Auto-Detect" to satisfy backend requirements until refined.
   const AUTO_TITLE = 'Auto-Detect';
 
+  // Alternador do tipo de upload (Prova vs Livro Didático)
+  const btnUploadTypeProva = document.getElementById('btnUploadTypeProva');
+  const btnUploadTypeLivro = document.getElementById('btnUploadTypeLivro');
+
+  const setUploadType = (type) => {
+    window.__currentUploadMaterialType = type;
+
+    const pdfTitleLabel = document.getElementById('pdfTitleLabel');
+    const pdfTitleInput = document.getElementById('pdfTitleInput');
+    const pdfFileLabel = document.getElementById('pdfFileLabel');
+    const dropZoneText = document.getElementById('dropZoneProvaText');
+    const sourceUrlInput = document.getElementById('sourceUrlProva');
+    const submitBtn = document.getElementById('submitPdfBtn');
+
+    if (type === 'livro') {
+      if (btnUploadTypeLivro) {
+        btnUploadTypeLivro.classList.add('active');
+        btnUploadTypeLivro.style.background = 'var(--color-primary)';
+        btnUploadTypeLivro.style.color = 'white';
+      }
+      if (btnUploadTypeProva) {
+        btnUploadTypeProva.classList.remove('active');
+        btnUploadTypeProva.style.background = 'transparent';
+        btnUploadTypeProva.style.color = 'var(--color-text-secondary)';
+      }
+
+      if (pdfTitleLabel) pdfTitleLabel.textContent = 'Nome do Livro Didático';
+      if (pdfTitleInput) pdfTitleInput.placeholder = 'Ex: Física Clássica - Caio Vestibular';
+      if (pdfFileLabel) pdfFileLabel.textContent = 'Arquivo do Livro (PDF)';
+      if (dropZoneText) dropZoneText.textContent = 'Selecionar ou Soltar Livro Didático (PDF)';
+      if (sourceUrlInput) sourceUrlInput.placeholder = 'Link original do livro (Obrigatório - Hugging Face)';
+      if (submitBtn) submitBtn.textContent = 'Processar Livro Didático';
+    } else {
+      if (btnUploadTypeProva) {
+        btnUploadTypeProva.classList.add('active');
+        btnUploadTypeProva.style.background = 'var(--color-primary)';
+        btnUploadTypeProva.style.color = 'white';
+      }
+      if (btnUploadTypeLivro) {
+        btnUploadTypeLivro.classList.remove('active');
+        btnUploadTypeLivro.style.background = 'transparent';
+        btnUploadTypeLivro.style.color = 'var(--color-text-secondary)';
+      }
+
+      if (pdfTitleLabel) pdfTitleLabel.textContent = 'Nome da Prova / Exercícios';
+      if (pdfTitleInput) pdfTitleInput.placeholder = 'Ex: ENEM 2023 - Caderno Azul';
+      if (pdfFileLabel) pdfFileLabel.textContent = 'Arquivo da Prova (PDF)';
+      if (dropZoneText) dropZoneText.textContent = 'Selecionar ou Soltar Prova (PDF)';
+      if (sourceUrlInput) sourceUrlInput.placeholder = 'Link original da prova (Opcional)';
+      if (submitBtn) submitBtn.textContent = 'Extrair Questões';
+    }
+  };
+
+  if (btnUploadTypeProva && btnUploadTypeLivro) {
+    btnUploadTypeProva.addEventListener('click', () => setUploadType('prova'));
+    btnUploadTypeLivro.addEventListener('click', () => setUploadType('livro'));
+  }
+
   // B. Preenchimento de Dados Iniciais (Se houver)
   if (initialData) {
     const fileNameDisplay = document.getElementById('fileName');
@@ -142,12 +214,19 @@ export function setupFormLogic(elements, initialData) {
   // C. Submit do Formulário
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const isLivro = window.__currentUploadMaterialType === 'livro';
     const userTitle = document.getElementById('pdfTitleInput')?.value.trim();
     const fileProva = pdfInput.files[0];
+    const linkProva = document.getElementById('sourceUrlProva')?.value.trim();
     const fileGabarito = null; // Fix ReferenceError
 
+    if (isLivro && !linkProva) {
+      customAlert('⚠️ O link original no Hugging Face (hf_url) é OBRIGATÓRIO para Livros Didáticos. Por favor, informe o link do material no Hugging Face para poder extrair.');
+      return;
+    }
+
     if (!fileProva) {
-      customAlert('O arquivo da prova é obrigatório. Por favor, selecione um PDF.');
+      customAlert(isLivro ? 'O arquivo do livro didático é obrigatório. Por favor, selecione um PDF.' : 'O arquivo da prova é obrigatório. Por favor, selecione um PDF.');
       return;
     }
 
@@ -330,6 +409,8 @@ export function setupFormLogic(elements, initialData) {
                 fileProva: fileProva,
                 gabaritoNaProva: false,
                 isManualLocal: true,
+                isLivroDidatico: isLivro,
+                materialType: isLivro ? 'livro' : 'prova',
                 slug: 'local-' + Date.now(),
                 originalPdfUrl: document.getElementById('sourceUrlProva')?.value.trim() || null,
               });
@@ -360,6 +441,8 @@ export function setupFormLogic(elements, initialData) {
           fileProva: proxyUrl,
           fileGabarito: proxyGabUrl || aiData?.gabarito_url || null,
           gabaritoNaProva: false,
+          isLivroDidatico: isLivro,
+          materialType: isLivro ? 'livro' : 'prova',
           isManualLocal: false,
           slug: slug,
           originalPdfUrl: linkProva || aiData?.source_url_prova || hfUrl || null,
@@ -466,18 +549,26 @@ export function setupFormLogic(elements, initialData) {
         const linkProva = document.getElementById('sourceUrlProva')?.value.trim();
         const linkGab = document.getElementById('sourceUrlGabarito')?.value.trim();
 
-        // 1. Prova Link Check
+        const isLivro = window.__currentUploadMaterialType === 'livro';
+        const labelMaterial = isLivro ? 'Livro Didático' : 'Prova';
+        const labelMaterialLower = isLivro ? 'livro didático' : 'prova';
+
+        // 1. Link Check (Prova ou Livro)
         if (linkProva) {
-          progress.addLog(`Verificando link da prova: ${linkProva}...`);
+          progress.addLog(`Verificando link do ${labelMaterialLower}: ${linkProva}...`);
           const blob = await downloadPdfFromUrl(linkProva, signal);
           if (blob) {
             progress.addLog('Download via link com sucesso! Enviando para TmpFiles...');
             try {
-              tmpUrlProvaLink = await uploadToTmpFiles(blob, 'prova_link_temp.pdf', signal);
-              console.log('[Manual] TmpUrl Prova (Link):', tmpUrlProvaLink);
-              progress.addLog('✅ Link da prova processado.');
+              tmpUrlProvaLink = await uploadToTmpFiles(
+                blob,
+                `${isLivro ? 'livro' : 'prova'}_link_temp.pdf`,
+                signal,
+              );
+              console.log(`[Manual] TmpUrl ${labelMaterial} (Link):`, tmpUrlProvaLink);
+              progress.addLog(`✅ Link do ${labelMaterialLower} processado.`);
             } catch (err) {
-              console.warn('[Manual] Upload TmpFiles (Link Prova) Failed:', err);
+              console.warn(`[Manual] Upload TmpFiles (Link ${labelMaterial}) Failed:`, err);
             }
           } else {
             progress.addLog('⚠️ Não foi possível baixar (CORS/Erro). O fluxo segue.');
@@ -485,7 +576,7 @@ export function setupFormLogic(elements, initialData) {
         }
 
         // 2. Gabarito Link Check
-        if (linkGab) {
+        if (linkGab && !isLivro) {
           progress.addLog(`Verificando link do gabarito...`);
           const blob = await downloadPdfFromUrl(linkGab, signal);
           if (blob) {
@@ -501,12 +592,12 @@ export function setupFormLogic(elements, initialData) {
         }
         // --------------------------------------
 
-        // A. Upload Prova to TmpFiles
+        // A. Upload para TmpFiles
         if (fileProva) {
           progress.setTarget(10, 'Upload Temporário');
-          progress.addLog('Enviando prova para servidor temporário...');
+          progress.addLog(`Enviando ${labelMaterialLower} para servidor temporário...`);
           tmpUrlProva = await uploadToTmpFiles(fileProva, null, signal);
-          console.log('[Manual] TmpUrl Prova:', tmpUrlProva);
+          console.log(`[Manual] TmpUrl ${labelMaterial}:`, tmpUrlProva);
         }
 
         // B. Upload Gabarito to TmpFiles - REMOVIDO (gabarito não é mais suportado)
@@ -674,6 +765,8 @@ export function setupFormLogic(elements, initialData) {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 query: queryForSlug,
+                search_type: isLivro ? 'livros' : 'provas',
+                material_type: isLivro ? 'livro' : 'prova',
                 confirm: false, // Modo preflight - só busca, não dispara action
               }),
               signal,
@@ -803,8 +896,9 @@ export function setupFormLogic(elements, initialData) {
                 // Permite upload sem link
               } else if (remoteHashProva && remoteHashProvaLink) {
                 if (remoteHashProva !== remoteHashProvaLink) {
-                  progress.addLog('❌ BLOQUEIO (Prova): Hash do arquivo difere do Link.', true);
-                  uploadProva = false;
+                  progress.addLog(
+                    `⚠️ Hash do arquivo difere do link. Prosseguindo com o arquivo enviado...`,
+                  );
                 } else {
                   progress.addLog('✅ Prova validada (Hash Link == Hash Arquivo).');
                 }
@@ -980,6 +1074,8 @@ export function setupFormLogic(elements, initialData) {
                 fileGabarito: null, // Gabarito não é mais suportado
                 gabaritoNaProva: false,
                 isManualLocal: true, // Força modo local
+                isLivroDidatico: isLivro,
+                materialType: isLivro ? 'livro' : 'prova',
                 slug: targetSlug || 'local-preview',
                 originalPdfUrl:
                   remoteUrlProva || linkProva || aiDataFromManifest?.source_url_prova || null,
@@ -1040,6 +1136,10 @@ export function setupFormLogic(elements, initialData) {
         const formData = new FormData();
         formData.append('title', AUTO_TITLE);
         if (targetSlug) formData.append('slug_codinome', targetSlug); // Enviar slug se já soubermos
+        formData.append('material_type', window.__currentUploadMaterialType || 'prova');
+        if (window.__currentUploadMaterialType === 'livro') {
+          formData.append('search_type', 'livros');
+        }
 
         if (srcProvaVal) formData.append('source_url_prova', srcProvaVal);
         if (srcGabVal) formData.append('source_url_gabarito', srcGabVal);
@@ -1208,6 +1308,8 @@ export function setupFormLogic(elements, initialData) {
             fileGabarito: fileGabarito ? URL.createObjectURL(fileGabarito) : null, // SEMPRE LOCAL
             gabaritoNaProva: false,
             isManualLocal: true,
+            isLivroDidatico: isLivro,
+            materialType: isLivro ? 'livro' : 'prova',
             slug: finalSlug,
             originalPdfUrl:
               remoteUrlProva ||
@@ -1233,10 +1335,14 @@ export function setupFormLogic(elements, initialData) {
           return; // STOP HERE
         } else {
           console.error('[Manual] Error triggering upload:', e);
+          if (isLivro) {
+            customAlert('❌ Erro na sincronização com o Hugging Face: ' + e.message + '\nO Livro Didático NÃO pode ser aberto na tela de extração sem o hf_url sincronizado.');
+            return; // Bloqueia abertura do viewer para livros sem sincronização HF
+          }
           customAlert('Erro na sincronização: ' + e.message + '\nAbrindo modo visualização local.');
         }
 
-        // Ensure viewer opens ONLY on error (fallback), NOT on cancel
+        // Ensure viewer opens ONLY on error (fallback for non-books), NOT on cancel
         setTimeout(() => {
           gerarVisualizadorPDF({
             title: userTitle || fileProva.name || AUTO_TITLE,
@@ -1244,6 +1350,8 @@ export function setupFormLogic(elements, initialData) {
             fileProva: fileProva ? URL.createObjectURL(fileProva) : null,
             gabaritoNaProva: false,
             isManualLocal: true,
+            isLivroDidatico: isLivro,
+            materialType: isLivro ? 'livro' : 'prova',
             slug: 'local-' + 'error' + '-' + Date.now(),
             originalPdfUrl: linkProva || null,
           });

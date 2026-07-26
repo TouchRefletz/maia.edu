@@ -6,6 +6,7 @@ import {
 import { ChatStorageService } from '../services/chat-storage.js'; // Import Persistence Service
 import * as MemoryService from '../services/memory-service.js'; // Import MemoryService
 import { findBestQuestion } from '../services/question-service.js'; // Import question service
+import { fetchTheoryAttachment, findBestTheory } from '../services/theory-service.js'; // Import theory service
 import { fileToBase64 } from '../utils/file-utils.js';
 import { parseStreamedJSON } from '../utils/json-stream-parser.js';
 import { cleanQuestionDataForAI } from '../utils/question-cleaner.js';
@@ -196,6 +197,8 @@ export async function runChatPipeline(selectedMode, message, attachments = [], c
   let memoryContextForRouter = '';
   let questionData = null;
   let attachedQuestionData = null;
+  let theoryAttachment = null;
+  let theoryMatchData = null;
   if (Array.isArray(attachments)) {
     for (const file of attachments) {
       if (file.name && file.name.endsWith('.json')) {
@@ -609,6 +612,77 @@ export async function runChatPipeline(selectedMode, message, attachments = [], c
       }
     }
 
+    // 2b-2. === BUSCA DE TEORIA (LIVROS DIDÁTICOS NO PINECONE) ===
+    const needsTheory =
+      isMaiaActive &&
+      (window.textbookEnabled || routerResult?.busca_teoria || routerResult?.needs_theory);
+
+    if (needsTheory) {
+      console.log('[Pipeline] 📖 Buscando teoria em livros didáticos...', routerResult?.busca_teoria);
+      if (context.onProcessingStatus) {
+        window._currentChatPhase = 'theory';
+        context.onProcessingStatus('loading', 'Consultando acervo de livros didáticos...');
+      }
+      try {
+        const theoryQuery = routerResult?.busca_teoria || { termos: [message], categorias: ['teoria'] };
+        const theoryMatch = await findBestTheory(theoryQuery);
+        if (theoryMatch) {
+          theoryMatchData = theoryMatch;
+          const fileAttachment = await fetchTheoryAttachment(theoryMatch);
+          if (fileAttachment) {
+            theoryAttachment = fileAttachment;
+            attachments.push(fileAttachment);
+            console.log(
+              `[Pipeline] 📎 Anexo de teoria (${theoryMatch.matchType}) recuperado do HF e anexado à IA: ${fileAttachment.name}`,
+            );
+          }
+
+          const bookSource = {
+            type: 'book',
+            isBook: true,
+            title: `Livro Didático: ${theoryMatch.bookId || 'Acervo'}${theoryMatch.fullData?.pageNum ? ` (Pág. ${theoryMatch.fullData.pageNum})` : ''}`,
+            uri: theoryMatch.link_hf || theoryMatch.fullData?.link_hf || '',
+            snippet: theoryMatch.fullData?.resumo || 'Trecho e teoria recuperados do acervo didático.',
+            bookId: theoryMatch.bookId,
+            pageNum: theoryMatch.fullData?.pageNum,
+          };
+          searchSources.push(bookSource);
+
+          if (context.onProcessingStatus) {
+            context.onProcessingStatus('theory_found', {
+              title: `Teoria didática recuperada: ${theoryMatch.bookId || 'Livro didático'}`,
+              bookId: theoryMatch.bookId,
+              pageNum: theoryMatch.fullData?.pageNum,
+              matchType: theoryMatch.matchType,
+              resumo: theoryMatch.fullData?.resumo,
+              link_hf: theoryMatch.link_hf,
+            });
+
+            if (chatId) {
+              consolidatedTurnMessages.push({
+                role: 'system',
+                content: {
+                  type: 'theory_results',
+                  bookId: theoryMatch.bookId,
+                  pageNum: theoryMatch.fullData?.pageNum,
+                  matchType: theoryMatch.matchType,
+                  resumo: theoryMatch.fullData?.resumo,
+                },
+              });
+            }
+          }
+        } else {
+          if (context.onProcessingStatus) {
+            context.onProcessingStatus('theory_done', {
+              title: 'Acervo de livros didáticos consultado',
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Pipeline] ⚠️ Falha ao buscar teoria e obter anexo do HF:', err);
+      }
+    }
+
     // 2c. === RESEARCH STAGE (DEEP SEARCH) ===
     const needsResearch =
       isMaiaActive && (window.researchEnabled || (wasRouted && routerResult?.necessidade_pesquisa));
@@ -662,7 +736,8 @@ TEMA DA PESQUISA: ${searchQuery}`;
             'models/gemini-3.5-flash';
 
           searchReport = searchResult.report;
-          searchSources = searchResult.sources || [];
+          const webSources = searchResult.sources || [];
+          searchSources = [...searchSources, ...webSources];
 
           debugLog.search_details = {
             query: searchQuery,
@@ -851,9 +926,17 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       if (searchReport) {
         extra += `\n\n--- INÍCIO DO CONHECIMENTO PESQUISADO (Uso Obrigatório) ---\n${searchReport}\n--- FIM DO CONHECIMENTO ---\n`;
         extra += `\n[SISTEMA]: Você acaba de realizar uma pesquisa profunda. Fale sobre o assunto com TOTAL AUTORIDADE, incorporando os dados acima como seu próprio conhecimento specialized. 
-JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou "o relatório aponta". 
+JAMAIS diga frases como "segundo o relatório", "com base na pesquisa realizada" ou " o relatório aponta". 
 Em vez disso, atribua as informações diretamente às fontes reais citadas (Ex: "O MEC estabelece que...", "Dados da NASA confirmam...", "A Wikipedia registra que...") para passar credibilidade. 
 Sua resposta deve ser fluida, natural e baseada em evidências.`;
+      }
+      if (theoryAttachment && theoryMatchData) {
+        const bookName = theoryMatchData.bookId || 'livro didático de referência';
+        extra += `\n\n[SISTEMA - EMBASAMENTO EM LIVROS DIDÁTICOS ENCONTRADO]: 
+O material de apoio teórico da obra "${bookName}" foi localizado e anexado à requisição com sucesso.
+DIRETRIZES OBRIGATÓRIAS DE CONTEÚDO E CITAÇÃO:
+1. Embase a explicação nos conceitos e definições contidos no material de livro didático anexado.
+2. É OBRIGATÓRIO creditar e referenciar a obra/livro didático expressamente no corpo da resposta (ex: "Segundo o livro didático ${bookName}...", "Conforme exposto nos manuais de...").`;
       }
       return message + extra;
     };
@@ -885,6 +968,15 @@ Sua resposta deve ser fluida, natural e baseada em evidências.`;
       if (searchReport) {
         extra += `\n\n<pesquisa_aprofundada>\n${searchReport}\n</pesquisa_aprofundada>\n`;
         extra += `\n[SISTEMA]: Você possui um relatório de pesquisa acima em <pesquisa_aprofundada>. Incorpore o conhecimento com total autoridade didática, atribuindo informações diretamente às fontes reais citadas.`;
+      }
+      if (theoryAttachment && theoryMatchData) {
+        const bookName = theoryMatchData.bookId || 'livro didático de referência';
+        extra += `\n\n<diretivas_livros_didaticos>\n[SISTEMA - EMBASAMENTO EM LIVROS DIDÁTICOS ENCONTRADO]: 
+O material de apoio teórico da obra "${bookName}" foi localizado e anexado à requisição com sucesso.
+DIRETRIZES OBRIGATÓRIAS DE CONTEÚDO E CITAÇÃO:
+1. Embase a explicação nos conceitos e definições contidos no material de livro didático anexado.
+2. É OBRIGATÓRIO creditar e referenciar a obra/livro didático expressamente no corpo da resposta (ex: "Segundo o livro didático ${bookName}...", "Conforme exposto nos manuais de...").
+</diretivas_livros_didaticos>\n`;
       }
       return message + extra;
     };

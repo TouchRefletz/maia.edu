@@ -425,9 +425,36 @@ const SourcesFooter = ({ sources, report }) => {
           'div',
           { className: 'chat-sources-stacked-favicons' },
           sources.slice(0, 3).map((src, idx) => {
-            const urlObj = src.uri ? new URL(src.uri) : { hostname: 'Fonte externa' };
+            if (src.type === 'book' || src.isBook) {
+              return React.createElement(
+                'span',
+                {
+                  key: idx,
+                  className: `chat-source-stacked-link stack-${idx}`,
+                  style: {
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(99, 102, 241, 0.2)',
+                    color: '#6366f1',
+                    borderRadius: '50%',
+                    width: '20px',
+                    height: '20px',
+                    fontSize: '11px',
+                    border: '1px solid rgba(99, 102, 241, 0.4)',
+                  },
+                  title: src.title || 'Livro Didático',
+                },
+                '📚',
+              );
+            }
+
+            let hostname = 'Fonte externa';
+            try {
+              if (src.uri) hostname = new URL(src.uri).hostname;
+            } catch (e) {}
             const faviconUrl = src.uri
-              ? `https://icons.duckduckgo.com/ip3/${urlObj.hostname}.ico`
+              ? `https://icons.duckduckgo.com/ip3/${hostname}.ico`
               : null;
             if (!faviconUrl) return null;
             return React.createElement(
@@ -438,13 +465,13 @@ const SourcesFooter = ({ sources, report }) => {
                 target: '_blank',
                 className: `chat-source-stacked-link stack-${idx}`,
                 'data-onclick': 'event.stopPropagation()',
-                title: src.title || urlObj.hostname,
+                title: src.title || hostname,
               },
               React.createElement('img', {
                 src: faviconUrl,
                 className: 'chat-source-stacked-icon',
                 alt: '',
-                'data-onerror': `this.onerror=function(){this.parentElement.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64';`,
+                'data-onerror': `this.onerror=function(){this.parentElement.style.display='none'};this.src='https://www.google.com/s2/favicons?domain=${hostname}&sz=64';`,
               }),
             );
           }),

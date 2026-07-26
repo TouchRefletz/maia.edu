@@ -3,6 +3,7 @@ import { CropperState } from '../cropper/cropper-state.js';
 import { loadSelectionsFromJson } from '../cropper/json-loader.js';
 import { ScannerUI } from '../ui/scanner-ui.js';
 import { renderPageHighRes } from '../viewer/pdf-core.js';
+import { globalBookTracker } from './book-structure-tracker.js';
 
 // --- PROMPTS TEMPLATES ---
 
@@ -193,19 +194,137 @@ export class AiScanner {
     // Inicializa UI básica (Pages manager)
     ScannerUI.init(pdfDoc.numPages);
 
-    // Inicia Countdown de 5 segundos
+    // Inicia Countdown de 5 segundos com opção de cancelamento
     ScannerUI.startCountdown(
       5000,
       () => {
-        // Cancelado
+        // Cancelado pelo usuário
         console.log('Auto-start scanner cancelado pelo usuário.');
         ScannerUI.ensureGlobalHeader();
       },
       async () => {
-        // Finalizado, inicia processo real
-        await AiScanner.runScannerLoop(pdfDoc, resume);
+        // Finalizado, inicia processo real (Livro vs Prova)
+        if (window.__isLivroDidatico) {
+          await AiScanner.startTextbookScan(pdfDoc);
+        } else {
+          await AiScanner.runScannerLoop(pdfDoc, resume);
+        }
       },
     );
+  }
+
+  // Escaneamento sequencial de Livros Didáticos
+  static async startTextbookScan(pdfDoc) {
+    if (AiScanner.isRunning) return;
+
+    const hfUrl = window.__pdfOriginalUrl || window.__pdfDownloadUrl;
+    if (!hfUrl || !hfUrl.trim()) {
+      customAlert('❌ Este Livro Didático não possui um hf_url configurado/sincronizado com o Hugging Face. A extração foi bloqueada.', 5000);
+      return;
+    }
+
+    AiScanner.lastPdfDoc = pdfDoc;
+    AiScanner.isRunning = true;
+    AiScanner.isPaused = false;
+    AiScanner.isPausePending = false;
+    AiScanner.shouldStop = false;
+    AiScanner.abortController = new AbortController();
+
+    document.body.classList.add('ai-scanning-active');
+    ScannerUI.toggleGlow(true);
+    ScannerUI.startUiObserver();
+
+    const { extractTextbookPage } = await import('./textbook-extractor.js');
+    const { SidebarPageManager } = await import('../ui/sidebar-page-manager.js');
+
+    const totalPages = pdfDoc.numPages;
+    window.__pdfTotalPages = totalPages;
+    ScannerUI.init(totalPages);
+
+    let prevPage1Metadata = null;
+    let prevPage2Metadata = null;
+
+    globalBookTracker.reset();
+
+    const slug = window.__currentBookSlug || `livro-${Date.now()}`;
+    window.__extractedBookPages = window.__extractedBookPages || {};
+
+    for (let p = 1; p <= totalPages; p++) {
+      // CHECK PENDING PAUSE BEFORE PROCESSING PAGE
+      if (AiScanner.isPausePending) {
+        AiScanner.isPaused = true;
+        AiScanner.isPausePending = false;
+        ScannerUI.onScannerPaused(true);
+      }
+
+      // VERIFICA PAUSA
+      while (AiScanner.isPaused) {
+        if (AiScanner.shouldStop) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      if (AiScanner.shouldStop) {
+        console.log('[TextbookScan] Varredura interrompida pelo usuário.');
+        break;
+      }
+
+      console.log(`[TextbookScan] Processando página ${p}/${totalPages}...`);
+      ScannerUI.updateGlobalProgress?.(p, totalPages, `Escanear Livro (${p}/${totalPages})`);
+      ScannerUI.setPageActive(p);
+
+      // Sincronizar rolagem no viewer do PDF
+      const pageWrapper = document.getElementById(`page-wrapper-${p}`);
+      if (pageWrapper) {
+        pageWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      try {
+        const imageBase64 = await renderPageHighRes(p);
+        if (imageBase64) {
+          const context = {
+            prevPage1Metadata,
+            prevPage2Metadata,
+            bookTracker: globalBookTracker,
+            slug,
+          };
+
+          const result = await extractTextbookPage(imageBase64, slug, p, context);
+
+          if (result) {
+            window.__extractedBookPages[p] = result;
+            prevPage2Metadata = prevPage1Metadata;
+            prevPage1Metadata = result;
+
+            globalBookTracker.addPageExtraction(p, result);
+            SidebarPageManager.updateTextbookPageDetails(p, result);
+          }
+        }
+      } catch (err) {
+        console.error(`[TextbookScan] Erro ao extrair página ${p}:`, err);
+      }
+
+      // CHECK PENDING PAUSE AFTER PROCESSING PAGE
+      if (AiScanner.isPausePending) {
+        AiScanner.isPaused = true;
+        AiScanner.isPausePending = false;
+        ScannerUI.onScannerPaused(true);
+      }
+    }
+
+    AiScanner.finishTextbookScan(slug, totalPages, AiScanner.shouldStop);
+  }
+
+  static finishTextbookScan(slug, totalPages, wasStopped = false) {
+    AiScanner.isRunning = false;
+    AiScanner.isPaused = false;
+    AiScanner.isPausePending = false;
+
+    document.body.classList.remove('ai-scanning-active');
+    ScannerUI.toggleGlow(false);
+    ScannerUI.stopUiObserver();
+
+    ScannerUI.finishTextbookScanUI(slug, totalPages, wasStopped);
+    console.log('[TextbookScan] Varredura de Livro Didático Finalizada!');
   }
 
   // Processar apenas uma página específica
@@ -215,9 +334,42 @@ export class AiScanner {
       return;
     }
 
+    if (window.__isLivroDidatico) {
+      const hfUrl = window.__pdfOriginalUrl || window.__pdfDownloadUrl;
+      if (!hfUrl || !hfUrl.trim()) {
+        customAlert('❌ Este Livro Didático não possui um hf_url configurado/sincronizado com o Hugging Face. A extração foi bloqueada.', 5000);
+        return;
+      }
+    }
+
     AiScanner.lastPdfDoc = pdfDoc;
     AiScanner.isRunning = true;
     AiScanner.shouldStop = false;
+
+    if (window.__isLivroDidatico) {
+      try {
+        const imageBase64 = await renderPageHighRes(pageNum);
+        const { extractTextbookPage } = await import('./textbook-extractor.js');
+        const { SidebarPageManager } = await import('../ui/sidebar-page-manager.js');
+        const slug = window.__currentBookSlug || `livro-${Date.now()}`;
+        const context = {
+          bookTracker: globalBookTracker,
+          slug,
+        };
+        const result = await extractTextbookPage(imageBase64, slug, pageNum, context);
+        if (result) {
+          window.__extractedBookPages = window.__extractedBookPages || {};
+          window.__extractedBookPages[pageNum] = result;
+          globalBookTracker.addPageExtraction(pageNum, result);
+          SidebarPageManager.updateTextbookPageDetails(pageNum, result);
+        }
+      } catch (err) {
+        console.error(`[TextbookScan] Erro ao processar página ${pageNum}:`, err);
+      } finally {
+        AiScanner.isRunning = false;
+      }
+      return;
+    }
     AiScanner.isPaused = false;
     AiScanner.isPausePending = false;
     AiScanner.abortController = new AbortController();

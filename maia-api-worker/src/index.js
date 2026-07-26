@@ -941,7 +941,9 @@ async function executePineconeQuery(
   // 1. Determine Host based on Target
   let pineconeHost = env.PINECONE_HOST;
 
-  if (target === 'filter') {
+  if (target === 'livros') {
+    pineconeHost = env.PINECONE_HOST_LIVROS || env.PINECONE_HOST;
+  } else if (target === 'filter') {
     if (!env.PINECONE_HOST_FILTER) {
       console.error('[Pinecone Query] PINECONE_HOST_FILTER required for target=filter');
       return null;
@@ -1006,11 +1008,50 @@ async function executePineconeQuery(
 /**
  * HELPER: Shared Pinecone Upsert
  */
+function sanitizeWorkerVectorMetadata(vectors, maxBytes = 35000) {
+  if (!Array.isArray(vectors)) return vectors;
+  const encoder = new TextEncoder();
+
+  return vectors.map((v) => {
+    if (!v || !v.metadata || typeof v.metadata !== 'object') return v;
+    const metadata = { ...v.metadata };
+
+    let currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+    if (currentBytes <= maxBytes) return { ...v, metadata };
+
+    if ('resumos_paginas' in metadata) {
+      delete metadata.resumos_paginas;
+      currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+      if (currentBytes <= maxBytes) return { ...v, metadata };
+    }
+
+    const stringKeys = Object.keys(metadata).filter((k) => typeof metadata[k] === 'string');
+    stringKeys.sort((a, b) => (metadata[b]?.length || 0) - (metadata[a]?.length || 0));
+
+    for (const key of stringKeys) {
+      if (currentBytes <= maxBytes) break;
+      const overflow = currentBytes - maxBytes;
+      const str = metadata[key];
+      if (!str || str.length <= 50) continue;
+
+      const charsToRemove = Math.min(str.length - 50, Math.ceil(overflow * 1.2) + 50);
+      metadata[key] = str.slice(0, str.length - charsToRemove) + '... [truncado]';
+      currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+    }
+
+    return { ...v, metadata };
+  });
+}
+
 async function executePineconeUpsert(vectors, env, namespace = '', target = 'default') {
+  const sanitizedVectors = sanitizeWorkerVectorMetadata(vectors, 35000);
   let pineconeHost = env.PINECONE_HOST;
 
   // 1. Determine Host based on Target
-  if (target === 'filter') {
+  if (target === 'livros') {
+    pineconeHost = env.PINECONE_HOST_LIVROS || env.PINECONE_HOST;
+    console.log(`[Pinecone Upsert] Using LIVROS host: ${pineconeHost}`);
+  } else if (target === 'filter') {
     if (!env.PINECONE_HOST_FILTER) {
       throw new Error('PINECONE_HOST_FILTER is not configured! Cannot save to filter index.');
     }
@@ -1021,7 +1062,7 @@ async function executePineconeUpsert(vectors, env, namespace = '', target = 'def
     console.log(`[Pinecone Upsert] Using MEMORY host: ${pineconeHost}`);
   } else {
     // Checks if any vector is a deep search or manual upload result
-    const isDeepSearch = vectors.some(
+    const isDeepSearch = sanitizedVectors.some(
       (v) =>
         v.metadata &&
         (v.metadata.type === 'deep-search-result' || v.metadata.type === 'manual-upload-result'),
@@ -1055,7 +1096,7 @@ async function executePineconeUpsert(vectors, env, namespace = '', target = 'def
       'X-Pinecone-API-Version': '2024-07',
     },
     body: JSON.stringify({
-      vectors: vectors,
+      vectors: sanitizedVectors,
       namespace: namespace,
     }),
   });
@@ -1512,38 +1553,68 @@ async function handleGeminiGenerate(request, env) {
  * 2. SERVICE: GEMINI EMBEDDING
  */
 async function handleGeminiEmbed(request, env) {
-  const body = await request.json();
-  const {
-    texto,
-    model,
-    apiKey,
-    vertexProjectId: bodyVertexProjectId,
-    vertexLocation: bodyVertexLocation,
-    vertexCredentials: bodyVertexCredentials,
-  } = body;
+  try {
+    const body = await request.json();
+    const {
+      texto,
+      model,
+      apiKey,
+      vertexProjectId: bodyVertexProjectId,
+      vertexLocation: bodyVertexLocation,
+      vertexCredentials: bodyVertexCredentials,
+    } = body;
 
-  const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
-  const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
-  const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
+    if (!texto || typeof texto !== 'string' || !texto.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'O parâmetro texto é obrigatório e não pode ser vazio' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
 
-  let authOptions;
-  if (vertexProjectId && vertexCredentials) {
-    authOptions = {
-      vertexProjectId,
-      vertexLocation,
-      vertexCredentials,
-    };
-  } else {
+    // 1. Try API Key first (simpler, works on Cloudflare Workers)
     const finalApiKey = apiKey || env.GOOGLE_GENAI_API_KEY;
-    if (!finalApiKey) throw new Error('GOOGLE_GENAI_API_KEY not configured');
-    authOptions = finalApiKey;
+
+    let authOptions;
+    if (finalApiKey) {
+      authOptions = finalApiKey;
+    } else {
+      // 2. Fallback to Vertex AI credentials
+      const vertexProjectId = bodyVertexProjectId || env.VERTEX_PROJECT_ID;
+      const vertexLocation = bodyVertexLocation || env.VERTEX_LOCATION;
+      const vertexCredentials = bodyVertexCredentials || env.VERTEX_CREDENTIALS;
+
+      if (vertexProjectId && vertexCredentials) {
+        authOptions = {
+          vertexProjectId,
+          vertexLocation,
+          vertexCredentials,
+        };
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'GOOGLE_GENAI_API_KEY or Vertex credentials not configured' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        );
+      }
+    }
+
+    const embeddingValues = await generateEmbedding(texto, authOptions, model);
+
+    return new Response(JSON.stringify(embeddingValues), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('[handleGeminiEmbed] Error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-
-  const embeddingValues = await generateEmbedding(texto, authOptions, model);
-
-  return new Response(JSON.stringify(embeddingValues), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
 }
 
 /**
@@ -1583,16 +1654,29 @@ async function handleImgBBUpload(request, env) {
  * Recebe: { vectors: [...] }
  */
 async function handlePineconeUpsert(request, env) {
-  const body = await request.json();
-  const { vectors, namespace = '', target = 'default' } = body; // Default namespace empty
+  try {
+    const body = await request.json();
+    const { vectors, namespace = '', target = 'default' } = body; // Default namespace empty
 
-  if (!vectors || !Array.isArray(vectors)) throw new Error('Vectors array is required');
+    if (!vectors || !Array.isArray(vectors)) {
+      return new Response(JSON.stringify({ error: 'Vectors array is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const result = await executePineconeUpsert(vectors, env, namespace, target);
+    const result = await executePineconeUpsert(vectors, env, namespace, target);
 
-  return new Response(JSON.stringify(result), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('[handlePineconeUpsert] Error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 }
 
 /**
@@ -2765,7 +2849,7 @@ Output JSON ONLY.`;
       method: 'POST',
       body: JSON.stringify({
         texto: prompt,
-        model: 'models/gemini-3-flash-preview', // User requested model
+        model: 'models/gemma-4-31b-it', // User requested model
         schema: schema,
       }),
     });

@@ -28,12 +28,15 @@ export function getSearchInterfaceHTML() {
                 </button>
             </div>
             
-            <div id="searchTypeToggle" style="display: flex; gap: 10px; margin-top: 20px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 400px;">
-                <button id="btnTypeProvas" data-type="provas" class="type-btn active" style="flex: 1; padding: 8px 16px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+            <div id="searchTypeToggle" style="display: flex; gap: 10px; margin-top: 20px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 540px;">
+                <button id="btnTypeProvas" data-type="provas" class="type-btn active" style="flex: 1; padding: 8px 12px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
                     Buscar Provas
                 </button>
-                <button id="btnTypeQuestoes" data-type="questoes" class="type-btn" style="flex: 1; padding: 8px 16px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                <button id="btnTypeQuestoes" data-type="questoes" class="type-btn" style="flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
                     Buscar Questões
+                </button>
+                <button id="btnTypeLivros" data-type="livros" class="type-btn" style="flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                    Livros Didáticos
                 </button>
             </div>
 
@@ -84,33 +87,43 @@ export function getManualUploadInterfaceHTML() {
         </div>
 
         <div id="manualUploadContainer" class="fade-in-centralized" style="display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 800px;">
-            <div class="header-upload-manual" style="margin-bottom: 30px; text-align: center;">
-                 <h2>Upload Manual</h2>
-                 <p style="color: var(--color-text-secondary);">Arraste seu PDF ou clique para selecionar</p>
+            <div class="header-upload-manual" style="margin-bottom: 20px; text-align: center;">
+                 <h2>Upload Manual de Materiais</h2>
+                 <p style="color: var(--color-text-secondary);">Selecione o tipo de material e envie seu PDF</p>
+            </div>
+
+            <!-- Seletor de Tipo de Material (Prova vs Livro Didático) -->
+            <div id="uploadTypeToggle" style="display: flex; gap: 10px; margin-bottom: 25px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 460px;">
+                <button type="button" id="btnUploadTypeProva" data-type="prova" class="upload-type-btn active" style="flex: 1; padding: 10px 16px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                    📄 Prova / Exercício
+                </button>
+                <button type="button" id="btnUploadTypeLivro" data-type="livro" class="upload-type-btn" style="flex: 1; padding: 10px 16px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s;">
+                    📖 Livro Didático
+                </button>
             </div>
 
             <form id="pdfUploadForm" style="width: 100%;">
                 <div class="form-group">
-                    <label class="form-label" for="pdfTitleInput">Nome da Prova</label>
+                    <label class="form-label" id="pdfTitleLabel" for="pdfTitleInput">Nome do Material</label>
                     <input type="text" id="pdfTitleInput" class="form-control" placeholder="Ex: ENEM 2023 - Caderno Azul" required style="width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text);">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Arquivo da Prova</label>
+                    <label class="form-label" id="pdfFileLabel">Arquivo (PDF)</label>
                     <label id="dropZoneProva" for="pdfFileInput" class="btn btn--primary btn--full-width file-upload-btn">
-                        Selecionar ou Soltar Prova (PDF)
+                        <span id="dropZoneProvaText">Selecionar ou Soltar Arquivo (PDF)</span>
                     </label>
                     <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
                     <span id="fileName" class="file-name-display">Nenhum arquivo selecionado</span>
-                    <input type="text" id="sourceUrlProva" class="form-control" placeholder="Link original da prova (Opcional)" style="margin-top: 10px; width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text);">
+                    <input type="text" id="sourceUrlProva" class="form-control" placeholder="Link original do material (Opcional)" style="margin-top: 10px; width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text);">
                 </div>
 
                 <div class="extraction-warning" style="margin-top: 15px; margin-bottom: 15px; font-size: 0.8rem; color: var(--color-text-secondary); text-align: left; border: 1px dashed var(--color-border); padding: 12px; border-radius: 8px; background: rgba(255, 193, 7, 0.05); line-height: 1.5; display: flex; flex-direction: column; gap: 4px;">
                     <span style="font-weight: 600; color: var(--color-text);">⚠️ Limitações da Extração por IA:</span>
-                    <span>A extração automatizada de PDFs pode conter falhas, omitir dados (como tabelas e imagens) ou gerar gabaritos incorretos. Certifique-se de revisar os dados extraídos. <a href="/docs/guia/limitacoes-ia.html#extracao-de-pdfs" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a></span>
+                    <span>A extração automatizada de PDFs pode conter falhas ou omissões. Certifique-se de revisar os dados extraídos. <a href="/docs/guia/limitacoes-ia.html#extracao-de-pdfs" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a></span>
                 </div>
 
                 <div class="modal-footer">
-                    <button type="submit" id="submitPdfBtn" class="btn btn--primary btn--full-width">Extrair Questões</button>
+                    <button type="submit" id="submitPdfBtn" class="btn btn--primary btn--full-width">Processar Material</button>
                 </div>
             </form>
         </div>

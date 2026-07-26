@@ -6,7 +6,7 @@
 
 import { getMetodologiaIds } from '../metodologias-config.js';
 
-export const ROUTER_RESPONSE_SCHEMA = {
+export const ROUTER_RESPONSE_SCHEMA_VYGOTSKY = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -31,7 +31,7 @@ export const ROUTER_RESPONSE_SCHEMA = {
       description:
         'True se o usuário pedir treino interativo, verdadeiro ou falso, ou aprendizagem passo-a-passo.',
     },
-    // NOVO: Detecção de intrnção de busca de questão
+    // NOVO: Detecção de intenção de busca de questão
     busca_questao: {
       type: 'object',
       description:
@@ -89,6 +89,54 @@ export const ROUTER_RESPONSE_SCHEMA = {
     },
   },
   required: ['complexidade', 'motivo', 'confianca', 'necessidade_pesquisa'],
+};
+
+// Arquitetura 1 (Vygotsky) utiliza o schema original sem teoria de livros didáticos
+export const ROUTER_RESPONSE_SCHEMA = ROUTER_RESPONSE_SCHEMA_VYGOTSKY;
+
+// Arquitetura 2 (Bloom) estende com suporte exclusivo a livros didáticos (needs_theory)
+export const ROUTER_RESPONSE_SCHEMA_BLOOM = {
+  ...ROUTER_RESPONSE_SCHEMA_VYGOTSKY,
+  properties: {
+    ...ROUTER_RESPONSE_SCHEMA_VYGOTSKY.properties,
+    // EXCLUSIVO DA ARQUITETURA 2 (BLOOM): Sinalizador de necessidade de teoria
+    needs_theory: {
+      type: 'boolean',
+      description:
+        'True se a pergunta exigir embasamento conceitual, definições ou explicações de livros didáticos.',
+    },
+    // EXCLUSIVO DA ARQUITETURA 2 (BLOOM): Objeto de busca estruturada de teoria
+    busca_teoria: {
+      type: 'object',
+      description:
+        "Preencher se 'needs_theory' for true para buscar embasamento conceitual, resumos ou exercícios de fixação de livros didáticos.",
+      properties: {
+        termos: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            "1 a 3 conceitos puros para buscar no Pinecone. Ex: ['gimnospermas'], ['entropia'].",
+        },
+        categorias: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['teoria', 'exercicio'],
+          },
+          description:
+            "Defina o que trazer. Pode enviar ambos ['teoria', 'exercicio'] se o aluno quiser a explicação e um exemplo prático.",
+        },
+        filtrar_livro: {
+          type: 'string',
+          description:
+            'Nome ou ID do livro caso o usuário peça explicitamente para buscar em um material específico. Se não citar, deixe vazio.',
+        },
+      },
+      required: ['termos', 'categorias'],
+      additionalProperties: false,
+    },
+  },
+  required: ['complexidade', 'motivo', 'confianca', 'necessidade_pesquisa', 'needs_theory'],
 };
 
 export const ROUTER_SYSTEM_PROMPT = `Você é um classificador de complexidade de tarefas E um seletor de metodologia pedagógica.
@@ -177,6 +225,7 @@ export function buildRouterPrompt(
   hasAttachments = false,
   memoryContext = '',
   previousQueries = [],
+  options = {},
 ) {
   let prompt = `Analise a seguinte mensagem e classifique sua complexidade:
 
@@ -193,6 +242,19 @@ export function buildRouterPrompt(
 
 [CONTEXTO DE MEMÓRIA (Use para desambiguação)]:
 ${memoryContext}`;
+  }
+
+  // SOLICITAÇÃO FORÇADA DE LIVROS DIDÁTICOS (BETA)
+  const isTextbookEnabled =
+    options?.isTextbookEnabled ||
+    (typeof window !== 'undefined' && window.textbookEnabled);
+
+  if (isTextbookEnabled) {
+    prompt += `
+
+[SISTEMA - SOLICITAÇÃO DE LIVROS DIDÁTICOS (OBRIGATÓRIO)]:
+O usuário ativou a opção "Livros Didáticos (Beta)".
+É OBRIGATÓRIO definir "needs_theory": true e preencher o objeto "busca_teoria" com os termos conceituais relevantes (1 a 3 conceitos puros extraídos da mensagem do usuário) e categorias (ex: ["teoria"]) para buscar embasamento em livros didáticos.`;
   }
 
   // INJEÇÃO ANTI-REPETIÇÃO

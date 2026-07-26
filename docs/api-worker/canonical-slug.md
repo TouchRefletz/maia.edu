@@ -1,10 +1,10 @@
-# /canonical-slug — Geração de Slug via Gemini
+# /canonical-slug — Geração de Slug via Gemma
 
 > 🤖 **Disclaimer**: Documentação gerada por IA e pode conter imprecisões. [📋 Reportar erro](https://github.com/TouchRefletz/maia.api/issues/new?title=Erro+na+doc:+canonical-slug&labels=docs)
 
 ## Visão Geral
 
-O endpoint `/canonical-slug` usa o Gemini para gerar um **slug canônico** normalizado a partir de uma query de busca. Isso garante que buscas como "provas do enem 2022", "ENEM 22" e "enem dois mil e vinte e dois" convergem para o mesmo slug: `enem-2022`.
+O endpoint `/canonical-slug` usa o Gemma (`models/gemma-4-31b-it`) para gerar um **slug canônico** normalizado a partir de uma query de busca. Isso garante que buscas como "provas do enem 2022", "ENEM 22" e "enem dois mil e vinte e dois" convergem para o mesmo slug: `enem-2022`.
 
 ## Rota
 

@@ -352,6 +352,30 @@ export const SidebarPageManager = {
 
   updatePageFooter(pageNum) {
     const questionsContainer = this.getQuestionsContainer(pageNum);
+    if (!questionsContainer) return;
+
+    if (window.__isLivroDidatico) {
+      const hasTextbookContent = questionsContainer.querySelector('.textbook-page-card');
+      if (!hasTextbookContent) {
+        questionsContainer.innerHTML = `
+          <div class="empty-page-placeholder" style="padding: 12px; text-align: center; color: var(--color-text-secondary); font-size: 0.85rem; background: rgba(255,255,255,0.03); border-radius: 8px; margin-top: 8px; border: 1px dashed var(--color-border);">
+            <div style="margin-bottom: 8px; font-weight: 500;">📖 Página ainda não analisada pelo Core Vision</div>
+            <button class="btn-analyze-textbook-page" data-page="${pageNum}" style="background: var(--color-primary); color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+              👁️ Analisar Página ${pageNum}
+            </button>
+          </div>
+        `;
+
+        const btnAnalyze = questionsContainer.querySelector('.btn-analyze-textbook-page');
+        if (btnAnalyze) {
+          btnAnalyze.onclick = (e) => {
+            e.stopPropagation();
+            this._handleScanPageClick(pageNum);
+          };
+        }
+      }
+      return;
+    }
 
     // Identificar se existem cartões de questão REAIS (ignorando placeholders/botoes antigos)
     const hasQuestions = Array.from(questionsContainer.children).some((child) =>
@@ -398,47 +422,40 @@ export const SidebarPageManager = {
         </button>
       `;
 
-      // Bind click
-      const btn = placeholder.querySelector('.btn-add-manual-page');
-      btn.onclick = (e) => this._handleAddClick(e, pageNum);
+      // Bind do evento do botão
+      const btnAdd = placeholder.querySelector('.btn-add-manual-page');
+      btnAdd.onclick = (e) => {
+        e.stopPropagation();
+        import('../cropper/cropper-state.js').then(({ CropperState }) => {
+          CropperState.createGroup({ pageNum, tags: ['manual', 'NOVO'] });
+        });
+      };
 
       questionsContainer.appendChild(placeholder);
     } else {
-      // --- CASO 2: PÁGINA COM QUESTÕES (Exibir Botão Discreto no Final) ---
-      const btnFooter = document.createElement('button');
-      btnFooter.className = 'btn-add-manual-page-footer';
-      btnFooter.style.cssText = `
+      // --- CASO 2: PÁGINA COM QUESTÕES (Exibir Apenas Botão Discreto no Fim) ---
+      const btnAddFooter = document.createElement('button');
+      btnAddFooter.className = 'btn-add-manual-page-footer';
+      btnAddFooter.style.cssText = `
           width: 100%;
           background: transparent;
-          border: 1px dashed #555;
-          color: #aaa;
-          padding: 8px;
-          border-radius: 6px;
-          margin-top: 8px;
+          color: var(--color-text-secondary);
+          border: 1px dashed var(--color-border);
+          padding: 6px;
+          border-radius: 4px;
           cursor: pointer;
-          font-size: 0.85em;
+          font-size: 0.8em;
+          margin-top: 8px;
           transition: all 0.2s;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
       `;
-      btnFooter.innerHTML = '➕ Adicionar Outra Questão';
+      btnAddFooter.innerHTML = `➕ Adicionar outra questão nesta página`;
+      btnAddFooter.onclick = (e) => this._handleAddClick(e, pageNum);
 
-      btnFooter.onmouseover = () => {
-        btnFooter.style.borderColor = 'var(--color-primary)';
-        btnFooter.style.color = 'var(--color-primary)';
-        btnFooter.style.background = 'rgba(var(--color-primary-rgb), 0.05)';
-      };
-      btnFooter.onmouseout = () => {
-        btnFooter.style.borderColor = '#555';
-        btnFooter.style.color = '#aaa';
-        btnFooter.style.background = 'transparent';
-      };
-
-      btnFooter.onclick = (e) => this._handleAddClick(e, pageNum);
-
-      questionsContainer.appendChild(btnFooter);
+      questionsContainer.appendChild(btnAddFooter);
     }
   },
 
@@ -460,10 +477,39 @@ export const SidebarPageManager = {
     });
   },
 
+  updatePageBadge(pageNum, text, type = 'info') {
+    const details = this.getPageElement(pageNum);
+    if (!details) return;
+    const badge = details.querySelector('.page-status-badge');
+    if (badge) {
+      badge.textContent = text;
+      badge.className = `page-status-badge badge-${type}`;
+      badge.style.cssText = `
+        font-size: 0.72rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 600;
+        background: ${type === 'complete' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(59, 130, 246, 0.2)'};
+        color: ${type === 'complete' ? '#10b981' : '#3b82f6'};
+      `;
+    }
+  },
+
   _handleScanPageClick(pageNum) {
+    SidebarPageManager.openPage(pageNum);
+    SidebarPageManager.updatePageBadge(pageNum, 'Analisando...', 'analysis');
+    SidebarPageManager.updateAgentStatus(pageNum, 'analysis', 'Iniciando análise com o Core Vision...');
+
     import('../services/ai-scanner.js').then(({ AiScanner }) => {
       if (!AiScanner.lastPdfDoc) {
-        customAlert('Nenhum documento carregado.', 3000);
+        import('../viewer/pdf-core.js').then(({ viewerState }) => {
+          if (viewerState && viewerState.pdfDoc) {
+            AiScanner.lastPdfDoc = viewerState.pdfDoc;
+            AiScanner.processSinglePage(viewerState.pdfDoc, pageNum);
+          } else {
+            customAlert('Nenhum documento carregado.', 3000);
+          }
+        });
         return;
       }
       AiScanner.processSinglePage(AiScanner.lastPdfDoc, pageNum);
@@ -476,7 +522,6 @@ export const SidebarPageManager = {
 
     const allDetails = container.querySelectorAll('.page-details-group');
     allDetails.forEach((detail) => {
-      // Extrair numero da pagina do ID "page-details-X"
       const idParts = detail.id.split('-');
       const p = parseInt(idParts[idParts.length - 1]);
 
@@ -484,5 +529,73 @@ export const SidebarPageManager = {
         detail.open = false;
       }
     });
+  },
+
+  updateTextbookPageDetails(pageNum, extractionResult) {
+    const details = this.getPageElement(pageNum);
+    if (!details) return;
+
+    SidebarPageManager.updatePageBadge(pageNum, 'Concluído', 'complete');
+    SidebarPageManager.updateAgentStatus(pageNum, 'complete', 'Extração teórica finalizada com sucesso.');
+
+    const { resumo, tags = [], mapeamento_estrutura = [] } = extractionResult;
+    const questionsContainer = details.querySelector('.page-questions-list');
+    if (!questionsContainer) return;
+
+    const tagsHtml = tags
+      .map(
+        (t) =>
+          `<span style="background: rgba(59, 130, 246, 0.15); color: var(--color-primary); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">#${t}</span>`,
+      )
+      .join(' ');
+
+    const topicsHtml = mapeamento_estrutura
+      .map(
+        (top) => `
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; font-size: 0.8rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+             <strong style="color: var(--color-primary);">${top.id_topico}</strong> - ${top.titulo_topico}
+          </div>
+          <span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: ${top.categoria === 'teoria' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; color: ${top.categoria === 'teoria' ? '#10b981' : '#f59e0b'}; font-weight: 600;">
+            ${top.categoria.toUpperCase()}
+          </span>
+        </div>
+      `,
+      )
+      .join('');
+
+    questionsContainer.innerHTML = `
+      <div class="textbook-page-card" style="padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid var(--color-border); margin-top: 8px;">
+        <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+          <span>📖</span> Resumo da Página
+        </h4>
+        <p style="font-size: 0.82rem; line-height: 1.5; color: var(--color-text-secondary); margin: 0 0 12px 0;">
+          ${resumo}
+        </p>
+
+        ${
+          tags.length > 0
+            ? `
+          <div style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px;">
+            ${tagsHtml}
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          mapeamento_estrutura.length > 0
+            ? `
+          <h4 style="margin: 12px 0 8px 0; font-size: 0.85rem; color: var(--color-text);">
+            🌳 Tópicos Mapeados
+          </h4>
+          <div>${topicsHtml}</div>
+        `
+            : ''
+        }
+      </div>
+    `;
+
+    details.open = true;
   },
 };

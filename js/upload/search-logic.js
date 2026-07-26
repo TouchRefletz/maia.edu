@@ -1,4 +1,4 @@
-﻿// --- CONFIG ---
+// --- CONFIG ---
 const PROD_WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://your-worker.workers.dev';
 
 // Importa o visualizador
@@ -259,39 +259,58 @@ export function setupSearchLogic() {
 
   const btnTypeProvas = document.getElementById('btnTypeProvas');
   const btnTypeQuestoes = document.getElementById('btnTypeQuestoes');
+  const btnTypeLivros = document.getElementById('btnTypeLivros');
 
   let currentSearchType = 'provas';
 
+  const updateTypeButtons = (activeBtn, type, placeholder, titleHtml) => {
+    currentSearchType = type;
+    [btnTypeProvas, btnTypeQuestoes, btnTypeLivros].forEach((btn) => {
+      if (!btn) return;
+      if (btn === activeBtn) {
+        btn.classList.add('active');
+        btn.style.background = 'var(--color-primary)';
+        btn.style.color = 'white';
+      } else {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--color-text-secondary)';
+      }
+    });
+    if (searchInput) searchInput.placeholder = placeholder;
+    const titleEl = document.getElementById('searchTitle');
+    if (titleEl) titleEl.innerHTML = titleHtml;
+  };
+
   if (btnTypeProvas && btnTypeQuestoes) {
     btnTypeProvas.addEventListener('click', () => {
-      currentSearchType = 'provas';
-      btnTypeProvas.classList.add('active');
-      btnTypeProvas.style.background = 'var(--color-primary)';
-      btnTypeProvas.style.color = 'white';
-
-      btnTypeQuestoes.classList.remove('active');
-      btnTypeQuestoes.style.background = 'transparent';
-      btnTypeQuestoes.style.color = 'var(--color-text-secondary)';
-
-      searchInput.placeholder = 'Ex: Provas do ENEM 2023...';
-      document.getElementById('searchTitle').innerHTML =
-        'Nos dê o nome da prova e <strong>fazemos</strong> o resto.';
+      updateTypeButtons(
+        btnTypeProvas,
+        'provas',
+        'Ex: Provas do ENEM 2023...',
+        'Nos dê o nome da prova e <strong>fazemos</strong> o resto.',
+      );
     });
 
     btnTypeQuestoes.addEventListener('click', () => {
-      currentSearchType = 'questoes';
-      btnTypeQuestoes.classList.add('active');
-      btnTypeQuestoes.style.background = 'var(--color-primary)';
-      btnTypeQuestoes.style.color = 'white';
-
-      btnTypeProvas.classList.remove('active');
-      btnTypeProvas.style.background = 'transparent';
-      btnTypeProvas.style.color = 'var(--color-text-secondary)';
-
-      searchInput.placeholder = 'Ex: Questões de Geometria Analítica ITA...';
-      document.getElementById('searchTitle').innerHTML =
-        'Nos dê o tema e <strong>encontramos</strong> as questões.';
+      updateTypeButtons(
+        btnTypeQuestoes,
+        'questoes',
+        'Ex: Questões de Geometria Analítica ITA...',
+        'Nos dê o tema e <strong>encontramos</strong> as questões.',
+      );
     });
+
+    if (btnTypeLivros) {
+      btnTypeLivros.addEventListener('click', () => {
+        updateTypeButtons(
+          btnTypeLivros,
+          'livros',
+          'Ex: Física clássica Caio Vestibular...',
+          'Nos dê o livro didático ou matéria e <strong>buscamos</strong> os materiais.',
+        );
+      });
+    }
   }
 
   const searchContainer = document.getElementById('searchContainer');

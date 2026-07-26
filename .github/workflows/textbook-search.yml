@@ -1,0 +1,49 @@
+name: Textbook Search & Extraction (Headless)
+
+on:
+  repository_dispatch:
+    types: [textbook-search, book-search]
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'Nome ou disciplina do livro didático para pesquisar'
+        required: true
+        default: 'Física clássica Caio Vestibular'
+      book_slug:
+        description: 'Slug do livro (opcional)'
+        required: false
+
+jobs:
+  extract-textbook:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyMuPDF requests pydantic
+
+      - name: Execute Headless Textbook Extractor
+        env:
+          GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          PINECONE_HOST_LIVROS: ${{ secrets.PINECONE_HOST_LIVROS }}
+        run: |
+          QUERY="${{ github.event.inputs.query || github.event.client_payload.query }}"
+          SLUG="${{ github.event.inputs.book_slug || github.event.client_payload.slug || 'livro-autonomo' }}"
+          echo "📖 Executando extração autônoma para: $QUERY (Slug: $SLUG)"
+          
+          # Se o PDF já foi baixado ou referenciado, roda o extrator Python
+          if [ -f "./input.pdf" ]; then
+            python .github/workflows/scripts/textbook_extractor.py --pdf-path ./input.pdf --book-slug "$SLUG"
+          else
+            echo "⚠️ PDF não localizado diretamente na raiz. Script pronto para execução com arquivo PDF baixado pelo crawler."
+          fi

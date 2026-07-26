@@ -345,6 +345,12 @@ export async function fecharVisualizador() {
  * Renderiza a interface de visualização de PDF e anexa os eventos.
  */
 export async function gerarVisualizadorPDF(args) {
+  // Define flag global de Livro Didático para UI da sidebar e abas
+  window.__isLivroDidatico =
+    !!args.isLivroDidatico ||
+    args.materialType === 'livro' ||
+    window.__currentUploadMaterialType === 'livro';
+
   // FASE 1: Preparação (async para buscar manifesto)
   const urlProva = await inicializarContextoViewer(args);
 

@@ -6,10 +6,11 @@
 import { jsonrepair } from 'jsonrepair';
 import { WORKER_URL } from '../api/worker.js';
 import { fileToBase64 } from '../utils/file-utils.js';
-import { CHAT_CONFIG, complexityToMode, getModeConfig } from './config.js';
+import { CHAT_CONFIG, complexityToMode, getArchitectureVersion, getModeConfig } from './config.js';
 import {
   buildRouterPrompt,
-  ROUTER_RESPONSE_SCHEMA,
+  ROUTER_RESPONSE_SCHEMA_BLOOM,
+  ROUTER_RESPONSE_SCHEMA_VYGOTSKY,
   ROUTER_SYSTEM_PROMPT,
 } from './prompts/router-prompt.js';
 
@@ -20,6 +21,17 @@ let lastRoutingResult = null;
  */
 export async function routeMessage(message, attachments = [], memoryContext = '', options = {}) {
   const hasAttachments = attachments && attachments.length > 0;
+
+  // Determina dinamicamente o schema baseado na versão da Arquitetura ativa (Vygotsky vs Bloom)
+  const activeArchitecture = getArchitectureVersion(options);
+  const routerSchema =
+    activeArchitecture === 'bloom'
+      ? ROUTER_RESPONSE_SCHEMA_BLOOM
+      : ROUTER_RESPONSE_SCHEMA_VYGOTSKY;
+
+  console.log(
+    `[Router] 🏛️ Arquitetura ativa: ${activeArchitecture.toUpperCase()} (Schema: ${activeArchitecture === 'bloom' ? 'Bloom V2 com Teoria' : 'Vygotsky V1 Padrão'})`,
+  );
 
   // Processa anexos para base64 se houver
   let processedFiles = [];
@@ -39,27 +51,6 @@ export async function routeMessage(message, attachments = [], memoryContext = ''
       console.warn('[Router] Erro ao processar anexos:', err);
     }
   }
-
-  // Comentado para permitir que o router analise a imagem
-  /*
-  const hasComplexAttachments =
-    hasAttachments &&
-    attachments.some(
-      (file) =>
-        file.type.startsWith("image/") || file.type === "application/pdf",
-    );
-
-  if (hasComplexAttachments) {
-    const result = {
-      mode: "raciocinio",
-      complexity: "ALTA",
-      reason: "Anexo de imagem ou PDF detectado",
-      confidence: 1.0,
-    };
-    lastRoutingResult = result;
-    return result;
-  }
-  */
 
   const MAX_RETRIES = 3;
   let attempt = 0;
@@ -83,6 +74,7 @@ export async function routeMessage(message, attachments = [], memoryContext = ''
         hasAttachments,
         memoryContext,
         previousQueries,
+        options,
       );
       const fullPrompt = `${ROUTER_SYSTEM_PROMPT}\n\n---\n\n${routerPrompt}`;
 
@@ -121,8 +113,8 @@ export async function routeMessage(message, attachments = [], memoryContext = ''
           vertexLocation: vertexLocation || undefined,
           vertexCredentials: vertexCredentials || undefined,
           texto: fullPrompt,
-          // Schema e Json Mode ATIVADOS
-          schema: ROUTER_RESPONSE_SCHEMA,
+          // Schema e Json Mode ATIVADOS (dinâmico Vygotsky vs Bloom)
+          schema: routerSchema,
           model: finalRouterModel,
           jsonMode: true,
           thinking: true, // Aqui o router foi ajustado para emitir pensamentos
@@ -211,7 +203,7 @@ export async function routeMessage(message, attachments = [], memoryContext = ''
 
       console.log('[Router] 📨 Resposta do modelo:', routerResponse);
 
-      // FIX: Default seguro = BAIXA (Pedidio do usuário: não ir pra raciocínio erradamente)
+      // FIX: Default seguro = BAIXA (Pedido do usuário: não ir pra raciocínio erradamente)
       const complexity = routerResponse?.complexidade || 'BAIXA';
       let mode = complexityToMode(complexity);
 
@@ -219,12 +211,29 @@ export async function routeMessage(message, attachments = [], memoryContext = ''
         mode = 'scaffolding';
       }
 
+      const isTextbookEnabled =
+        options?.isTextbookEnabled ||
+        (typeof window !== 'undefined' && window.textbookEnabled);
+      const needsTheory = routerResponse?.needs_theory || isTextbookEnabled || false;
+      let buscaTeoria = routerResponse?.busca_teoria || null;
+
+      if (isTextbookEnabled && !buscaTeoria) {
+        buscaTeoria = {
+          termos: [message],
+          categorias: ['teoria'],
+        };
+      }
+
       const result = {
         mode,
         complexity,
         reason: routerResponse?.motivo || 'Classificação automática',
         confidence: routerResponse?.confianca || 0.5,
+        necessidade_pesquisa: routerResponse?.necessidade_pesquisa || false,
+        instrucao_pesquisa: routerResponse?.instrucao_pesquisa || null,
         busca_questao: routerResponse?.busca_questao || null,
+        needs_theory: needsTheory,
+        busca_teoria: buscaTeoria,
         scaffolding: routerResponse?.scaffolding_detected || false,
         metodologia: routerResponse?.metodologia_recomendada || 'feynman',
       };
@@ -280,20 +289,23 @@ export async function determineFinalMode(
   options = {},
 ) {
   const modeConfig = getModeConfig(selectedMode);
+  const isTextbookEnabled =
+    options?.isTextbookEnabled ||
+    (typeof window !== 'undefined' && window.textbookEnabled);
 
-  // Se o modo não usa router, retorna direto
-  if (!modeConfig.usesRouter) {
+  // Se o modo não usa router e não há requisição de livros didáticos, retorna direto
+  if (!modeConfig.usesRouter && !isTextbookEnabled) {
     return {
       finalMode: selectedMode,
       wasRouted: false,
     };
   }
 
-  // Modo automático: usa o router
+  // Modo automático ou com livros didáticos: executa o router
   const routerResult = await routeMessage(message, attachments, memoryContext, options);
 
   return {
-    finalMode: routerResult.mode,
+    finalMode: selectedMode !== 'automatico' ? selectedMode : routerResult.mode,
     wasRouted: true,
     routerResult,
   };

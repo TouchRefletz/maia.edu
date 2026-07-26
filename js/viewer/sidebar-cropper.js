@@ -49,6 +49,45 @@ export function initSidebarCropper() {
     }
   }
 
+  if (window.__isLivroDidatico && btnContainer) {
+    let textbookSubmitBtn = document.getElementById('btnSubmitTextbook');
+    if (!textbookSubmitBtn) {
+      textbookSubmitBtn = document.createElement('button');
+      textbookSubmitBtn.id = 'btnSubmitTextbook';
+      textbookSubmitBtn.className = 'btn btn--primary btn--full-width';
+      textbookSubmitBtn.style.cssText = `
+        padding: 12px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        width: 100%;
+        transition: all 0.3s ease;
+      `;
+      textbookSubmitBtn.innerHTML = `🚀 Enviar Livro Didático`;
+      textbookSubmitBtn.onclick = () => {
+        const slug = window.__currentBookSlug || `livro-${Date.now()}`;
+        const pagesData = window.__extractedBookPages || {};
+        let totalPages = window.__pdfTotalPages || window.viewerState?.pdfDoc?.numPages || 0;
+        if (!totalPages) {
+          const pageNumEl = document.getElementById('page_num');
+          if (pageNumEl && pageNumEl.textContent) {
+            const m = pageNumEl.textContent.match(/\/\s*(\d+)/);
+            if (m && m[1]) totalPages = parseInt(m[1], 10);
+          }
+        }
+        import('../render/final/TextbookReviewModal.tsx').then((mod) => {
+          mod.openTextbookReviewModal(slug, pagesData, totalPages);
+        });
+      };
+      btnContainer.appendChild(textbookSubmitBtn);
+    }
+    updateSubmitTextbookBtnState();
+  }
+
   // Inscrever-se nas mudanças de estado
   CropperState.subscribe(() => {
     // Só renderiza se a aba Hub estiver ativa
@@ -70,6 +109,30 @@ export function initSidebarCropper() {
     const active = CropperState.getActiveGroup();
     if (active && active.crops.length === 0) {
       renderSidebarContent();
+    }
+  });
+}
+
+export function updateSubmitTextbookBtnState(wasStopped = false) {
+  const btn = document.getElementById('btnSubmitTextbook');
+  if (!btn) return;
+
+  import('../services/ai-scanner.js').then(({ AiScanner }) => {
+    if (AiScanner.isRunning) {
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'not-allowed';
+      btn.style.boxShadow = 'none';
+      btn.innerHTML = `⏳ Escaneando Livro...`;
+    } else {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.style.boxShadow = '0 0 15px rgba(2, 132, 199, 0.7)';
+      btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+      btn.innerHTML = wasStopped
+        ? `🚀 Enviar Livro Didático (Incompleto)`
+        : `🚀 Enviar Livro Didático (Revisar & Sincronizar)`;
     }
   });
 }
@@ -245,7 +308,7 @@ function renderSidebarContent() {
 }
 
 function renderAddButton(container) {
-  if (!container) return;
+  if (!container || window.__isLivroDidatico) return;
   // Evita duplicar
   if (container.querySelector('.btn-add-question')) return;
 
@@ -253,19 +316,10 @@ function renderAddButton(container) {
   btnAdd.className = 'btn btn--primary btn--full-width btn-add-question';
   btnAdd.innerHTML = `<span class="icon">＋</span> Adicionar Nova Questão`;
   btnAdd.onclick = () => {
-    // Tenta capturar página atual antes de criar
-    // Exemplo fictício: window.PDFViewerApplication.page
-    // Se não tivermos acesso fácil, o padrão será 1 e quando o usuário desenhar o crop,
-    // o grupo será atualizado com a página correta e moverá de lugar.
-
-    // [FIX] Mobile: Fecha sidebar para user ver o PDF
     if (window.innerWidth <= 900) {
       import('./sidebar.js').then(({ esconderPainel }) => esconderPainel());
     }
-
     CropperState.createGroup({ tags: ['manual', 'NOVO'] });
-
-    // Scroll?
   };
   container.appendChild(btnAdd);
 }
@@ -273,6 +327,18 @@ function renderAddButton(container) {
 function renderEmptyStateGlobal(container) {
   if (!container) return;
   container.innerHTML = ''; // Limpa botão de add se tiver
+
+  if (window.__isLivroDidatico) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'cropper-empty-state';
+    emptyMsg.innerHTML = `
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📖</div>
+        <p>Estrutura do Livro Didático</p>
+        <small>Navegue pelas páginas no menu abaixo para visualizar os tópicos e resumos extraídos.</small>
+      `;
+    container.appendChild(emptyMsg);
+    return;
+  }
 
   const emptyMsg = document.createElement('div');
   emptyMsg.className = 'cropper-empty-state';
@@ -287,7 +353,6 @@ function renderEmptyStateGlobal(container) {
   btnAdd.style.marginTop = '1rem';
   btnAdd.innerHTML = `<span class="icon">＋</span> Adicionar Nova Questão`;
   btnAdd.onclick = () => {
-    // [FIX] Mobile: Fecha sidebar
     if (window.innerWidth <= 900) {
       import('./sidebar.js').then(({ esconderPainel }) => esconderPainel());
     }

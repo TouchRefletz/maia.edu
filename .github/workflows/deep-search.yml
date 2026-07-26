@@ -48,7 +48,7 @@ jobs:
       QUERY: ${{ github.event.client_payload.query || inputs.query }}
       SLUG: ${{ github.event.client_payload.slug || inputs.slug }}
       SEARCH_TYPE: ${{ github.event.client_payload.search_type || inputs.search_type || 'provas' }}
-      SEARCH_MODEL: ${{ github.event.client_payload.search_model || inputs.search_model || 'gemini/gemini-3-flash-preview' }}
+      SEARCH_MODEL: ${{ github.event.client_payload.search_model || inputs.search_model || 'gemini/gemma-4-31b-it' }}
       REGION_MODEL: ${{ github.event.client_payload.region_model || inputs.region_model || '' }}
       EXTRACT_MODEL: ${{ github.event.client_payload.extract_model || inputs.extract_model || '' }}
 
@@ -433,7 +433,54 @@ jobs:
 
           EXISTING_MANIFEST='${{ steps.fetch_manifest.outputs.existing_manifest }}'
 
-          if [ "$SEARCH_TYPE" = "questoes" ]; then
+          if [ "$SEARCH_TYPE" = "livros" ]; then
+            PROMPT_TEMPLATE=$(cat <<'EOF'
+          Você recebeu uma consulta curta (QUERY) do tipo "nome do livro + editora/autor" ou "disciplina + ano + livro didático". Exemplo: "Física clássica Caio Vestibular".
+
+          Objetivo: encontrar e organizar TODOS os links e arquivos (livros completos, volumes ou capítulos) associados a essa QUERY.
+
+          QUERY: "__QUERY__"
+
+          __EXISTING_MANIFEST_INSTRUCTION__
+
+          Regras para evitar pesquisa demais (muito importante):
+          1. Não use Google como primeira opção (CAPTCHA é comum). Prefira:
+          * Repositórios educacionais, acervos públicos, bibliotecas digitais abertas ou páginas de editoras.
+          * Páginas contendo termos como “Livros didáticos / material de apoio / manual do professor / acervo / PDFs”.
+          2. Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas.
+          3. Após achar o site ou repositório confiável, navegue dentro dele e extraia tudo com o mínimo de novas buscas.
+          4. Só inclua links que pareçam realmente do livro/autor correspondente; quando estiver ambíguo, checar rapidamente pelo título/URL/nome do PDF.
+
+          O que coletar:
+          * Livros didáticos completos (ou volumes/capítulos específicos caso o material esteja dividido) disponibilizados GRATUITAMENTE.
+          * Manuais do professor ou guias de exercícios complementares do próprio livro, se houver.
+          * INDISPENSÁVEL: Classifique cada item no manifesto:
+          * status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
+          * Estrutura do JSON: {nome, tipo: "livro", autor, disciplina, ano, editora, link_origem, status, filename (só se status=downloaded)}
+
+          Preferência de links:
+          * Priorize links diretos de PDF.
+          * Se for Google Drive, capture:
+          * link "view"
+          * e também um link “download direto” quando possível (uc?export=download&id=...).
+
+          Entrega (obrigatório):
+          1. Crie a pasta: /workspace/output/__SLUG__/
+          2. Baixe todos os PDFs que conseguir para: /workspace/output/__SLUG__/files/.
+          CRITICO:
+          * USE 'curl -I' PRIMEIRO para verificar o header.
+          * SE O HEADER 'Content-Type' NÃO FOR 'application/pdf' (ex: 'text/html'), PARE IMEDIATAMENTE. NÃO BAIXE. MARQUE COMO "reference".
+          * JAMAIS TENTE BAIXAR O MESMO LINK DUAS VEZES SE FALHAR NA PRIMEIRA.
+          * SE VOCÊ SE PEGAR FAZENDO A MESMA AÇÃO 2 VEZES SEGUIDAS (ex: checar o mesmo link), DESISTA DESSE LINK E VÁ PARA O PRÓXIMO.
+          * SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
+          * SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
+          * NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
+          3. Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
+
+          Ao final, responda apenas com caminhos e contagens.
+          EOF
+          )
+          elif [ "$SEARCH_TYPE" = "questoes" ]; then
             PROMPT_TEMPLATE=$(cat <<'EOF'
           Você recebeu um tema de questões (QUERY), por exemplo: "geometria analítica ita".
 

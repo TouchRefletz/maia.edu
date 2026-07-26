@@ -246,10 +246,12 @@ function renderTabs() {
     tabBtn.className = `sidebar-tab ${isActive ? 'active' : ''}`;
     tabBtn.dataset.tabId = tab.id;
 
-    // Ícone baseado no tipo
+    // Ícone e Label baseados no tipo
     let icon = '📋';
+    let label = tab.label;
     if (tab.type === 'hub') {
-      icon = '🏠';
+      icon = window.__isLivroDidatico ? '📖' : '🏠';
+      label = window.__isLivroDidatico ? 'Estrutura do Livro' : 'Questões';
     } else if (tab.type === 'question') {
       if (tab.status === 'processing') icon = '⏳';
       else if (tab.status === 'complete') icon = '✅';
@@ -259,7 +261,7 @@ function renderTabs() {
     // Label com ícone
     const labelSpan = document.createElement('span');
     labelSpan.className = 'sidebar-tab-label';
-    labelSpan.innerHTML = `<span class="tab-icon">${icon}</span> ${tab.label}`;
+    labelSpan.innerHTML = `<span class="tab-icon">${icon}</span> ${label}`;
     tabBtn.appendChild(labelSpan);
 
     // Botão de fechar (apenas para abas fecháveis)

@@ -127,7 +127,7 @@ O OpenHands roda em Docker com as seguintes configurações:
 ```yaml
 Container: docker.openhands.dev/openhands/openhands:1.0
 Runtime: docker.openhands.dev/openhands/runtime:1.0-nikolaik
-Modelo: gemini/gemini-3-flash-preview
+Modelo: gemini/gemma-4-31b-it
 Volume: /workspace (compartilhado)
 ```
 

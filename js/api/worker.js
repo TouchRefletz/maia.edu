@@ -519,7 +519,7 @@ export function getProxyPdfUrl(rawUrl) {
 export async function callWorker(endpoint, body) {
   try {
     const isVertexModel =
-      !body.model || body.model.startsWith('vertex/') || body.model.startsWith('vertex-maas/');
+      body.model && (body.model.startsWith('vertex/') || body.model.startsWith('vertex-maas/'));
     const response = await fetch(`${WORKER_URL}${endpoint}`, {
       method: 'POST',
       headers: {
@@ -1061,6 +1061,49 @@ export async function uploadImagemWorker(imageBase64) {
 }
 
 /**
+ * Garante que o metadata de cada vetor não exceda o limite do Pinecone (40960 bytes).
+ * @param {Array} vectors
+ * @param {number} maxBytes - Limite de segurança em bytes (default: 35000)
+ * @returns {Array}
+ */
+export function sanitizeVectorMetadata(vectors, maxBytes = 35000) {
+  if (!Array.isArray(vectors)) return vectors;
+  const encoder = new TextEncoder();
+
+  return vectors.map((v) => {
+    if (!v || !v.metadata || typeof v.metadata !== 'object') return v;
+    const metadata = { ...v.metadata };
+
+    let currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+    if (currentBytes <= maxBytes) return { ...v, metadata };
+
+    // 1. Remover campos pesados e redundantes conhecidos
+    if ('resumos_paginas' in metadata) {
+      delete metadata.resumos_paginas;
+      currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+      if (currentBytes <= maxBytes) return { ...v, metadata };
+    }
+
+    // 2. Truncar campos de texto longos
+    const stringKeys = Object.keys(metadata).filter((k) => typeof metadata[k] === 'string');
+    stringKeys.sort((a, b) => (metadata[b]?.length || 0) - (metadata[a]?.length || 0));
+
+    for (const key of stringKeys) {
+      if (currentBytes <= maxBytes) break;
+      const overflow = currentBytes - maxBytes;
+      const str = metadata[key];
+      if (!str || str.length <= 50) continue;
+
+      const charsToRemove = Math.min(str.length - 50, Math.ceil(overflow * 1.2) + 50);
+      metadata[key] = str.slice(0, str.length - charsToRemove) + '... [truncado]';
+      currentBytes = encoder.encode(JSON.stringify(metadata)).length;
+    }
+
+    return { ...v, metadata };
+  });
+}
+
+/**
  * Envia vetores para o Pinecone via Worker
  * @param {Array} vectors - Lista de vetores {id, values, metadata}
  * @param {string} namespace - Namespace opcional
@@ -1068,7 +1111,8 @@ export async function uploadImagemWorker(imageBase64) {
  * @returns {Promise<any>}
  */
 export async function upsertPineconeWorker(vectors, namespace = '', target = 'default') {
-  return await callWorker('/pinecone-upsert', { vectors, namespace, target });
+  const sanitizedVectors = sanitizeVectorMetadata(vectors, 35000);
+  return await callWorker('/pinecone-upsert', { vectors: sanitizedVectors, namespace, target });
 }
 
 /**

@@ -775,6 +775,19 @@
   color: #a78bfa !important;
 }
 
+.textbook-chip {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.15) 0%,
+    rgba(16, 185, 129, 0.08) 100%
+  ) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.textbook-chip .metodologia-chip-label {
+  color: #34d399 !important;
+}
+
 .metodologia-chip:hover {
   border-color: rgba(var(--color-primary-rgb), 0.35);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);

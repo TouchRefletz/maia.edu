@@ -636,6 +636,16 @@ const STAGES_CONFIG: TabConfig[] = [
   },
 ];
 
+const TEXTBOOK_STAGES_CONFIG: TabConfig[] = [
+  {
+    id: 'scanner_detect',
+    label: '1. Core Vision Module',
+    icon: '👁️',
+    title: '👁️ Core Vision Neural Module (Análise de Página)',
+    desc: 'Modelo de visão neural responsável por analisar o conteúdo, gerar resumos exaustivos, tags conceituais e a árvore de tópicos da página do livro didático.',
+  },
+];
+
 const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
   {
     id: 'scanner_detect',
@@ -1108,9 +1118,12 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
   const isShowSidebar =
     mode !== 'corrector' &&
     (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
+  const isLivroMode = typeof window !== 'undefined' && (window as any).__isLivroDidatico;
   const baseStages =
     mode === 'extractor'
-      ? EXTRACTOR_STAGES_CONFIG
+      ? isLivroMode
+        ? TEXTBOOK_STAGES_CONFIG
+        : EXTRACTOR_STAGES_CONFIG
       : mode === 'corrector'
         ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
         : isMaiaActive
@@ -1257,7 +1270,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
               }}
             >
               {mode === 'extractor'
-                ? '🤖 Configuração de Modelos do Extrator de Questões'
+                ? isLivroMode
+                  ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
+                  : '🤖 Configuração de Modelos do Extrator de Questões'
                 : mode === 'corrector'
                   ? '🤖 Modelo de Correção Dissertativa'
                   : isMaiaActive
@@ -1272,7 +1287,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
               }}
             >
               {mode === 'extractor'
-                ? 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
+                ? isLivroMode
+                  ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
+                  : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
                 : mode === 'corrector'
                   ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
                   : isMaiaActive

@@ -70,7 +70,7 @@ export async function iniciarModoApendiceA() {
         <!-- Barra de Navegação Interna (Tabs) -->
         <div class="apendice-tabs-nav" style="display: flex; gap: 10px; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 24px;">
           <button id="tabApendiceASorteio" class="nav-tab-btn active" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: var(--color-primary); color: var(--color-btn-primary-text); cursor: pointer; font-weight: bold; transition: all 0.2s;">
-            🎲 Sorteio Crossover (seed=2026)
+            🎲 Sorteio Crossover
           </button>
           <button id="tabApendiceAAvaliacao" class="nav-tab-btn" style="flex: 1; border: 1px solid var(--color-border); border-radius: 6px; padding: 10px; background: none; color: var(--color-text-secondary); cursor: pointer; font-weight: bold; transition: all 0.2s; ${isAdmin ? '' : 'display: none;'}">
             ⚖️ Avaliação Cruzada (Individual)
@@ -84,7 +84,7 @@ export async function iniciarModoApendiceA() {
         <div id="containerApendiceASorteio" style="display: block;">
           <div style="margin-bottom: 24px;">
             <p style="margin: 0 0 16px 0; color: var(--color-text-secondary); font-size: 0.95rem; line-height: 1.5;">
-              Selecione a área acadêmica para visualizar a divisão de modelos do crossover experimental utilizando a semente fixa <strong>seed = 2026</strong>.
+              Selecione a área acadêmica para visualizar a divisão de modelos do crossover experimental utilizando as sementes <strong>seed = 2026</strong> e <strong>seed = 2029</strong>.
             </p>
             
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px;">
