@@ -258,7 +258,7 @@
         "ap_dominio": 4,
         "ap_raciocinio": 4,
         "ap_resposta": 3,
-        "description": "A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.",
+        "description": "Na Dificuldade Real (Banca TRI: 89.0% de erro - Muito Difícil), o Gemma 4 estimou 65.0% (Apêndice B) e a Heurística Firebase marcou 53.3%. Ambos os modelos subestimaram a barreira humana, mas o Gemma 4 chegou mais perto ao pontuar alto em Elementos Visuais (4/5) e Domínio (4/5), enquanto a Heurística Firebase limitou-se ao tamanho do texto de apoio.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando dois textos de apoio providing a contextualização artística artistic contextualization.",
           "elementos_visuais": "Exige a interpretação de uma obra de arte (descrita no Texto II) onde a relação entre azulejos e carne viva é fundamental para a resolução.",
@@ -280,7 +280,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA simplificou o problema, vendo a justificativa do uso da norma-padrão em leis como um fato escolar mecânico. Ela ignorou que a complexidade para o estudante humano não está no enunciado, mas sim nos distratores de múltipla escolha juridicamente densos.",
+        "description": "Com 89.3% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou apenas 25.0% (Apêndice B) e a Heurística Firebase marcou 26.7%. Tanto a IA quanto o algoritmo do Firebase trataram a questão como um fato gramatical mecânico de escola, ignorando a altíssima carga de distração cognitiva nos distratores jurídicos.",
         "justificativas": {
           "complexidade_enunciado": "O texto é um excerto de lei, mas o comando é curto e direto: 'O emprego da norma-padrão é justificado nesse texto' (complementado pela alternativas que não foram fornecidas, mas inferidas pelo gabarito).",
           "elementos_visuais": "Não há elementos visuais complexos; trata-se apenas de texto.",
@@ -302,7 +302,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "O modelo assumiu que o tema principal é explícito no texto curto. No entanto, na prova real do ENEM, questões de síntese textual geram alto índice de erro devido a alternativas extremamente próximas (distratores semânticos fortes). O modelo cru não detecta essa barreira cognitiva.",
+        "description": "Com 70.1% de erro na Banca TRI, o Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Ambos os sistemas subestimaram a questão ao assumirem que a síntese do texto era direta, falhando em detectar que alternativas semanticamente muito próximas são o principal indutor de erro humano.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de mainWindow distratores complexos.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -324,7 +324,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística (\"variação diatópica\"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.",
+        "description": "Dificuldade Real TRI de 4.9% (Muito Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase marcou 20.0%. A Heurística Firebase aproximou-se mais do comportamento real ao ponderar o texto curto, enquanto o Gemma 4 pontuou alto em \"especificidade de domínio\" alegando a complexidade conceitual do termo sociolinguístico.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
           "elementos_visuais": "A imagem apresenta a diversidade de nomes regionais, mas a informação é redundante ao texto do enunciado.",
@@ -346,7 +346,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA subestimou criticamente a complexidade ao assumir que a resposta estava explícita no fragmento do texto. Porém, para os estudantes humanos, a alternativa correta (\"alteração da paisagem em locais estratégicos\") exige correlacionar o desmatamento com a dinâmica climática em larga escala, gerando forte distração cognitiva devido à abstração dos termos.",
+        "description": "Com 90.1% de erro humano (Muito Difícil), o Gemma 4 estimou 25.0% e a Heurística Firebase marcou 26.7%. Ambos subestimaram criticamente a questão: a Heurística Firebase avaliou apenas a extensão do fragmento e o Gemma 4 assumiu uma relação direta, sem perceber que conectar desmatamento a rios voadores exige abstração geográfica multiescala.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto, apresentando a contextualização necessária para a resolução.",
           "elementos_visuais": "Ausência de elementos visuais na questão.",
@@ -368,7 +368,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "O modelo classificou o item como complexidade média, identificando a crítica social do autor. No entanto, subestimou a barreira representada pelo distrator \"seletividade de deslocamentos populacionais\", um termo demográfico formal que confunde estudantes que buscam termos mais corriqueiros.",
+        "description": "Com 69.9% de erro na Banca TRI, o Gemma 4 pontuou 45.0% (Média) e a Heurística Firebase marcou 30.0%. O Gemma 4 capturou melhor a complexidade na dimensão de Raciocínio (3/5), enquanto a Heurística Firebase subestimou o item devido à ausência de imagens e texto de tamanho moderado.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, exigindo filtragem de argumentos para identificar a crítica central.",
           "elementos_visuais": "Não há elementos visuais presentes no enunciado da questão.",
@@ -390,7 +390,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA tratou a questão como simples identificação conceitual direta. Ignorou que, na prova real, a exigência de classificar e diferenciar as formas justas (monarquia, aristocracia, politeia) de seus desvios corrompidos (tirania, oligarquia, demagogia) gera grande confusão terminológica e exige maior esforço de eliminação de distratores.",
+        "description": "Dificuldade Real TRI de 50.3% (Média). O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos classificaram o item como simples identificação conceitual, ignorando que a diferenciação entre formas puras e corrompidas de governo gera forte dúvida terminológica nos estudantes.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto sobre a teoria clássica de Aristóteles.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -1812,7 +1812,7 @@
         "ap_dominio": 4,
         "ap_raciocinio": 4,
         "ap_resposta": 3,
-        "description": "A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.",
+        "description": "Na Dificuldade Real (Banca TRI: 89.0% de erro - Muito Difícil), o Gemma 4 estimou 65.0% (Apêndice B) e a Heurística Firebase marcou 53.3%. Ambos os modelos subestimaram a barreira humana, mas o Gemma 4 chegou mais perto ao pontuar alto em Elementos Visuais (4/5) e Domínio (4/5), enquanto a Heurística Firebase limitou-se ao tamanho do texto de apoio.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando dois textos de apoio providing a contextualização artística artistic contextualization.",
           "elementos_visuais": "Exige a interpretação de uma obra de arte (descrita no Texto II) onde a relação entre azulejos e carne viva é fundamental para a resolução.",
@@ -1834,7 +1834,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA simplificou o problema, vendo a justificativa do uso da norma-padrão em leis como um fato escolar mecânico. Ela ignorou que a complexidade para o estudante humano não está no enunciado, mas sim nos distratores de múltipla escolha juridicamente densos.",
+        "description": "Com 89.3% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou apenas 25.0% (Apêndice B) e a Heurística Firebase marcou 26.7%. Tanto a IA quanto o algoritmo do Firebase trataram a questão como um fato gramatical mecânico de escola, ignorando a altíssima carga de distração cognitiva nos distratores jurídicos.",
         "justificativas": {
           "complexidade_enunciado": "O texto é um excerto de lei, mas o comando é curto e direto: 'O emprego da norma-padrão é justificado nesse texto' (complementado pela alternativas que não foram fornecidas, mas inferidas pelo gabarito).",
           "elementos_visuais": "Não há elementos visuais complexos; trata-se apenas de texto.",
@@ -1856,7 +1856,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "O modelo assumiu que o tema principal é explícito no texto curto. No entanto, na prova real do ENEM, questões de síntese textual geram alto índice de erro devido a alternativas extremamente próximas (distratores semânticos fortes). O modelo cru não detecta essa barreira cognitiva.",
+        "description": "Com 70.1% de erro na Banca TRI, o Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Ambos os sistemas subestimaram a questão ao assumirem que a síntese do texto era direta, falhando em detectar que alternativas semanticamente muito próximas são o principal indutor de erro humano.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de mainWindow distratores complexos.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -1878,7 +1878,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística (\"variação diatópica\"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.",
+        "description": "Dificuldade Real TRI de 4.9% (Muito Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase marcou 20.0%. A Heurística Firebase aproximou-se mais do comportamento real ao ponderar o texto curto, enquanto o Gemma 4 pontuou alto em \"especificidade de domínio\" alegando a complexidade conceitual do termo sociolinguístico.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
           "elementos_visuais": "A imagem apresenta a diversidade de nomes regionais, mas a informação é redundante ao texto do enunciado.",
@@ -2725,7 +2725,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA subestimou criticamente a complexidade ao assumir que a resposta estava explícita no fragmento do texto. Porém, para os estudantes humanos, a alternativa correta (\"alteração da paisagem em locais estratégicos\") exige correlacionar o desmatamento com a dinâmica climática em larga escala, gerando forte distração cognitiva devido à abstração dos termos.",
+        "description": "Com 90.1% de erro humano (Muito Difícil), o Gemma 4 estimou 25.0% e a Heurística Firebase marcou 26.7%. Ambos subestimaram criticamente a questão: a Heurística Firebase avaliou apenas a extensão do fragmento e o Gemma 4 assumiu uma relação direta, sem perceber que conectar desmatamento a rios voadores exige abstração geográfica multiescala.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto, apresentando a contextualização necessária para a resolução.",
           "elementos_visuais": "Ausência de elementos visuais na questão.",
@@ -2747,7 +2747,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "O modelo classificou o item como complexidade média, identificando a crítica social do autor. No entanto, subestimou a barreira representada pelo distrator \"seletividade de deslocamentos populacionais\", um termo demográfico formal que confunde estudantes que buscam termos mais corriqueiros.",
+        "description": "Com 69.9% de erro na Banca TRI, o Gemma 4 pontuou 45.0% (Média) e a Heurística Firebase marcou 30.0%. O Gemma 4 capturou melhor a complexidade na dimensão de Raciocínio (3/5), enquanto a Heurística Firebase subestimou o item devido à ausência de imagens e texto de tamanho moderado.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, exigindo filtragem de argumentos para identificar a crítica central.",
           "elementos_visuais": "Não há elementos visuais presentes no enunciado da questão.",
@@ -2769,7 +2769,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA tratou a questão como simples identificação conceitual direta. Ignorou que, na prova real, a exigência de classificar e diferenciar as formas justas (monarquia, aristocracia, politeia) de seus desvios corrompidos (tirania, oligarquia, demagogia) gera grande confusão terminológica e exige maior esforço de eliminação de distratores.",
+        "description": "Dificuldade Real TRI de 50.3% (Média). O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos classificaram o item como simples identificação conceitual, ignorando que a diferenciação entre formas puras e corrompidas de governo gera forte dúvida terminológica nos estudantes.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto sobre a teoria clássica de Aristóteles.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -3616,7 +3616,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "A IA subestimou a complexidade ao considerar a neutralização uma reação padrão de 2 etapas. Na prova real, os alunos confundiram a volatilidade e basicidade das aminas orgânicas com compostos ácidos, gerando alto índice de erro.",
+        "description": "Com 90.1% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou 45.0% e a Heurística Firebase 33.3%. A Heurística do Firebase focou nas poucas linhas do enunciado, enquanto o Gemma 4 identificou as etapas de reação (3/5), porém ambos falharam em prever que os candidatos confundiriam basicidade orgânica com pH ácido.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização simples sobre um acidente químico e comando claro.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -3638,7 +3638,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "O modelo reduziu o circuito a um cálculo de resistência simples, ignorando a análise de estado das chaves abertas/fechadas que confunde o estudante sob a pressão do tempo.",
+        "description": "Com 45.6% de erro na Banca TRI, o Gemma 4 pontuou 25.0% e a Heurística Firebase 23.3%. Ambos reduziram o circuito a uma fórmula direta de resistência, desconsiderando a análise condicional do estado das chaves sob a pressão do tempo.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto, objetivo e fornece as pistas necessary para a resolução, sem distratores complexos no corpo do texto.",
           "elementos_visuais": "Não há elementos visuais na questão.",
@@ -3660,7 +3660,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "Atribuiu complexidade baixa por tratar a leitura do heredograma como direta, desconsiderando o produto de probabilidades genéticas e os distratores de consanguinidade.",
+        "description": "Dificuldade Real TRI de 44.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas trataram a leitura da árvore genealógica de forma superficial, desconsiderando o acúmulo de produto de probabilidades genéticas.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de concettoi distratores complexos.",
           "elementos_visuais": "Não há presença de elementos visuais na questão.",
@@ -3682,7 +3682,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Classificou o item como complexidade baixa devido ao enunciado objetivo, mas subestimou a conversão de unidades térmicas e o ajuste do fluxo de calor.",
+        "description": "Dificuldade Real TRI de 51.5%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 30.0%. A Heurística Firebase deu nota ligeiramente superior pelo tamanho da tabela térmica, mas ambos subestimaram o desvio por conversão de unidades.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, contextualização padrão de vestibular с сomando claro e direto.",
           "elementos_visuais": "Ausência de elementos visuais na questão.",
@@ -3704,7 +3704,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Alinhou-se bem ao padrão real fácil, identificando os fotossistemas e a fotólise da água como conceito direto do ensino médio.",
+        "description": "Dificuldade Real TRI de 31.4% (Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 23.3%. Ambos alinharam-se com precisão ao padrão empírico fácil da banca, identificando a fotólise como conceito direto de sala de aula.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização simples sobre a purificação de água e comando implícito na identificação do tipo de água.",
           "elementos_visuais": "Não há elementos visuais presentes no enunciado da questão.",
@@ -3726,7 +3726,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Previu a complexidade baixa adequadamente, alinhando-se com a facilidade empírica e a alta taxa de acerto dos candidatos na TRI.",
+        "description": "Dificuldade Real TRI de 28.7% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Excelente convergência das duas ferramentas de avaliação com a elevada taxa de acerto observada nos alunos.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos no enunciado.",
           "elementos_visuais": "Não há elementos visuais presentes na questão.",
@@ -4573,7 +4573,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 2,
-        "description": "Atribuiu 4/5 para raciocínio complexo devido às 4 etapas de resolução. Contudo, subestimou o acúmulo de erros de aproximação que afeta fortemente alunos humanos.",
+        "description": "Dificuldade Real TRI de 69.9% (Difícil). O Gemma 4 marcou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou as 4 etapas de resolução na nota de Raciocínio (4/5), enquanto a Heurística Firebase subestimou o item por avaliar a geometria apenas como um texto com números.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando comando claro e dados um pouco dispersos.",
           "elementos_visuais": "A questão exige a interpretação de um desenho técnico com vistas superior e perspectiva, exigindo extração direta de dados.",
@@ -4595,7 +4595,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "Considerou o cálculo aritmético direto, ignorando que a tabela de porções variáveis causa altíssimo índice de erro em interpretação de unidades.",
+        "description": "Com 69.5% de erro na TRI Real, o Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos interpretaram o problema como simples regra de três, falhando em notar que tabelas de porções variáveis geram altíssima taxa de confusão visual.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com as informações necessárias fornecidas diretamente no enunciado, sem distratores complexos.",
           "elementos_visuais": "Embora o enunciado mencione imagens, as informações essenciais foram transcritas ownenunciado, tornando a imagem meramente ilustrativa.",
@@ -4617,7 +4617,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Identificou a fórmula de fatorial, mas subestimou a distração de casos restritivos em agrupamentos de pessoas.",
+        "description": "Dificuldade Real TRI de 64.0%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Tanto o prompt quanto a heurística identificaram a fórmula de fatorial, mas ignoraram a complexidade de restrições de posição que travam o raciocínio humano.",
         "justificativas": {
           "complexidade_enunciado": "O texto é direto e explícito, fornecendo todas as definições e unidades necessárias sem distratores.",
           "elementos_visuais": "Não há elementos visuais ou imagens na questão.",
@@ -4639,7 +4639,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 2,
-        "description": "Mapeou o ponto de máximo no vértice (y_v), mas desconsiderou a interpretação do significado prático das raízes no contexto.",
+        "description": "Dificuldade Real TRI de 53.2%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos identificaram a fórmula do vértice (y_v), mas não previram a dúvida dos alunos quanto à interpretação prática das raízes no gráfico.",
         "justificativas": {
           "complexidade_enunciado": "O enunciado é curto, objetivo e apresenta um comando claro, com pouca contextualização desnecessária.",
           "elementos_visuais": "Exige o cruzamento de dados entre um gráfico de barras agrupadas e um gráfico de setores para determinar a escala e resolver a questão.",
@@ -4661,7 +4661,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Tratou como cálculo direto de mediana, mas a presença de frequências acumuladas em tabela confunde a contagem de elementos centrais.",
+        "description": "Dificuldade Real TRI de 46.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. A identificação do elemento central da mediana pareceu simples às duas ferramentas, porém a tabela de frequências acumuladas confunde a contagem nos alunos humanos.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com regras um pouco mais longas, mas o comando final é direto e a contextualização é uma empresa.",
           "elementos_visuais": "Não há presença de elementos visuais na questão.",
@@ -4683,7 +4683,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Classificou adequadamente como aplicação simples de razão de escala linear 1:N, refletindo a facilidade empírica observada na TRI.",
+        "description": "Dificuldade Real TRI de 31.0% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Perfeito alinhamento de baixa complexidade entre os dois modelos e a alta taxa de acerto empírica da banca.",
         "justificativas": {
           "complexidade_enunciado": "O texto é curto e objetivo, com uma contextualização padrão de vestibular creating a minimal amount of distratores.",
           "elementos_visuais": "A questão exige a interpretação de um gráfico de frequência respiratória em função do tempo, onde a extração de dados é direta.",
@@ -5279,12 +5279,12 @@
       "ai_complexity_heuristic": {
         "name": "Complexidade Heurística",
         "global": {
-          "spearman": 0.13130036225785846,
-          "pearson": 0.17844964693924614
+          "spearman": 0.026244002950928345,
+          "pearson": 0.07145616965026809
         },
         "pre_cutoff": {
-          "spearman": 0.10172872732937825,
-          "pearson": 0.15817934720624868
+          "spearman": -0.02346849915862425,
+          "pearson": -0.04576193602622956
         },
         "post_cutoff": {
           "spearman": 0.39999999999999997,
@@ -5400,10 +5400,10 @@
     "comparisons": {
       "global": {
         "heuristic_vs_real": {
-          "spearman": 0.13130036225785846,
-          "pearson": 0.17844964693924614,
-          "mae": 27.52,
-          "bias": -11.368000000000002
+          "spearman": 0.026244002950928345,
+          "pearson": 0.07145616965026809,
+          "mae": 43.224,
+          "bias": -39.688
         },
         "apendice_vs_real": {
           "spearman": 0.17240088676438287,
@@ -5412,18 +5412,18 @@
           "bias": -10.128
         },
         "apendice_vs_heuristic": {
-          "spearman": 0.16290187901488776,
-          "pearson": 0.21343287404410716,
-          "mae": 16.6,
-          "bias": 1.24
+          "spearman": 0.1383082961350652,
+          "pearson": 0.20800912875909913,
+          "mae": 29.96,
+          "bias": 29.56
         }
       },
       "pre_cutoff": {
         "heuristic_vs_real": {
-          "spearman": 0.10172872732937827,
-          "pearson": 0.15817934720624868,
-          "mae": 27.504761904761907,
-          "bias": -9.295238095238096
+          "spearman": -0.02346849915862425,
+          "pearson": -0.04576193602622956,
+          "mae": 46.199999999999996,
+          "bias": -43.009523809523806
         },
         "apendice_vs_real": {
           "spearman": -0.05072949220173333,
@@ -5432,10 +5432,10 @@
           "bias": -10.533333333333333
         },
         "apendice_vs_heuristic": {
-          "spearman": 0.19141501015802884,
-          "pearson": 0.2258233135890081,
-          "mae": 17.047619047619047,
-          "bias": -1.2380952380952381
+          "spearman": -0.008112081571743595,
+          "pearson": 0.04883390647982627,
+          "mae": 32.95238095238095,
+          "bias": 32.476190476190474
         }
       },
       "post_cutoff": {
@@ -5462,7 +5462,7 @@
     "faixas_stats": [
       {
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 32.6,
+        "ai_complexity_heuristic": 12.6,
         "ap_enunciado": 2.2,
         "ap_visual": 2.0,
         "ap_dominio": 2.4,
@@ -5473,7 +5473,7 @@
       },
       {
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 41.2,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2.4,
         "ap_visual": 2.8,
         "ap_dominio": 3.2,
@@ -5484,7 +5484,7 @@
       },
       {
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 27.8,
+        "ai_complexity_heuristic": 10.6,
         "ap_enunciado": 2.2,
         "ap_visual": 1.0,
         "ap_dominio": 2.6,
@@ -5495,7 +5495,7 @@
       },
       {
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 42.0,
+        "ai_complexity_heuristic": 8.0,
         "ap_enunciado": 2.6,
         "ap_visual": 2.2,
         "ap_dominio": 3.6,
@@ -5506,7 +5506,7 @@
       },
       {
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 43.2,
+        "ai_complexity_heuristic": 14.0,
         "ap_enunciado": 2.4,
         "ap_visual": 1.6,
         "ap_dominio": 3.4,
@@ -5530,7 +5530,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 3,
-        "description": "Exige leitura de perfil topográfico e cálculo trigonométrico em 4 etapas encadeadas. A IA atribuiu nota 4 em raciocínio e visual, mas subestimou os erros humanos no ajuste de altitude do prisma.",
+        "description": "Na FUVEST 2026 (83.9% de erro - Muito Difícil), o Gemma 4 estimou 55.0% (Apêndice B) e a Heurística Firebase marcou 43.3%. O Gemma 4 sobressaiu-se ao atribuir nota 4/5 em Raciocínio e Elementos Visuais, ao passo que a Heurística Firebase contabilizou apenas a presença do mapa e do enunciado curto.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização técnica de topografia, mas com comando claro e dados fornecidos.",
           "elementos_visuais": "Exige a interpretação de um diagrama topográfico para compreender a posição dos pontos A, B e M e as inclinações, sendo fundamental para a resolução.",
@@ -5552,7 +5552,7 @@
         "ap_dominio": 4,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "Demanda cruzar a composição de sedimentos (Química) com o mapa da bacia amazônica e a erosão andina (Geografia). Ativou nota 4/5 para Elementos Visuais e Domínio.",
+        "description": "Dificuldade Real FUVEST de 70.3% (Difícil). O Gemma 4 estimou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou melhor o caráter interdisciplinar ativando nota 4/5 em Domínio e Visual, enquanto a Heurística Firebase avaliou o item prioritariamente como leitura de mapa.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando a definição de tipos de águas e a classificação de Sioli.",
           "elementos_visuais": "A questão exige a interpretação de um mapa da Região Hidrográfica Amazônica para validar a alternativa correta e descartar distratores, exigindo cruzamento de dados.",
@@ -5574,7 +5574,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "Envolve Princípio de Le Chatelier e variação de pH. O modelo considerou a questão direta em 2 etapas, prevendo complexidade mediana alinhada à banca.",
+        "description": "Dificuldade Real FUVEST de 48.5%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas consideraram a aplicação de Le Chatelier e pH como um conceito padrão de 2 etapas.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem excesso de distratores.",
           "elementos_visuais": "Não há elementos visuais presentes na questão; apenas a representação textual da equação química.",
@@ -5596,7 +5596,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 3,
-        "description": "Item de compreensão direta de texto. O modelo pontuou baixo (10/25), alinhando-se com a alta taxa de acerto dos candidatos na FUVEST 2026.",
+        "description": "Dificuldade Real FUVEST de 9.3% (Muito Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 20.0%. Excelente convergência indicando a simplicidade de compreensão direta do texto literário.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto baseado na compreensão leitora.",
           "elementos_visuais": "Ausência de elementos visuais no enunciado.",
@@ -5658,7 +5658,7 @@
         "ano": 2024,
         "real_difficulty": 8.2,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 27.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 3,
         "ap_dominio": 3,
@@ -5681,7 +5681,7 @@
         "ano": 2024,
         "real_difficulty": 12.6,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 40.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -5704,7 +5704,7 @@
         "ano": 2025,
         "real_difficulty": 12.8,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 33.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -5750,7 +5750,7 @@
         "ano": 2024,
         "real_difficulty": 29.7,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 43.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 4,
         "ap_dominio": 3,
@@ -5773,7 +5773,7 @@
         "ano": 2025,
         "real_difficulty": 31.5,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 43.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -5796,7 +5796,7 @@
         "ano": 2024,
         "real_difficulty": 28.3,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 50.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 4,
         "ap_dominio": 3,
@@ -5819,7 +5819,7 @@
         "ano": 2025,
         "real_difficulty": 28.2,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 70.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 2,
         "ap_dominio": 4,
@@ -5842,7 +5842,7 @@
         "ano": 2025,
         "real_difficulty": 50.0,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -5865,7 +5865,7 @@
         "ano": 2024,
         "real_difficulty": 49.9,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 23.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -5888,7 +5888,7 @@
         "ano": 2025,
         "real_difficulty": 50.1,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 10.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -5957,7 +5957,7 @@
         "ano": 2025,
         "real_difficulty": 70.0,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 67.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -6003,7 +6003,7 @@
         "ano": 2025,
         "real_difficulty": 70.6,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -6026,7 +6026,7 @@
         "ano": 2024,
         "real_difficulty": 71.0,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 20.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 4,
         "ap_dominio": 4,
@@ -6049,7 +6049,7 @@
         "ano": 2024,
         "real_difficulty": 68.7,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 30.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 1,
         "ap_visual": 1,
         "ap_dominio": 5,
@@ -6072,7 +6072,7 @@
         "ano": 2025,
         "real_difficulty": 86.9,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 70.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 4,
@@ -6095,7 +6095,7 @@
         "ano": 2025,
         "real_difficulty": 84.8,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 1,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -6141,7 +6141,7 @@
         "ano": 2024,
         "real_difficulty": 82.7,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 23.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -6192,16 +6192,16 @@
       "ai_complexity_heuristic": {
         "name": "Complexidade Heurística",
         "global": {
-          "spearman": 0.16205805545174884,
-          "pearson": 0.17345318007506194
+          "spearman": 0.17218494376902124,
+          "pearson": 0.17244123280867593
         },
         "pre_cutoff": {
-          "spearman": 0.10340495315525375,
-          "pearson": 0.1306144951837891
+          "spearman": 0.17031223607490698,
+          "pearson": 0.1829187960410683
         },
         "post_cutoff": {
-          "spearman": 0.2687397825747312,
-          "pearson": 0.2627528974184564
+          "spearman": 0.1979945344388102,
+          "pearson": 0.19598961007813506
         }
       },
       "ap_enunciado": {
@@ -6313,10 +6313,10 @@
     "comparisons": {
       "global": {
         "heuristic_vs_real": {
-          "spearman": 0.16205805545174884,
-          "pearson": 0.1734531800750619,
-          "mae": 28.2192,
-          "bias": -19.2096
+          "spearman": 0.17218494376902124,
+          "pearson": 0.17244123280867596,
+          "mae": 31.36,
+          "bias": -24.873600000000003
         },
         "apendice_vs_real": {
           "spearman": 0.2509243668650987,
@@ -6325,18 +6325,18 @@
           "bias": -22.0736
         },
         "apendice_vs_heuristic": {
-          "spearman": 0.40508847828107253,
-          "pearson": 0.40029509539011787,
-          "mae": 13.456,
-          "bias": -2.864
+          "spearman": 0.17526255816632874,
+          "pearson": 0.1664087853930716,
+          "mae": 16.128,
+          "bias": 2.8
         }
       },
       "pre_cutoff": {
         "heuristic_vs_real": {
-          "spearman": 0.10340495315525375,
-          "pearson": 0.1306144951837891,
-          "mae": 29.230107526881717,
-          "bias": -19.419354838709676
+          "spearman": 0.17031223607490698,
+          "pearson": 0.1829187960410683,
+          "mae": 30.236559139784937,
+          "bias": -22.172043010752688
         },
         "apendice_vs_real": {
           "spearman": 0.24277909569967335,
@@ -6345,18 +6345,18 @@
           "bias": -20.462365591397848
         },
         "apendice_vs_heuristic": {
-          "spearman": 0.4047111635316591,
-          "pearson": 0.40289124615022287,
-          "mae": 12.591397849462366,
-          "bias": -1.043010752688172
+          "spearman": 0.19622667617895032,
+          "pearson": 0.18049942436041735,
+          "mae": 15.236559139784946,
+          "bias": 1.7096774193548387
         }
       },
       "post_cutoff": {
         "heuristic_vs_real": {
-          "spearman": 0.2687397825747312,
-          "pearson": 0.26275289741845637,
-          "mae": 25.28125,
-          "bias": -18.6
+          "spearman": 0.1979945344388102,
+          "pearson": 0.19598961007813506,
+          "mae": 34.625,
+          "bias": -32.725
         },
         "apendice_vs_real": {
           "spearman": 0.2517657646749083,
@@ -6365,17 +6365,17 @@
           "bias": -26.75625
         },
         "apendice_vs_heuristic": {
-          "spearman": 0.4293566634864853,
-          "pearson": 0.4324195215056756,
-          "mae": 15.96875,
-          "bias": -8.15625
+          "spearman": 0.07795827055636372,
+          "pearson": 0.12347873049318624,
+          "mae": 18.71875,
+          "bias": 5.96875
         }
       }
     },
     "faixas_stats": [
       {
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 28.0,
+        "ai_complexity_heuristic": 24.0,
         "ap_enunciado": 2.08,
         "ap_visual": 2.08,
         "ap_dominio": 2.16,
@@ -6386,7 +6386,7 @@
       },
       {
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 32.28,
+        "ai_complexity_heuristic": 24.04,
         "ap_enunciado": 2.12,
         "ap_visual": 1.8,
         "ap_dominio": 2.52,
@@ -6397,7 +6397,7 @@
       },
       {
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 31.28,
+        "ai_complexity_heuristic": 27.84,
         "ap_enunciado": 2.12,
         "ap_visual": 1.52,
         "ap_dominio": 2.2,
@@ -6408,7 +6408,7 @@
       },
       {
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 35.76,
+        "ai_complexity_heuristic": 28.96,
         "ap_enunciado": 2.6,
         "ap_visual": 1.8,
         "ap_dominio": 2.76,
@@ -6419,7 +6419,7 @@
       },
       {
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 36.8,
+        "ai_complexity_heuristic": 30.96,
         "ap_enunciado": 2.4,
         "ap_visual": 1.56,
         "ap_dominio": 2.84,
@@ -6443,7 +6443,7 @@
         "ap_dominio": 4,
         "ap_raciocinio": 4,
         "ap_resposta": 3,
-        "description": "A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.",
+        "description": "Na Dificuldade Real (Banca TRI: 89.0% de erro - Muito Difícil), o Gemma 4 estimou 65.0% (Apêndice B) e a Heurística Firebase marcou 53.3%. Ambos os modelos subestimaram a barreira humana, mas o Gemma 4 chegou mais perto ao pontuar alto em Elementos Visuais (4/5) e Domínio (4/5), enquanto a Heurística Firebase limitou-se ao tamanho do texto de apoio.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando dois textos de apoio providing a contextualização artística artistic contextualization.",
           "elementos_visuais": "Exige a interpretação de uma obra de arte (descrita no Texto II) onde a relação entre azulejos e carne viva é fundamental para a resolução.",
@@ -6465,7 +6465,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA simplificou o problema, vendo a justificativa do uso da norma-padrão em leis como um fato escolar mecânico. Ela ignorou que a complexidade para o estudante humano não está no enunciado, mas sim nos distratores de múltipla escolha juridicamente densos.",
+        "description": "Com 89.3% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou apenas 25.0% (Apêndice B) e a Heurística Firebase marcou 26.7%. Tanto a IA quanto o algoritmo do Firebase trataram a questão como um fato gramatical mecânico de escola, ignorando a altíssima carga de distração cognitiva nos distratores jurídicos.",
         "justificativas": {
           "complexidade_enunciado": "O texto é um excerto de lei, mas o comando é curto e direto: 'O emprego da norma-padrão é justificado nesse texto' (complementado pela alternativas que não foram fornecidas, mas inferidas pelo gabarito).",
           "elementos_visuais": "Não há elementos visuais complexos; trata-se apenas de texto.",
@@ -6487,7 +6487,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "O modelo assumiu que o tema principal é explícito no texto curto. No entanto, na prova real do ENEM, questões de síntese textual geram alto índice de erro devido a alternativas extremamente próximas (distratores semânticos fortes). O modelo cru não detecta essa barreira cognitiva.",
+        "description": "Com 70.1% de erro na Banca TRI, o Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Ambos os sistemas subestimaram a questão ao assumirem que a síntese do texto era direta, falhando em detectar que alternativas semanticamente muito próximas são o principal indutor de erro humano.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de mainWindow distratores complexos.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -6509,7 +6509,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística (\"variação diatópica\"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.",
+        "description": "Dificuldade Real TRI de 4.9% (Muito Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase marcou 20.0%. A Heurística Firebase aproximou-se mais do comportamento real ao ponderar o texto curto, enquanto o Gemma 4 pontuou alto em \"especificidade de domínio\" alegando a complexidade conceitual do termo sociolinguístico.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos.",
           "elementos_visuais": "A imagem apresenta a diversidade de nomes regionais, mas a informação é redundante ao texto do enunciado.",
@@ -6531,7 +6531,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA subestimou criticamente a complexidade ao assumir que a resposta estava explícita no fragmento do texto. Porém, para os estudantes humanos, a alternativa correta (\"alteração da paisagem em locais estratégicos\") exige correlacionar o desmatamento com a dinâmica climática em larga escala, gerando forte distração cognitiva devido à abstração dos termos.",
+        "description": "Com 90.1% de erro humano (Muito Difícil), o Gemma 4 estimou 25.0% e a Heurística Firebase marcou 26.7%. Ambos subestimaram criticamente a questão: a Heurística Firebase avaliou apenas a extensão do fragmento e o Gemma 4 assumiu uma relação direta, sem perceber que conectar desmatamento a rios voadores exige abstração geográfica multiescala.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto, apresentando a contextualização necessária para a resolução.",
           "elementos_visuais": "Ausência de elementos visuais na questão.",
@@ -6553,7 +6553,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "O modelo classificou o item como complexidade média, identificando a crítica social do autor. No entanto, subestimou a barreira representada pelo distrator \"seletividade de deslocamentos populacionais\", um termo demográfico formal que confunde estudantes que buscam termos mais corriqueiros.",
+        "description": "Com 69.9% de erro na Banca TRI, o Gemma 4 pontuou 45.0% (Média) e a Heurística Firebase marcou 30.0%. O Gemma 4 capturou melhor a complexidade na dimensão de Raciocínio (3/5), enquanto a Heurística Firebase subestimou o item devido à ausência de imagens e texto de tamanho moderado.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, exigindo filtragem de argumentos para identificar a crítica central.",
           "elementos_visuais": "Não há elementos visuais presentes no enunciado da questão.",
@@ -6575,7 +6575,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "A IA tratou a questão como simples identificação conceitual direta. Ignorou que, na prova real, a exigência de classificar e diferenciar as formas justas (monarquia, aristocracia, politeia) de seus desvios corrompidos (tirania, oligarquia, demagogia) gera grande confusão terminológica e exige maior esforço de eliminação de distratores.",
+        "description": "Dificuldade Real TRI de 50.3% (Média). O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos classificaram o item como simples identificação conceitual, ignorando que a diferenciação entre formas puras e corrompidas de governo gera forte dúvida terminológica nos estudantes.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto sobre a teoria clássica de Aristóteles.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -6597,7 +6597,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "A IA subestimou a complexidade ao considerar a neutralização uma reação padrão de 2 etapas. Na prova real, os alunos confundiram a volatilidade e basicidade das aminas orgânicas com compostos ácidos, gerando alto índice de erro.",
+        "description": "Com 90.1% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou 45.0% e a Heurística Firebase 33.3%. A Heurística do Firebase focou nas poucas linhas do enunciado, enquanto o Gemma 4 identificou as etapas de reação (3/5), porém ambos falharam em prever que os candidatos confundiriam basicidade orgânica com pH ácido.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização simples sobre um acidente químico e comando claro.",
           "elementos_visuais": "Ausência total de elementos visuais na questão.",
@@ -6619,7 +6619,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "O modelo reduziu o circuito a um cálculo de resistência simples, ignorando a análise de estado das chaves abertas/fechadas que confunde o estudante sob a pressão do tempo.",
+        "description": "Com 45.6% de erro na Banca TRI, o Gemma 4 pontuou 25.0% e a Heurística Firebase 23.3%. Ambos reduziram o circuito a uma fórmula direta de resistência, desconsiderando a análise condicional do estado das chaves sob a pressão do tempo.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto, objetivo e fornece as pistas necessary para a resolução, sem distratores complexos no corpo do texto.",
           "elementos_visuais": "Não há elementos visuais na questão.",
@@ -6641,7 +6641,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "Atribuiu complexidade baixa por tratar a leitura do heredograma como direta, desconsiderando o produto de probabilidades genéticas e os distratores de consanguinidade.",
+        "description": "Dificuldade Real TRI de 44.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas trataram a leitura da árvore genealógica de forma superficial, desconsiderando o acúmulo de produto de probabilidades genéticas.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de concettoi distratores complexos.",
           "elementos_visuais": "Não há presença de elementos visuais na questão.",
@@ -6663,7 +6663,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Classificou o item como complexidade baixa devido ao enunciado objetivo, mas subestimou a conversão de unidades térmicas e o ajuste do fluxo de calor.",
+        "description": "Dificuldade Real TRI de 51.5%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 30.0%. A Heurística Firebase deu nota ligeiramente superior pelo tamanho da tabela térmica, mas ambos subestimaram o desvio por conversão de unidades.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, contextualização padrão de vestibular с сomando claro e direto.",
           "elementos_visuais": "Ausência de elementos visuais na questão.",
@@ -6685,7 +6685,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Alinhou-se bem ao padrão real fácil, identificando os fotossistemas e a fotólise da água como conceito direto do ensino médio.",
+        "description": "Dificuldade Real TRI de 31.4% (Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 23.3%. Ambos alinharam-se com precisão ao padrão empírico fácil da banca, identificando a fotólise como conceito direto de sala de aula.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização simples sobre a purificação de água e comando implícito na identificação do tipo de água.",
           "elementos_visuais": "Não há elementos visuais presentes no enunciado da questão.",
@@ -6707,7 +6707,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Previu a complexidade baixa adequadamente, alinhando-se com a facilidade empírica e a alta taxa de acerto dos candidatos na TRI.",
+        "description": "Dificuldade Real TRI de 28.7% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Excelente convergência das duas ferramentas de avaliação com a elevada taxa de acerto observada nos alunos.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem a presença de distratores complexos no enunciado.",
           "elementos_visuais": "Não há elementos visuais presentes na questão.",
@@ -6729,7 +6729,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 2,
-        "description": "Atribuiu 4/5 para raciocínio complexo devido às 4 etapas de resolução. Contudo, subestimou o acúmulo de erros de aproximação que afeta fortemente alunos humanos.",
+        "description": "Dificuldade Real TRI de 69.9% (Difícil). O Gemma 4 marcou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou as 4 etapas de resolução na nota de Raciocínio (4/5), enquanto a Heurística Firebase subestimou o item por avaliar a geometria apenas como um texto com números.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando comando claro e dados um pouco dispersos.",
           "elementos_visuais": "A questão exige a interpretação de um desenho técnico com vistas superior e perspectiva, exigindo extração direta de dados.",
@@ -6751,7 +6751,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 3,
         "ap_resposta": 1,
-        "description": "Considerou o cálculo aritmético direto, ignorando que a tabela de porções variáveis causa altíssimo índice de erro em interpretação de unidades.",
+        "description": "Com 69.5% de erro na TRI Real, o Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos interpretaram o problema como simples regra de três, falhando em notar que tabelas de porções variáveis geram altíssima taxa de confusão visual.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com as informações necessárias fornecidas diretamente no enunciado, sem distratores complexos.",
           "elementos_visuais": "Embora o enunciado mencione imagens, as informações essenciais foram transcritas ownenunciado, tornando a imagem meramente ilustrativa.",
@@ -6773,7 +6773,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Identificou a fórmula de fatorial, mas subestimou a distração de casos restritivos em agrupamentos de pessoas.",
+        "description": "Dificuldade Real TRI de 64.0%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Tanto o prompt quanto a heurística identificaram a fórmula de fatorial, mas ignoraram a complexidade de restrições de posição que travam o raciocínio humano.",
         "justificativas": {
           "complexidade_enunciado": "O texto é direto e explícito, fornecendo todas as definições e unidades necessárias sem distratores.",
           "elementos_visuais": "Não há elementos visuais ou imagens na questão.",
@@ -6795,7 +6795,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 2,
-        "description": "Mapeou o ponto de máximo no vértice (y_v), mas desconsiderou a interpretação do significado prático das raízes no contexto.",
+        "description": "Dificuldade Real TRI de 53.2%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos identificaram a fórmula do vértice (y_v), mas não previram a dúvida dos alunos quanto à interpretação prática das raízes no gráfico.",
         "justificativas": {
           "complexidade_enunciado": "O enunciado é curto, objetivo e apresenta um comando claro, com pouca contextualização desnecessária.",
           "elementos_visuais": "Exige o cruzamento de dados entre um gráfico de barras agrupadas e um gráfico de setores para determinar a escala e resolver a questão.",
@@ -6817,7 +6817,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Tratou como cálculo direto de mediana, mas a presença de frequências acumuladas em tabela confunde a contagem de elementos centrais.",
+        "description": "Dificuldade Real TRI de 46.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. A identificação do elemento central da mediana pareceu simples às duas ferramentas, porém a tabela de frequências acumuladas confunde a contagem nos alunos humanos.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com regras um pouco mais longas, mas o comando final é direto e a contextualização é uma empresa.",
           "elementos_visuais": "Não há presença de elementos visuais na questão.",
@@ -6839,7 +6839,7 @@
         "ap_dominio": 1,
         "ap_raciocinio": 2,
         "ap_resposta": 1,
-        "description": "Classificou adequadamente como aplicação simples de razão de escala linear 1:N, refletindo a facilidade empírica observada na TRI.",
+        "description": "Dificuldade Real TRI de 31.0% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Perfeito alinhamento de baixa complexidade entre os dois modelos e a alta taxa de acerto empírica da banca.",
         "justificativas": {
           "complexidade_enunciado": "O texto é curto e objetivo, com uma contextualização padrão de vestibular creating a minimal amount of distratores.",
           "elementos_visuais": "A questão exige a interpretação de um gráfico de frequência respiratória em função do tempo, onde a extração de dados é direta.",
@@ -6861,7 +6861,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 4,
         "ap_resposta": 3,
-        "description": "Exige leitura de perfil topográfico e cálculo trigonométrico em 4 etapas encadeadas. A IA atribuiu nota 4 em raciocínio e visual, mas subestimou os erros humanos no ajuste de altitude do prisma.",
+        "description": "Na FUVEST 2026 (83.9% de erro - Muito Difícil), o Gemma 4 estimou 55.0% (Apêndice B) e a Heurística Firebase marcou 43.3%. O Gemma 4 sobressaiu-se ao atribuir nota 4/5 em Raciocínio e Elementos Visuais, ao passo que a Heurística Firebase contabilizou apenas a presença do mapa e do enunciado curto.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização técnica de topografia, mas com comando claro e dados fornecidos.",
           "elementos_visuais": "Exige a interpretação de um diagrama topográfico para compreender a posição dos pontos A, B e M e as inclinações, sendo fundamental para a resolução.",
@@ -6883,7 +6883,7 @@
         "ap_dominio": 4,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "Demanda cruzar a composição de sedimentos (Química) com o mapa da bacia amazônica e a erosão andina (Geografia). Ativou nota 4/5 para Elementos Visuais e Domínio.",
+        "description": "Dificuldade Real FUVEST de 70.3% (Difícil). O Gemma 4 estimou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou melhor o caráter interdisciplinar ativando nota 4/5 em Domínio e Visual, enquanto a Heurística Firebase avaliou o item prioritariamente como leitura de mapa.",
         "justificativas": {
           "complexidade_enunciado": "Texto de tamanho moderado com contextualização padrão de vestibular, apresentando a definição de tipos de águas e a classificação de Sioli.",
           "elementos_visuais": "A questão exige a interpretação de um mapa da Região Hidrográfica Amazônica para validar a alternativa correta e descartar distratores, exigindo cruzamento de dados.",
@@ -6905,7 +6905,7 @@
         "ap_dominio": 3,
         "ap_raciocinio": 3,
         "ap_resposta": 3,
-        "description": "Envolve Princípio de Le Chatelier e variação de pH. O modelo considerou a questão direta em 2 etapas, prevendo complexidade mediana alinhada à banca.",
+        "description": "Dificuldade Real FUVEST de 48.5%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas consideraram a aplicação de Le Chatelier e pH como um conceito padrão de 2 etapas.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com contextualização padrão de vestibular, sem excesso de distratores.",
           "elementos_visuais": "Não há elementos visuais presentes na questão; apenas a representação textual da equação química.",
@@ -6927,7 +6927,7 @@
         "ap_dominio": 2,
         "ap_raciocinio": 2,
         "ap_resposta": 3,
-        "description": "Item de compreensão direta de texto. O modelo pontuou baixo (10/25), alinhando-se com a alta taxa de acerto dos candidatos na FUVEST 2026.",
+        "description": "Dificuldade Real FUVEST de 9.3% (Muito Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 20.0%. Excelente convergência indicando a simplicidade de compreensão direta do texto literário.",
         "justificativas": {
           "complexidade_enunciado": "Texto curto e objetivo, com comando claro e direto baseado na compreensão leitora.",
           "elementos_visuais": "Ausência de elementos visuais no enunciado.",
@@ -9289,7 +9289,7 @@
         "ano": 2024,
         "real_difficulty": 8.2,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 27.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 3,
         "ap_dominio": 3,
@@ -9312,7 +9312,7 @@
         "ano": 2024,
         "real_difficulty": 12.6,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 40.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9335,7 +9335,7 @@
         "ano": 2025,
         "real_difficulty": 12.8,
         "faixa": "0%-20%",
-        "ai_complexity_heuristic": 33.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -9381,7 +9381,7 @@
         "ano": 2024,
         "real_difficulty": 29.7,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 43.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 4,
         "ap_dominio": 3,
@@ -9404,7 +9404,7 @@
         "ano": 2025,
         "real_difficulty": 31.5,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 43.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9427,7 +9427,7 @@
         "ano": 2024,
         "real_difficulty": 28.3,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 50.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 4,
         "ap_dominio": 3,
@@ -9450,7 +9450,7 @@
         "ano": 2025,
         "real_difficulty": 28.2,
         "faixa": "20%-40%",
-        "ai_complexity_heuristic": 70.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 2,
         "ap_dominio": 4,
@@ -9473,7 +9473,7 @@
         "ano": 2025,
         "real_difficulty": 50.0,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9496,7 +9496,7 @@
         "ano": 2024,
         "real_difficulty": 49.9,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 23.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9519,7 +9519,7 @@
         "ano": 2025,
         "real_difficulty": 50.1,
         "faixa": "40%-60%",
-        "ai_complexity_heuristic": 10.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -9588,7 +9588,7 @@
         "ano": 2025,
         "real_difficulty": 70.0,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 67.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9634,7 +9634,7 @@
         "ano": 2025,
         "real_difficulty": 70.6,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 2,
@@ -9657,7 +9657,7 @@
         "ano": 2024,
         "real_difficulty": 71.0,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 20.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 4,
         "ap_dominio": 4,
@@ -9680,7 +9680,7 @@
         "ano": 2024,
         "real_difficulty": 68.7,
         "faixa": "60%-80%",
-        "ai_complexity_heuristic": 30.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 1,
         "ap_visual": 1,
         "ap_dominio": 5,
@@ -9703,7 +9703,7 @@
         "ano": 2025,
         "real_difficulty": 86.9,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 70.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 3,
         "ap_visual": 1,
         "ap_dominio": 4,
@@ -9726,7 +9726,7 @@
         "ano": 2025,
         "real_difficulty": 84.8,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 53.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 1,
         "ap_visual": 1,
         "ap_dominio": 3,
@@ -9772,7 +9772,7 @@
         "ano": 2024,
         "real_difficulty": 82.7,
         "faixa": "80%-100%",
-        "ai_complexity_heuristic": 23.0,
+        "ai_complexity_heuristic": 0.0,
         "ap_enunciado": 2,
         "ap_visual": 1,
         "ap_dominio": 3,

@@ -215,69 +215,69 @@ def main():
                         "justificativas": justs
                     })
 
-    # Definição dos Estudos de Caso por área
+    # Definição dos Estudos de Caso por área com dados reais comparativos (TRI Real vs Apêndice B vs Heurística Firebase)
     lc_cases_list = [
         ('ENEM2025_LC_23', 'Adriana Varejão e a História Colonial', 89.0, 'Muito Difícil', 'Média-Alta',
-         'A IA identificou corretamente a necessidade de decodificação de imagem de arte contemporânea e reflexão sobre a colonização do país. Ela ativou notas altas para Elementos Visuais (4/5) e Domínio (4/5), acertando a estimativa porque a complexidade estava na densidade conceitual da obra.'),
+         'Na Dificuldade Real (Banca TRI: 89.0% de erro - Muito Difícil), o Gemma 4 estimou 65.0% (Apêndice B) e a Heurística Firebase marcou 53.3%. Ambos os modelos subestimaram a barreira humana, mas o Gemma 4 chegou mais perto ao pontuar alto em Elementos Visuais (4/5) e Domínio (4/5), enquanto a Heurística Firebase limitou-se ao tamanho do texto de apoio.'),
         ('ENEM2025_LC_13', 'Emprego da Norma-Padrão em Leis', 89.3, 'Muito Difícil', 'Baixa',
-         'A IA simplificou o problema, vendo a justificativa do uso da norma-padrão em leis como um fato escolar mecânico. Ela ignorou que a complexidade para o estudante humano não está no enunciado, mas sim nos distratores de múltipla escolha juridicamente densos.'),
+         'Com 89.3% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou apenas 25.0% (Apêndice B) e a Heurística Firebase marcou 26.7%. Tanto a IA quanto o algoritmo do Firebase trataram a questão como um fato gramatical mecânico de escola, ignorando a altíssima carga de distração cognitiva nos distratores jurídicos.'),
         ('ENEM2025_LC_39', 'Interpretação de Tema Central', 70.1, 'Difícil', 'Baixa',
-         'O modelo assumiu que o tema principal é explícito no texto curto. No entanto, na prova real do ENEM, questões de síntese textual geram alto índice de erro devido a alternativas extremamente próximas (distratores semânticos fortes). O modelo cru não detecta essa barreira cognitiva.'),
+         'Com 70.1% de erro na Banca TRI, o Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Ambos os sistemas subestimaram a questão ao assumirem que a síntese do texto era direta, falhando em detectar que alternativas semanticamente muito próximas são o principal indutor de erro humano.'),
         ('ENEM2025_LC_26', 'Variação Linguística Diatópica', 4.9, 'Muito Fácil', 'Baixa',
-         'Trata-se de uma questão simples sobre sinônimos regionais de alimentos. O modelo superestimou a complexidade (dando nota 10/25, maior que o item de 89.3%), alegando que exige conhecimento teórico específico de sociolinguística ("variação diatópica"). Porém, para os estudantes humanos, a resposta é imediata pelo contexto prático.')
+         'Dificuldade Real TRI de 4.9% (Muito Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase marcou 20.0%. A Heurística Firebase aproximou-se mais do comportamento real ao ponderar o texto curto, enquanto o Gemma 4 pontuou alto em "especificidade de domínio" alegando a complexidade conceitual do termo sociolinguístico.')
     ]
 
     ch_cases_list = [
         ('ENEM2025_CH_59', 'Desmatamento na Amazônia e Regime de Chuvas', 90.1, 'Muito Difícil', 'Baixa',
-         'A IA subestimou criticamente a complexidade ao assumir que a resposta estava explícita no fragmento do texto. Porém, para os estudantes humanos, a alternativa correta ("alteração da paisagem em locais estratégicos") exige correlacionar o desmatamento com a dinâmica climática em larga escala, gerando forte distração cognitiva devido à abstração dos termos.'),
+         'Com 90.1% de erro humano (Muito Difícil), o Gemma 4 estimou 25.0% e a Heurística Firebase marcou 26.7%. Ambos subestimaram criticamente a questão: a Heurística Firebase avaliou apenas a extensão do fragmento e o Gemma 4 assumiu uma relação direta, sem perceber que conectar desmatamento a rios voadores exige abstração geográfica multiescala.'),
         ('ENEM2025_CH_54', 'Crítica ao Êxodo Urbano de Elites', 69.9, 'Difícil', 'Média',
-         'O modelo classificou o item como complexidade média, identificando a crítica social do autor. No entanto, subestimou a barreira representada pelo distrator "seletividade de deslocamentos populacionais", um termo demográfico formal que confunde estudantes que buscam termos mais corriqueiros.'),
+         'Com 69.9% de erro na Banca TRI, o Gemma 4 pontuou 45.0% (Média) e a Heurística Firebase marcou 30.0%. O Gemma 4 capturou melhor a complexidade na dimensão de Raciocínio (3/5), enquanto a Heurística Firebase subestimou o item devido à ausência de imagens e texto de tamanho moderado.'),
         ('ENEM2025_CH_61', 'Formas de Governo em Aristóteles', 50.3, 'Média', 'Baixa',
-         'A IA tratou a questão como simples identificação conceitual direta. Ignorou que, na prova real, a exigência de classificar e diferenciar as formas justas (monarquia, aristocracia, politeia) de seus desvios corrompidos (tirania, oligarquia, demagogia) gera grande confusão terminológica e exige maior esforço de eliminação de distratores.')
+         'Dificuldade Real TRI de 50.3% (Média). O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos classificaram o item como simples identificação conceitual, ignorando que a diferenciação entre formas puras e corrompidas de governo gera forte dúvida terminológica nos estudantes.')
     ]
 
     # Estudos de Caso de Ciências da Natureza (Todas as 6 questões inéditas ENEM 2025)
     cn_cases_list = [
         ('ENEM2025_CN_119', 'Neutralização de Aminas e Volatilidade (Química Orgânica)', 90.1, 'Muito Difícil', 'Média',
-         'A IA subestimou a complexidade ao considerar a neutralização uma reação padrão de 2 etapas. Na prova real, os alunos confundiram a volatilidade e basicidade das aminas orgânicas com compostos ácidos, gerando alto índice de erro.'),
+         'Com 90.1% de erro na Banca TRI (Muito Difícil), o Gemma 4 pontuou 45.0% e a Heurística Firebase 33.3%. A Heurística do Firebase focou nas poucas linhas do enunciado, enquanto o Gemma 4 identificou as etapas de reação (3/5), porém ambos falharam em prever que os candidatos confundiriam basicidade orgânica com pH ácido.'),
         ('ENEM2025_CN_98', 'Circuito Elétrico com Chaves e Lâmpadas (Física)', 45.6, 'Média', 'Baixa',
-         'O modelo reduziu o circuito a um cálculo de resistência simples, ignorando a análise de estado das chaves abertas/fechadas que confunde o estudante sob a pressão do tempo.'),
+         'Com 45.6% de erro na Banca TRI, o Gemma 4 pontuou 25.0% e a Heurística Firebase 23.3%. Ambos reduziram o circuito a uma fórmula direta de resistência, desconsiderando a análise condicional do estado das chaves sob a pressão do tempo.'),
         ('ENEM2025_CN_95', 'Genética Mendeliana e Probabilidade em Heredogramas (Biologia)', 44.4, 'Média', 'Baixa',
-         'Atribuiu complexidade baixa por tratar a leitura do heredograma como direta, desconsiderando o produto de probabilidades genéticas e os distratores de consanguinidade.'),
+         'Dificuldade Real TRI de 44.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas trataram a leitura da árvore genealógica de forma superficial, desconsiderando o acúmulo de produto de probabilidades genéticas.'),
         ('ENEM2025_CN_100', 'Transferência de Calor e Calorimetria (Física)', 51.5, 'Média', 'Baixa',
-         'Classificou o item como complexidade baixa devido ao enunciado objetivo, mas subestimou a conversão de unidades térmicas e o ajuste do fluxo de calor.'),
+         'Dificuldade Real TRI de 51.5%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 30.0%. A Heurística Firebase deu nota ligeiramente superior pelo tamanho da tabela térmica, mas ambos subestimaram o desvio por conversão de unidades.'),
         ('ENEM2025_CN_96', 'Bioquímica e Fase Clara da Fotossíntese (Biologia)', 31.4, 'Fácil', 'Baixa',
-         'Alinhou-se bem ao padrão real fácil, identificando os fotossistemas e a fotólise da água como conceito direto do ensino médio.'),
+         'Dificuldade Real TRI de 31.4% (Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 23.3%. Ambos alinharam-se com precisão ao padrão empírico fácil da banca, identificando a fotólise como conceito direto de sala de aula.'),
         ('ENEM2025_CN_94', 'Ecologia e Competição por Espécies Invasoras (Biologia)', 28.7, 'Fácil', 'Baixa',
-         'Previu a complexidade baixa adequadamente, alinhando-se com a facilidade empírica e a alta taxa de acerto dos candidatos na TRI.')
+         'Dificuldade Real TRI de 28.7% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Excelente convergência das duas ferramentas de avaliação com a elevada taxa de acerto observada nos alunos.')
     ]
 
     # Estudos de Caso de Matemática (Todas as 6 questões inéditas ENEM 2025)
     mt_cases_list = [
         ('ENEM2025_MT_168', 'Geometria Espacial - Cilindro Inscrito em Prisma', 69.9, 'Difícil', 'Média',
-         'Atribuiu 4/5 para raciocínio complexo devido às 4 etapas de resolução. Contudo, subestimou o acúmulo de erros de aproximação que afeta fortemente alunos humanos.'),
+         'Dificuldade Real TRI de 69.9% (Difícil). O Gemma 4 marcou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou as 4 etapas de resolução na nota de Raciocínio (4/5), enquanto a Heurística Firebase subestimou o item por avaliar a geometria apenas como um texto com números.'),
         ('ENEM2025_MT_140', 'Rótulos Nutricionais e Tabela Aritmética', 69.5, 'Difícil', 'Baixa',
-         'Considerou o cálculo aritmético direto, ignorando que a tabela de porções variáveis causa altíssimo índice de erro em interpretação de unidades.'),
+         'Com 69.5% de erro na TRI Real, o Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos interpretaram o problema como simples regra de três, falhando em notar que tabelas de porções variáveis geram altíssima taxa de confusão visual.'),
         ('ENEM2025_MT_170', 'Análise Combinatória e Arranjos em Filas', 64.0, 'Média-Alta', 'Baixa',
-         'Identificou a fórmula de fatorial, mas subestimou a distração de casos restritivos em agrupamentos de pessoas.'),
+         'Dificuldade Real TRI de 64.0%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. Tanto o prompt quanto a heurística identificaram a fórmula de fatorial, mas ignoraram a complexidade de restrições de posição que travam o raciocínio humano.'),
         ('ENEM2025_MT_155', 'Função Quadrática e Vértice da Parábola', 53.2, 'Média', 'Baixa',
-         'Mapeou o ponto de máximo no vértice (y_v), mas desconsiderou a interpretação do significado prático das raízes no contexto.'),
+         'Dificuldade Real TRI de 53.2%. O Gemma 4 pontuou 25.0% e a Heurística Firebase 26.7%. Ambos identificaram a fórmula do vértice (y_v), mas não previram a dúvida dos alunos quanto à interpretação prática das raízes no gráfico.'),
         ('ENEM2025_MT_153', 'Estatística - Mediana com Frequência Acumulada', 46.4, 'Média', 'Baixa',
-         'Tratou como cálculo direto de mediana, mas a presença de frequências acumuladas em tabela confunde a contagem de elementos centrais.'),
+         'Dificuldade Real TRI de 46.4%. O Gemma 4 estimou 25.0% e a Heurística Firebase 23.3%. A identificação do elemento central da mediana pareceu simples às duas ferramentas, porém a tabela de frequências acumuladas confunde a contagem nos alunos humanos.'),
         ('ENEM2025_MT_142', 'Escala Cartográfica Linear e Proporção', 31.0, 'Fácil', 'Baixa',
-         'Classificou adequadamente como aplicação simples de razão de escala linear 1:N, refletindo a facilidade empírica observada na TRI.')
+         'Dificuldade Real TRI de 31.0% (Fácil). O Gemma 4 pontuou 25.0% e a Heurística Firebase 20.0%. Perfeito alinhamento de baixa complexidade entre os dois modelos e a alta taxa de acerto empírica da banca.')
     ]
 
     # Estudos de Caso de Interdisciplinar (Exclusivamente FUVEST 2026)
     int_cases_list = [
         ('FUVEST2026_Q36', 'Topografia e Trigonometria Interdisciplinar (Geografia/Matemática)', 83.9, 'Muito Difícil', 'Média',
-         'Exige leitura de perfil topográfico e cálculo trigonométrico em 4 etapas encadeadas. A IA atribuiu nota 4 em raciocínio e visual, mas subestimou os erros humanos no ajuste de altitude do prisma.'),
+         'Na FUVEST 2026 (83.9% de erro - Muito Difícil), o Gemma 4 estimou 55.0% (Apêndice B) e a Heurística Firebase marcou 43.3%. O Gemma 4 sobressaiu-se ao atribuir nota 4/5 em Raciocínio e Elementos Visuais, ao passo que a Heurística Firebase contabilizou apenas a presença do mapa e do enunciado curto.'),
         ('FUVEST2026_Q34', 'Hidroquímica Fluvial Amazônica e Geologia (Química/Geografia)', 70.3, 'Difícil', 'Média',
-         'Demanda cruzar a composição de sedimentos (Química) com o mapa da bacia amazônica e a erosão andina (Geografia). Ativou nota 4/5 para Elementos Visuais e Domínio.'),
+         'Dificuldade Real FUVEST de 70.3% (Difícil). O Gemma 4 estimou 45.0% e a Heurística Firebase 36.7%. O Gemma 4 capturou melhor o caráter interdisciplinar ativando nota 4/5 em Domínio e Visual, enquanto a Heurística Firebase avaliou o item prioritariamente como leitura de mapa.'),
         ('FUVEST2026_Q32', 'Equilíbrio Químico e Le Chatelier em Sucos (Química/Biologia)', 48.5, 'Média', 'Baixa',
-         'Envolve Princípio de Le Chatelier e variação de pH. O modelo considerou a questão direta em 2 etapas, prevendo complexidade mediana alinhada à banca.'),
+         'Dificuldade Real FUVEST de 48.5%. O Gemma 4 estimou 25.0% e a Heurística Firebase 26.7%. Ambas as ferramentas consideraram a aplicação de Le Chatelier e pH como um conceito padrão de 2 etapas.'),
         ('FUVEST2026_Q08', 'Variação Sociolinguística em Texto Literário (Língua Portuguesa/História)', 9.3, 'Muito Fácil', 'Baixa',
-         'Item de compreensão direta de texto. O modelo pontuou baixo (10/25), alinhando-se com a alta taxa de acerto dos candidatos na FUVEST 2026.')
+         'Dificuldade Real FUVEST de 9.3% (Muito Fácil). O Gemma 4 marcou 25.0% e a Heurística Firebase 20.0%. Excelente convergência indicando a simplicidade de compreensão direta do texto literário.')
     ]
 
     # Função interna para processar cada segmento/visão

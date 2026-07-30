@@ -1,6 +1,6 @@
 # Relatório Estendido de Validação e Projeção de Dificuldade da IA (N = 125)
  
-**Data da Análise:** 24/07/2026, 16:42:55
+**Data da Análise:** 29/07/2026, 19:46:20
 **Número de Amostras:** 125 questões (Linguagens, Humanas, Natureza, Matemática e Interdisciplinar FUVEST)
 **Scale Normalization:** Apêndice B normalizado linearmente de [5, 25] para [0, 100] via:
 $$\text{Ap. B \%} = \frac{\text{Pontuação} - 5}{20} \times 100$$
@@ -61,8 +61,8 @@ Abaixo estão as três comparações diretas de escalas, calculando os coeficien
  
 | Faixa Real (TRI) | Heurística (%) | Ap. Enunciado (1-5) | Elementos Visuais (1-5) | Especif. Domínio (1-5) | Raciocínio (1-5) | Resposta (1-5) | Apêndice B Normalizado (%) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **0%-20%** | 28.0% | 2.08 | 2.08 | 2.16 | 2.40 | 1.56 | 26.2% |
-| **20%-40%** | 32.3% | 2.12 | 1.80 | 2.52 | 2.56 | 1.68 | 28.6% |
-| **40%-60%** | 31.3% | 2.12 | 1.52 | 2.20 | 2.52 | 1.32 | 23.0% |
-| **60%-80%** | 35.8% | 2.60 | 1.80 | 2.76 | 3.04 | 2.28 | 37.4% |
-| **80%-100%** | 36.8% | 2.40 | 1.56 | 2.84 | 3.04 | 2.04 | 34.6% |
+| **0%-20%** | 24.0% | 2.08 | 2.08 | 2.16 | 2.40 | 1.56 | 26.2% |
+| **20%-40%** | 24.0% | 2.12 | 1.80 | 2.52 | 2.56 | 1.68 | 28.6% |
+| **40%-60%** | 27.8% | 2.12 | 1.52 | 2.20 | 2.52 | 1.32 | 23.0% |
+| **60%-80%** | 29.0% | 2.60 | 1.80 | 2.76 | 3.04 | 2.28 | 37.4% |
+| **80%-100%** | 31.0% | 2.40 | 1.56 | 2.84 | 3.04 | 2.04 | 34.6% |

@@ -2136,11 +2136,22 @@ function renderDashboardUIApendiceA(
       <!-- Sub-Aba 2: Critérios & Conformidade -->
       <div class="ap-tab-content" id="ap-tab-criterios" style="display: none;">
         <div class="chart-card-full">
-          <h4>9. Taxa de Conformidade do Checklist (Controle vs. Experimental)</h4>
-          <div style="height: 400px; position:relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+            <h4 style="margin: 0; font-size: 1.1rem; color: var(--color-text-shine);">9. Computação Analítica dos 34 Pontos de Avaliação (Controle vs. Experimental)</h4>
+            <span style="font-size: 0.78rem; background: rgba(33, 128, 141, 0.15); color: var(--color-primary); padding: 4px 10px; border-radius: 12px; font-weight: bold; border: 1px solid rgba(33, 128, 141, 0.3);">
+              📊 34 Critérios Auditados em 5 Grupos
+            </span>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 16px; line-height: 1.4;">
+            Comparação da taxa de presença/conformidade de cada um dos 34 subcritérios entre as respostas geradas sem ecossistema (Grupo I - Controle) e com a infraestrutura Maia.edu (Grupo II - Experimental).
+          </p>
+          <div style="height: 750px; position:relative;">
             <canvas id="chart-checklist-conformity"></canvas>
           </div>
         </div>
+
+        <!-- Tabela e Cards Detalhados dos 34 Pontos de Avaliação -->
+        <div id="container-34-pontos-detalhamento" style="margin-top: 24px;"></div>
 
         <div class="charts-grid-2">
           <div class="chart-card">
@@ -2686,13 +2697,111 @@ function renderTabCharts(tabName, container, stats) {
         maintainAspectRatio: false,
         scales: {
           x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: textColor } },
-          y: { grid: { display: false }, ticks: { color: textColor, font: { size: 8 } } },
+          y: { grid: { display: false }, ticks: { color: textColor, font: { size: 9 } } },
         },
         plugins: {
-          legend: { position: 'top', labels: { color: textColor, font: { size: 10 } } },
+          legend: { position: 'top', labels: { color: textColor, font: { size: 11 } } },
         },
       },
     });
+
+    // Injeção da Tabela Analítica dos 34 Pontos de Avaliação
+    const table34Container = document.getElementById('container-34-pontos-detalhamento');
+    if (table34Container) {
+      const groupMap = {
+        grupo_a: { name: 'Grupo A (Peso 1): Estrutura e Estética Básica', color: '#32b8c6', keys: ['declaracao_gabarito_indica_letra', 'presenca_formatacao_negrito', 'divisao_minima_paragrafos', 'presenca_titulo_ou_cabecalho', 'uso_de_listas_ou_topicos', 'ausencia_de_tags_corrompidas', 'presenca_de_conclusao_clara'] },
+        grupo_b: { name: 'Grupo B (Peso 2): Ancoragem Factual e Interpretação', color: '#a75df4', keys: ['citacao_direta_texto_apoio', 'mencao_ao_comando_pergunta', 'isolamento_dados_quantitativos', 'ausencia_extrapolacao_hipotetica', 'parafrase_fiel_das_premissas', 'mencao_a_fontes_ou_rodape', 'leitura_de_elementos_visuais'] },
+        grupo_c: { name: 'Grupo C (Peso 3): Pedagogia e Transposição Cognitiva', color: '#28a745', keys: ['passo_a_passo_cronologico', 'linguagem_acessivel_ensino_medio', 'presenca_de_exemplos_praticos', 'ausencia_de_redundancia_vazia', 'definicao_de_termos_chave', 'segmentacao_funcional_do_texto', 'recurso_visual_de_destaque'] },
+        grupo_d: { name: 'Grupo D (Peso 4): Lógica Dedutiva e Eliminação', color: '#f97316', keys: ['analise_isolada_distrator_A', 'analise_isolada_distrator_B', 'analise_isolada_distrator_C', 'analise_isolada_distrator_restante', 'conexao_causal_premissa_conclusao', 'ausencia_de_saltos_logicos', 'ausencia_de_raciocinio_circular'] },
+        grupo_e: { name: 'Grupo E (Peso 5): Engenharia da Resolução e Interfaces', color: '#ff5459', keys: ['aplicacao_nominal_arcabouco_teorico', 'mecanismo_do_erro_nos_distratores', 'independencia_da_memoria_parametrica', 'metodologia_de_resolucao_explicita', 'otimizacao_semantica_para_interface', 'recurso_didatico_avancado_analogia'] }
+      };
+
+      const groupSummaries = Object.keys(groupMap).map(gKey => {
+        const groupInfo = groupMap[gKey];
+        const ctrlMean = groupInfo.keys.reduce((sum, k) => sum + getRateCtrl(k), 0) / groupInfo.keys.length;
+        const expMean = groupInfo.keys.reduce((sum, k) => sum + getRateExp(k), 0) / groupInfo.keys.length;
+        return {
+          key: gKey,
+          name: groupInfo.name,
+          color: groupInfo.color,
+          ctrlMean,
+          expMean,
+          delta: expMean - ctrlMean,
+          count: groupInfo.keys.length
+        };
+      });
+
+      let html = `
+        <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+          <h4 style="margin: 0 0 16px 0; font-size: 1rem; color: var(--color-text-shine);">📊 Resumo de Desempenho por Grupo de Critérios (Média dos 34 Pontos)</h4>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            ${groupSummaries.map(g => `
+              <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-left: 4px solid ${g.color}; border-radius: 6px; padding: 12px;">
+                <div style="font-size: 0.75rem; color: var(--color-text-secondary); font-weight: bold; margin-bottom: 4px;">${g.name}</div>
+                <div style="font-size: 1.2rem; font-weight: bold; color: var(--color-text-shine);">
+                  ${g.expMean.toFixed(1)}% <span style="font-size: 0.75rem; font-weight: normal; color: var(--color-text-secondary);">(vs ${g.ctrlMean.toFixed(1)}% Ctrl)</span>
+                </div>
+                <div style="font-size: 0.75rem; font-weight: bold; margin-top: 4px; color: ${g.delta >= 0 ? 'var(--color-success)' : 'var(--color-error)'};">
+                  Δ Ganho: ${g.delta >= 0 ? '+' : ''}${g.delta.toFixed(1)}% (${g.count} subcritérios)
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <h4 style="margin: 20px 0 12px 0; font-size: 1rem; color: var(--color-text-shine);">📋 Computação Individual dos 34 Pontos Auditados</h4>
+          <div style="overflow-x: auto;">
+            <table class="stats-table-compact" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+              <thead>
+                <tr style="background: rgba(255,255,255,0.05); text-align: left;">
+                  <th style="padding: 10px;">#</th>
+                  <th style="padding: 10px;">Subcritério / Ponto de Avaliação</th>
+                  <th style="padding: 10px;">Grupo</th>
+                  <th style="padding: 10px; text-align: center;">Controle (%)</th>
+                  <th style="padding: 10px; text-align: center;">Maia.edu (%)</th>
+                  <th style="padding: 10px; text-align: center;">Ganho Líquido (Δ)</th>
+                  <th style="padding: 10px; text-align: center;">Impacto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cKeys.map((key, idx) => {
+                  const ctrl = getRateCtrl(key);
+                  const exp = getRateExp(key);
+                  const delta = exp - ctrl;
+                  let groupBelong = 'Outros';
+                  let groupColor = '#ffffff';
+                  Object.keys(groupMap).forEach(gK => {
+                    if (groupMap[gK].keys.includes(key)) {
+                      groupBelong = groupMap[gK].name.split(':')[0];
+                      groupColor = groupMap[gK].color;
+                    }
+                  });
+
+                  let badge = '<span style="color:var(--color-text-secondary);">➖ Estável</span>';
+                  if (delta >= 30) badge = '<span style="color:#28a745; font-weight:bold;">🔥 Ganho Alto</span>';
+                  else if (delta >= 10) badge = '<span style="color:#32b8c6; font-weight:bold;">✅ Ganho Moderado</span>';
+                  else if (delta < 0) badge = '<span style="color:#ff5459; font-weight:bold;">⚠️ Retração</span>';
+
+                  return `
+                    <tr style="border-bottom: 1px solid var(--color-border);">
+                      <td style="padding: 8px 10px; font-weight: bold; color: var(--color-text-secondary);">${idx + 1}</td>
+                      <td style="padding: 8px 10px; font-weight: 500; color: var(--color-text);">${key.replace(/_/g, ' ')}</td>
+                      <td style="padding: 8px 10px;"><span style="color: ${groupColor}; font-weight: bold; font-size: 0.75rem;">${groupBelong}</span></td>
+                      <td style="padding: 8px 10px; text-align: center; color: var(--color-text-secondary);">${ctrl.toFixed(1)}%</td>
+                      <td style="padding: 8px 10px; text-align: center; font-weight: bold; color: var(--color-primary);">${exp.toFixed(1)}%</td>
+                      <td style="padding: 8px 10px; text-align: center; font-weight: bold; color: ${delta >= 0 ? 'var(--color-success)' : 'var(--color-error)'};">
+                        ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%
+                      </td>
+                      <td style="padding: 8px 10px; text-align: center; font-size: 0.78rem;">${badge}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      table34Container.innerHTML = html;
+    }
 
     // 10. Heatmap de Ganho Líquido (Plotly)
     const transitionGains = ratesExp.map((val, idx) => val - ratesCtrl[idx]);
