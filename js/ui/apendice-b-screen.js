@@ -578,15 +578,20 @@ async function carregarDashboardApendiceB() {
     content.style.flexDirection = 'column';
 
     content.innerHTML = `
-      <div style="display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 15px; width: 100%; flex-wrap: wrap; align-items: center;">
-        <button id="btnApendiceBTabHumanasLinguagens" class="nav-tab-btn active" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-btn-primary-text); font-size: 0.85rem;">
-          📊 Geral (50 Questões)
-        </button>
-        <button id="btnApendiceBTabLinguagens" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          📖 Linguagens (LC)
-        </button>
-        <button id="btnApendiceBTabHumanas" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
-          🌍 Humanas (CH)
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 15px; width: 100%; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button id="btnApendiceBTabHumanasLinguagens" class="nav-tab-btn active" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-btn-primary-text); font-size: 0.85rem;">
+            📊 Geral (50 Questões)
+          </button>
+          <button id="btnApendiceBTabLinguagens" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
+            📖 Linguagens (LC)
+          </button>
+          <button id="btnApendiceBTabHumanas" class="nav-tab-btn" style="padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid var(--color-border); background: none; color: var(--color-text); font-size: 0.85rem;">
+            🌍 Humanas (CH)
+          </button>
+        </div>
+        <button id="btn-export-apendice-b-zip" class="btn btn--outline" style="display: inline-flex; align-items: center; gap: 8px; font-weight: bold; border-color: var(--color-primary); color: var(--color-primary); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; background: rgba(33, 128, 141, 0.1); cursor: pointer; transition: all 0.2s;">
+          📦 Baixar Gráficos e Cards (.ZIP)
         </button>
       </div>
       <div id="apendiceBDashboardDataContainer" style="display: flex; flex-direction: column; gap: 20px; width: 100%;"></div>
@@ -603,7 +608,10 @@ async function carregarDashboardApendiceB() {
       { btn: btnHumanas, key: 'humanas' },
     ];
 
+    let currentAreaKey = 'humanas_linguagens';
+
     function selectTab(activeKey) {
+      currentAreaKey = activeKey;
       tabs.forEach((t) => {
         if (t.key === activeKey) {
           t.btn.style.border = '1px solid var(--color-primary)';
@@ -627,6 +635,13 @@ async function carregarDashboardApendiceB() {
     btnHumanasLinguagens.addEventListener('click', () => selectTab('humanas_linguagens'));
     btnLinguagens.addEventListener('click', () => selectTab('linguagens'));
     btnHumanas.addEventListener('click', () => selectTab('humanas'));
+
+    const btnZipB = document.getElementById('btn-export-apendice-b-zip');
+    if (btnZipB) {
+      btnZipB.addEventListener('click', () => {
+        exportApendiceBChartsAndCardsZIP(dataContainer, currentAreaKey, activeVariantKey, stats);
+      });
+    }
 
     selectTab('humanas_linguagens');
     dashboardCarregado = true;
@@ -774,23 +789,55 @@ function renderViewApendiceVsHeuristic(container, stats, c_glob, c_pre, c_post, 
     const ctx1 = document.getElementById('chartVarApendiceHeuristic')?.getContext('2d');
     if (ctx1) {
       if (window.apendiceVar1Chart) window.apendiceVar1Chart.destroy();
-      const dims = ['ap_enunciado', 'ap_visual', 'ap_dominio', 'ap_raciocinio', 'ap_resposta', 'ap_total_normalized'];
-      const labels = ['Enunciado', 'Visual', 'Domínio', 'Raciocínio', 'Resposta', 'Nota Global Apêndice B'];
+      const dims = [
+        'ap_enunciado',
+        'ap_visual',
+        'ap_dominio',
+        'ap_raciocinio',
+        'ap_resposta',
+        'ap_total_normalized',
+      ];
+      const labels = [
+        'Enunciado',
+        'Visual',
+        'Domínio',
+        'Raciocínio',
+        'Resposta',
+        'Nota Global Apêndice B',
+      ];
       window.apendiceVar1Chart = new Chart(ctx1, {
         type: 'bar',
         data: {
           labels,
           datasets: [
-            { label: 'Pré-Cutoff (Histórico)', data: dims.map(d => stats.correlations[d]?.pre_cutoff?.spearman || 0), backgroundColor: '#626871', borderRadius: 4 },
-            { label: 'Pós-Cutoff (Inédito 2025)', data: dims.map(d => stats.correlations[d]?.post_cutoff?.spearman || 0), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: 'Global (Consolidado)', data: dims.map(d => stats.correlations[d]?.global?.spearman || 0), backgroundColor: '#32b8c6', borderRadius: 4 }
-          ]
+            {
+              label: 'Pré-Cutoff (Histórico)',
+              data: dims.map((d) => stats.correlations[d]?.pre_cutoff?.spearman || 0),
+              backgroundColor: '#626871',
+              borderRadius: 4,
+            },
+            {
+              label: 'Pós-Cutoff (Inédito 2025)',
+              data: dims.map((d) => stats.correlations[d]?.post_cutoff?.spearman || 0),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: 'Global (Consolidado)',
+              data: dims.map((d) => stats.correlations[d]?.global?.spearman || 0),
+              backgroundColor: '#32b8c6',
+              borderRadius: 4,
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } }, x: { ticks: { font: { size: 10 } } } }
-        }
+          scales: {
+            y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } },
+            x: { ticks: { font: { size: 10 } } },
+          },
+        },
       });
     }
 
@@ -800,17 +847,27 @@ function renderViewApendiceVsHeuristic(container, stats, c_glob, c_pre, c_post, 
       window.apendiceVar1FaixasChart = new Chart(ctx2, {
         type: 'bar',
         data: {
-          labels: stats.faixas_stats.map(f => f.faixa),
+          labels: stats.faixas_stats.map((f) => f.faixa),
           datasets: [
-            { label: 'Apêndice B / Gemma 4 (%)', data: stats.faixas_stats.map(f => f.ap_total_normalized), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: 'Heurística Firebase (%)', data: stats.faixas_stats.map(f => f.ai_complexity_heuristic), backgroundColor: '#21808d', borderRadius: 4 }
-          ]
+            {
+              label: 'Apêndice B / Gemma 4 (%)',
+              data: stats.faixas_stats.map((f) => f.ap_total_normalized),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: 'Heurística Firebase (%)',
+              data: stats.faixas_stats.map((f) => f.ai_complexity_heuristic),
+              backgroundColor: '#21808d',
+              borderRadius: 4,
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { y: { min: 0, max: 100 } }
-        }
+          scales: { y: { min: 0, max: 100 } },
+        },
       });
     }
   }, 50);
@@ -858,20 +915,23 @@ function renderViewHeuristicVsReal(container, stats, c_glob, c_pre, c_post, area
               data: [
                 c_pre.heuristic_vs_real.spearman,
                 c_post.heuristic_vs_real.spearman,
-                c_glob.heuristic_vs_real.spearman
+                c_glob.heuristic_vs_real.spearman,
               ],
               backgroundColor: ['#626871', '#c0152f', '#32b8c6'],
               borderRadius: 4,
-              barThickness: 40
-            }
-          ]
+              barThickness: 40,
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } }, x: { ticks: { font: { size: 10, weight: 'bold' } } } }
-        }
+          scales: {
+            y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } },
+            x: { ticks: { font: { size: 10, weight: 'bold' } } },
+          },
+        },
       });
     }
 
@@ -881,13 +941,27 @@ function renderViewHeuristicVsReal(container, stats, c_glob, c_pre, c_post, area
       window.apendiceVar2ErrChart = new Chart(ctx2, {
         type: 'bar',
         data: {
-          labels: stats.faixas_stats.map(f => f.faixa),
+          labels: stats.faixas_stats.map((f) => f.faixa),
           datasets: [
-            { label: 'Heurística Firebase (%)', data: stats.faixas_stats.map(f => f.ai_complexity_heuristic), backgroundColor: '#21808d', borderRadius: 4 },
-            { label: 'Dificuldade Real (Banca TRI %)', data: stats.faixas_stats.map(f => f.real_difficulty_mean || 50), backgroundColor: '#a75df4', borderRadius: 4 }
-          ]
+            {
+              label: 'Heurística Firebase (%)',
+              data: stats.faixas_stats.map((f) => f.ai_complexity_heuristic),
+              backgroundColor: '#21808d',
+              borderRadius: 4,
+            },
+            {
+              label: 'Dificuldade Real (Banca TRI %)',
+              data: stats.faixas_stats.map((f) => f.real_difficulty_mean || 50),
+              backgroundColor: '#a75df4',
+              borderRadius: 4,
+            },
+          ],
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+        },
       });
     }
   }, 50);
@@ -925,23 +999,55 @@ function renderViewApendiceVsReal(container, stats, c_glob, c_pre, c_post, areaL
     const ctx1 = document.getElementById('chartVarApendiceReal')?.getContext('2d');
     if (ctx1) {
       if (window.apendiceVar3Chart) window.apendiceVar3Chart.destroy();
-      const dims = ['ap_enunciado', 'ap_visual', 'ap_dominio', 'ap_raciocinio', 'ap_resposta', 'ap_total_normalized'];
-      const labels = ['Enunciado', 'Visual', 'Domínio', 'Raciocínio', 'Resposta', 'Nota Global Apêndice B'];
+      const dims = [
+        'ap_enunciado',
+        'ap_visual',
+        'ap_dominio',
+        'ap_raciocinio',
+        'ap_resposta',
+        'ap_total_normalized',
+      ];
+      const labels = [
+        'Enunciado',
+        'Visual',
+        'Domínio',
+        'Raciocínio',
+        'Resposta',
+        'Nota Global Apêndice B',
+      ];
       window.apendiceVar3Chart = new Chart(ctx1, {
         type: 'bar',
         data: {
           labels,
           datasets: [
-            { label: 'Pré-Cutoff (Histórico)', data: dims.map(d => stats.correlations[d]?.pre_cutoff?.spearman || 0), backgroundColor: '#626871', borderRadius: 4 },
-            { label: 'Pós-Cutoff (Inédito 2025)', data: dims.map(d => stats.correlations[d]?.post_cutoff?.spearman || 0), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: 'Global (Consolidado)', data: dims.map(d => stats.correlations[d]?.global?.spearman || 0), backgroundColor: '#32b8c6', borderRadius: 4 }
-          ]
+            {
+              label: 'Pré-Cutoff (Histórico)',
+              data: dims.map((d) => stats.correlations[d]?.pre_cutoff?.spearman || 0),
+              backgroundColor: '#626871',
+              borderRadius: 4,
+            },
+            {
+              label: 'Pós-Cutoff (Inédito 2025)',
+              data: dims.map((d) => stats.correlations[d]?.post_cutoff?.spearman || 0),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: 'Global (Consolidado)',
+              data: dims.map((d) => stats.correlations[d]?.global?.spearman || 0),
+              backgroundColor: '#32b8c6',
+              borderRadius: 4,
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          scales: { y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } }, x: { ticks: { font: { size: 10 } } } }
-        }
+          scales: {
+            y: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } },
+            x: { ticks: { font: { size: 10 } } },
+          },
+        },
       });
     }
 
@@ -951,13 +1057,27 @@ function renderViewApendiceVsReal(container, stats, c_glob, c_pre, c_post, areaL
       window.apendiceVar3CutoffChart = new Chart(ctx2, {
         type: 'bar',
         data: {
-          labels: stats.faixas_stats.map(f => f.faixa),
+          labels: stats.faixas_stats.map((f) => f.faixa),
           datasets: [
-            { label: 'Apêndice B / Gemma 4 (%)', data: stats.faixas_stats.map(f => f.ap_total_normalized), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: 'Dificuldade Real (Banca TRI %)', data: stats.faixas_stats.map(f => f.real_difficulty_mean || 50), backgroundColor: '#a75df4', borderRadius: 4 }
-          ]
+            {
+              label: 'Apêndice B / Gemma 4 (%)',
+              data: stats.faixas_stats.map((f) => f.ap_total_normalized),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: 'Dificuldade Real (Banca TRI %)',
+              data: stats.faixas_stats.map((f) => f.real_difficulty_mean || 50),
+              backgroundColor: '#a75df4',
+              borderRadius: 4,
+            },
+          ],
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+        },
       });
     }
   }, 50);
@@ -997,7 +1117,7 @@ function renderViewConsolidada(container, stats, c_glob, c_pre, c_post, hasCaseS
 
     <!-- Linha 4: Conclusão Geral da Pesquisa -->
     <div style="background: rgba(40, 167, 69, 0.04); border: 1px solid rgba(40, 167, 69, 0.3); border-radius: 8px; padding: 18px; display: flex; flex-direction: column; gap: 10px;">
-      <h3 style="margin: 0; font-size: 1.15rem; color: #28a745; display: flex; align-items: center; gap: 8px;">
+      <h3 style="margin: 0; font-size: 1.15rem; color: #28a745; line-height: 1.4;">
         📌 Conclusão da Análise do Apêndice B (${stats.n_total} Questões)
       </h3>
       <p style="margin: 0; font-size: 0.8rem; color: var(--color-text); line-height: 1.5;">
@@ -1021,24 +1141,58 @@ function renderViewConsolidada(container, stats, c_glob, c_pre, c_post, hasCaseS
     const ctxCorr = document.getElementById('chartCorrelacaoCanvas')?.getContext('2d');
     if (ctxCorr) {
       if (window.apendiceBCorrChart) window.apendiceBCorrChart.destroy();
-      const metricsKeys = ['ap_enunciado', 'ap_visual', 'ap_dominio', 'ap_raciocinio', 'ap_resposta', 'ap_total_normalized', 'ai_complexity_heuristic'];
-      const metricsLabels = ['Enunciado', 'Visual', 'Domínio', 'Raciocínio', 'Resposta', 'Total Apêndice B', 'Heurística Firebase'];
+      const metricsKeys = [
+        'ap_enunciado',
+        'ap_visual',
+        'ap_dominio',
+        'ap_raciocinio',
+        'ap_resposta',
+        'ap_total_normalized',
+        'ai_complexity_heuristic',
+      ];
+      const metricsLabels = [
+        'Enunciado',
+        'Visual',
+        'Domínio',
+        'Raciocínio',
+        'Resposta',
+        'Total Apêndice B',
+        'Heurística Firebase',
+      ];
       window.apendiceBCorrChart = new Chart(ctxCorr, {
         type: 'bar',
         data: {
           labels: metricsLabels,
           datasets: [
-            { label: `Pré-cutoff (Histórico, N=${stats.n_pre_cutoff})`, data: metricsKeys.map((key) => stats.correlations[key]?.pre_cutoff?.spearman || 0), backgroundColor: '#626871', borderRadius: 4 },
-            { label: `Pós-cutoff (Inédito, N=${stats.n_post_cutoff})`, data: metricsKeys.map((key) => stats.correlations[key]?.post_cutoff?.spearman || 0), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: `Global (Consolidado, N=${stats.n_total})`, data: metricsKeys.map((key) => stats.correlations[key]?.global?.spearman || 0), backgroundColor: '#32b8c6', borderRadius: 4 }
-          ]
+            {
+              label: `Pré-cutoff (Histórico, N=${stats.n_pre_cutoff})`,
+              data: metricsKeys.map((key) => stats.correlations[key]?.pre_cutoff?.spearman || 0),
+              backgroundColor: '#626871',
+              borderRadius: 4,
+            },
+            {
+              label: `Pós-cutoff (Inédito, N=${stats.n_post_cutoff})`,
+              data: metricsKeys.map((key) => stats.correlations[key]?.post_cutoff?.spearman || 0),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: `Global (Consolidado, N=${stats.n_total})`,
+              data: metricsKeys.map((key) => stats.correlations[key]?.global?.spearman || 0),
+              backgroundColor: '#32b8c6',
+              borderRadius: 4,
+            },
+          ],
         },
         options: {
           indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
-          scales: { x: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } }, y: { ticks: { font: { size: 10 } } } }
-        }
+          scales: {
+            x: { min: -1.0, max: 1.0, ticks: { stepSize: 0.2 } },
+            y: { ticks: { font: { size: 10 } } },
+          },
+        },
       });
     }
 
@@ -1050,107 +1204,127 @@ function renderViewConsolidada(container, stats, c_glob, c_pre, c_post, hasCaseS
         data: {
           labels: stats.faixas_stats.map((f) => f.faixa),
           datasets: [
-            { label: 'Heurística Firebase (%)', data: stats.faixas_stats.map((f) => f.ai_complexity_heuristic), backgroundColor: '#21808d', borderRadius: 4 },
-            { label: 'Apêndice B / Gemma 4 (%)', data: stats.faixas_stats.map((f) => f.ap_total_normalized), backgroundColor: '#c0152f', borderRadius: 4 },
-            { label: 'Dificuldade Real (Banca TRI %)', data: stats.faixas_stats.map((f) => f.real_difficulty_mean || 50), backgroundColor: '#a75df4', borderRadius: 4 }
-          ]
+            {
+              label: 'Heurística Firebase (%)',
+              data: stats.faixas_stats.map((f) => f.ai_complexity_heuristic),
+              backgroundColor: '#21808d',
+              borderRadius: 4,
+            },
+            {
+              label: 'Apêndice B / Gemma 4 (%)',
+              data: stats.faixas_stats.map((f) => f.ap_total_normalized),
+              backgroundColor: '#c0152f',
+              borderRadius: 4,
+            },
+            {
+              label: 'Dificuldade Real (Banca TRI %)',
+              data: stats.faixas_stats.map((f) => f.real_difficulty_mean || 50),
+              backgroundColor: '#a75df4',
+              borderRadius: 4,
+            },
+          ],
         },
-        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 100 } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { min: 0, max: 100 } },
+        },
       });
     }
 
-function getPedagogicalAnalysis(item, heurVal) {
-  const realVal = item.real_difficulty.toFixed(1);
-  const gemmaVal = item.ap_total_normalized.toFixed(1);
-  const firebaseVal = heurVal.toFixed(1);
+    function getPedagogicalAnalysis(item, heurVal) {
+      const realVal = item.real_difficulty.toFixed(1);
+      const gemmaVal = item.ap_total_normalized.toFixed(1);
+      const firebaseVal = heurVal.toFixed(1);
 
-  let commentary = '';
-  switch (item.id) {
-    case 'ENEM2025_LC_23':
-      commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se mais da alta dificuldade da banca (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), pois identificou a densidade dos Elementos Visuais (${item.ap_visual}/5) e do Domínio (${item.ap_dominio}/5), enquanto a Heurística Firebase subestimou a questão por focar apenas no tamanho do texto de apoio.`;
-      break;
-    case 'ENEM2025_LC_13':
-      commentary = `Com ${realVal}% de erro na banca (Muito Difícil), tanto o Gemma 4 (${gemmaVal}%) quanto a Heurística Firebase (${firebaseVal}%) subestimaram severamente a questão, tratando o emprego da norma-padrão como um fato gramatical escolar mecânico e ignorando a carga de distração dos distratores jurídicos.`;
-      break;
-    case 'ENEM2025_LC_39':
-      commentary = `Ambos os modelos subestimaram o item (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase vs ${realVal}% TRI Real) por assumirem que a síntese de tema principal em texto curto é direta, desconsiderando a presença de distratores semânticos quase idênticos.`;
-      break;
-    case 'ENEM2025_LC_26':
-      commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se mais da facilidade empírica da banca (${realVal}%) ao ponderar o enunciado curto, enquanto o Gemma 4 (${gemmaVal}%) superestimou a complexidade ao classificar a "variação sociolinguística" como um domínio conceitual denso.`;
-      break;
-    case 'ENEM2025_CH_59':
-      commentary = `A Heurística Firebase (${firebaseVal}%) registrou maior complexidade estrutural que o Gemma 4 (${gemmaVal}%), porém ambos subestimaram o erro real da banca (${realVal}%), pois relacionar o desmatamento ao regime de chuvas em escala continental exige abstração geográfica multiescala.`;
-      break;
-    case 'ENEM2025_CH_54':
-      commentary = `A Heurística Firebase (${firebaseVal}%) cravou com precisão quase exata a dificuldade real da banca (${realVal}%), reconhecendo os termos demográficos formais do enunciado. Em contrapartida, o Gemma 4 (${gemmaVal}%) subestimou o item em cerca de 30%, pontuando o raciocínio apenas como moderado (3/5).`;
-      break;
-    case 'ENEM2025_CH_61':
-      commentary = `A Heurística Firebase (${firebaseVal}%) chegou mais perto do nível de dificuldade média da banca (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que tratou a classificação das formas de governo em Aristóteles como simples memorização direta.`;
-      break;
-    case 'ENEM2025_CN_119':
-      commentary = `Tanto o Gemma 4 (${gemmaVal}%) quanto a Heurística Firebase (${firebaseVal}%) subestimaram fortemente o item em relação ao erro real (${realVal}%), pois não previram que os candidatos confundiriam a basicidade orgânica das aminas com compostos de pH ácido.`;
-      break;
-    case 'ENEM2025_CN_98':
-      commentary = `Ambos os modelos previram a mesma complexidade baixa (20.0%), subestimando a dificuldade real da banca (${realVal}%) por reduzirem o circuito elétrico a um cálculo de resistência, desconsiderando a análise condicional das chaves.`;
-      break;
-    case 'ENEM2025_CN_95':
-      commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se mais da dificuldade real da banca (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que considerou a interpretação do heredograma uma leitura observacional simples.`;
-      break;
-    case 'ENEM2025_CN_100':
-      commentary = `A Heurística Firebase (${firebaseVal}%) cravou a estimativa real da banca (${realVal}%) ao computar a estrutura da tabela e as variáveis térmicas, enquanto o Gemma 4 (${gemmaVal}%) subestimou severamente o item devido à simplicidade gramatical do texto.`;
-      break;
-    case 'ENEM2025_CN_96':
-      commentary = `A Heurística Firebase (${firebaseVal}%) e o Gemma 4 (${gemmaVal}%) alinharam-se com precisão à faixa fácil da banca (${realVal}%), identificando a fotólise da água como um conceito direto de sala de aula.`;
-      break;
-    case 'ENEM2025_CN_94':
-      commentary = `Excelente convergência entre Gemma 4 (${gemmaVal}%), Heurística Firebase (${firebaseVal}%) e a taxa de acerto empírica dos candidatos na banca (${realVal}% de erro) para ecologia e espécies invasoras.`;
-      break;
-    case 'ENEM2025_MT_168':
-      commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se melhor da dificuldade da banca (${realVal}%) ao pontuar 4/5 na dimensão de Raciocínio, superando a Heurística Firebase (${firebaseVal}%), que avaliou a geometria tridimensional apenas como um texto curto com números.`;
-      break;
-    case 'ENEM2025_MT_140':
-      commentary = `Ambos os modelos (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase) subestimaram a dificuldade real da banca (${realVal}%), tratando o cálculo de tabela como uma regra de três simples e ignorando a distração por variação de porções.`;
-      break;
-    case 'ENEM2025_MT_170':
-      commentary = `A Heurística Firebase (${firebaseVal}%) ficou mais próxima da dificuldade real (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que deu pontuação quase nula ao assumir que problemas de permutação são simples substituições de fórmula.`;
-      break;
-    case 'ENEM2025_MT_155':
-      commentary = `Ótimo alinhamento entre o Gemma 4 (${gemmaVal}%), a Heurística Firebase (${firebaseVal}%) e a dificuldade mediana da banca (${realVal}%) no mapeamento do vértice da função quadrática.`;
-      break;
-    case 'ENEM2025_MT_153':
-      commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se com alta acurácia do valor real da banca (${realVal}%), capturando a tabela de frequências acumuladas, enquanto o Gemma 4 (${gemmaVal}%) subestimou o item.`;
-      break;
-    case 'ENEM2025_MT_142':
-      commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se melhor do valor real fácil da banca (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), na aplicação direta da razão de escala linear 1:N.`;
-      break;
-    case 'FUVEST2026_Q36':
-      commentary = `O Gemma 4 (${gemmaVal}%) capturou a alta complexidade da FUVEST (${realVal}%) muito melhor do que a Heurística Firebase (${firebaseVal}%), ativando notas 4/5 para Raciocínio e Elementos Visuais na trigonometria topográfica.`;
-      break;
-    case 'FUVEST2026_Q34':
-      commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se mais da dificuldade real da FUVEST (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), ao pontuar alto nas dimensões de Domínio (4/5) e Visual (4/5) em hidroquímica fluvial.`;
-      break;
-    case 'FUVEST2026_Q32':
-      commentary = `Consistência entre o Gemma 4 (${gemmaVal}%) e a Heurística Firebase (${firebaseVal}%) na estimativa de complexidade mediana em relação ao valor da FUVEST (${realVal}%).`;
-      break;
-    case 'FUVEST2026_Q08':
-      commentary = `Ambos os modelos (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase) convergiram adequadamente com a facilidade da questão no vestibular da FUVEST (${realVal}% de erro).`;
-      break;
-    default:
-      commentary = item.description || '';
-  }
+      let commentary = '';
+      switch (item.id) {
+        case 'ENEM2025_LC_23':
+          commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se mais da alta dificuldade da banca (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), pois identificou a densidade dos Elementos Visuais (${item.ap_visual}/5) e do Domínio (${item.ap_dominio}/5), enquanto a Heurística Firebase subestimou a questão por focar apenas no tamanho do texto de apoio.`;
+          break;
+        case 'ENEM2025_LC_13':
+          commentary = `Com ${realVal}% de erro na banca (Muito Difícil), tanto o Gemma 4 (${gemmaVal}%) quanto a Heurística Firebase (${firebaseVal}%) subestimaram severamente a questão, tratando o emprego da norma-padrão como um fato gramatical escolar mecânico e ignorando a carga de distração dos distratores jurídicos.`;
+          break;
+        case 'ENEM2025_LC_39':
+          commentary = `Ambos os modelos subestimaram o item (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase vs ${realVal}% TRI Real) por assumirem que a síntese de tema principal em texto curto é direta, desconsiderando a presença de distratores semânticos quase idênticos.`;
+          break;
+        case 'ENEM2025_LC_26':
+          commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se mais da facilidade empírica da banca (${realVal}%) ao ponderar o enunciado curto, enquanto o Gemma 4 (${gemmaVal}%) superestimou a complexidade ao classificar a "variação sociolinguística" como um domínio conceitual denso.`;
+          break;
+        case 'ENEM2025_CH_59':
+          commentary = `A Heurística Firebase (${firebaseVal}%) registrou maior complexidade estrutural que o Gemma 4 (${gemmaVal}%), porém ambos subestimaram o erro real da banca (${realVal}%), pois relacionar o desmatamento ao regime de chuvas em escala continental exige abstração geográfica multiescala.`;
+          break;
+        case 'ENEM2025_CH_54':
+          commentary = `A Heurística Firebase (${firebaseVal}%) cravou com precisão quase exata a dificuldade real da banca (${realVal}%), reconhecendo os termos demográficos formais do enunciado. Em contrapartida, o Gemma 4 (${gemmaVal}%) subestimou o item em cerca de 30%, pontuando o raciocínio apenas como moderado (3/5).`;
+          break;
+        case 'ENEM2025_CH_61':
+          commentary = `A Heurística Firebase (${firebaseVal}%) chegou mais perto do nível de dificuldade média da banca (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que tratou a classificação das formas de governo em Aristóteles como simples memorização direta.`;
+          break;
+        case 'ENEM2025_CN_119':
+          commentary = `Tanto o Gemma 4 (${gemmaVal}%) quanto a Heurística Firebase (${firebaseVal}%) subestimaram fortemente o item em relação ao erro real (${realVal}%), pois não previram que os candidatos confundiriam a basicidade orgânica das aminas com compostos de pH ácido.`;
+          break;
+        case 'ENEM2025_CN_98':
+          commentary = `Ambos os modelos previram a mesma complexidade baixa (20.0%), subestimando a dificuldade real da banca (${realVal}%) por reduzirem o circuito elétrico a um cálculo de resistência, desconsiderando a análise condicional das chaves.`;
+          break;
+        case 'ENEM2025_CN_95':
+          commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se mais da dificuldade real da banca (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que considerou a interpretação do heredograma uma leitura observacional simples.`;
+          break;
+        case 'ENEM2025_CN_100':
+          commentary = `A Heurística Firebase (${firebaseVal}%) cravou a estimativa real da banca (${realVal}%) ao computar a estrutura da tabela e as variáveis térmicas, enquanto o Gemma 4 (${gemmaVal}%) subestimou severamente o item devido à simplicidade gramatical do texto.`;
+          break;
+        case 'ENEM2025_CN_96':
+          commentary = `A Heurística Firebase (${firebaseVal}%) e o Gemma 4 (${gemmaVal}%) alinharam-se com precisão à faixa fácil da banca (${realVal}%), identificando a fotólise da água como um conceito direto de sala de aula.`;
+          break;
+        case 'ENEM2025_CN_94':
+          commentary = `Excelente convergência entre Gemma 4 (${gemmaVal}%), Heurística Firebase (${firebaseVal}%) e a taxa de acerto empírica dos candidatos na banca (${realVal}% de erro) para ecologia e espécies invasoras.`;
+          break;
+        case 'ENEM2025_MT_168':
+          commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se melhor da dificuldade da banca (${realVal}%) ao pontuar 4/5 na dimensão de Raciocínio, superando a Heurística Firebase (${firebaseVal}%), que avaliou a geometria tridimensional apenas como um texto curto com números.`;
+          break;
+        case 'ENEM2025_MT_140':
+          commentary = `Ambos os modelos (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase) subestimaram a dificuldade real da banca (${realVal}%), tratando o cálculo de tabela como uma regra de três simples e ignorando a distração por variação de porções.`;
+          break;
+        case 'ENEM2025_MT_170':
+          commentary = `A Heurística Firebase (${firebaseVal}%) ficou mais próxima da dificuldade real (${realVal}%) do que o Gemma 4 (${gemmaVal}%), que deu pontuação quase nula ao assumir que problemas de permutação são simples substituições de fórmula.`;
+          break;
+        case 'ENEM2025_MT_155':
+          commentary = `Ótimo alinhamento entre o Gemma 4 (${gemmaVal}%), a Heurística Firebase (${firebaseVal}%) e a dificuldade mediana da banca (${realVal}%) no mapeamento do vértice da função quadrática.`;
+          break;
+        case 'ENEM2025_MT_153':
+          commentary = `A Heurística Firebase (${firebaseVal}%) aproximou-se com alta acurácia do valor real da banca (${realVal}%), capturando a tabela de frequências acumuladas, enquanto o Gemma 4 (${gemmaVal}%) subestimou o item.`;
+          break;
+        case 'ENEM2025_MT_142':
+          commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se melhor do valor real fácil da banca (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), na aplicação direta da razão de escala linear 1:N.`;
+          break;
+        case 'FUVEST2026_Q36':
+          commentary = `O Gemma 4 (${gemmaVal}%) capturou a alta complexidade da FUVEST (${realVal}%) muito melhor do que a Heurística Firebase (${firebaseVal}%), ativando notas 4/5 para Raciocínio e Elementos Visuais na trigonometria topográfica.`;
+          break;
+        case 'FUVEST2026_Q34':
+          commentary = `O Gemma 4 (${gemmaVal}%) aproximou-se mais da dificuldade real da FUVEST (${realVal}%) do que a Heurística Firebase (${firebaseVal}%), ao pontuar alto nas dimensões de Domínio (4/5) e Visual (4/5) em hidroquímica fluvial.`;
+          break;
+        case 'FUVEST2026_Q32':
+          commentary = `Consistência entre o Gemma 4 (${gemmaVal}%) e a Heurística Firebase (${firebaseVal}%) na estimativa de complexidade mediana em relação ao valor da FUVEST (${realVal}%).`;
+          break;
+        case 'FUVEST2026_Q08':
+          commentary = `Ambos os modelos (${gemmaVal}% Gemma 4 e ${firebaseVal}% Firebase) convergiram adequadamente com a facilidade da questão no vestibular da FUVEST (${realVal}% de erro).`;
+          break;
+        default:
+          commentary = item.description || '';
+      }
 
-  return `Com Dificuldade Real da Banca de ${realVal}% (${item.classif_real}), o Gemma 4 estimou ${gemmaVal}% e a Heurística Firebase marcou ${firebaseVal}%. ${commentary}`;
-}
+      return `Com Dificuldade Real da Banca de ${realVal}% (${item.classif_real}), o Gemma 4 estimou ${gemmaVal}% e a Heurística Firebase marcou ${firebaseVal}%. ${commentary}`;
+    }
 
     if (hasCaseStudies) {
       const casesContainer = document.getElementById('dashboardCaseStudiesList');
       if (casesContainer) {
-        casesContainer.innerHTML = stats.case_studies.map((item, index) => {
-          const qMatch = (stats.questions_list || []).find(q => q.id === item.id);
-          const heurVal = qMatch ? qMatch.ai_complexity_heuristic : 30;
-          const pedAnalysis = getPedagogicalAnalysis(item, heurVal);
+        casesContainer.innerHTML = stats.case_studies
+          .map((item, index) => {
+            const qMatch = (stats.questions_list || []).find((q) => q.id === item.id);
+            const heurVal = qMatch ? qMatch.ai_complexity_heuristic : 30;
+            const pedAnalysis = getPedagogicalAnalysis(item, heurVal);
 
-          return `
+            return `
             <div style="border: 1px solid var(--color-border); border-radius: 6px; padding: 12px; display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                 <div>
@@ -1212,7 +1386,8 @@ function getPedagogicalAnalysis(item, heurVal) {
               </div>
             </div>
           `;
-        }).join('');
+          })
+          .join('');
 
         casesContainer.querySelectorAll('.toggle-case-just-btn').forEach((btn) => {
           btn.addEventListener('click', () => {
@@ -1234,4 +1409,309 @@ function getPedagogicalAnalysis(item, heurVal) {
       }
     }
   }, 50);
+}
+
+async function ensureExportLibraries() {
+  const promises = [];
+  if (!window.JSZip) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  if (!window.saveAs) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  if (!window.html2canvas) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  await Promise.all(promises);
+}
+
+async function exportApendiceBChartsAndCardsZIP(
+  dataContainer,
+  activeKey = 'humanas_linguagens',
+  activeVariantKey = 'all',
+  stats = null,
+) {
+  const btn = document.getElementById('btn-export-apendice-b-zip');
+  const originalText = btn ? btn.innerHTML : '📦 Baixar Gráficos e Cards (.ZIP)';
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Carregando bibliotecas...';
+    }
+
+    await ensureExportLibraries();
+
+    if (btn) {
+      btn.innerHTML = '⏳ Preparando elementos do Apêndice B (Gemma 4)...';
+    }
+
+    const zip = new JSZip();
+
+    const areaSlugMap = {
+      humanas_linguagens: 'geral_50_questoes',
+      linguagens: 'linguagens_lc',
+      humanas: 'humanas_ch',
+    };
+
+    const areaSlug = areaSlugMap[activeKey] || activeKey;
+    const folderName = `graficos_apendice_b_gemma_4_aba-${areaSlug}`;
+    const folder = zip.folder(folderName);
+
+    const activeStatsObj = stats
+      ? stats[activeKey] || stats['humanas_linguagens'] || stats['consolidado']
+      : null;
+
+    if (!activeStatsObj) {
+      throw new Error('Estatísticas do Apêndice B não encontradas.');
+    }
+
+    const body = document.getElementById('apendiceBVariantBody');
+    const c_glob = activeStatsObj.comparisons?.global || {};
+    const c_pre = activeStatsObj.comparisons?.pre_cutoff || {};
+    const c_post = activeStatsObj.comparisons?.post_cutoff || {};
+    const hasCaseStudies = activeStatsObj.case_studies && activeStatsObj.case_studies.length > 0;
+
+    let areaLabel = 'Geral (50 Questões)';
+    if (activeKey === 'linguagens') areaLabel = 'Linguagens (LC)';
+    if (activeKey === 'humanas') areaLabel = 'Humanas (CH)';
+
+    const variantsToExport = [
+      { key: 'all', label: '01_visao_geral' },
+      { key: 'apendice_vs_heuristic', label: '02_apendice_b_x_heuristica' },
+      { key: 'heuristic_vs_real', label: '03_heuristica_x_banca' },
+      { key: 'apendice_vs_real', label: '04_apendice_b_x_banca' },
+    ];
+
+    let overallIndex = 1;
+
+    for (const vObj of variantsToExport) {
+      const vKey = vObj.key;
+      const vPrefix = vObj.label;
+
+      if (btn) {
+        btn.innerHTML = `⏳ Renderizando comparativo: ${vPrefix}...`;
+      }
+
+      if (vKey === 'apendice_vs_heuristic') {
+        renderViewApendiceVsHeuristic(body, activeStatsObj, c_glob, c_pre, c_post, areaLabel);
+      } else if (vKey === 'heuristic_vs_real') {
+        renderViewHeuristicVsReal(body, activeStatsObj, c_glob, c_pre, c_post, areaLabel);
+      } else if (vKey === 'apendice_vs_real') {
+        renderViewApendiceVsReal(body, activeStatsObj, c_glob, c_pre, c_post, areaLabel);
+      } else {
+        renderViewConsolidada(
+          body,
+          activeStatsObj,
+          c_glob,
+          c_pre,
+          c_post,
+          hasCaseStudies,
+          areaLabel,
+        );
+      }
+
+      await new Promise((r) => setTimeout(r, 200));
+
+      if (window.Chart) {
+        body.querySelectorAll('canvas').forEach((canvasEl) => {
+          const chartInst = Chart.getChart(canvasEl);
+          if (chartInst) {
+            try {
+              chartInst.resize();
+              chartInst.update('none');
+            } catch (e) {}
+          }
+        });
+      }
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const triCards = body.querySelectorAll('div[style*="border-left"]');
+      let triIdx = 1;
+      for (const card of triCards) {
+        try {
+          const cardCanvas = await html2canvas(card, {
+            backgroundColor: '#1a1c1d',
+            scale: 2,
+            logging: false,
+            useCORS: true,
+            letterRendering: true,
+          });
+          const imgData = cardCanvas.toDataURL('image/png').split(',')[1];
+          const titleEl = card.querySelector('div');
+          const rawTitle = titleEl ? titleEl.textContent.trim() : `card_${triIdx}`;
+          const cleanTitle = rawTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '_')
+            .replace(/_+/g, '_')
+            .slice(0, 40);
+
+          folder.file(
+            `${String(overallIndex).padStart(2, '0')}_${vPrefix}_card_${cleanTitle}.png`,
+            imgData,
+            { base64: true },
+          );
+          overallIndex++;
+          triIdx++;
+        } catch (err) {
+          console.warn('Erro ao exportar Tri-card:', err);
+        }
+      }
+
+      const chartHeaders = body.querySelectorAll('h4');
+      for (const h4 of chartHeaders) {
+        try {
+          const parentCard = h4.closest('div');
+          const canvasEl = parentCard ? parentCard.querySelector('canvas') : null;
+          if (canvasEl) {
+            const rawTitle = h4.textContent.trim();
+            const cleanTitle = rawTitle
+              .replace(/^\d+\.\s*/, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '_')
+              .replace(/_+/g, '_')
+              .slice(0, 45);
+
+            const w =
+              canvasEl.width > 300
+                ? canvasEl.width
+                : canvasEl.clientWidth
+                  ? canvasEl.clientWidth * 2
+                  : 1000;
+            const h =
+              canvasEl.height > 150
+                ? canvasEl.height
+                : canvasEl.clientHeight
+                  ? canvasEl.clientHeight * 2
+                  : 500;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+            ctx.fillStyle = '#1a1c1d';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(canvasEl, 0, 0, w, h);
+
+            const imgBase64 = tempCanvas.toDataURL('image/png').split(',')[1];
+            folder.file(
+              `${String(overallIndex).padStart(2, '0')}_${vPrefix}_grafico_${cleanTitle}.png`,
+              imgBase64,
+              { base64: true },
+            );
+            overallIndex++;
+          }
+        } catch (chartErr) {
+          console.warn('Erro ao capturar gráfico:', chartErr);
+        }
+      }
+
+      if (vKey === 'all') {
+        const caseStudiesList = body.querySelector('#dashboardCaseStudiesList');
+        if (caseStudiesList) {
+          const caseCards = caseStudiesList.querySelectorAll(':scope > div');
+          let caseIdx = 1;
+          for (const caseCard of caseCards) {
+            try {
+              if (btn)
+                btn.innerHTML = `⏳ Exportando Estudo de Caso ${caseIdx}/${caseCards.length}...`;
+              const cardCanvas = await html2canvas(caseCard, {
+                backgroundColor: '#1a1c1d',
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                letterRendering: true,
+              });
+              const imgData = cardCanvas.toDataURL('image/png').split(',')[1];
+
+              const titleEl = caseCard.querySelector('strong');
+              const rawTitle = titleEl ? titleEl.textContent.trim() : `questao_${caseIdx}`;
+              const cleanTitle = rawTitle
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '_')
+                .replace(/_+/g, '_')
+                .slice(0, 45);
+
+              folder.file(
+                `${String(overallIndex).padStart(2, '0')}_estudo_de_caso_${cleanTitle}.png`,
+                imgData,
+                { base64: true },
+              );
+              overallIndex++;
+              caseIdx++;
+            } catch (caseErr) {
+              console.warn('Erro ao capturar estudo de caso:', caseErr);
+            }
+          }
+        }
+
+        const conclusionCard = body.querySelector('div[style*="rgba(40, 167, 69"]');
+        if (conclusionCard) {
+          try {
+            const cardCanvas = await html2canvas(conclusionCard, {
+              backgroundColor: '#1a1c1d',
+              scale: 2,
+              logging: false,
+              useCORS: true,
+              letterRendering: true,
+            });
+            const imgData = cardCanvas.toDataURL('image/png').split(',')[1];
+            folder.file(
+              `${String(overallIndex).padStart(2, '0')}_conclusao_geral_apendice_b_gemma_4.png`,
+              imgData,
+              { base64: true },
+            );
+            overallIndex++;
+          } catch (cErr) {
+            console.warn('Erro ao capturar conclusão geral:', cErr);
+          }
+        }
+      }
+    }
+
+    renderDashboardUI(dataContainer, activeStatsObj, activeKey);
+
+    if (btn) {
+      btn.innerHTML = '⏳ Comprimindo arquivo ZIP...';
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const today = new Date().toISOString().slice(0, 10);
+    const zipFileName = `graficos_apendice_b_gemma_4_aba-${areaSlug}_${today}.zip`;
+
+    saveAs(zipBlob, zipFileName);
+  } catch (error) {
+    console.error('Erro ao exportar ZIP do Apêndice B:', error);
+    alert('Erro ao gerar arquivo ZIP: ' + error.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
 }

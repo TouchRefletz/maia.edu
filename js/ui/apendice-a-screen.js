@@ -1897,9 +1897,14 @@ function renderDashboardUIApendiceA(
         <button class="ap-tab-btn" data-tab="modelos">🤖 Modelos & Juízes</button>
         <button class="ap-tab-btn" data-tab="latencias">⏱️ Latência & Performance</button>
       </div>
-      <button id="btn-export-html-static" class="btn btn--outline" style="display: inline-flex; align-items: center; gap: 8px; font-weight: bold; border-color: var(--color-success); color: var(--color-success); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; background: none; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;">
-        📥 Exportar Relatório Científico (HTML Estático)
-      </button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button id="btn-export-charts-zip" class="btn btn--outline" style="display: inline-flex; align-items: center; gap: 8px; font-weight: bold; border-color: var(--color-primary); color: var(--color-primary); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; background: rgba(33, 128, 141, 0.1); cursor: pointer; transition: all 0.2s; margin-bottom: 8px;">
+          📦 Baixar 37 Gráficos e Cards (.ZIP)
+        </button>
+        <button id="btn-export-html-static" class="btn btn--outline" style="display: inline-flex; align-items: center; gap: 8px; font-weight: bold; border-color: var(--color-success); color: var(--color-success); padding: 8px 16px; border-radius: 6px; font-size: 0.85rem; background: none; cursor: pointer; transition: all 0.2s; margin-bottom: 8px;">
+          📥 Exportar Relatório Científico (HTML Estático)
+        </button>
+      </div>
     </div>
 
     <!-- Conteúdos das Sub-Abas -->
@@ -2375,7 +2380,20 @@ function renderDashboardUIApendiceA(
     });
   });
 
-  // Inicializar botão de exportação — exporta a área ativa
+  // Inicializar botões de exportação — exporta a área ativa e modelo selecionado
+  const btnZip = container.querySelector('#btn-export-charts-zip');
+  if (btnZip) {
+    btnZip.addEventListener('click', () => {
+      exportChartsAndCardsZIP(
+        container,
+        areaKey,
+        dashboardJuizAtual,
+        areaLabel,
+        activeAreaStats || stats,
+      );
+    });
+  }
+
   container.querySelector('#btn-export-html-static').addEventListener('click', () => {
     exportStaticHTMLReport(activeAreaStats || stats, areaLabel);
   });
@@ -2709,17 +2727,78 @@ function renderTabCharts(tabName, container, stats) {
     const table34Container = document.getElementById('container-34-pontos-detalhamento');
     if (table34Container) {
       const groupMap = {
-        grupo_a: { name: 'Grupo A (Peso 1): Estrutura e Estética Básica', color: '#32b8c6', keys: ['declaracao_gabarito_indica_letra', 'presenca_formatacao_negrito', 'divisao_minima_paragrafos', 'presenca_titulo_ou_cabecalho', 'uso_de_listas_ou_topicos', 'ausencia_de_tags_corrompidas', 'presenca_de_conclusao_clara'] },
-        grupo_b: { name: 'Grupo B (Peso 2): Ancoragem Factual e Interpretação', color: '#a75df4', keys: ['citacao_direta_texto_apoio', 'mencao_ao_comando_pergunta', 'isolamento_dados_quantitativos', 'ausencia_extrapolacao_hipotetica', 'parafrase_fiel_das_premissas', 'mencao_a_fontes_ou_rodape', 'leitura_de_elementos_visuais'] },
-        grupo_c: { name: 'Grupo C (Peso 3): Pedagogia e Transposição Cognitiva', color: '#28a745', keys: ['passo_a_passo_cronologico', 'linguagem_acessivel_ensino_medio', 'presenca_de_exemplos_praticos', 'ausencia_de_redundancia_vazia', 'definicao_de_termos_chave', 'segmentacao_funcional_do_texto', 'recurso_visual_de_destaque'] },
-        grupo_d: { name: 'Grupo D (Peso 4): Lógica Dedutiva e Eliminação', color: '#f97316', keys: ['analise_isolada_distrator_A', 'analise_isolada_distrator_B', 'analise_isolada_distrator_C', 'analise_isolada_distrator_restante', 'conexao_causal_premissa_conclusao', 'ausencia_de_saltos_logicos', 'ausencia_de_raciocinio_circular'] },
-        grupo_e: { name: 'Grupo E (Peso 5): Engenharia da Resolução e Interfaces', color: '#ff5459', keys: ['aplicacao_nominal_arcabouco_teorico', 'mecanismo_do_erro_nos_distratores', 'independencia_da_memoria_parametrica', 'metodologia_de_resolucao_explicita', 'otimizacao_semantica_para_interface', 'recurso_didatico_avancado_analogia'] }
+        grupo_a: {
+          name: 'Grupo A (Peso 1): Estrutura e Estética Básica',
+          color: '#32b8c6',
+          keys: [
+            'declaracao_gabarito_indica_letra',
+            'presenca_formatacao_negrito',
+            'divisao_minima_paragrafos',
+            'presenca_titulo_ou_cabecalho',
+            'uso_de_listas_ou_topicos',
+            'ausencia_de_tags_corrompidas',
+            'presenca_de_conclusao_clara',
+          ],
+        },
+        grupo_b: {
+          name: 'Grupo B (Peso 2): Ancoragem Factual e Interpretação',
+          color: '#a75df4',
+          keys: [
+            'citacao_direta_texto_apoio',
+            'mencao_ao_comando_pergunta',
+            'isolamento_dados_quantitativos',
+            'ausencia_extrapolacao_hipotetica',
+            'parafrase_fiel_das_premissas',
+            'mencao_a_fontes_ou_rodape',
+            'leitura_de_elementos_visuais',
+          ],
+        },
+        grupo_c: {
+          name: 'Grupo C (Peso 3): Pedagogia e Transposição Cognitiva',
+          color: '#28a745',
+          keys: [
+            'passo_a_passo_cronologico',
+            'linguagem_acessivel_ensino_medio',
+            'presenca_de_exemplos_praticos',
+            'ausencia_de_redundancia_vazia',
+            'definicao_de_termos_chave',
+            'segmentacao_funcional_do_texto',
+            'recurso_visual_de_destaque',
+          ],
+        },
+        grupo_d: {
+          name: 'Grupo D (Peso 4): Lógica Dedutiva e Eliminação',
+          color: '#f97316',
+          keys: [
+            'analise_isolada_distrator_A',
+            'analise_isolada_distrator_B',
+            'analise_isolada_distrator_C',
+            'analise_isolada_distrator_restante',
+            'conexao_causal_premissa_conclusao',
+            'ausencia_de_saltos_logicos',
+            'ausencia_de_raciocinio_circular',
+          ],
+        },
+        grupo_e: {
+          name: 'Grupo E (Peso 5): Engenharia da Resolução e Interfaces',
+          color: '#ff5459',
+          keys: [
+            'aplicacao_nominal_arcabouco_teorico',
+            'mecanismo_do_erro_nos_distratores',
+            'independencia_da_memoria_parametrica',
+            'metodologia_de_resolucao_explicita',
+            'otimizacao_semantica_para_interface',
+            'recurso_didatico_avancado_analogia',
+          ],
+        },
       };
 
-      const groupSummaries = Object.keys(groupMap).map(gKey => {
+      const groupSummaries = Object.keys(groupMap).map((gKey) => {
         const groupInfo = groupMap[gKey];
-        const ctrlMean = groupInfo.keys.reduce((sum, k) => sum + getRateCtrl(k), 0) / groupInfo.keys.length;
-        const expMean = groupInfo.keys.reduce((sum, k) => sum + getRateExp(k), 0) / groupInfo.keys.length;
+        const ctrlMean =
+          groupInfo.keys.reduce((sum, k) => sum + getRateCtrl(k), 0) / groupInfo.keys.length;
+        const expMean =
+          groupInfo.keys.reduce((sum, k) => sum + getRateExp(k), 0) / groupInfo.keys.length;
         return {
           key: gKey,
           name: groupInfo.name,
@@ -2727,7 +2806,7 @@ function renderTabCharts(tabName, container, stats) {
           ctrlMean,
           expMean,
           delta: expMean - ctrlMean,
-          count: groupInfo.keys.length
+          count: groupInfo.keys.length,
         };
       });
 
@@ -2735,7 +2814,9 @@ function renderTabCharts(tabName, container, stats) {
         <div style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
           <h4 style="margin: 0 0 16px 0; font-size: 1rem; color: var(--color-text-shine);">📊 Resumo de Desempenho por Grupo de Critérios (Média dos 34 Pontos)</h4>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-            ${groupSummaries.map(g => `
+            ${groupSummaries
+              .map(
+                (g) => `
               <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); border-left: 4px solid ${g.color}; border-radius: 6px; padding: 12px;">
                 <div style="font-size: 0.75rem; color: var(--color-text-secondary); font-weight: bold; margin-bottom: 4px;">${g.name}</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: var(--color-text-shine);">
@@ -2745,7 +2826,9 @@ function renderTabCharts(tabName, container, stats) {
                   Δ Ganho: ${g.delta >= 0 ? '+' : ''}${g.delta.toFixed(1)}% (${g.count} subcritérios)
                 </div>
               </div>
-            `).join('')}
+            `,
+              )
+              .join('')}
           </div>
 
           <h4 style="margin: 20px 0 12px 0; font-size: 1rem; color: var(--color-text-shine);">📋 Computação Individual dos 34 Pontos Auditados</h4>
@@ -2763,25 +2846,31 @@ function renderTabCharts(tabName, container, stats) {
                 </tr>
               </thead>
               <tbody>
-                ${cKeys.map((key, idx) => {
-                  const ctrl = getRateCtrl(key);
-                  const exp = getRateExp(key);
-                  const delta = exp - ctrl;
-                  let groupBelong = 'Outros';
-                  let groupColor = '#ffffff';
-                  Object.keys(groupMap).forEach(gK => {
-                    if (groupMap[gK].keys.includes(key)) {
-                      groupBelong = groupMap[gK].name.split(':')[0];
-                      groupColor = groupMap[gK].color;
-                    }
-                  });
+                ${cKeys
+                  .map((key, idx) => {
+                    const ctrl = getRateCtrl(key);
+                    const exp = getRateExp(key);
+                    const delta = exp - ctrl;
+                    let groupBelong = 'Outros';
+                    let groupColor = '#ffffff';
+                    Object.keys(groupMap).forEach((gK) => {
+                      if (groupMap[gK].keys.includes(key)) {
+                        groupBelong = groupMap[gK].name.split(':')[0];
+                        groupColor = groupMap[gK].color;
+                      }
+                    });
 
-                  let badge = '<span style="color:var(--color-text-secondary);">➖ Estável</span>';
-                  if (delta >= 30) badge = '<span style="color:#28a745; font-weight:bold;">🔥 Ganho Alto</span>';
-                  else if (delta >= 10) badge = '<span style="color:#32b8c6; font-weight:bold;">✅ Ganho Moderado</span>';
-                  else if (delta < 0) badge = '<span style="color:#ff5459; font-weight:bold;">⚠️ Retração</span>';
+                    let badge =
+                      '<span style="color:var(--color-text-secondary);">➖ Estável</span>';
+                    if (delta >= 30)
+                      badge = '<span style="color:#28a745; font-weight:bold;">🔥 Ganho Alto</span>';
+                    else if (delta >= 10)
+                      badge =
+                        '<span style="color:#32b8c6; font-weight:bold;">✅ Ganho Moderado</span>';
+                    else if (delta < 0)
+                      badge = '<span style="color:#ff5459; font-weight:bold;">⚠️ Retração</span>';
 
-                  return `
+                    return `
                     <tr style="border-bottom: 1px solid var(--color-border);">
                       <td style="padding: 8px 10px; font-weight: bold; color: var(--color-text-secondary);">${idx + 1}</td>
                       <td style="padding: 8px 10px; font-weight: 500; color: var(--color-text);">${key.replace(/_/g, ' ')}</td>
@@ -2794,7 +2883,8 @@ function renderTabCharts(tabName, container, stats) {
                       <td style="padding: 8px 10px; text-align: center; font-size: 0.78rem;">${badge}</td>
                     </tr>
                   `;
-                }).join('')}
+                  })
+                  .join('')}
               </tbody>
             </table>
           </div>
@@ -3427,6 +3517,354 @@ function renderTabCharts(tabName, container, stats) {
       },
       { responsive: true },
     );
+  }
+}
+
+async function ensureExportLibraries() {
+  const promises = [];
+  if (!window.JSZip) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  if (!window.saveAs) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  if (!window.html2canvas) {
+    promises.push(
+      new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      }),
+    );
+  }
+  await Promise.all(promises);
+}
+
+function renderKPICardToDataURL(cardEl) {
+  const width = 400;
+  const height = 160;
+  const canvas = document.createElement('canvas');
+  canvas.width = width * 2;
+  canvas.height = height * 2;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.scale(2, 2);
+
+  ctx.fillStyle = '#1a1c1d';
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(0, 0, width, height, 10);
+  } else {
+    ctx.rect(0, 0, width, height);
+  }
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 1. Localizar o elemento de valor principal (.kpi-val)
+  const kpiValEl = cardEl.querySelector('.kpi-val');
+  let valueText = kpiValEl ? kpiValEl.textContent.trim() : '';
+  let valueColor = kpiValEl
+    ? kpiValEl.style.color || window.getComputedStyle(kpiValEl).color
+    : '#ffffff';
+
+  // 2. Coletar todos os outros divs descendentes
+  const childDivs = Array.from(cardEl.querySelectorAll('div')).filter(
+    (el) => el !== kpiValEl && !el.contains(kpiValEl),
+  );
+
+  let headerText = '';
+  let headerColor = '#32b8c6';
+  let subtitleText = '';
+
+  if (childDivs.length > 0) {
+    headerText = childDivs[0].textContent.trim();
+    headerColor =
+      childDivs[0].style.color || window.getComputedStyle(childDivs[0]).color || '#32b8c6';
+  }
+
+  if (childDivs.length > 1) {
+    subtitleText = childDivs[1].textContent.trim();
+  }
+
+  if (!valueText && childDivs.length >= 3) {
+    valueText = childDivs[2].textContent.trim();
+    valueColor = childDivs[2].style.color || '#ffffff';
+  }
+
+  const resolveColor = (col, defaultCol) => {
+    if (!col || col === 'none') return defaultCol;
+    if (col.includes('var(')) {
+      if (col.includes('primary')) return '#32b8c6';
+      if (col.includes('secondary')) return '#a75df4';
+      if (col.includes('success')) return '#28a745';
+      if (col.includes('danger') || col.includes('error')) return '#ff5459';
+      return '#32b8c6';
+    }
+    return col;
+  };
+
+  headerColor = resolveColor(headerColor, '#32b8c6');
+  valueColor = resolveColor(valueColor, '#ffffff');
+
+  let valFontSize = 28;
+  if (valueText.length > 25) valFontSize = 15;
+  else if (valueText.length > 16) valFontSize = 19;
+  else if (valueText.length > 10) valFontSize = 23;
+
+  // Renderizar Cabeçalho (Linha 1)
+  ctx.font = 'bold 12px "Plus Jakarta Sans", system-ui, sans-serif';
+  ctx.fillStyle = headerColor;
+  ctx.fillText(headerText.toUpperCase().slice(0, 45), 20, 32);
+
+  // Renderizar Subtítulo (Linha 2)
+  if (subtitleText) {
+    ctx.font = '13px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.fillText(subtitleText.slice(0, 50), 20, 56);
+  }
+
+  // Renderizar Valor Principal Grande (Linha 3)
+  ctx.font = `bold ${valFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
+  ctx.fillStyle = valueColor;
+  ctx.fillText(valueText, 20, subtitleText ? 112 : 90);
+
+  return canvas.toDataURL('image/png').split(',')[1];
+}
+
+async function exportChartsAndCardsZIP(
+  container,
+  areaKey = 'total',
+  modelFilter = 'all',
+  areaLabel = 'Total',
+  stats = null,
+) {
+  const btn = container.querySelector('#btn-export-charts-zip');
+  const originalText = btn ? btn.innerHTML : '📦 Baixar 37 Gráficos e Cards (.ZIP)';
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Preparando bibliotecas...';
+    }
+
+    await ensureExportLibraries();
+
+    if (btn) {
+      btn.innerHTML = '⏳ Gerando gráficos (1/4)...';
+    }
+
+    // 1. Garantir que todas as 4 sub-abas tenham seus gráficos renderizados
+    const tabsToRender = ['gerais', 'criterios', 'modelos', 'latencias'];
+    tabsToRender.forEach((tab) => {
+      if (!renderedTabs[tab] && stats) {
+        renderTabCharts(tab, container, stats);
+        renderedTabs[tab] = true;
+      }
+    });
+
+    // 2. Temporariamente exibir todas as sub-abas para captura completa
+    const originalTabDisplays = [];
+    const tabContentElements = container.querySelectorAll('.ap-tab-content');
+    tabContentElements.forEach((el) => {
+      originalTabDisplays.push({ el, display: el.style.display });
+      el.style.display = 'block';
+    });
+
+    // 3. Forçar recálculo e resize de todos os gráficos Chart.js e Plotly para preencher largura total
+    if (window.Chart && Chart.instances) {
+      Object.values(Chart.instances).forEach((c) => {
+        try {
+          c.resize();
+          c.update('none');
+        } catch (e) {}
+      });
+    }
+
+    if (window.Plotly) {
+      const plotlyPlots = container.querySelectorAll('.js-plotly-plot');
+      plotlyPlots.forEach((p) => {
+        try {
+          Plotly.Plots.resize(p);
+        } catch (e) {}
+      });
+    }
+
+    await new Promise((r) => setTimeout(r, 150));
+
+    if (btn) {
+      btn.innerHTML = '⏳ Renderizando imagens ultra-rápidas...';
+    }
+
+    const zip = new JSZip();
+
+    const modelSlugMap = {
+      all: 'todos_os_modelos',
+      'gpt-oss-120b': 'gpt-oss-120b',
+      'gemini-3.5-flash': 'gemini-3.5-flash',
+      'gemma-4-31b-it': 'gemma-4-31b-it',
+      'gpt+gemini': 'gpt-oss_gemini-3.5',
+      'gpt+gemma': 'gpt-oss_gemma-4',
+      'gemma+gemini': 'gemma-4_gemini-3.5',
+    };
+    const areaSlugMap = {
+      total: 'geral',
+      humanas: 'humanas',
+      linguagens: 'linguagens',
+    };
+
+    const areaSlug = areaSlugMap[areaKey] || areaKey;
+    const modelSlug = modelSlugMap[modelFilter] || modelFilter.replace(/[^a-z0-9]/gi, '_');
+    const folderName = `graficos_apendice_a_aba-${areaSlug}_modelo-${modelSlug}`;
+    const folder = zip.folder(folderName);
+
+    let kpiCount = 1;
+
+    // A. Exportar Cards de Estatísticas / KPIs usando renderizador Canvas ultra-rápido (<1ms per card)
+    const kpiCards = container.querySelectorAll('.stats-card-kpi');
+    for (const card of kpiCards) {
+      try {
+        const imgData = renderKPICardToDataURL(card);
+        const cardTitleEl = card.querySelector('div');
+        const rawTitle = cardTitleEl ? cardTitleEl.textContent.trim() : `card_${kpiCount}`;
+        const titleSlug = rawTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .slice(0, 35);
+
+        folder.file(`00_kpi_${String(kpiCount).padStart(2, '0')}_${titleSlug}.png`, imgData, {
+          base64: true,
+        });
+        kpiCount++;
+      } catch (err) {
+        console.warn('Erro ao exportar KPI card:', err);
+      }
+    }
+
+    // B. Exportar os 37 Gráficos isolados (Chart.js e Plotly)
+    const chartCards = container.querySelectorAll('.chart-card, .chart-card-full');
+    let chartIndex = 1;
+    const totalCharts = chartCards.length;
+
+    for (const card of chartCards) {
+      try {
+        if (btn && chartIndex % 5 === 0) {
+          btn.innerHTML = `⏳ Processando gráfico ${chartIndex}/${totalCharts}...`;
+          await new Promise((r) => setTimeout(r, 0));
+        }
+
+        const titleEl = card.querySelector('h4');
+        const rawTitle = titleEl ? titleEl.textContent.trim() : `Grafico ${chartIndex}`;
+
+        const cleanTitle = rawTitle
+          .replace(/^\d+\.\s*/, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '_')
+          .replace(/_+/g, '_')
+          .slice(0, 50);
+
+        const fileName = `${String(chartIndex).padStart(2, '0')}_grafico_${cleanTitle}.png`;
+
+        const plotlyDiv = card.querySelector('.js-plotly-plot, [id^="chart-"]');
+        const canvasEl = card.querySelector('canvas');
+
+        if (plotlyDiv && window.Plotly && plotlyDiv.layout) {
+          const dataUrl = await Plotly.toImage(plotlyDiv, {
+            format: 'png',
+            width: 1000,
+            height: 550,
+          });
+          const imgBase64 = dataUrl.split(',')[1];
+          folder.file(fileName, imgBase64, { base64: true });
+        } else if (canvasEl) {
+          const w =
+            canvasEl.width > 300
+              ? canvasEl.width
+              : canvasEl.clientWidth
+                ? canvasEl.clientWidth * 2
+                : 1000;
+          const h =
+            canvasEl.height > 150
+              ? canvasEl.height
+              : canvasEl.clientHeight
+                ? canvasEl.clientHeight * 2
+                : 500;
+
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = w;
+          tempCanvas.height = h;
+          const ctx = tempCanvas.getContext('2d', { willReadFrequently: true });
+
+          ctx.fillStyle = '#1a1c1d';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(canvasEl, 0, 0, w, h);
+
+          const imgBase64 = tempCanvas.toDataURL('image/png').split(',')[1];
+          folder.file(fileName, imgBase64, { base64: true });
+        } else if (window.html2canvas) {
+          const cardCanvas = await html2canvas(card, {
+            backgroundColor: '#1a1c1d',
+            scale: 1.5,
+            logging: false,
+          });
+          const imgBase64 = cardCanvas.toDataURL('image/png').split(',')[1];
+          folder.file(fileName, imgBase64, { base64: true });
+        }
+
+        chartIndex++;
+      } catch (chartErr) {
+        console.warn(`Erro ao exportar gráfico ${chartIndex}:`, chartErr);
+        chartIndex++;
+      }
+    }
+
+    if (btn) {
+      btn.innerHTML = '⏳ Comprimindo arquivo ZIP (4/4)...';
+    }
+
+    // 3. Restaurar visualização original das sub-abas
+    originalTabDisplays.forEach(({ el, display }) => {
+      el.style.display = display;
+    });
+
+    // 4. Gerar e salvar arquivo ZIP
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const today = new Date().toISOString().slice(0, 10);
+    const zipFileName = `graficos_apendice_a_aba-${areaSlug}_modelo-${modelSlug}_${today}.zip`;
+
+    saveAs(zipBlob, zipFileName);
+  } catch (error) {
+    console.error('Erro na exportação de gráficos ZIP:', error);
+    if (typeof customAlert === 'function') {
+      customAlert('Ocorreu um erro ao gerar o arquivo ZIP com os gráficos: ' + error.message);
+    } else {
+      alert('Erro ao gerar ZIP: ' + error.message);
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
   }
 }
 
