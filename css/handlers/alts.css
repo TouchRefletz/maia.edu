@@ -17,8 +17,7 @@
 }
 
 .alt-row > .alt-content > .alt-estrutura > .markdown-content {
-  display: flex;
-  align-items: center;
+  display: block;
   margin: 0px;
   padding: 5px;
 }

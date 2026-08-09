@@ -89,7 +89,7 @@
 
 .q-opt-btn {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 12px 16px;
   border: 1px solid var(--color-border);

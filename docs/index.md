@@ -26,4 +26,8 @@ features:
   - title: API Worker & Edge Services
     details: Conheça a infraestrutura serverless executada em Cloudflare Workers para IA e banco de dados.
     link: /api-worker/arquitetura
+  - title: Sistema de ELO & Ranking
+    details: Motor adaptativo de diagnostico metacognitivo (TRI Rasch 1PL), 10 Tiers e 40 arquétipos de estudante.
+    link: /elo/visao-geral
 ---
+

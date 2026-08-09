@@ -20,6 +20,10 @@ export default withMermaid(
       ],
     ],
 
+    markdown: {
+      math: true,
+    },
+
     themeConfig: {
       logo: '/logo.png',
       siteTitle: 'maia.edu',
@@ -55,6 +59,7 @@ export default withMermaid(
             { text: 'CSS', link: '/css/design-tokens' },
           ],
         },
+        { text: 'ELO & Ranking', link: '/elo/visao-geral' },
       ],
 
       // =========================================================================
@@ -155,6 +160,20 @@ export default withMermaid(
           items: [
             { text: 'Visão Geral do Simulados', link: '/simulados/visao-geral' },
             { text: 'Gerador de PDF de Provas', link: '/simulados/pdf-generator' },
+          ],
+        },
+
+        // SEÇÃO SISTEMA DE ELO & RANKING
+        {
+          text: '🏆 Sistema de ELO & Ranking',
+          collapsed: false,
+          items: [
+            { text: 'Visão Geral e Arquitetura', link: '/elo/visao-geral' },
+            { text: 'Modelo Matemático & Algoritmos', link: '/elo/modelo-matematico' },
+            { text: 'Tiers, Ranks & Tabela de Níveis', link: '/elo/ranks-e-trofeus' },
+            { text: 'Perfis Diagnósticos & Arquétipos', link: '/elo/perfis-diagnosticos' },
+            { text: 'Benefícios, Malefícios & Limitações', link: '/elo/beneficios-e-maleficios' },
+            { text: 'Integração & Persistência', link: '/elo/integracao-e-persistencia' },
           ],
         },
 

@@ -7,11 +7,24 @@ export function gerarHtmlPainelFiltros() {
     localStorage.getItem('selectedModelCorrector') ||
     'models/gemini-3.5-flash';
 
+  const modoAtual =
+    bancoState?.modoResposta ||
+    (typeof window !== 'undefined' && localStorage.getItem('banco_modo_resposta')) ||
+    'graus_confianca';
+
   return `
     <div class="filters-panel">
         <div class="filters-header">
             <span style="font-size:1.2em;">🌪️</span> Filtros Avançados
-            <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+            <div style="margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div class="modo-resposta-segmented" title="Selecione a forma de responder as questões">
+                    <button type="button" class="modo-segmented-btn ${modoAtual === 'graus_confianca' ? 'active' : ''} js-set-modo-confianca" data-modo="graus_confianca">
+                        🎯 Graus de Certeza
+                    </button>
+                    <button type="button" class="modo-segmented-btn ${modoAtual === 'binario' ? 'active' : ''} js-set-modo-binario" data-modo="binario">
+                        ⚡ Resposta Direta
+                    </button>
+                </div>
                 <button class="btn btn--sm btn--outline js-filtro-projeto-cientifico" title="Filtrar apenas as questões marcadas do Projeto Científico" style="display:flex; align-items:center; gap:6px; padding: 5px 12px; border: 1px solid #32b8c6; background: ${bancoState?.filtroProjetoCientifico ? '#32b8c6' : 'rgba(50, 184, 198, 0.08)'}; color: ${bancoState?.filtroProjetoCientifico ? '#000' : '#32b8c6'}; font-size: 0.75rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
                     🧪 Projeto Científico
                 </button>

@@ -1,5 +1,8 @@
 import { exibirModalOriginais } from '../render/final/OriginaisModal.tsx';
 import { showConfirmModal } from '../ui/modal-confirm.js';
+import { EloService } from '../services/elo-service.js';
+import { exibirEloPopupModal } from '../ui/EloPopupModal.js';
+import { triggerRankTransitionIfAny } from '../ui/rank-animation.js';
 
 export function toggleGabarito(cardId) {
   const el = document.getElementById(cardId + '_res');
@@ -43,15 +46,21 @@ export function verificarRespostaBanco(btn, cardId, letraEscolhida, letraCorreta
   const container = document.getElementById(cardId + '_opts');
   const resolution = document.getElementById(cardId + '_res');
 
-  if (container.classList.contains('answered')) return;
+  if (!container || container.classList.contains('answered')) return;
   container.classList.add('answered');
 
   const todosBotoes = container.querySelectorAll('.q-opt-btn');
-  letraCorreta = letraCorreta.trim().toUpperCase();
-  letraEscolhida = letraEscolhida.trim().toUpperCase();
+  letraCorreta = (letraCorreta || '').trim().toUpperCase();
+  letraEscolhida = (letraEscolhida || '').trim().toUpperCase();
 
   todosBotoes.forEach((b) => {
-    const letra = b.querySelector('.q-opt-letter').innerText.replace(')', '').trim();
+    const letra = (
+      b.dataset.letra ||
+      b.querySelector('.q-opt-letter-badge, .q-opt-letter')?.innerText.replace(')', '') ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
 
     if (letra === letraCorreta) {
       b.classList.add('correct');
@@ -72,11 +81,244 @@ export function verificarRespostaBanco(btn, cardId, letraEscolhida, letraCorreta
     }
   });
 
+  // Em modo binário, 100% na opção escolhida
+  const certezas = {};
+  ['A', 'B', 'C', 'D', 'E'].forEach((l) => {
+    certezas[l] = l === letraEscolhida ? 100 : 0;
+  });
+
+  const qKey = cardId.replace(/^q_/, '');
+  const cardEl = container.closest('.q-card') || document.getElementById(`card_${qKey}`);
+  const fullData = cardEl?._fullData;
+  const complexidadeObj = fullData?.dados_gabarito?.analise_complexidade;
+
+  const resultadoElo = EloService.processarResposta({
+    questaoId: qKey,
+    opcaoSelecionada: letraEscolhida,
+    gabaritoCorreto: letraCorreta,
+    certezas,
+    complexidadeObj,
+    fullData,
+  });
+
+  const eloCell = document.getElementById(`${cardId}_elo_efetivo_val`);
+  if (eloCell) {
+    eloCell.innerHTML = `<strong style="color: var(--color-primary, #3b82f6);">${resultadoElo.questao.bNew}</strong> <span style="font-size: 0.75rem; opacity: 0.75;">(N=${resultadoElo.questao.N} respostas)</span>`;
+  }
+
+  setTimeout(() => {
+    exibirEloPopupModal(resultadoElo, () => {
+      triggerRankTransitionIfAny(resultadoElo);
+    });
+  }, 100);
+
   // Delay e Revelação
   setTimeout(() => {
-    resolution.style.display = 'block';
-    resolution.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (resolution) {
+      resolution.style.display = 'block';
+      resolution.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }, 800);
+}
+
+import { renderLatexIn } from '../libs/loader.tsx';
+import { gerarHtmlAlternativas } from './card-template.js';
+
+export function selecionarAlternativaConfianca(btn, cardId, letra) {
+  const container = document.getElementById(cardId + '_opts');
+  if (!container || container.classList.contains('answered')) return;
+
+  const allCards = container.querySelectorAll('.q-opt-card-confianca');
+  allCards.forEach((cardEl) => {
+    const l = cardEl.dataset.letra;
+    const isThis = l === letra;
+    cardEl.classList.toggle('selected', isThis);
+
+    const labelEl = cardEl.querySelector('.q-slider-label');
+    if (labelEl) {
+      if (isThis) {
+        labelEl.textContent = `Grau de certeza de que ${l} é CORRETA:`;
+      } else {
+        labelEl.textContent = `Certeza de que ${l} é FALSA:`;
+      }
+    }
+  });
+
+  container.dataset.opcaoSelecionada = letra;
+
+  const submitBtn = container.querySelector('.js-enviar-resposta-confianca');
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    const btnText = submitBtn.querySelector('.js-btn-enviar-text');
+    const btnBadge = submitBtn.querySelector('.js-btn-enviar-badge');
+    if (btnText) btnText.textContent = 'Confirmar e Enviar Resposta';
+    if (btnBadge) {
+      btnBadge.textContent = `Alternativa ${letra}`;
+      btnBadge.style.display = 'inline-flex';
+    }
+  }
+}
+
+export function atualizarSliderConfianca(slider) {
+  const { cardId, letra } = slider.dataset;
+  const val = slider.value;
+
+  const badge = document.getElementById(`${cardId}_val_${letra}`);
+  if (badge) {
+    badge.textContent = `${val}%`;
+  }
+
+  slider.style.background = `linear-gradient(to right, var(--color-primary) ${val}%, var(--color-border) ${val}%)`;
+}
+
+export function submeterRespostaConfianca(btn, cardId, letraCorreta) {
+  const container = document.getElementById(cardId + '_opts');
+  const resolution = document.getElementById(cardId + '_res');
+
+  if (!container || container.classList.contains('answered')) return;
+
+  const selectedCard = container.querySelector('.q-opt-card-confianca.selected');
+  if (!selectedCard) {
+    customAlert(
+      'Por favor, selecione qual alternativa você acredita que está correta antes de enviar a resposta.',
+    );
+    return;
+  }
+
+  const letraEscolhida = selectedCard.dataset.letra.trim().toUpperCase();
+  letraCorreta = letraCorreta.trim().toUpperCase();
+
+  // Coleta dados dos sliders (graus de certeza de 0 a 100)
+  const certezas = {};
+  const sliders = container.querySelectorAll('.js-confianca-slider');
+  sliders.forEach((s) => {
+    const l = s.dataset.letra;
+    certezas[l] = parseInt(s.value, 10);
+    s.disabled = true;
+  });
+
+  const respostaData = {
+    cardId,
+    modo: 'graus_confianca',
+    opcaoSelecionada: letraEscolhida,
+    gabaritoCorreto: letraCorreta,
+    certezas,
+    acertou: letraEscolhida === letraCorreta,
+    timestamp: Date.now(),
+  };
+
+  if (typeof window !== 'undefined') {
+    window.bancoState = window.bancoState || {};
+    window.bancoState.respostasGraus = window.bancoState.respostasGraus || {};
+    window.bancoState.respostasGraus[cardId] = respostaData;
+  }
+  container.dataset.respostaJson = JSON.stringify(respostaData);
+  container.classList.add('answered');
+
+  const optCards = container.querySelectorAll('.q-opt-card-confianca');
+  optCards.forEach((c) => {
+    const letra = c.dataset.letra;
+    const btnOpt = c.querySelector('.q-opt-btn-confianca');
+
+    if (letra === letraCorreta) {
+      c.classList.add('correct');
+    }
+    if (letra === letraEscolhida && letra !== letraCorreta) {
+      c.classList.add('wrong');
+    }
+
+    if (btnOpt) {
+      const motivo = btnOpt.dataset.motivo;
+      if (motivo) {
+        const motivoEl = c.querySelector('.q-opt-motivo');
+        if (motivoEl) {
+          motivoEl.textContent = motivo;
+          motivoEl.style.display = 'block';
+        }
+      }
+    }
+  });
+
+  const qKey = cardId.replace(/^q_/, '');
+  const cardEl = container.closest('.q-card') || document.getElementById(`card_${qKey}`);
+  const fullData = cardEl?._fullData;
+  const complexidadeObj = fullData?.dados_gabarito?.analise_complexidade;
+
+  const resultadoElo = EloService.processarResposta({
+    questaoId: qKey,
+    opcaoSelecionada: letraEscolhida,
+    gabaritoCorreto: letraCorreta,
+    certezas,
+    complexidadeObj,
+    fullData,
+  });
+
+  respostaData.elo = resultadoElo;
+
+  const eloCell = document.getElementById(`${cardId}_elo_efetivo_val`);
+  if (eloCell) {
+    eloCell.innerHTML = `<strong style="color: var(--color-primary, #3b82f6);">${resultadoElo.questao.bNew}</strong> <span style="font-size: 0.75rem; opacity: 0.75;">(N=${resultadoElo.questao.N} respostas)</span>`;
+  }
+
+  console.log('[BancoQuestões] Resposta final por Graus de Certeza submetida:', respostaData);
+
+  setTimeout(() => {
+    exibirEloPopupModal(resultadoElo, () => {
+      triggerRankTransitionIfAny(resultadoElo);
+    });
+  }, 100);
+
+  setTimeout(() => {
+    if (resolution) {
+      resolution.style.display = 'block';
+      resolution.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, 800);
+}
+
+export function atualizarModoTodasQuestoes(modoParam) {
+  const novoModo =
+    modoParam ||
+    (typeof window !== 'undefined' && localStorage.getItem('banco_modo_resposta')) ||
+    'graus_confianca';
+
+  if (typeof window !== 'undefined') {
+    if (window.bancoState) window.bancoState.modoResposta = novoModo;
+    localStorage.setItem('banco_modo_resposta', novoModo);
+  }
+
+  const btnsConfianca = document.querySelectorAll('.js-set-modo-confianca');
+  const btnsBinario = document.querySelectorAll('.js-set-modo-binario');
+  btnsConfianca.forEach((b) => b.classList.toggle('active', novoModo === 'graus_confianca'));
+  btnsBinario.forEach((b) => b.classList.toggle('active', novoModo === 'binario'));
+
+  const cards = document.querySelectorAll('.q-card');
+  cards.forEach((cardEl) => {
+    const domId = cardEl.id.replace('card_', '');
+    const cacheList = window.bancoState?.todasQuestoesCache || [];
+    const itemData =
+      cardEl._fullData ||
+      cacheList.find((x) => x.domId === domId || x.key === domId || x.id === domId);
+
+    if (itemData) {
+      cardEl._fullData = itemData;
+      const cardId = `q_${itemData.domId || itemData.key || domId}`;
+      const optsContainer =
+        cardEl.querySelector('.q-options') || document.getElementById(`${cardId}_opts`);
+
+      if (optsContainer && !optsContainer.classList.contains('answered')) {
+        const q = itemData.dados_questao || {};
+        const g = itemData.dados_gabarito || {};
+        const imgsOriginalQ = itemData.imgsOriginalQ || [];
+        optsContainer.innerHTML = gerarHtmlAlternativas(cardId, q, g, imgsOriginalQ, novoModo);
+        if (typeof renderLatexIn === 'function') {
+          renderLatexIn(optsContainer);
+        }
+      }
+    }
+  });
+
+  console.log(`[Banco] Modo de resposta trocado para: ${novoModo}`);
 }
 
 // Abrir Scan Original

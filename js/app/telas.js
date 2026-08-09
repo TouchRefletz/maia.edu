@@ -19,6 +19,7 @@ import * as MemoryService from '../services/memory-service.js';
 import { findBestQuestion } from '../services/question-service.js';
 import { getIsListening, startListening, stopListening } from '../services/speech-to-text.js';
 import { getTheme, toggleTheme, updateThemeIcon } from '../services/theme-service.js';
+import { getEloState, getEloRankTier } from '../services/elo-service.js';
 import {
   construirSkeletonLoader,
   criarElementoCardPensamento,
@@ -155,6 +156,14 @@ function renderInitialUI() {
           <span class="nav-label">
             <span class="nav-title">Página Inicial</span>
             <span class="nav-desc">Estudos e Conversação IA</span>
+          </span>
+        </button>
+
+        <button class="nav-sidebar-item nav-item--perfil js-iniciar-perfil">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">
+            <span class="nav-title">Perfil</span>
+            <span class="nav-desc">Elo, Gráficos & Perfis da IA</span>
           </span>
         </button>
 
@@ -601,6 +610,8 @@ function renderInitialUI() {
   window.selectedModelScaffolding =
     localStorage.getItem('selectedModelScaffolding') || defaultModels.scaffolding;
   window.selectedModelTitle = localStorage.getItem('selectedModelTitle') || defaultModels.title;
+  window.selectedModelSimulado =
+    localStorage.getItem('selectedModelSimulado') || 'models/gemma-4-31b-it';
 
   // Extrator de questões (granularizado em 7 etapas)
   window.selectedModelScannerDetect =
@@ -1855,9 +1866,12 @@ export function renderUserButton(user) {
     }
     // Logged in user
     const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'Viajante');
-
     const photoURL =
       user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName);
+
+    const eloState = getEloState();
+    const userElo = eloState.user?.theta || 1500;
+    const rankTier = getEloRankTier(userElo);
 
     userSection.innerHTML = `
         <div class="user-profile-dropdown" style="position: relative; flex: 1; min-width: 0;">
@@ -1870,12 +1884,15 @@ export function renderUserButton(user) {
             </button>
             
             <div class="user-dropdown-menu" id="userDropdownMenu" style="width: 100%; left: 0;">
+                <button class="dropdown-item js-abrir-perfil">
+                    <span class="dropdown-icon">👤</span> Meu Perfil e Estatísticas
+                </button>
                 <button class="dropdown-item js-puter-limits-btn">
-                    Limites do Puter
+                    ⚡ Limites do Puter
                 </button>
                 <div class="dropdown-divider"></div>
                 <button class="dropdown-item js-logout-btn">
-                    Sair
+                    🚪 Sair
                 </button>
             </div>
         </div>
@@ -1886,6 +1903,25 @@ export function renderUserButton(user) {
             <!-- Icon initialized by JS -->
         </button>
       `;
+
+    // Inject or update standalone Nav Elo Widget right after navUserSection
+    let navEloWidget = document.getElementById('navSidebarEloWidget');
+    if (!navEloWidget) {
+      navEloWidget = document.createElement('div');
+      navEloWidget.id = 'navSidebarEloWidget';
+      navEloWidget.className = 'nav-elo-widget js-open-ranking-header';
+      userSection.insertAdjacentElement('afterend', navEloWidget);
+    }
+    navEloWidget.title = `Ranking: ${rankTier.tier} (${rankTier.progressPct}% do próximo nível)`;
+    navEloWidget.innerHTML = `
+      <div class="nav-elo-widget-header">
+        <span class="nav-elo-widget-title">${rankTier.badge}</span>
+        <span class="nav-elo-widget-value">${userElo} ELO</span>
+      </div>
+      <div class="nav-elo-widget-bar-track">
+        <div class="nav-elo-widget-bar-fill" style="width: ${rankTier.progressPct}%; background: ${rankTier.color};"></div>
+      </div>
+    `;
 
     // Profile Dropdown Logic
     const profileBtn = document.getElementById('userProfileBtn');
@@ -1910,6 +1946,15 @@ export function renderUserButton(user) {
           dropdown.classList.remove('visible');
         }
       });
+
+      // Abrir Perfil
+      const perfilBtn = dropdown.querySelector('.js-abrir-perfil');
+      if (perfilBtn) {
+        perfilBtn.addEventListener('click', () => {
+          dropdown.classList.remove('visible');
+          iniciarModoPerfil();
+        });
+      }
 
       // Puter Limits
       const puterLimitsBtn = dropdown.querySelector('.js-puter-limits-btn');
@@ -2978,7 +3023,11 @@ function transicionarParaModoConversa(mensagem, arquivos = [], options = {}) {
             getOrCreatePhaseContainer(messagesContainer, 'research', 'Pesquisando na web...');
           } else if (data.includes('Consultando acervo') || data.includes('livros didáticos')) {
             window._currentChatPhase = 'theory';
-            getOrCreatePhaseContainer(messagesContainer, 'theory', 'Consultando acervo de livros didáticos...');
+            getOrCreatePhaseContainer(
+              messagesContainer,
+              'theory',
+              'Consultando acervo de livros didáticos...',
+            );
           }
           return;
         }
@@ -3925,10 +3974,7 @@ function updateStepRowExpandability(stepRow) {
   );
 
   const hasRealContent = realChildren.some((child) => {
-    return (
-      child.children.length > 0 ||
-      (child.textContent && child.textContent.trim().length > 0)
-    );
+    return child.children.length > 0 || (child.textContent && child.textContent.trim().length > 0);
   });
 
   if (hasRealContent) {
@@ -6618,7 +6664,10 @@ async function showSourcesModal(btn) {
     .map((src, idx) => {
       if (src.type === 'book' || src.isBook) {
         const bookTitle = src.title || `Livro: ${src.bookId || 'Material Didático'}`;
-        const snippet = src.snippet || src.description || 'Conteúdo teórico recuperado do acervo de livros didáticos.';
+        const snippet =
+          src.snippet ||
+          src.description ||
+          'Conteúdo teórico recuperado do acervo de livros didáticos.';
         const pageInfo = src.pageNum ? ` • Página ${src.pageNum}` : '';
         const pdfUrl = src.uri || '#';
         const hasPdf = Boolean(src.uri && src.uri !== '#');
@@ -7237,12 +7286,14 @@ window.renderBloomPreliminaryModalContent = () => {
   // Sincroniza classes de visibilidade estritamente
   if (activeTab === 'markdown') {
     if (viewMarkdown) {
-      viewMarkdown.className = 'bloom-modal-markdown-view chat-message--ai no-maia markdown-content';
+      viewMarkdown.className =
+        'bloom-modal-markdown-view chat-message--ai no-maia markdown-content';
     }
     if (jsonPre) jsonPre.classList.add('hidden');
   } else {
     if (viewMarkdown) {
-      viewMarkdown.className = 'bloom-modal-markdown-view chat-message--ai no-maia markdown-content hidden';
+      viewMarkdown.className =
+        'bloom-modal-markdown-view chat-message--ai no-maia markdown-content hidden';
     }
     if (jsonPre) jsonPre.classList.remove('hidden');
   }
@@ -7411,3 +7462,53 @@ window.downloadBloomPreliminaryJson = () => {
   downloadAnchor.click();
   downloadAnchor.remove();
 };
+
+/**
+ * Inicia a tela de Perfil e Análise Metacognitiva de Elo
+ */
+export async function iniciarModoPerfil() {
+  stopSuggestionRotation();
+
+  // 1. Limpa a tela
+  document.body.innerHTML = '';
+
+  const perfilContainer = document.createElement('div');
+  perfilContainer.id = 'perfilRootContainer';
+  perfilContainer.style.width = '100%';
+  perfilContainer.style.minHeight = '100vh';
+
+  // Top Bar Nav
+  const topNav = document.createElement('div');
+  topNav.style.padding = '16px 24px';
+  topNav.style.display = 'flex';
+  topNav.style.alignItems = 'center';
+  topNav.style.justifyContent = 'space-between';
+  topNav.style.borderBottom = '1px solid var(--color-border)';
+  topNav.style.background = 'var(--color-surface)';
+
+  topNav.innerHTML = `
+    <button class="btn btn--sm btn--outline js-voltar-inicio" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); font-weight:600;">
+      <span>←</span> Voltar para a Página Inicial
+    </button>
+    <div style="font-weight: 800; font-size: 1.2rem; color: var(--color-text);">
+      Maia<strong style="color:var(--color-primary)">.edu</strong> • Perfil do Estudante
+    </div>
+  `;
+
+  perfilContainer.appendChild(topNav);
+
+  const screenBody = document.createElement('div');
+  perfilContainer.appendChild(screenBody);
+
+  document.body.appendChild(perfilContainer);
+
+  const { renderPerfilScreen } = await import('../ui/perfil-screen.js');
+  renderPerfilScreen(screenBody);
+
+  const btnVoltar = topNav.querySelector('.js-voltar-inicio');
+  btnVoltar?.addEventListener('click', () => {
+    renderInitialUI();
+  });
+}
+
+window.iniciarModoPerfil = iniciarModoPerfil;

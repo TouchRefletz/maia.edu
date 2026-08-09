@@ -1,0 +1,392 @@
+/* ==========================================================================
+   Modo de Resposta (Graus de Certeza & Toggle)
+   ========================================================================== */
+
+/* Toggle Segmentado no Header dos Filtros */
+.modo-resposta-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.modo-segmented-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.modo-segmented-btn:hover:not(.active) {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modo-segmented-btn.active {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text, #ffffff);
+  box-shadow: 0 2px 6px rgba(var(--color-primary-rgb, 99, 102, 241), 0.35);
+  font-weight: 700;
+}
+
+/* Container principal do modo Graus de Certeza no Card */
+.q-confianca-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Banner de Instrução/Orientação no TOPO */
+.q-confianca-instruction-banner {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  background: rgba(var(--color-primary-rgb, 50, 184, 198), 0.06);
+  border: 1px dashed rgba(var(--color-primary-rgb, 50, 184, 198), 0.25);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.q-confianca-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Card individual da alternativa no modo Confiança */
+.q-opt-card-confianca {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface, rgba(255, 255, 255, 0.02));
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.q-opt-card-confianca:hover {
+  border-color: rgba(var(--color-primary-rgb, 99, 102, 241), 0.4);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+.q-opt-card-confianca.selected {
+  border-color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.06);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* Botão superior de seleção de alternativa */
+.q-opt-btn-confianca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Conteúdo da opção */
+.q-opt-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.q-opt-content .markdown-content,
+.q-opt-content .structure-block,
+.q-opt-content p {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* Badge estilizado da letra da alternativa (A, B, C, D, E) */
+.q-opt-letter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 6px;
+  background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb, 99, 102, 241), 0.25);
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.q-opt-btn:hover .q-opt-letter-badge,
+.q-opt-card-confianca:hover .q-opt-letter-badge {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+/* Radio Icon Customizado */
+.q-opt-radio-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.q-opt-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-secondary);
+  display: inline-block;
+  position: relative;
+  transition: all 0.2s ease;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.q-opt-card-confianca.selected .q-opt-radio {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.q-opt-card-confianca.selected .q-opt-radio::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: white;
+}
+
+/* Box do Slider dentro da alternativa */
+.q-slider-box {
+  padding: 10px 16px 14px 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border-top: 1px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.q-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.q-slider-label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.q-slider-val-badge {
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.15);
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb, 99, 102, 241), 0.3);
+  min-width: 44px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+/* Estilo do Range Input Slider */
+.q-slider-track-container {
+  width: 100%;
+  padding: 4px 0;
+}
+
+.q-confianca-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-border);
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.q-confianca-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.q-confianca-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  background: var(--color-primary-hover, var(--color-primary));
+}
+
+.q-confianca-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
+}
+
+/* Escala / Legenda do Slider */
+.q-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+  padding-top: 2px;
+}
+
+/* Container de Ações: Alinhado à Direita e sem Ocupar a Largura Toda como Banner */
+.q-confianca-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.q-btn-enviar-confianca {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 220px;
+  max-width: 400px;
+  padding: 11px 24px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-primary, #32b8c6);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* Estado Desativado (Disabled) por Padrão até o Usuário Selecionar uma Alternativa */
+.q-btn-enviar-confianca:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Estado Ativo e Hover */
+.q-btn-enviar-confianca:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.q-btn-enviar-confianca:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.q-btn-enviar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.q-btn-enviar-badge {
+  background: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Estados da Questão Respondida no Modo Confiança */
+.answered .q-opt-card-confianca {
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.answered .q-opt-card-confianca.correct {
+  border-color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.1);
+}
+
+.answered .q-opt-card-confianca.correct .q-opt-letter-badge,
+.answered .q-opt-card-confianca.correct .q-slider-val-badge {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.15);
+}
+
+.answered .q-opt-card-confianca.wrong {
+  border-color: var(--color-error);
+  background: rgba(var(--color-error-rgb), 0.1);
+}
+
+.answered .q-opt-card-confianca.wrong .q-opt-letter-badge,
+.answered .q-opt-card-confianca.wrong .q-slider-val-badge {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: rgba(var(--color-error-rgb), 0.15);
+}
+
+.answered .q-confianca-instruction-banner,
+.answered .q-confianca-actions,
+.answered .q-btn-enviar-confianca {
+  display: none !important;
+}

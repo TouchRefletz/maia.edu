@@ -646,7 +646,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
 
     // 2. Montar o documento de impressão
     const isTeste = simulado.tipo === 'teste';
-    const examTitle = (simulado.titulo || 'Simulado Maia').toUpperCase();
+    const examTitle = (simulado.titulo || 'Simulado Maia.edu').toUpperCase();
     const subTitle = (
       isMixed
         ? 'Prova de Conhecimentos Gerais e Específicos (Mista)'
@@ -672,7 +672,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
           return `
             <div class="print-page gabarito-page">
               <div class="questions-header-line">
-                <span>CONCURSO VESTIBULAR MAIA.EDU</span>
+                <span>SIMULADO MAIA.EDU</span>
                 <span>GABARITO OFICIAL &mdash; ${examTitle}</span>
               </div>
               <div class="print-gabarito-title" style="margin-bottom: 20px;">
@@ -775,65 +775,150 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
           `;
         })
         .join('');
-    } else {
-      // LEIAUTE DE PROVA (ESTUDANTE)
-      // Capa de Vestibular Estilizada Maia.edu (Autoral)
-      coverPageHtml = `
-        <div class="print-page cover-page">
-          <div class="cover-header" style="position: relative; width: 100%; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; font-family: 'Inter', sans-serif; height: 65px;">
-            <div style="font-size: 16pt; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">
-              Maia<span style="font-weight: 300; color: #21808d;">.edu</span>
-            </div>
-            <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center;">
-              <img src="${window.location.origin}/monocromatic_logo.png" style="max-height: 60px; max-width: 150px; object-fit: contain; filter: brightness(0);" alt="Maia Logo" />
-            </div>
-            <div class="cover-version-box">V1</div>
-          </div>
-          
-          <div class="cover-title-box">
-            <div class="cover-title-main">Simulado Maia.edu</div>
-            <div class="cover-title-sub">${examTitle} &mdash; ${subTitle}</div>
-          </div>
-          
-          <div class="cover-instructions">
-            <div class="cover-instructions-title">Instruções</div>
-            <ol class="cover-instructions-list">
-              <li>Só abra este caderno de questões quando o fiscal autorizar.</li>
-              <li>Verifique se o seu nome está correto na folha de respostas e neste caderno de prova.</li>
-              <li>Durante a prova, são vedadas a comunicação entre candidatos e a utilização de qualquer material de consulta, aparelhos eletrônicos ou telefones celulares.</li>
-              <li>Duração da prova: até ${duracaoCalculada}. Cabe ao candidato controlar o tempo com base nas informações do fiscal.</li>
-              <li>Para provas objetivas (teste), preencha o cartão de respostas no local indicado.</li>
-              <li>Para provas dissertativas, responda estritamente dentro dos limites da caixa pautada sob cada questão.</li>
-              <li>Preencha a folha de respostas com cuidado, utilizando caneta esferográfica de tinta azul ou preta.</li>
-              <li>Ao final da prova, entregue a folha de respostas ao fiscal de sala.</li>
-            </ol>
-          </div>
+    }
 
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 35px; margin-bottom: 25px; font-family: Arial, sans-serif;">
-            <div class="vestibular-field"><span class="vestibular-field-label">NOME DO CANDIDATO:</span></div>
-            <div class="vestibular-field"><span class="vestibular-field-label">TURMA:</span></div>
+    const isMaiaMethod = simulado.evalMethod === 'maia';
+    const maiaInstructionHtml = isMaiaMethod
+      ? `<li><strong>Método Maia de Avaliação:</strong> Além de indicar a alternativa correta, preencha para cada alternativa a sua certeza (10% a 100%) de que a escolhida está certa e de que as não escolhidas estão erradas. Marcação dupla consecutiva (ex: 90% e 100%) computa valor intermediário (95%).</li>`
+      : '';
+
+    coverPageHtml = `
+      <div class="print-page cover-page">
+        <div class="cover-header" style="position: relative; width: 100%; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; font-family: 'Inter', sans-serif; height: 65px;">
+          <div style="font-size: 16pt; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">
+            Maia<span style="font-weight: 300; color: #21808d;">.edu</span>
           </div>
-          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-bottom: 35px; font-family: Arial, sans-serif;">
-            <div class="vestibular-field"><span class="vestibular-field-label">IDENTIFICAÇÃO DO ESTUDANTE:</span></div>
-            <div class="vestibular-field"><span class="vestibular-field-label">DATA DE REALIZAÇÃO:</span></div>
+          <div style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; align-items: center;">
+            <img src="${window.location.origin}/monocromatic_logo.png" style="max-height: 60px; max-width: 150px; object-fit: contain; filter: brightness(0);" alt="Maia Logo" />
           </div>
-          
-          <div class="cover-declaration-box">
-            <div class="cover-declaration-title">Declaração</div>
-            <p class="cover-declaration-text">
-              Declaro que li e estou ciente das instruções que constam na capa desta prova, na folha de respostas, bem como dos avisos que foram transmitidos pelo fiscal de sala.
-            </p>
-            <div class="cover-signature-line"></div>
-            <div class="cover-signature-label">Assinatura do Candidato</div>
-            <div class="cover-signature-warning">O candidato que não assinar a capa da prova poderá ter sua correção prejudicada.</div>
-          </div>
+          <div class="cover-version-box">V1</div>
         </div>
-      `;
+        
+        <div class="cover-title-box">
+          <div class="cover-title-main">Simulado Maia.edu${isMaiaMethod ? ' &mdash; Método Maia' : ''}</div>
+          <div class="cover-title-sub">${examTitle} &mdash; ${subTitle}</div>
+        </div>
+        
+        <div class="cover-instructions">
+          <div class="cover-instructions-title">Instruções</div>
+          <ol class="cover-instructions-list">
+            <li>Só abra este caderno de questões quando o fiscal autorizar.</li>
+            <li>Verifique se o seu nome está correto na folha de respostas e neste caderno de prova.</li>
+            ${maiaInstructionHtml}
+            <li>Durante a prova, são vedadas a comunicação entre estudantes e a utilização de qualquer material de consulta, aparelhos eletrônicos ou telefones celulares.</li>
+            <li>Duração da prova: até ${duracaoCalculada}. Cabe ao estudante controlar o tempo com base nas informações do fiscal.</li>
+            <li>Para provas objetivas (teste), preencha o cartão de respostas no local indicado.</li>
+            <li>Para provas dissertativas, responda estritamente dentro dos limites da caixa pautada sob cada questão.</li>
+            <li>Preencha a folha de respostas com cuidado, utilizando caneta esferográfica de tinta azul ou preta.</li>
+            <li>Ao final da prova, entregue a folha de respostas ao fiscal de sala.</li>
+          </ol>
+        </div>
 
-      // Constrói o HTML base da folha de respostas para a prova se aplicável
-      answerSheetHtmlTemplate = '';
-      if (hasObjective && !modoGabarito) {
-        const totalQ = objectiveQuestions.length;
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 30px; margin-top: 35px; margin-bottom: 25px; font-family: Arial, sans-serif;">
+          <div class="vestibular-field"><span class="vestibular-field-label">NOME DO ESTUDANTE:</span></div>
+          <div class="vestibular-field"><span class="vestibular-field-label">TURMA:</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-bottom: 35px; font-family: Arial, sans-serif;">
+          <div class="vestibular-field"><span class="vestibular-field-label">IDENTIFICAÇÃO DO ESTUDANTE:</span></div>
+          <div class="vestibular-field"><span class="vestibular-field-label">DATA DE REALIZAÇÃO:</span></div>
+        </div>
+        
+        <div class="cover-declaration-box">
+          <div class="cover-declaration-title">Declaração</div>
+          <p class="cover-declaration-text">
+            Declaro que li e estou ciente das instruções que constam na capa desta prova, na folha de respostas, bem como dos avisos que foram transmitidos pelo fiscal de sala.
+          </p>
+          <div class="cover-signature-line"></div>
+          <div class="cover-signature-label">Assinatura do Estudante</div>
+          <div class="cover-signature-warning">O estudante que não assinar a capa da prova poderá ter sua correção prejudicada.</div>
+        </div>
+      </div>
+    `;
+
+    // Constrói o HTML base da folha de respostas/gabarito para a prova se aplicável
+    answerSheetHtmlTemplate = '';
+    if (hasObjective) {
+      const totalQ = objectiveQuestions.length;
+      
+      if (modoGabarito) {
+        let gabaritoRows = '';
+        for (let i = 0; i < totalQ; i++) {
+          const qObj = objectiveQuestions[i];
+          const g = qObj.fullData?.dados_gabarito || {};
+          const letter = (g.alternativa_correta || '—').toUpperCase();
+          const conf = Math.round((g.confianca || 0) * 100);
+          gabaritoRows += `
+            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+              <span style="font-weight: bold; font-size: 9.5pt; color: #1e293b;">Q${String(i + 1).padStart(2, '0')}</span>
+              <span style="font-weight: 800; font-size: 11pt; color: #10b981; background: #d1fae5; padding: 2px 8px; border-radius: 4px;">${letter}</span>
+              <span style="font-size: 7.5pt; color: #64748b;">${conf}% IA</span>
+            </div>`;
+        }
+        answerSheetHtmlTemplate = `
+          <div class="print-page answer-sheet-page">
+            <div class="questions-header-line">
+              <span>SIMULADO MAIA.EDU</span>
+              <span>FOLHA DE GABARITO SÍNTESE</span>
+            </div>
+            <div class="print-answer-sheet-container">
+              <h2 class="print-answer-sheet-title">TABELA SÍNTESE DE RESPOSTAS OFICIAIS</h2>
+              <p style="font-size: 9pt; text-align: center; color: #555; margin-bottom: 20px; font-family: Arial, sans-serif;">
+                Gabarito oficial consolidado de todas as questões objetivas para conferência direta.
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 10px;">
+                ${gabaritoRows}
+              </div>
+            </div>
+          </div>`;
+      } else if (isMaiaMethod) {
+        let maiaBoxes = '';
+        for (let i = 0; i < totalQ; i++) {
+          const letters = ['A', 'B', 'C', 'D', 'E'];
+          let altRowsHtml = '';
+          letters.forEach((l) => {
+            let certBubblesHtml = '';
+            for (let p = 10; p <= 100; p += 10) {
+              certBubblesHtml += `<span class="print-certainty-bubble" title="${p}%">${p}</span>`;
+            }
+            altRowsHtml += `
+              <div class="print-maia-alt-row">
+                <span class="print-bubble" style="margin-right: 6px;">${l}</span>
+                <span class="print-maia-certainty-label">Certeza:</span>
+                <div class="print-maia-certainty-bubbles">
+                  ${certBubblesHtml}
+                </div>
+              </div>`;
+          });
+
+          maiaBoxes += `
+            <div class="print-maia-answer-sheet-q-box">
+              <div class="print-maia-q-header">
+                <span>QUESTÃO ${String(i + 1).padStart(2, '0')}</span>
+                <span style="font-size:7.5pt; font-weight:normal; color:#666;">Opção + Certeza (10%-100%)</span>
+              </div>
+              ${altRowsHtml}
+            </div>`;
+        }
+
+        answerSheetHtmlTemplate = `
+          <div class="print-page answer-sheet-page">
+            <div class="questions-header-line">
+              <span>SIMULADO MAIA.EDU &mdash; MÉTODO MAIA</span>
+              <span>FOLHA DE RESPOSTAS E CALIBRAÇÃO</span>
+            </div>
+            <div class="print-answer-sheet-container">
+              <h2 class="print-answer-sheet-title">FOLHA DE RESPOSTAS (CALIBRAÇÃO MAIA)</h2>
+              <p style="font-size: 8.5pt; text-align: center; color: #444; margin-bottom: 15px; font-family: Arial, sans-serif; line-height: 1.4;">
+                1. Marque a bola da alternativa que você considera <strong>CORRETA</strong> (A, B, C, D ou E).<br>
+                2. Em cada alternativa, preencha a bola de <strong>CERTEZA (10% a 100%)</strong> de que ela é verdadeira (se foi a escolhida) ou falsa (se não foi).<br>
+                <em>Dois círculos consecutivos marcados (ex: 90% e 100%) indicam a média intermediária (95%).</em>
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 10px;">
+                ${maiaBoxes}
+              </div>
+            </div>
+          </div>`;
+      } else {
         let sheetRows = '';
         for (let i = 0; i < totalQ; i++) {
           sheetRows += `
@@ -851,7 +936,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
         answerSheetHtmlTemplate = `
           <div class="print-page answer-sheet-page">
             <div class="questions-header-line">
-              <span>CONCURSO VESTIBULAR MAIA.EDU</span>
+              <span>SIMULADO MAIA.EDU</span>
               <span>FOLHA DE RESPOSTAS - CARTÃO ÓPTICO</span>
             </div>
             <div class="print-answer-sheet-container">
@@ -865,7 +950,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
             </div>
           </div>`;
       }
-    } // Fim do bloco else (leiaute de estudante)
+    }
 
     const serializedQuestoes = JSON.stringify(questoes).replace(/</g, '\\u003c');
 
@@ -1104,9 +1189,9 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
         </div>
 
         <div class="print-container">
-          <!-- Capa e Folha de Respostas estáticas se não for modo Gabarito -->
-          ${modoGabarito ? '' : coverPageHtml}
-          ${modoGabarito ? '' : answerSheetHtmlTemplate}
+          <!-- Capa e Folha de Respostas/Gabarito estáticas -->
+          ${coverPageHtml}
+          ${answerSheetHtmlTemplate}
           <!-- Espaço reservado para as páginas geradas dinamicamente -->
           <div id="dynamic-pages-placeholder"></div>
         </div>
@@ -1885,7 +1970,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                     
                     const headerText = 'GABARITO OFICIAL &mdash; ' + window.examTitle;
                     
-                    let header = '<div class="questions-header-line"><span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + headerText + '</span></div>';
+                    let header = '<div class="questions-header-line"><span>SIMULADO MAIA.EDU</span><span>' + headerText + '</span></div>';
                     
                     if (pageIdx === 0) {
                       header += '<div class="print-gabarito-title" style="margin-bottom: 20px;">RESOLUÇÕES E GABARITO OFICIAL: ' + window.examTitle + '</div>';
@@ -1958,7 +2043,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                   objectivePages.forEach((pageData, index) => {
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'print-page questions-page';
-                    const header = '<div class="questions-header-line"><span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
+                    const header = '<div class="questions-header-line"><span>SIMULADO MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
                     
                     let sectionHeaderHtml = '';
                     if (index === 0) {
@@ -2018,7 +2103,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                   writtenPages.forEach((pageData, index) => {
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'print-page questions-page';
-                    const header = '<div class="questions-header-line"><span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
+                    const header = '<div class="questions-header-line"><span>SIMULADO MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
                     
                     let sectionHeaderHtml = '';
                     if (index === 0) {
@@ -2074,7 +2159,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'print-page questions-page';
                     
-                    const header = '<div class="questions-header-line"><span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
+                    const header = '<div class="questions-header-line"><span>SIMULADO MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
                     
                     const col1Html = renderPageSubElements(pageData.col1);
                     const col2Html = renderPageSubElements(pageData.col2);
@@ -2126,7 +2211,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                     const pageDiv = document.createElement('div');
                     pageDiv.className = 'print-page questions-page';
                     
-                    const header = '<div class="questions-header-line"><span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
+                    const header = '<div class="questions-header-line"><span>SIMULADO MAIA.EDU</span><span>' + window.examTitle + ' &mdash; ' + window.subTitle + '</span></div>';
                     
                     const content = '<div class="print-one-column-layout">' + renderPageSubElements(pageData.elements) + '</div>';
                     
@@ -2156,7 +2241,7 @@ export async function gerarPDFSimulado(simulado, modoGabarito = false) {
                     }
                   }
                   
-                  footer.innerHTML = '<span>CONCURSO VESTIBULAR MAIA.EDU</span><span>' + footerText + '</span>';
+                  footer.innerHTML = '<span>SIMULADO MAIA.EDU</span><span>' + footerText + '</span>';
                   page.appendChild(footer);
                 });
 

@@ -409,8 +409,7 @@
   padding: 10px 12px;
   background: transparent;
   border: none;
-  color: var(--color-error);
-  /* Logout usually red */
+  color: var(--color-text);
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
@@ -418,19 +417,88 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
 }
 
 .dropdown-item:hover {
-  background: rgba(239, 68, 68, 0.1);
-  /* Red tint for logout */
+  background: var(--color-secondary-hover, rgba(255, 255, 255, 0.08));
+  color: var(--color-text);
 }
 
-/* Puter limits item neutral color overrides */
-.dropdown-item.js-puter-limits-btn {
-  color: var(--color-text, #fff);
+.dropdown-item.js-abrir-perfil {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
-.dropdown-item.js-puter-limits-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+.dropdown-item.js-abrir-perfil .dropdown-icon {
+  color: var(--color-primary);
 }
+
+.dropdown-item.js-logout-btn {
+  color: var(--color-error);
+}
+
+.dropdown-item.js-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Dedicated Elo Widget in Sidebar */
+.nav-elo-widget {
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 6px;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.nav-elo-widget:hover {
+  background: var(--color-secondary-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.nav-elo-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.nav-elo-widget-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-elo-widget-value {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.nav-elo-widget-bar-track {
+  height: 5px;
+  background: var(--color-border, rgba(255, 255, 255, 0.1));
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.nav-elo-widget-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+

@@ -124,15 +124,26 @@ export function renderPassosComDetalhes(g) {
     </div>`;
 }
 
-export function renderCreditosCompleto(g) {
-  if (!g.creditos) return '';
-  const c = g.creditos;
+import { getQuestionElo } from '../services/elo-service.js';
+
+export function renderCreditosCompleto(g, cardId = null) {
+  const c = g?.creditos || {};
 
   const inst = c.autorouinstituicao || c.autor_ou_instituicao || c.autorOuInstituicao || '—';
   const mat = c.material || c.nomeMaterial || c.nome_material || '—';
   const confianca = c.confiancaidentificacao
     ? Math.round(c.confiancaidentificacao * 100) + '%'
     : '—';
+
+  let eloRowsHtml = '';
+  if (cardId) {
+    const qKey = String(cardId).replace(/^q_/, '');
+    const qElo = getQuestionElo(qKey, g?.analise_complexidade);
+    eloRowsHtml = `
+      <tr><td>ELO Prior (IA)</td><td><strong>${qElo.b_ia}</strong></td></tr>
+      <tr><td>ELO Efetivo (Rasch)</td><td id="${cardId}_elo_efetivo_val"><strong style="color: var(--color-primary, #3b82f6);">${qElo.b_efetivo}</strong> <span style="font-size: 0.75rem; opacity: 0.75;">(N=${qElo.N} respostas)</span></td></tr>
+    `;
+  }
 
   return `
         <div class="q-res-section">
@@ -142,6 +153,7 @@ export function renderCreditosCompleto(g) {
                 <tr><td>Material</td><td>${mat}</td></tr>
                 <tr><td>Ano</td><td>${c.ano || '—'}</td></tr>
                 <tr><td>Confiança</td><td>${confianca}</td></tr>
+                ${eloRowsHtml}
             </table>
         </div>`;
 }

@@ -31,6 +31,8 @@
 @import url("components/tags.css");
 @import url("components/terminal.css");
 @import url("components/cropper.css");
+@import url("components/modo-resposta.css");
+@import url("components/perfil.css");
 
 @import url("elements/badge.css");
 @import url("elements/button.css");

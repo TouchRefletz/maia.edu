@@ -11,18 +11,30 @@ ChatStorageService.cleanupExpired().catch(console.error);
 
 import { initTheme } from './services/theme-service.js';
 
-initTheme();
+import { EloService } from './services/elo-service.js';
+import { exibirEloPopupModal } from './ui/EloPopupModal.js';
+
+if (typeof window !== 'undefined') {
+  window.EloService = EloService;
+  window.exibirEloPopupModal = exibirEloPopupModal;
+  EloService.initFirebaseEloSync();
+}
 
 import {
   confirmExitingReview,
   gerarTelaInicial,
   iniciarModoEstudante,
+  iniciarModoPerfil,
   iniciarModoRevisao,
 } from './app/telas.js';
 import { aplicarFiltrosBanco, limparFiltros } from './banco/filtros-ui.js';
 import {
   abrirScanOriginal,
+  atualizarModoTodasQuestoes,
+  atualizarSliderConfianca,
   avaliarRespostaDissertativa,
+  selecionarAlternativaConfianca,
+  submeterRespostaConfianca,
   toggleGabarito,
   toggleKeywordsDissertativa,
   verificarRespostaBanco,
@@ -136,7 +148,16 @@ export const bancoState = {
   questoesFiltradas: [], // Cache de questões filtradas ativas
   renderedCount: 0, // Contador de itens atualmente renderizados
   dbCarregado: false, // Flag indicando se todo o banco do Firebase foi carregado
+  modoResposta:
+    (typeof window !== 'undefined' && localStorage.getItem('banco_modo_resposta')) ||
+    'graus_confianca',
+  respostasGraus: {},
 };
+
+if (typeof window !== 'undefined') {
+  window.bancoState = bancoState;
+}
+
 export const TAMANHO_PAGINA = 20;
 
 // Variáveis de controle de IA
@@ -317,6 +338,21 @@ if (!window.__globalListenerRegistered) {
 
     if (e.target.closest('.js-iniciar-upload')) {
       window.iniciarFluxoUploadManual();
+      return;
+    }
+
+    // --- CASO 8.9: Card Iniciar Modo Perfil ---
+    const gatilhoPerfil = e.target.closest('.js-iniciar-perfil, .js-abrir-perfil');
+    if (gatilhoPerfil) {
+      iniciarModoPerfil();
+      return;
+    }
+
+    const gatilhoHeaderRanking = e.target.closest('.js-open-ranking-header, .js-open-ranking');
+    if (gatilhoHeaderRanking) {
+      import('./ui/ranking-modal.js').then(({ openRankingModal }) => {
+        openRankingModal();
+      });
       return;
     }
 
@@ -530,6 +566,33 @@ if (!window.__globalListenerRegistered) {
       return;
     }
 
+    // --- CASOS MODO DE RESPOSTA (GRAUS DE CERTEZA & TOGGLE) ---
+    const gatilhoSetConfianca = e.target.closest('.js-set-modo-confianca');
+    if (gatilhoSetConfianca) {
+      atualizarModoTodasQuestoes('graus_confianca');
+      return;
+    }
+
+    const gatilhoSetBinario = e.target.closest('.js-set-modo-binario');
+    if (gatilhoSetBinario) {
+      atualizarModoTodasQuestoes('binario');
+      return;
+    }
+
+    const gatilhoSelConfianca = e.target.closest('.js-selecionar-alt-confianca');
+    if (gatilhoSelConfianca) {
+      const { cardId, letra } = gatilhoSelConfianca.dataset;
+      selecionarAlternativaConfianca(gatilhoSelConfianca, cardId, letra);
+      return;
+    }
+
+    const gatilhoEnvConfianca = e.target.closest('.js-enviar-resposta-confianca');
+    if (gatilhoEnvConfianca) {
+      const { cardId, correta } = gatilhoEnvConfianca.dataset;
+      submeterRespostaConfianca(gatilhoEnvConfianca, cardId, correta);
+      return;
+    }
+
     // --- NOVO CASO 12.3: Toggle Keywords Dissertativa ---
     const gatilhoKwDissertativa = e.target.closest('.js-toggle-kw-dissert');
     if (gatilhoKwDissertativa) {
@@ -552,6 +615,14 @@ if (!window.__globalListenerRegistered) {
     if (gatilhoApi) {
       mountApiKeyModal();
       return;
+    }
+  });
+
+  // Listener para atualização dinâmica dos sliders de Graus de Certeza
+  document.addEventListener('input', (e) => {
+    const slider = e.target.closest('.js-confianca-slider');
+    if (slider) {
+      atualizarSliderConfianca(slider);
     }
   });
 
@@ -1113,9 +1184,10 @@ if (isSimularMode) {
   const type = urlParams.get('type');
   const title = urlParams.get('title');
   const ids = urlParams.get('ids');
+  const evalParam = urlParams.get('eval');
   if (ids) {
     import('./simulados/simulados-main.js').then(({ carregarSimuladoCompartilhado }) => {
-      carregarSimuladoCompartilhado(type, title, ids);
+      carregarSimuladoCompartilhado(type, title, ids, evalParam);
     });
   } else {
     gerarTelaInicial();

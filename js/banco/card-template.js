@@ -1,3 +1,4 @@
+import { bancoState } from '../main.js';
 import { _calcularComplexidade } from '../render/ComplexityCard.tsx';
 import { renderizar_estrutura_alternativa } from '../render/structure.js';
 import { hydrateBankCard } from './bank-hydration';
@@ -12,27 +13,12 @@ import {
 } from './card-partes.js';
 import { prepararImagensVisualizacao } from './imagens.js';
 
-export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [], sourceUrl = null) {
-  if (sourceUrl && typeof window !== 'undefined' && !window.__pdfOriginalUrl) {
-    window.__pdfOriginalUrl = sourceUrl;
-  }
-
-  // 1. Criação do elemento DOM
-  const card = document.createElement('div');
-  card.className = 'q-card';
-  card.id = `card_${idFirebase}`;
-
-  // 2. Configuração dos Datasets (Para Filtros)
-  card.dataset.materia = (q.materias_possiveis || []).join(' ');
-  card.dataset.origem = meta.material_origem || '';
-
-  // Concatena texto da estrutura ou do enunciado legado para busca
-  const textoBusca = q.estrutura ? q.estrutura.map((b) => b.conteudo).join(' ') : q.enunciado || '';
-
-  card.dataset.texto = (textoBusca + ' ' + (q.identificacao || '')).toLowerCase();
-
-  // 3. Geração do HTML das Alternativas
-  const cardId = `q_${idFirebase}`;
+export function gerarHtmlAlternativas(cardId, q, g, imgsOriginalQ = [], modo = null) {
+  const modoAtual =
+    modo ||
+    bancoState?.modoResposta ||
+    (typeof window !== 'undefined' && localStorage.getItem('banco_modo_resposta')) ||
+    'graus_confianca';
 
   // Monta mapa de motivos por letra a partir de alternativas_analisadas
   const motivoMap = {};
@@ -46,10 +32,8 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
   const isDissertativa =
     q.tipo_resposta === 'dissertativa' || !q.alternativas || q.alternativas.length === 0;
 
-  let htmlAlts = '';
-
   if (isDissertativa) {
-    htmlAlts = `
+    return `
       <div class="q-dissert-container">
         <textarea 
           class="q-dissert-input" 
@@ -81,47 +65,148 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
         <!-- Reservatório para o feedback de avaliação -->
         <div id="${cardId}_feedback" class="q-dissert-feedback" style="display: none;"></div>
       </div>`;
-  } else {
-    htmlAlts = (q.alternativas || [])
+  }
+
+  if (modoAtual === 'graus_confianca') {
+    const optionsHtml = (q.alternativas || [])
       .map((alt) => {
         const letra = alt.letra.trim().toUpperCase();
-        let conteudoHtml = '';
+        let conteudoHtml = alt.estrutura
+          ? renderizar_estrutura_alternativa(alt.estrutura, letra, imgsOriginalQ, 'banco')
+          : alt.texto || '';
 
-        if (alt.estrutura) {
-          // Passa imagens da questão e contexto 'banco'
-          conteudoHtml = renderizar_estrutura_alternativa(
-            alt.estrutura,
-            letra,
-            imgsOriginalQ,
-            'banco',
-          );
-        } else {
-          conteudoHtml = alt.texto || '';
-        }
-
-        // Escapa o motivo para uso seguro no atributo data
         const motivoRaw = motivoMap[letra] || '';
         const motivoEscapado = motivoRaw
           .replace(/"/g, '&quot;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;');
 
-        // Gera o botão interativo
         return `
-          <button 
-              class="q-opt-btn js-verificar-resp" 
-              data-card-id="${cardId}" 
-              data-letra="${letra}" 
-              data-correta="${g.alternativa_correta}"
-              data-motivo="${motivoEscapado}"
-          >
-              <span class="q-opt-letter">${letra})</span>
-              <div class="q-opt-content">${conteudoHtml}</div>
-              <div class="q-opt-motivo" style="display:none;"></div>
-          </button>`;
+          <div class="q-opt-card-confianca" data-letra="${letra}">
+            <button 
+                type="button"
+                class="q-opt-btn-confianca js-selecionar-alt-confianca" 
+                data-card-id="${cardId}" 
+                data-letra="${letra}" 
+                data-correta="${g.alternativa_correta}"
+                data-motivo="${motivoEscapado}"
+            >
+                <div class="q-opt-radio-wrapper">
+                  <span class="q-opt-radio"></span>
+                  <span class="q-opt-letter-badge">${letra}</span>
+                </div>
+                <div class="q-opt-content">${conteudoHtml}</div>
+            </button>
+
+            <div class="q-slider-box">
+              <div class="q-slider-header">
+                <span class="q-slider-label">Grau de Certeza na alternativa (${letra}):</span>
+                <span class="q-slider-val-badge js-slider-val" id="${cardId}_val_${letra}">50%</span>
+              </div>
+              <div class="q-slider-track-container">
+                <input 
+                  type="range" 
+                  class="q-confianca-slider js-confianca-slider" 
+                  min="0" 
+                  max="100" 
+                  value="50" 
+                  step="1"
+                  data-card-id="${cardId}"
+                  data-letra="${letra}"
+                  style="background: linear-gradient(to right, var(--color-primary) 50%, var(--color-border) 50%);"
+                />
+              </div>
+              <div class="q-slider-scale">
+                <span>0% (Certeza Incorreta)</span>
+                <span>50% (Dúvida)</span>
+                <span>100% (Certeza Correta)</span>
+              </div>
+            </div>
+
+            <div class="q-opt-motivo" style="display:none; padding: 10px 16px;"></div>
+          </div>`;
       })
       .join('');
+
+    return `
+      <div class="q-confianca-wrapper" data-card-id="${cardId}">
+        <div class="q-confianca-instruction-banner">
+          <span>💡 Selecione a alternativa correta e indique o grau de certeza (0–100%) em cada uma:</span>
+        </div>
+        <div class="q-confianca-options-list">
+          ${optionsHtml}
+        </div>
+        <div class="q-confianca-actions">
+          <button 
+              type="button" 
+              class="q-btn-enviar-confianca js-enviar-resposta-confianca" 
+              data-card-id="${cardId}" 
+              data-correta="${g.alternativa_correta}"
+              disabled
+          >
+            <div class="q-btn-enviar-inner">
+              <span class="js-btn-enviar-text">Confirmar e Enviar Resposta</span>
+              <span class="js-btn-enviar-icon" style="font-weight:bold;">→</span>
+              <span class="q-btn-enviar-badge js-btn-enviar-badge" style="display:none;"></span>
+            </div>
+          </button>
+        </div>
+      </div>`;
   }
+
+  // modo === 'binario'
+  return (q.alternativas || [])
+    .map((alt) => {
+      const letra = alt.letra.trim().toUpperCase();
+      let conteudoHtml = alt.estrutura
+        ? renderizar_estrutura_alternativa(alt.estrutura, letra, imgsOriginalQ, 'banco')
+        : alt.texto || '';
+
+      const motivoRaw = motivoMap[letra] || '';
+      const motivoEscapado = motivoRaw
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      return `
+        <button 
+            type="button"
+            class="q-opt-btn js-verificar-resp" 
+            data-card-id="${cardId}" 
+            data-letra="${letra}" 
+            data-correta="${g.alternativa_correta}"
+            data-motivo="${motivoEscapado}"
+        >
+            <span class="q-opt-letter-badge">${letra}</span>
+            <div class="q-opt-content">${conteudoHtml}</div>
+            <div class="q-opt-motivo" style="display:none;"></div>
+        </button>`;
+    })
+    .join('');
+}
+
+export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [], sourceUrl = null) {
+  if (sourceUrl && typeof window !== 'undefined' && !window.__pdfOriginalUrl) {
+    window.__pdfOriginalUrl = sourceUrl;
+  }
+
+  // 1. Criação do elemento DOM
+  const card = document.createElement('div');
+  card.className = 'q-card';
+  card.id = `card_${idFirebase}`;
+
+  // 2. Configuração dos Datasets (Para Filtros)
+  card.dataset.materia = (q.materias_possiveis || []).join(' ');
+  card.dataset.origem = meta.material_origem || '';
+
+  // Concatena texto da estrutura ou do enunciado legado para busca
+  const textoBusca = q.estrutura ? q.estrutura.map((b) => b.conteudo).join(' ') : q.enunciado || '';
+
+  card.dataset.texto = (textoBusca + ' ' + (q.identificacao || '')).toLowerCase();
+
+  // 3. Geração do HTML das Alternativas
+  const cardId = `q_${idFirebase}`;
+  const htmlAlts = gerarHtmlAlternativas(cardId, q, g, imgsOriginalQ);
 
   return { card, htmlAlts, cardId };
 }
@@ -399,7 +484,7 @@ export function gerarHtmlResolucao(cardId, gabarito, rawImgsG, jsonImgsG) {
             ${renderPassosComDetalhes(gabarito)}
             ${renderMatrizComplexidade(gabarito)}
             ${renderBotaoScanGabarito(rawImgsG, jsonImgsG)}
-            ${renderCreditosCompleto(gabarito)}
+            ${renderCreditosCompleto(gabarito, cardId)}
         </div>`;
 }
 
@@ -488,6 +573,9 @@ export function criarCardTecnico(idFirebase, fullData) {
     imgsOriginalQ,
     jsonImgsG,
   });
+
+  // Anexa os dados completos ao elemento DOM do card
+  card._fullData = fullData;
 
   return card;
 }

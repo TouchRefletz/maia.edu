@@ -1790,7 +1790,7 @@ export function formatFriendlyError(errorMessage) {
 async function chamarPuterAIViaFetchMock(url, options) {
   const bodyObj = JSON.parse(options.body);
   const puterModel = bodyObj.model;
-  const texto = bodyObj.texto;
+  let texto = bodyObj.texto;
   const schema = bodyObj.schema;
 
   // Extract attachments (could be files or base64 images)

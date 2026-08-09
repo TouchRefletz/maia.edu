@@ -556,6 +556,7 @@ export const IA_MODELS: IAModel[] = [
     speed: 5,
     reasoningText: 'Muito Alto',
     speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gpt-oss-120b',
   },
 ];
 
@@ -567,6 +568,7 @@ type TabId =
   | 'corrector'
   | 'scaffolding'
   | 'title'
+  | 'simulado'
   | 'scanner_detect'
   | 'scanner_audit'
   | 'scanner_correct'
@@ -636,6 +638,16 @@ const STAGES_CONFIG: TabConfig[] = [
   },
 ];
 
+const SIMULADO_STAGES_CONFIG: TabConfig[] = [
+  {
+    id: 'simulado',
+    label: 'Curador de Simulados (IA)',
+    icon: '🎯',
+    title: '🎯 Curador de Simulados por IA',
+    desc: 'Modelo encarregado de interpretar pedidos de simulados em linguagem natural, filtrar o banco de exercícios e montar a prova.',
+  },
+];
+
 const TEXTBOOK_STAGES_CONFIG: TabConfig[] = [
   {
     id: 'scanner_detect',
@@ -701,6 +713,7 @@ const EXTRACTOR_STAGES_CONFIG: TabConfig[] = [
 const DEFAULT_MODELS: Record<TabId, string> = {
   chat: 'models/gemini-3.5-flash',
   router: 'models/gemma-4-31b-it',
+  simulado: 'models/gemma-4-31b-it',
   memory: 'models/gemma-4-31b-it',
   search: 'models/gemini-3.5-flash',
   corrector: 'models/gemini-3.5-flash',
@@ -752,7 +765,7 @@ interface ModelSelectorProps {
   onClose: () => void;
   currentSelected: string;
   onSelect: (modelId: string) => void;
-  mode?: 'chat' | 'extractor' | 'corrector';
+  mode?: 'chat' | 'extractor' | 'corrector' | 'simulado';
 }
 
 const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
@@ -762,7 +775,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
   mode = 'chat',
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>(
-    mode === 'extractor' ? 'scanner_detect' : mode === 'corrector' ? 'corrector' : 'chat',
+    mode === 'extractor'
+      ? 'scanner_detect'
+      : mode === 'corrector'
+        ? 'corrector'
+        : mode === 'simulado'
+          ? 'simulado'
+          : 'chat',
   );
   const isMaiaActive =
     typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
@@ -834,6 +853,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     setSelections({
       chat: getVal('selectedModelChat', DEFAULT_MODELS.chat),
       router: getVal('selectedModelRouter', DEFAULT_MODELS.router),
+      simulado: getVal('selectedModelSimulado', DEFAULT_MODELS.simulado),
       memory: getVal('selectedModelMemory', DEFAULT_MODELS.memory),
       search: getVal('selectedModelSearch', DEFAULT_MODELS.search),
       corrector: getVal('selectedModelCorrector', DEFAULT_MODELS.corrector),
@@ -939,11 +959,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         extractor_gabarito: DEFAULT_MODELS.extractor_gabarito,
         extractor_image_detect: DEFAULT_MODELS.extractor_image_detect,
       }));
+    } else if (mode === 'simulado') {
+      setSelections((prev) => ({
+        ...prev,
+        simulado: DEFAULT_MODELS.simulado,
+      }));
     } else {
       setSelections((prev) => ({
         ...prev,
         chat: DEFAULT_MODELS.chat,
         router: DEFAULT_MODELS.router,
+        simulado: DEFAULT_MODELS.simulado,
         memory: DEFAULT_MODELS.memory,
         search: DEFAULT_MODELS.search,
         corrector: DEFAULT_MODELS.corrector,
@@ -967,6 +993,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       } else {
         (window as any).selectedModelChat = selections.chat;
         (window as any).selectedModelRouter = selections.router;
+        (window as any).selectedModelSimulado = selections.simulado;
         (window as any).selectedModelMemory = selections.memory;
         (window as any).selectedModelSearch = selections.search;
         (window as any).selectedModelCorrector = selections.corrector;
@@ -986,9 +1013,13 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       localStorage.setItem('selectedModelExtractorGabarito', selections.extractor_gabarito);
       localStorage.setItem('selectedModelExtractorImageDetect', selections.extractor_image_detect);
       onSelect(selections.scanner_detect);
+    } else if (mode === 'simulado') {
+      localStorage.setItem('selectedModelSimulado', selections.simulado);
+      onSelect(selections.simulado);
     } else {
       localStorage.setItem('selectedModelChat', selections.chat);
       localStorage.setItem('selectedModelRouter', selections.router);
+      localStorage.setItem('selectedModelSimulado', selections.simulado);
       localStorage.setItem('selectedModelMemory', selections.memory);
       localStorage.setItem('selectedModelSearch', selections.search);
       localStorage.setItem('selectedModelCorrector', selections.corrector);
@@ -1117,18 +1148,21 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
   const isShowSidebar =
     mode !== 'corrector' &&
+    mode !== 'simulado' &&
     (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
   const isLivroMode = typeof window !== 'undefined' && (window as any).__isLivroDidatico;
   const baseStages =
-    mode === 'extractor'
-      ? isLivroMode
-        ? TEXTBOOK_STAGES_CONFIG
-        : EXTRACTOR_STAGES_CONFIG
-      : mode === 'corrector'
-        ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
-        : isMaiaActive
-          ? STAGES_CONFIG
-          : STAGES_CONFIG.filter((s) => s.id === 'chat');
+    mode === 'simulado'
+      ? SIMULADO_STAGES_CONFIG
+      : mode === 'extractor'
+        ? isLivroMode
+          ? TEXTBOOK_STAGES_CONFIG
+          : EXTRACTOR_STAGES_CONFIG
+        : mode === 'corrector'
+          ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
+          : isMaiaActive
+            ? STAGES_CONFIG
+            : STAGES_CONFIG.filter((s) => s.id === 'chat');
 
   const filteredStages = [...baseStages];
   if (
@@ -1269,15 +1303,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
                 gap: '8px',
               }}
             >
-              {mode === 'extractor'
-                ? isLivroMode
-                  ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
-                  : '🤖 Configuração de Modelos do Extrator de Questões'
-                : mode === 'corrector'
-                  ? '🤖 Modelo de Correção Dissertativa'
-                  : isMaiaActive
-                    ? '🤖 Configuração Granular de Modelos de IA'
-                    : '🤖 Seleção de Modelo de IA'}
+              {mode === 'simulado'
+                ? '🎯 Modelo do Gerador de Simulados'
+                : mode === 'extractor'
+                  ? isLivroMode
+                    ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
+                    : '🤖 Configuração de Modelos do Extrator de Questões'
+                  : mode === 'corrector'
+                    ? '🤖 Modelo de Correção Dissertativa'
+                    : isMaiaActive
+                      ? '🤖 Configuração Granular de Modelos de IA'
+                      : '🤖 Seleção de Modelo de IA'}
             </h2>
             <p
               style={{
@@ -1286,15 +1322,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
                 fontSize: '0.85rem',
               }}
             >
-              {mode === 'extractor'
-                ? isLivroMode
-                  ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
-                  : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
-                : mode === 'corrector'
-                  ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
-                  : isMaiaActive
-                    ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
-                    : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
+              {mode === 'simulado'
+                ? 'Escolha o modelo de IA encarregado de interpretar pedidos de simulado e selecionar as questões no banco de dados.'
+                : mode === 'extractor'
+                  ? isLivroMode
+                    ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
+                    : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
+                  : mode === 'corrector'
+                    ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
+                    : isMaiaActive
+                      ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
+                      : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1903,7 +1941,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
 export function mountModelSelectorModal(
   currentSelected: string,
   onSelect: (modelId: string) => void,
-  mode: 'chat' | 'extractor' | 'corrector' = 'chat',
+  mode: 'chat' | 'extractor' | 'corrector' | 'simulado' = 'chat',
 ) {
   const rootId = 'react-model-selector-modal-root';
   const existing = document.getElementById(rootId);
