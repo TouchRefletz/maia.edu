@@ -185,3 +185,25 @@ jobs:
           print(f"   Skipped (dedup): {total_skipped}")
           print(f"   Failed: {total_failed}")
           EOF
+
+      - name: Package & Encrypt Debug Logs
+        if: always()
+        run: |
+          sudo apt-get update && sudo apt-get install -y zip
+          mkdir -p logs_artifact
+          if [ -f work/debug_extraction.log ]; then
+            cp work/debug_extraction.log logs_artifact/
+          fi
+          if [ -f work/manifest.json ]; then
+            cp work/manifest.json logs_artifact/
+          fi
+          ZIP_PASS="${{ secrets.ZIP_PASSWORD || secrets.LLM_API_KEY || 'maia-debug-vault' }}"
+          zip -j -P "$ZIP_PASS" encrypted_debug_logs.zip logs_artifact/* || true
+
+      - name: Upload Encrypted Debug Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: encrypted-debug-logs-${{ github.run_id }}
+          path: encrypted_debug_logs.zip
+          retention-days: 7

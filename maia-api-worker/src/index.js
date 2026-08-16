@@ -40,7 +40,7 @@ const safetySettings = [
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Maia-Signature, X-Maia-Timestamp, X-Maia-Nonce, X-Maia-Session, *',
   // Streaming headers
   'Cache-Control': 'no-cache',
   Connection: 'keep-alive',
@@ -62,7 +62,9 @@ export default {
       request.method !== 'POST' &&
       url.pathname !== '/proxy-pdf' &&
       url.pathname !== '/search-image' &&
-      url.pathname !== '/resolve-link'
+      url.pathname !== '/resolve-link' &&
+      url.pathname !== '/catalogo-metadados' &&
+      url.pathname !== '/questoes-paginadas'
     ) {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
     }
@@ -137,6 +139,16 @@ export default {
 
         case '/check-question':
           return handleCheckQuestion(request, env);
+
+        // --- SEGURANÇA E BANCO PROTEGIDO ---
+        case '/handshake':
+          return handleHandshake(request, env);
+
+        case '/questoes-paginadas':
+          return handleQuestoesPaginadas(request, env);
+
+        case '/catalogo-metadados':
+          return handleCatalogoMetadados(request, env);
 
         default:
           return new Response('Endpoint Not Found', { status: 404, headers: corsHeaders });
@@ -4778,3 +4790,227 @@ function sanitizeJsonForPrompt(obj) {
 }
 
 export { hasYearMismatch };
+
+// ─── HANDLERS DE SEGURANÇA E BANCO DE QUESTÕES PROTEGIDO ─────────
+
+const sessionStore = new Map(); // Em memória da instância do worker (sessionId -> { salt, expiresAt })
+
+/**
+ * 1. Endpoint /handshake — Entrega salt efêmero de sessão
+ */
+async function handleHandshake(request, env) {
+  try {
+    const salt = crypto.randomUUID();
+    const sessionToken = 'maia_sess_' + crypto.randomUUID();
+    const expiresAt = Date.now() + 3600000; // 1 hora
+
+    sessionStore.set(sessionToken, { salt, expiresAt });
+
+    // Limpeza de sessões expiradas
+    if (sessionStore.size > 1000) {
+      const now = Date.now();
+      for (const [k, v] of sessionStore.entries()) {
+        if (v.expiresAt < now) sessionStore.delete(k);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ salt, sessionToken, expiresAt }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * 2. Endpoint /catalogo-metadados — Entrega lista de bancas/taxonomia sem dados brutos
+ */
+async function handleCatalogoMetadados(request, env) {
+  try {
+    const firebaseUrl = env.FIREBASE_DATABASE_URL;
+    const secret = env.FIREBASE_DATABASE_SECRET;
+    if (!firebaseUrl) {
+      return new Response(JSON.stringify({ error: 'Firebase não configurado' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Busca apenas as chaves (shallow=true) para economizar dados
+    const fbUrl = secret
+      ? `${firebaseUrl}/questoes.json?shallow=true&auth=${secret}`
+      : `${firebaseUrl}/questoes.json?shallow=true`;
+
+    const fbRes = await fetch(fbUrl);
+    let provas = [];
+    if (fbRes.ok) {
+      const data = await fbRes.json();
+      if (data && typeof data === 'object') {
+        provas = Object.keys(data);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        total_provas: provas.length,
+        provas: provas.sort(),
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+/**
+ * 3. Endpoint /questoes-paginadas — Entrega lote de 10 questões com assinatura e paginação
+ */
+async function handleQuestoesPaginadas(request, env) {
+  try {
+    let params = {};
+    if (request.method === 'POST') {
+      try {
+        params = await request.json();
+      } catch (_) {}
+    } else {
+      const u = new URL(request.url);
+      params = {
+        page: parseInt(u.searchParams.get('page') || '1', 10),
+        limit: parseInt(u.searchParams.get('limit') || '10', 10),
+        prova: u.searchParams.get('prova') || '',
+        termo: u.searchParams.get('termo') || '',
+      };
+    }
+
+    const page = Math.max(1, parseInt(params.page || 1, 10));
+    const limit = Math.min(20, Math.max(1, parseInt(params.limit || 10, 10))); // Força máximo de 20 por página
+    const provaFiltro = Array.isArray(params.prova)
+      ? (params.prova[0] || '').toString().trim()
+      : String(params.prova || '').trim();
+    const termoFiltro = Array.isArray(params.termo)
+      ? (params.termo[0] || '').toString().toLowerCase().trim()
+      : String(params.termo || '').toLowerCase().trim();
+
+    const firebaseUrl = env.FIREBASE_DATABASE_URL;
+    const secret = env.FIREBASE_DATABASE_SECRET;
+    if (!firebaseUrl) {
+      return new Response(JSON.stringify({ error: 'Firebase não configurado' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    let todasQuestoes = [];
+
+    if (provaFiltro) {
+      const fbUrl = secret
+        ? `${firebaseUrl}/questoes/${encodeURIComponent(provaFiltro)}.json?auth=${secret}`
+        : `${firebaseUrl}/questoes/${encodeURIComponent(provaFiltro)}.json`;
+      const fbRes = await fetch(fbUrl);
+      if (fbRes.ok) {
+        const rawData = await fbRes.json();
+        if (rawData && typeof rawData === 'object') {
+          Object.entries(rawData).forEach(([idQ, fullData]) => {
+            if (fullData && fullData.dados_questao) {
+              todasQuestoes.push({
+                key: idQ,
+                prova: provaFiltro,
+                ...fullData,
+              });
+            }
+          });
+        }
+      }
+    } else {
+      // 1. Busca leve das chaves de provas com shallow=true para evitar estouro de memória
+      const shallowUrl = secret
+        ? `${firebaseUrl}/questoes.json?shallow=true&auth=${secret}`
+        : `${firebaseUrl}/questoes.json?shallow=true`;
+      const shallowRes = await fetch(shallowUrl);
+      if (shallowRes.ok) {
+        const keysObj = await shallowRes.json();
+        const listaProvas = keysObj && typeof keysObj === 'object' ? Object.keys(keysObj).reverse() : [];
+
+        // Pega as provas em paralelo de forma eficiente
+        const resultadosProvas = await Promise.all(
+          listaProvas.map(async (nomeProva) => {
+            try {
+              const u = secret
+                ? `${firebaseUrl}/questoes/${encodeURIComponent(nomeProva)}.json?auth=${secret}`
+                : `${firebaseUrl}/questoes/${encodeURIComponent(nomeProva)}.json`;
+              const r = await fetch(u);
+              if (r.ok) {
+                const pData = await r.json();
+                return { nomeProva, pData };
+              }
+            } catch (_) {}
+            return { nomeProva, pData: null };
+          })
+        );
+
+        resultadosProvas.forEach(({ nomeProva, pData }) => {
+          if (pData && typeof pData === 'object') {
+            Object.entries(pData).forEach(([idQ, fullData]) => {
+              if (fullData && fullData.dados_questao) {
+                todasQuestoes.push({
+                  key: idQ,
+                  prova: nomeProva,
+                  ...fullData,
+                });
+              }
+            });
+          }
+        });
+      }
+    }
+
+    // Filtro por termo se fornecido
+    if (termoFiltro) {
+      todasQuestoes = todasQuestoes.filter((item) => {
+        const q = item.dados_questao || {};
+        const meta = item.meta || {};
+        const enunciado = (q.enunciado || '').toLowerCase();
+        const ident = (q.identificacao || item.key || '').toLowerCase();
+        const mat = (q.materias_possiveis || []).join(' ').toLowerCase();
+        const orig = (meta.material_origem || item.prova || '').toLowerCase();
+        return (
+          enunciado.includes(termoFiltro) ||
+          ident.includes(termoFiltro) ||
+          mat.includes(termoFiltro) ||
+          orig.includes(termoFiltro)
+        );
+      });
+    }
+
+    const total = todasQuestoes.length;
+    const totalPages = Math.ceil(total / limit) || 1;
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = todasQuestoes.slice(startIndex, startIndex + limit);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        page,
+        limit,
+        total,
+        totalPages,
+        questoes: paginatedItems,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
+

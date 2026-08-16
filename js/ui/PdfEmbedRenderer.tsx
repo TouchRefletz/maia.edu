@@ -110,7 +110,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
   const [manualUrlInput, setManualUrlInput] = useState<string>('');
   const effectiveUrl = manualPdfUrl || baseUrl;
 
-  // Estado do toggle - inicia com 'pdfjs' como padrão (seguro, nativo e sem modal do Puter)
+  // Estado do toggle - inicia com 'embed' como padrão (carregamento nativo rápido)
   const [renderMode, setRenderMode] = useState<'puter' | 'embed' | 'pdfjs'>(
     props.forceRenderMode === 'pdfjs'
       ? 'pdfjs'
@@ -118,7 +118,7 @@ export const PdfEmbedRenderer: React.FC<PdfEmbedRendererProps> = (props) => {
         ? 'embed'
         : props.forceRenderMode === 'puter'
           ? 'puter'
-          : 'pdfjs', // Default: PDF.js nativo (evita abrir modal do Puter)
+          : 'embed', // Default: Embed nativo
   );
 
   // [NEW] Estado para rastrear falha do modo Puter (iframe)

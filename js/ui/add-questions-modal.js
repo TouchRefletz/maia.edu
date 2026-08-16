@@ -156,9 +156,9 @@ function handleEscKey(e) {
 }
 
 /**
- * Carrega provas iniciais (lista de chaves em questoes/)
+ * Carrega lista de provas do servidor
  */
-async function loadInitialExams() {
+async function loadExamsList() {
   const listContainer = document.getElementById('addQuestionsList');
   const loading = document.getElementById('addQuestionsLoading');
 
@@ -168,21 +168,20 @@ async function loadInitialExams() {
   listContainer.innerHTML = '';
 
   try {
-    const dbRef = ref(db, 'questoes');
-    const consulta = query(dbRef, orderByKey(), limitToFirst(50));
-    const snapshot = await get(consulta);
-
+    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
     loading.style.display = 'none';
 
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      const provas = Object.keys(data).sort();
+    if (res.ok) {
+      const data = await res.json();
+      const provas = (data.provas || []).sort();
 
-      provas.forEach((nomeProva) => {
-        const questoes = data[nomeProva];
-        const qtd = questoes ? Object.keys(questoes).length : 0;
-        listContainer.appendChild(createExamCard(nomeProva, qtd));
-      });
+      if (provas.length > 0) {
+        provas.forEach((nomeProva) => {
+          listContainer.appendChild(createExamCard(nomeProva, 0));
+        });
+      } else {
+        listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada.</p>`;
+      }
     } else {
       listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada.</p>`;
     }
@@ -194,7 +193,7 @@ async function loadInitialExams() {
 }
 
 /**
- * Smart Search - busca com variações de case
+ * Smart Search - busca de provas
  */
 async function searchExams(termo) {
   const listContainer = document.getElementById('addQuestionsList');
@@ -206,59 +205,26 @@ async function searchExams(termo) {
   listContainer.innerHTML = '';
 
   try {
-    // Variações de case: exato, UPPERCASE, lowercase, Capitalized
-    const variacoes = new Set();
-    variacoes.add(termo);
-    variacoes.add(termo.toUpperCase());
-    variacoes.add(termo.toLowerCase());
-    if (termo.length > 0) {
-      variacoes.add(termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase());
-    }
-
-    const dbRef = ref(db, 'questoes');
-
-    // Buscas paralelas
-    const promessas = Array.from(variacoes).map(async (termoBusca) => {
-      const consulta = query(
-        dbRef,
-        orderByKey(),
-        startAt(termoBusca),
-        endAt(termoBusca + '\uf8ff'),
-        limitToFirst(20),
-      );
-      return get(consulta);
-    });
-
-    const snapshots = await Promise.all(promessas);
-
-    // Agrega resultados únicos
-    const resultados = new Map();
-    snapshots.forEach((snapshot) => {
-      if (snapshot.exists()) {
-        Object.entries(snapshot.val()).forEach(([key, value]) => {
-          resultados.set(key, value);
-        });
-      }
-    });
-
+    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
     loading.style.display = 'none';
 
-    if (resultados.size > 0) {
-      const listaOrdenada = Array.from(resultados.entries()).sort((a, b) =>
-        a[0].localeCompare(b[0]),
-      );
+    if (res.ok) {
+      const data = await res.json();
+      const termoNorm = (termo || '').toLowerCase();
+      const filtradas = (data.provas || []).filter((p) => p.toLowerCase().includes(termoNorm)).sort();
 
-      listaOrdenada.forEach(([nomeProva, questoes]) => {
-        const qtd = questoes ? Object.keys(questoes).length : 0;
-        listContainer.appendChild(createExamCard(nomeProva, qtd));
-      });
-    } else {
-      listContainer.innerHTML = `<p class="add-questions-empty">Nenhum resultado para "${termo}"</p>`;
+      if (filtradas.length > 0) {
+        filtradas.forEach((nomeProva) => {
+          listContainer.appendChild(createExamCard(nomeProva, 0));
+        });
+      } else {
+        listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada para "${termo}".</p>`;
+      }
     }
   } catch (e) {
-    console.error('Erro na busca:', e);
+    console.error('Erro ao buscar provas:', e);
     loading.style.display = 'none';
-    listContainer.innerHTML = `<p class="add-questions-error">Erro: ${e.message}</p>`;
+    listContainer.innerHTML = `<p class="add-questions-error">Erro ao buscar: ${e.message}</p>`;
   }
 }
 
@@ -337,9 +303,6 @@ async function loadExamQuestions(card, nomeProva) {
   listContainer.innerHTML = '';
 
   try {
-    const dbRef = ref(db, `questoes/${nomeProva}`);
-    const snapshot = await get(dbRef);
-
     // Carrega em lote o status do Apêndice B para esta prova
     let statusMap = {};
     try {
@@ -352,14 +315,15 @@ async function loadExamQuestions(card, nomeProva) {
       console.warn('Erro ao buscar status do apêndice B:', err);
     }
 
+    const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+    const res = await buscarQuestoesPaginadasWorker(1, 100, nomeProva);
+
     loading.style.display = 'none';
 
-    if (snapshot.exists()) {
-      const questoes = snapshot.val();
-
-      Object.entries(questoes).forEach(([idQuestao, fullData]) => {
+    if (res && res.questoes && res.questoes.length > 0) {
+      res.questoes.forEach((fullData) => {
         if (!fullData.dados_questao) return;
-
+        const idQuestao = fullData.key || fullData.id;
         const hasApendiceB = !!statusMap[idQuestao];
         const questionItem = createQuestionItem(idQuestao, fullData, nomeProva, hasApendiceB);
         listContainer.appendChild(questionItem);

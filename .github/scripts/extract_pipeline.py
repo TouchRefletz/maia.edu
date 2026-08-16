@@ -42,6 +42,21 @@ EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "models/gemini-3-flash-preview")
 MAX_RETRIES = 3
 RETRY_DELAY = 30  # seconds
 
+# Secure logging config (Blackout mode for terminal)
+DEBUG_LOG_PATH = "work/debug_extraction.log"
+os.makedirs("work", exist_ok=True)
+
+def secure_log(msg: str, echo_stdout: bool = False):
+    """Write detailed message to encrypted debug log file; only echo to stdout if safe."""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {msg}\n")
+    except Exception:
+        pass
+    if echo_stdout:
+        print(f"[{timestamp}] {msg}", flush=True)
+
 # Initialize Gemini client
 client = genai.Client(api_key=GEMINI_KEY)
 
@@ -499,7 +514,7 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
     last_exception = None
     
     for current_model in models_to_try:
-        print(f"    🤖 Attempting with model: {current_model}...")
+        secure_log(f"Attempting with model: {current_model}")
         for attempt in range(max_retries):
             try:
                 response = client.models.generate_content(
@@ -507,7 +522,7 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
                     contents=contents,
                     config=config,
                 )
-                print(f"    ✅ Success with model: {current_model}")
+                secure_log(f"Success with model: {current_model}")
                 return response
             except Exception as e:
                 error_str = str(e).lower()
@@ -519,15 +534,15 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
                 
                 if is_rate_limit or is_transient:
                     wait = RETRY_DELAY * (attempt + 1)
-                    print(f"      ⚠️ API warning ({e}) on attempt {attempt + 1}/{max_retries}. Waiting {wait}s...")
+                    secure_log(f"API warning on attempt {attempt + 1}/{max_retries}. Waiting {wait}s...")
                     time.sleep(wait)
                 else:
                     if isinstance(e, (AttributeError, NameError, TypeError)):
                         raise
-                    print(f"      ❌ Model {current_model} failed with non-transient error: {e}. Trying next fallback...")
+                    secure_log(f"Model {current_model} failed with non-transient error. Trying next fallback...")
                     break
         else:
-            print(f"      ❌ Model {current_model} exhausted all retries. Trying next fallback...")
+            secure_log(f"Model {current_model} exhausted all retries. Trying next fallback...")
             
     if last_exception:
         error_str = str(last_exception).lower()
@@ -702,19 +717,14 @@ def search_gabarito(question_json: dict):
             if json_match:
                 try:
                     parsed_gabarito = json.loads(json_match.group(0), strict=False)
-                    print(f"      [Gabarito Search] Sucesso com grounding! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                    secure_log("[Gabarito Search] Sucesso com grounding!")
                     return parsed_gabarito
                 except json.JSONDecodeError as json_err:
-                    print(f"      [Gabarito Search] ❌ Erro ao decodificar JSON do grounding: {json_err}")
-                    print(f"      [Gabarito Search] Texto gerado (primeiros 2000 chars): {answer_text[:2000]}")
-                    if len(answer_text) > 2000:
-                        print(f"      [Gabarito Search] Texto gerado (últimos 2000 chars): {answer_text[-2000:]}")
-        print(f"      [Gabarito Search] ⚠️ Resposta vazia ou JSON não encontrado no stream.")
+                    secure_log(f"[Gabarito Search] Erro ao decodificar JSON do grounding: {json_err}")
+        secure_log("[Gabarito Search] Resposta vazia ou JSON não encontrado no stream.")
     except Exception as e:
         elapsed = time.time() - start_time
-        print(f"      [Gabarito Search] ⚠️ Falha ao buscar gabarito com grounding em {elapsed:.2f}s: {e}")
-        if 'resp' in locals() and hasattr(resp, 'text'):
-            print(f"      [Gabarito Search] Resposta de erro do worker: {resp.text[:500]}")
+        secure_log(f"[Gabarito Search] Falha ao buscar gabarito com grounding em {elapsed:.2f}s: {e}")
 
     # Fallback: tentar gerar direto (sem busca grounding) usando o EXTRACT_MODEL
     print(f"      [Gabarito Fallback] 🔄 Geração direta sem grounding usando modelo '{EXTRACT_MODEL}'...")
@@ -750,19 +760,14 @@ def search_gabarito(question_json: dict):
             if json_match:
                 try:
                     parsed_gabarito = json.loads(json_match.group(0), strict=False)
-                    print(f"      [Gabarito Fallback] ✅ Sucesso na geração direta! Alternativa correta: {parsed_gabarito.get('alternativa_correta', 'N/A')}")
+                    secure_log("[Gabarito Fallback] Sucesso na geração direta!")
                     return parsed_gabarito
                 except json.JSONDecodeError as json_err:
-                    print(f"      [Gabarito Fallback] ❌ Erro ao decodificar JSON da geração direta: {json_err}")
-                    print(f"      [Gabarito Fallback] Texto gerado (primeiros 2000 chars): {answer_text[:2000]}")
-                    if len(answer_text) > 2000:
-                        print(f"      [Gabarito Fallback] Texto gerado (últimos 2000 chars): {answer_text[-2000:]}")
-        print(f"      [Gabarito Fallback] ⚠️ Resposta vazia ou JSON não encontrado na geração direta.")
+                    secure_log(f"[Gabarito Fallback] Erro ao decodificar JSON da geração direta: {json_err}")
+        secure_log("[Gabarito Fallback] Resposta vazia ou JSON não encontrado na geração direta.")
     except Exception as e:
         elapsed_fallback = time.time() - start_time_fallback
-        print(f"      [Gabarito Fallback] ❌ Erro ao gerar gabarito direto em {elapsed_fallback:.2f}s: {e}")
-        if 'resp' in locals() and hasattr(resp, 'text'):
-            print(f"      [Gabarito Fallback] Resposta de erro do worker: {resp.text[:500]}")
+        secure_log(f"[Gabarito Fallback] Erro ao gerar gabarito direto em {elapsed_fallback:.2f}s: {e}")
 
     return None
 
@@ -807,13 +812,11 @@ def save_question(questao: dict, gabarito: dict, source_pdf: str, page_num: int)
 
         elapsed = time.time() - start_time
         res = resp.json()
-        print(f"      [Save DB] Resposta do Worker (recebida em {elapsed:.2f}s): {json.dumps(res, ensure_ascii=False)}")
+        secure_log(f"[Save DB] Resposta do Worker recebida em {elapsed:.2f}s")
         return res
     except Exception as e:
         elapsed = time.time() - start_time
-        print(f"      [Save DB] ❌ Erro ao salvar questão em {elapsed:.2f}s: {e}")
-        if 'resp' in locals() and hasattr(resp, 'text'):
-            print(f"      [Save DB] Resposta de erro do Worker: {resp.text[:500]}")
+        secure_log(f"[Save DB] Erro ao salvar questão em {elapsed:.2f}s: {e}")
     return None
 
 
@@ -1394,13 +1397,7 @@ def main():
         
     save_manifest(manifest)
 
-    print(f"\n{'='*80}")
-    print(f"📊 Resumo Final da Execução:")
-    print(f"   Status do Manifesto: {manifest.get('status')}")
-    print(f"   Questões Extraídas com Sucesso: {total_extracted}")
-    print(f"   Questões Puladas (Deduplicadas): {total_skipped}")
-    print(f"   Questões que Falharam (Sem DB): {total_failed}")
-    print(f"{'='*80}")
+    secure_log(f"✅ Execução do Pipeline Concluída! Total extraídas: {total_extracted}, Puladas: {total_skipped}, Falhas: {total_failed}", echo_stdout=True)
 
 
 if __name__ == "__main__":

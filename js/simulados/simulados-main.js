@@ -292,46 +292,41 @@ export async function iniciarModoSimulados() {
   }
 }
 
-// Busca questões diretamente do Firebase RTDB
+// Busca questões de forma segura via Worker
 async function fetchQuestionsPool() {
   try {
-    const dbRef = ref(db, 'questoes');
-    const snapshot = await get(dbRef);
+    const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+    const res = await buscarQuestoesPaginadasWorker(1, 30);
 
-    if (snapshot.exists()) {
-      const data = snapshot.val();
+    if (res && res.questoes && res.questoes.length > 0) {
       questionsPool = [];
 
-      Object.entries(data).forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === 'object') {
-          Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
-            if (!fullData.dados_questao) return;
+      res.questoes.forEach((fullData) => {
+        if (!fullData.dados_questao) return;
+        const idQuestao = fullData.key || fullData.id;
+        const nomeProva = fullData.prova || 'Geral';
 
-            // Injeta dados de prova se faltarem
-            if (!fullData.meta) fullData.meta = {};
-            if (!fullData.meta.material_origem) {
-              fullData.meta.material_origem = nomeProva.replace(/_/g, ' ');
-            }
-
-            const materias = fullData.dados_questao.materias_possiveis || [];
-            const textPreview =
-              (fullData.dados_questao.estrutura || []).map((b) => b.conteudo || '').join(' ') ||
-              fullData.dados_questao.enunciado ||
-              '';
-
-            questionsPool.push({
-              id: idQuestao,
-              prova: nomeProva,
-              fullData: fullData,
-              subjects: materias,
-              text: textPreview,
-            });
-          });
+        if (!fullData.meta) fullData.meta = {};
+        if (!fullData.meta.material_origem) {
+          fullData.meta.material_origem = nomeProva.replace(/_/g, ' ');
         }
-      });
 
-      // Inverte para as mais recentes virem primeiro
-      questionsPool.reverse();
+        const materias = fullData.dados_questao.materias_possiveis || [];
+        const textPreview =
+          (fullData.dados_questao.estrutura || []).map((b) => b.conteudo || '').join(' ') ||
+          fullData.dados_questao.enunciado ||
+          '';
+
+        questionsPool.push({
+          id: idQuestao,
+          prova: nomeProva,
+          fullData: fullData,
+          subjects: materias,
+          text: textPreview,
+        });
+      });
+    } else {
+      questionsPool = [];
     }
 
     renderQuestionsBankList();

@@ -14,10 +14,14 @@ import { initTheme } from './services/theme-service.js';
 import { EloService } from './services/elo-service.js';
 import { exibirEloPopupModal } from './ui/EloPopupModal.js';
 
+import { initClipboardProtection, initAntiDebugger } from './utils/security-guard.js';
+
 if (typeof window !== 'undefined') {
   window.EloService = EloService;
   window.exibirEloPopupModal = exibirEloPopupModal;
   EloService.initFirebaseEloSync();
+  initClipboardProtection();
+  initAntiDebugger();
 }
 
 import {

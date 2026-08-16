@@ -4340,13 +4340,10 @@ export async function iniciarModoEstudante() {
   // 3. Injeta no DOM
   document.body.innerHTML = htmlLayout;
 
-  // 4. Carregamento Inicial de Dados
+  // 4. Carregamento Inicial de Dados (Página 1 de 10)
   await carregarBancoDados();
 
-  // 5. Configura Scroll Infinito
-  configurarObserverScroll();
-
-  // 6. Inicializa o Scroll Horizontal Superior (Premium Mobile)
+  // 5. Inicializa o Scroll Horizontal Superior (Premium Mobile)
   setTimeout(() => {
     initQuestionsTopScrollSync();
   }, 100);
@@ -4566,81 +4563,28 @@ async function realizarBuscaRevisao(termo) {
   sentinela.style.display = 'block'; // Mostra loading
 
   try {
-    const { get, ref, query, orderByKey, startAt, endAt, limitToFirst } = await import(
-      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
-    );
-    const { db } = await import('../main.js');
-
-    // Normalização "Smart Search":
-    // O banco é Case-Sensitive. Buscamos variações comuns para tentar "adivinhar" o que o usuário quer.
-    // 1. Exato (o que o usuário digitou) -> "eTec"
-    // 2. Maiúsculo (comum para siglas) -> "ETEC"
-    // 3. Capitalizado (comum para nomes) -> "Etec"
-    // 4. Minúsculo (fallback) -> "etec"
-    const variacoes = new Set();
-    variacoes.add(termo); // 1. Exato
-    variacoes.add(termo.toUpperCase()); // 2. UPPERCASE
-    variacoes.add(termo.toLowerCase()); // 4. Lowercase
-    if (termo.length > 0) {
-      variacoes.add(termo.charAt(0).toUpperCase() + termo.slice(1).toLowerCase()); // 3. Capitalized
-    }
-
-    const dbRef = ref(db, 'questoes');
-
-    // Cria array de Promises (buscas paralelas)
-    const promessasBusca = Array.from(variacoes).map(async (termoBusca) => {
-      const consulta = query(
-        dbRef,
-        orderByKey(),
-        startAt(termoBusca),
-        endAt(termoBusca + '\uf8ff'),
-        limitToFirst(20), // Limite menor por variação para não sobrecarregar
-      );
-      return get(consulta);
-    });
-
-    // Executa todas
-    const snapshots = await Promise.all(promessasBusca);
-
-    // Agrega resultados (Map para remover duplicatas por Chave de Prova)
-    const resultadosUnicos = new Map();
-
-    snapshots.forEach((snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        Object.entries(data).forEach(([key, value]) => {
-          resultadosUnicos.set(key, value);
-        });
-      }
-    });
+    const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+    const res = await buscarQuestoesPaginadasWorker(1, 30, '', termo);
 
     sentinela.style.display = 'none'; // Esconde loading
 
-    if (resultadosUnicos.size > 0) {
-      // Converte de volta para array e ordena alfabeticamente
-      const listaProvas = Array.from(resultadosUnicos.entries()).sort((a, b) =>
-        a[0].localeCompare(b[0]),
-      );
+    if (res && res.questoes && res.questoes.length > 0) {
+      res.questoes.forEach((fullData) => {
+        const idQuestao = fullData.key || fullData.id;
+        const nomeProva = fullData.prova || 'Geral';
+        fullData._firebaseId = idQuestao;
+        fullData._chaveProva = nomeProva;
 
-      listaProvas.forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === 'object') {
-          Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
-            if (!fullData.dados_questao) return;
-            fullData._firebaseId = idQuestao;
-            fullData._chaveProva = nomeProva;
-
-            const item = criarItemListaRevisao(idQuestao, fullData, nomeProva);
-            listContainer.appendChild(item);
-          });
-        }
+        const item = criarItemListaRevisao(idQuestao, fullData, nomeProva);
+        listContainer.appendChild(item);
       });
     } else {
-      listContainer.innerHTML = `<p style="padding:20px; text-align:center; color:gray;">Nenhum resultado encontrado para "${termo}" (e variações).</p>`;
+      listContainer.innerHTML = `<p style="padding:20px; text-align:center; color:gray;">Nenhum resultado encontrado para "${termo}".</p>`;
     }
   } catch (e) {
-    console.error('Erro na busca:', e);
+    console.error('Erro na busca por termo:', e);
     sentinela.style.display = 'none';
-    listContainer.innerHTML = `<p style="padding:20px; color:red;">Erro ao buscar: ${e.message}</p>`;
+    listContainer.innerHTML = `<p style="padding:20px; text-align:center; color:red;">Erro ao buscar: ${e.message}</p>`;
   }
 }
 
@@ -4655,51 +4599,28 @@ async function carregarQuestoesRevisao() {
   bancoState.carregandoMais = true;
 
   try {
-    const { get, ref, query, orderByKey, limitToLast, endBefore } = await import(
-      'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js'
-    );
-    const { db, TAMANHO_PAGINA } = await import('../main.js');
+    const pageToLoad = Math.floor((bancoState.todasQuestoesCache.length / 10)) + 1;
+    const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+    const res = await buscarQuestoesPaginadasWorker(pageToLoad, 10);
 
-    const dbRef = ref(db, 'questoes');
-    let consulta;
-
-    if (!bancoState.ultimoKeyCarregada) {
-      consulta = query(dbRef, orderByKey(), limitToLast(TAMANHO_PAGINA));
-    } else {
-      consulta = query(
-        dbRef,
-        orderByKey(),
-        endBefore(bancoState.ultimoKeyCarregada),
-        limitToLast(TAMANHO_PAGINA),
-      );
-    }
-
-    const snapshot = await get(consulta);
-
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      const listaProvas = Object.entries(data).reverse();
-      const novoCursor = listaProvas[listaProvas.length - 1][0];
-      bancoState.ultimoKeyCarregada = novoCursor;
-
+    if (res && res.questoes && res.questoes.length > 0) {
       const container = document.getElementById('reviewList');
+      res.questoes.forEach((fullData) => {
+        if (!fullData.dados_questao) return;
+        const idQuestao = fullData.key || fullData.id;
+        const nomeProva = fullData.prova || 'Geral';
 
-      listaProvas.forEach(([nomeProva, mapQuestoes]) => {
-        if (mapQuestoes && typeof mapQuestoes === 'object') {
-          Object.entries(mapQuestoes).forEach(([idQuestao, fullData]) => {
-            if (!fullData.dados_questao) return;
+        // Injeta o ID do Firebase no fullData para uso posterior
+        fullData._firebaseId = idQuestao;
+        fullData._chaveProva = nomeProva;
 
-            // Injeta o ID do Firebase no fullData para uso posterior
-            fullData._firebaseId = idQuestao;
-            fullData._chaveProva = nomeProva;
+        // Adiciona ao cache
+        bancoState.todasQuestoesCache.push({ key: idQuestao, ...fullData });
 
-            // Adiciona ao cache
-            bancoState.todasQuestoesCache.push({ key: idQuestao, ...fullData });
-
-            // Cria item na lista
-            const item = criarItemListaRevisao(idQuestao, fullData, nomeProva);
-            container.appendChild(item);
-          });
+        // Cria item na lista
+        if (container) {
+          const item = criarItemListaRevisao(idQuestao, fullData, nomeProva);
+          container.appendChild(item);
         }
       });
     } else {
@@ -7174,6 +7095,10 @@ export async function verificarAdminEShowSidebar(user) {
     const isAdmin = snapshot.exists() && snapshot.val() === true;
 
     window.isAdmin = isAdmin;
+    try {
+      const { setAdminStatus } = await import('../utils/security-guard.js');
+      setAdminStatus(isAdmin);
+    } catch (_) {}
 
     if (sidebarItems) {
       const divider = sidebarItems.querySelector('.nav-divider');

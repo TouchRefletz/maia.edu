@@ -43,13 +43,45 @@ export const auth = getAuth(app);
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 export const firestore = getFirestore(app);
 
+// Inicializa App Check (com ReCaptcha v3 e suporte a Debug Token)
+import { initializeAppCheck, ReCaptchaV3Provider } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-app-check.js';
+if (typeof window !== 'undefined') {
+  const initAppCheck = () => {
+    try {
+      if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        // Permite validar seu ambiente local no Firebase Console
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+      }
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider('6Ler_YgtAAAAAK0nkuiEdqFaIj4zP0qEg7gzg_We'),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch (err) {
+      console.warn('[AppCheck] Inicialização tolerada:', err.message);
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAppCheck);
+  } else {
+    setTimeout(initAppCheck, 100);
+  }
+}
+
 // Configuração de Persistência
 setPersistence(auth, browserLocalPersistence)
   .then(() => {
     // Escuta o estado inicial APÓS a tentativa de restore do Firebase
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         console.log('Sessão restaurada para:', user.uid);
+        try {
+          const { get, ref } = await import('https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js');
+          const adminSnap = await get(ref(db, `admins/${user.uid}`));
+          const isAdmin = adminSnap.exists() && adminSnap.val() === true;
+          const { setAdminStatus } = await import('../utils/security-guard.js');
+          setAdminStatus(isAdmin);
+        } catch (_) {}
       } else {
         console.log('Nenhum usuário detectado. Iniciando sessão anônima...');
         signInAnonymously(auth).catch((error) =>

@@ -77,6 +77,7 @@ const ListaImagens: React.FC<{ lista: (string | any)[] }> = ({ lista }) => {
               pdfjs_crop_w={item.pdfjs_crop_w}
               pdfjs_crop_h={item.pdfjs_crop_h}
               scaleToFit={true} // Ajusta ao modal
+              forceRenderMode="embed" // Inicia sempre em embed nativo
               readOnly={true} // DEBUG: Allow finding local file
             />
           );

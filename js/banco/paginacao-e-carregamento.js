@@ -1,9 +1,34 @@
-import { get, ref } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js';
 import { ensureLibsLoaded, renderLatexIn } from '../libs/loader.tsx';
-import { bancoState, db, TAMANHO_PAGINA } from '../main.js';
+import { bancoState, TAMANHO_PAGINA } from '../main.js';
+import { attachDOMIntegrityObserver, generateSignedHeaders } from '../utils/security-guard.js';
 import { criarCardTecnico } from './card-template.js';
 import { popularFiltrosDinamicos } from './filtros-dinamicos.js';
 import { capturarValoresFiltros, itemAtendeFiltros } from './filtros-ui.js';
+
+const WORKER_BASE_URL =
+  import.meta.env.VITE_WORKER_URL ||
+  'https://maia-api-worker.willian-campos-ismart.workers.dev';
+
+export async function buscarQuestoesPaginadasWorker(page = 1, limit = 20, prova = '', termo = '') {
+  try {
+    const signedHeaders = await generateSignedHeaders('/questoes-paginadas');
+    const res = await fetch(`${WORKER_BASE_URL}/questoes-paginadas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...signedHeaders,
+      },
+      body: JSON.stringify({ page, limit, prova, termo }),
+    });
+
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[Paginacao] Erro na busca via Worker:', err);
+  }
+  return { success: false, questoes: [], total: 0 };
+}
 
 export function processarDadosSnapshot(data) {
   // 1. Inverte para mostrar as mais recentes primeiro
@@ -97,21 +122,11 @@ export function atualizarStatusSentinela(status, mensagem = '') {
 }
 
 export function configurarObserverScroll() {
-  const sentinela = document.getElementById('sentinelaScroll');
-
-  // Cria o observer
-  bancoState.observadorScroll = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting) {
-        // Carrega mais do cache local de forma suave
-        carregarBancoDados();
-      }
-    },
-    { rootMargin: '300px' },
-  );
-
-  // Começa a observar
-  if (sentinela) bancoState.observadorScroll.observe(sentinela);
+  // Desativado: A navegação agora é feita exclusivamente via barra de paginação numerada 10 em 10.
+  if (bancoState.observadorScroll) {
+    bancoState.observadorScroll.disconnect();
+    bancoState.observadorScroll = null;
+  }
 }
 
 // Helper para buscar status de revisão
@@ -300,83 +315,217 @@ async function hidratarStatusProjetoCientifico(listaQuestoes) {
   });
 }
 
-/**
- * Carrega e gerencia a paginação e renderização de questões.
- * Carrega todo o banco do Firebase uma única vez no início e depois
- * gerencia filtros e paginação localmente de forma instantânea e sem travamento de UI.
- */
-export async function carregarBancoDados() {
-  if (bancoState.carregandoMais) return;
+export async function navegarParaPagina(numeroPagina) {
+  const container = document.getElementById('bankStream');
+  if (!container) return;
+
+  bancoState.paginaAtual = Math.max(1, numeroPagina);
   bancoState.carregandoMais = true;
 
+  const s = document.getElementById('sentinelaScroll');
+  if (s) {
+    s.innerHTML = `
+      <div class="spinner" style="margin: 20px auto;"></div>
+      <p style="color:var(--color-text-secondary); font-size:12px; margin-top:10px;">Carregando página ${bancoState.paginaAtual} com segurança...</p>
+    `;
+  }
+
+  // 1. Evicção total da memória do DOM anterior
+  container.innerHTML = '';
+
   try {
-    await ensureLibsLoaded();
+    const filtros = typeof capturarValoresFiltros === 'function' ? capturarValoresFiltros() : {};
+    const provaFiltro = Array.isArray(filtros.material)
+      ? (filtros.material[0] || '')
+      : (Array.isArray(filtros.origem) ? (filtros.origem[0] || '') : (filtros.origem || ''));
+    const termoFiltro = String(filtros.texto || filtros.termo || '');
 
-    const container = document.getElementById('bankStream');
+    const res = await buscarQuestoesPaginadasWorker(bancoState.paginaAtual, 10, provaFiltro, termoFiltro);
+    bancoState.totalQuestoes = res.total || 0;
+    bancoState.totalPaginas = res.totalPages || 1;
 
-    // 1. Carrega todo o banco do Firebase de uma única vez na inicialização
-    if (!bancoState.dbCarregado) {
-      const s = document.getElementById('sentinelaScroll');
-      if (s) {
-        s.innerHTML = `
-          <div class="spinner" style="margin: 20px auto;"></div>
-          <p style="color:var(--color-text-secondary); font-size:12px; margin-top:10px;">Carregando banco de dados do servidor...</p>
-        `;
-      }
+    if (res && res.questoes && res.questoes.length > 0) {
+      const lote = res.questoes.map((item) => {
+        const domId = `${item.prova || 'prova'}___${item.key || item.id}`;
+        return {
+          key: domId,
+          id: item.key || item.id,
+          prova: item.prova || '',
+          domId: domId,
+          ...item,
+        };
+      });
 
-      const dbRef = ref(db, 'questoes');
-      const snapshot = await get(dbRef);
-
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        bancoState.todasQuestoesCache = processarDadosSnapshot(data);
-        bancoState.dbCarregado = true;
-        bancoState.renderedCount = 0;
-
-        // Inicializa filtros com base no banco COMPLETO!
-        if (typeof popularFiltrosDinamicos === 'function') {
-          popularFiltrosDinamicos();
-        }
-      } else {
-        bancoState.todasQuestoesCache = [];
-        bancoState.dbCarregado = true;
-      }
-    }
-
-    // Garante que o mapa do Projeto Científico esteja carregado antes de filtrar
-    await hidratarStatusProjetoCientifico(bancoState.todasQuestoesCache);
-
-    // 2. Filtra localmente com base nos filtros atuais selecionados na tela
-    const filtros = capturarValoresFiltros();
-    bancoState.questoesFiltradas = bancoState.todasQuestoesCache.filter((item) =>
-      itemAtendeFiltros(item, filtros),
-    );
-
-    // 3. Determina o lote a ser renderizado a partir do cache filtrado
-    const start = bancoState.renderedCount;
-    const end = Math.min(start + TAMANHO_PAGINA, bancoState.questoesFiltradas.length);
-    const loteParaRenderizar = bancoState.questoesFiltradas.slice(start, end);
-
-    if (loteParaRenderizar.length > 0) {
-      // 3.1 Busca status de revisão e experimentos em paralelo para o lote atual
+      // Hidrata status em lote para os 10 itens
       await Promise.all([
-        hidratarStatusRevisao(loteParaRenderizar),
-        hidratarStatusApendiceB(loteParaRenderizar),
-        hidratarStatusProjetoCientifico(loteParaRenderizar),
+        hidratarStatusRevisao(lote),
+        hidratarStatusApendiceB(lote),
+        hidratarStatusProjetoCientifico(lote),
       ]);
 
-      // 3.2 Renderiza o lote suavemente no container DOM
-      renderizarLoteQuestoes(loteParaRenderizar, container);
+      // Renderiza os 10 cards na tela
+      renderizarLoteQuestoes(lote, container);
 
-      bancoState.renderedCount = end;
+      // Renderiza barra de paginação numerada
+      renderizarControlePaginacao(container, bancoState.paginaAtual, bancoState.totalPaginas, bancoState.totalQuestoes);
+
+      if (s) s.innerHTML = '';
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      if (s) {
+        s.innerHTML = '<p style="color:var(--color-warning); font-weight: 500;">Nenhuma questão encontrada nesta página.</p>';
+      }
     }
-
-    // 4. Atualiza a mensagem e estado da sentinela de scroll
-    atualizarStatusSentinelaLocal();
-  } catch (e) {
-    console.error('Erro ao carregar banco:', e);
-    atualizarStatusSentinela('erro', e.message);
+  } catch (err) {
+    console.error('Erro na paginação:', err);
+    if (s) s.innerHTML = `<p style="color:var(--color-error);">Erro: ${err.message}</p>`;
   } finally {
     bancoState.carregandoMais = false;
   }
+}
+
+export function renderizarControlePaginacao(container, page, totalPages, total) {
+  const existing = document.getElementById('bancoPaginationBar');
+  if (existing) existing.remove();
+
+  if (totalPages <= 1 && total <= 10) return;
+
+  const paginationDiv = document.createElement('div');
+  paginationDiv.id = 'bancoPaginationBar';
+  paginationDiv.className = 'q-pagination-bar-docked';
+  paginationDiv.style.cssText = `
+    position: sticky;
+    bottom: 24px;
+    z-index: 99;
+    margin: 40px auto 20px auto;
+    width: fit-content;
+    max-width: 95%;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    user-select: none;
+    transition: all 0.25s ease;
+  `;
+
+  let pageButtonsHtml = '';
+  const maxButtons = 5;
+  let startPage = Math.max(1, page - 2);
+  let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+  if (endPage - startPage < maxButtons - 1) {
+    startPage = Math.max(1, endPage - maxButtons + 1);
+  }
+
+  const btnBaseStyle = `
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+  `;
+
+  if (startPage > 1) {
+    pageButtonsHtml += `
+      <button type="button" class="js-pg-num" data-page="1" style="${btnBaseStyle} border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #94a3b8;">1</button>
+    `;
+    if (startPage > 2) {
+      pageButtonsHtml += `<span style="color: #64748b; font-size: 0.85rem; padding: 0 2px;">•••</span>`;
+    }
+  }
+
+  for (let p = startPage; p <= endPage; p++) {
+    const isCurrent = p === page;
+    if (isCurrent) {
+      pageButtonsHtml += `
+        <button type="button" class="js-pg-num active-pg" data-page="${p}" style="${btnBaseStyle}
+          border: 1px solid #38bdf8;
+          background: linear-gradient(135deg, #0284c7, #2563eb);
+          color: #ffffff;
+          font-weight: 700;
+          box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+        ">${p}</button>
+      `;
+    } else {
+      pageButtonsHtml += `
+        <button type="button" class="js-pg-num" data-page="${p}" style="${btnBaseStyle}
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+          color: #cbd5e1;
+        " onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.color='#fff';" onmouseout="this.style.background='rgba(255,255,255,0.04)'; this.style.color='#cbd5e1';">${p}</button>
+      `;
+    }
+  }
+
+  if (endPage < totalPages) {
+    if (endPage < totalPages - 1) {
+      pageButtonsHtml += `<span style="color: #64748b; font-size: 0.85rem; padding: 0 2px;">•••</span>`;
+    }
+    pageButtonsHtml += `
+      <button type="button" class="js-pg-num" data-page="${totalPages}" style="${btnBaseStyle} border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #94a3b8;">${totalPages}</button>
+    `;
+  }
+
+  paginationDiv.innerHTML = `
+    <!-- Contador / Status -->
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #94a3b8; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.1);">
+      <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+      <span>Pág. <strong style="color: #38bdf8; font-weight: 700;">${page}</strong> de <strong style="color: #e2e8f0;">${totalPages}</strong></span>
+      <span style="opacity: 0.5; font-size: 0.78rem;">(${total})</span>
+    </div>
+
+    <!-- Botões Numéricos -->
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <button type="button" class="js-pg-prev" ${page <= 1 ? 'disabled style="' + btnBaseStyle + ' opacity: 0.3; cursor: not-allowed; border: 1px solid rgba(255,255,255,0.05); background: transparent; color: #64748b;"' : 'style="' + btnBaseStyle + ' border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #f1f5f9;" onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.06)\''}>
+        ◀ Anterior
+      </button>
+
+      ${pageButtonsHtml}
+
+      <button type="button" class="js-pg-next" ${page >= totalPages ? 'disabled style="' + btnBaseStyle + ' opacity: 0.3; cursor: not-allowed; border: 1px solid rgba(255,255,255,0.05); background: transparent; color: #64748b;"' : 'style="' + btnBaseStyle + ' border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color: #f1f5f9;" onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.06)\''}>
+        Próxima ▶
+      </button>
+    </div>
+  `;
+
+  paginationDiv.querySelectorAll('.js-pg-num').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetPage = parseInt(btn.dataset.page, 10);
+      if (targetPage && targetPage !== page) {
+        navegarParaPagina(targetPage);
+      }
+    });
+  });
+
+  const btnPrev = paginationDiv.querySelector('.js-pg-prev');
+  if (btnPrev && page > 1) {
+    btnPrev.addEventListener('click', () => navegarParaPagina(page - 1));
+  }
+
+  const btnNext = paginationDiv.querySelector('.js-pg-next');
+  if (btnNext && page < totalPages) {
+    btnNext.addEventListener('click', () => navegarParaPagina(page + 1));
+  }
+
+  container.appendChild(paginationDiv);
+}
+
+/**
+ * Carrega e gerencia a paginação e renderização de questões via Worker.
+ */
+export async function carregarBancoDados() {
+  if (bancoState.carregandoMais) return;
+  await navegarParaPagina(bancoState.paginaAtual || 1);
 }

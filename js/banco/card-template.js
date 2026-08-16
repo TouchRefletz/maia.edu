@@ -195,14 +195,9 @@ export function prepararElementoCard(idFirebase, q, g, meta, imgsOriginalQ = [],
   card.className = 'q-card';
   card.id = `card_${idFirebase}`;
 
-  // 2. Configuração dos Datasets (Para Filtros)
+  // 2. Configuração dos Datasets Essenciais (Sem dump de texto)
   card.dataset.materia = (q.materias_possiveis || []).join(' ');
   card.dataset.origem = meta.material_origem || '';
-
-  // Concatena texto da estrutura ou do enunciado legado para busca
-  const textoBusca = q.estrutura ? q.estrutura.map((b) => b.conteudo).join(' ') : q.enunciado || '';
-
-  card.dataset.texto = (textoBusca + ' ' + (q.identificacao || '')).toLowerCase();
 
   // 3. Geração do HTML das Alternativas
   const cardId = `q_${idFirebase}`;
