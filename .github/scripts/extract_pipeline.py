@@ -12,6 +12,7 @@ Saves results via Worker endpoints (/check-duplicate, /extract-and-save).
 Tracks detailed progress in manifest.json with per-page Gemini results.
 """
 
+import io
 import os
 import sys
 import json
@@ -1442,6 +1443,11 @@ def main():
                         # Passo 4.5: Auditoria Automática 100% IA (auto_question_auditor)
                         if audit_and_patch_question:
                             try:
+                                crop_bytes = None
+                                if main_crop:
+                                    crop_buf = io.BytesIO()
+                                    main_crop.save(crop_buf, format="JPEG", quality=90)
+                                    crop_bytes = crop_buf.getvalue()
                                 questao, fixes_applied = audit_and_patch_question(
                                     client, EXTRACT_MODEL, questao, crop_bytes
                                 )
