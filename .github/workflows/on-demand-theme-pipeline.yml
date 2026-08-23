@@ -51,12 +51,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: "Install Dependencies"
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt || pip install requests pymupdf pdf2image pillow google-genai
+          pip install -r requirements.txt
 
       - name: "Setup Parameters and Mask Sensitive Secrets"
         id: setup-params
@@ -131,7 +130,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: "Install System Packages"
         run: |
@@ -141,7 +139,7 @@ jobs:
       - name: "Install Dependencies"
         run: |
           python -m pip install --upgrade pip
-          pip install pymupdf pdf2image pillow requests google-genai
+          pip install -r requirements.txt
 
       - name: "Download Discovered Files"
         uses: actions/download-artifact@v4
@@ -210,6 +208,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: "Install Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: "Download All Results"
         uses: actions/download-artifact@v4
