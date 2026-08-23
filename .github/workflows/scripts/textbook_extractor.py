@@ -287,7 +287,7 @@ def init_genai_client(model_name: str):
     """Inicializa o cliente Google GenAI SDK (Vertex AI ou API Key padrão)"""
     is_vertex = "vertex" in (model_name or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
     project_id = os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "us-central1")
+    location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "global")
 
     creds_json = os.getenv("VERTEX_CREDENTIALS")
     if creds_json and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
@@ -479,8 +479,9 @@ def main():
             continue
 
         try:
+            emb_model = "gemini-embedding-001" if is_vertex else "models/gemini-embedding-001"
             emb_res = client.models.embed_content(
-                model="text-embedding-004",
+                model=emb_model,
                 contents=text_to_embed[:2000],
             )
             emb_vector = emb_res.embedding.values if hasattr(emb_res, "embedding") else emb_res.embeddings[0].values
@@ -512,8 +513,9 @@ def main():
         try:
             full_summary_text = "\n".join(summary_parts)
             book_combined_text = f"Livro: {sanitized_book} Tags: {' '.join(all_tags)}\nResumo Geral:\n{full_summary_text}"
+            emb_model = "gemini-embedding-001" if is_vertex else "models/gemini-embedding-001"
             emb_res_book = client.models.embed_content(
-                model="text-embedding-004",
+                model=emb_model,
                 contents=book_combined_text[:8000],
             )
             emb_book_vector = emb_res_book.embedding.values if hasattr(emb_res_book, "embedding") else emb_res_book.embeddings[0].values

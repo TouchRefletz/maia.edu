@@ -93,7 +93,7 @@ def init_genai_client(model_name: str = ""):
     """Inicializa o cliente Google GenAI SDK (Vertex AI ou API Key padrão)"""
     is_vertex = "vertex" in (model_name or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
     project_id = os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
-    location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "us-central1")
+    location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "global")
 
     creds_json = os.getenv("VERTEX_CREDENTIALS")
     if creds_json and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
@@ -607,17 +607,21 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
             models_to_try.append(fb)
             
     last_exception = None
+    is_vertex_client = "vertex" in (EXTRACT_MODEL or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
     
     for current_model in models_to_try:
-        secure_log(f"Attempting with model: {current_model}")
+        model_to_call = current_model.replace("vertex/", "").replace("vertex_ai/", "")
+        if is_vertex_client:
+            model_to_call = model_to_call.replace("models/", "")
+        secure_log(f"Attempting with model: {model_to_call} (original: {current_model})")
         for attempt in range(max_retries):
             try:
                 response = client.models.generate_content(
-                    model=current_model,
+                    model=model_to_call,
                     contents=contents,
                     config=config,
                 )
-                secure_log(f"Success with model: {current_model}")
+                secure_log(f"Success with model: {model_to_call}")
                 return response
             except Exception as e:
                 error_str = str(e).lower()
