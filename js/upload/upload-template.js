@@ -28,22 +28,44 @@ export function getSearchInterfaceHTML() {
                 </button>
             </div>
             
-            <div id="searchTypeToggle" style="display: flex; gap: 10px; margin-top: 20px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 540px;">
-                <button id="btnTypeProvas" data-type="provas" class="type-btn active" style="flex: 1; padding: 8px 12px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+            <div id="searchTypeToggle" style="display: flex; gap: 8px; margin-top: 20px; background: var(--color-surface); padding: 5px; border-radius: 8px; border: 1px solid var(--color-border); width: 100%; max-width: 680px;">
+                <button id="btnTypeProvas" data-type="provas" class="type-btn active" style="flex: 1; padding: 8px 10px; border: none; background: var(--color-primary); color: white; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; white-space: nowrap;">
                     Buscar Provas
                 </button>
-                <button id="btnTypeQuestoes" data-type="questoes" class="type-btn" style="flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                <button id="btnTypeQuestoes" data-type="questoes" class="type-btn" style="flex: 1; padding: 8px 10px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; white-space: nowrap;">
                     Buscar Questões
                 </button>
-                <button id="btnTypeLivros" data-type="livros" class="type-btn" style="flex: 1; padding: 8px 12px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s;">
+                <button id="btnTypeLivros" data-type="livros" class="type-btn" style="flex: 1; padding: 8px 10px; border: none; background: transparent; color: var(--color-text-secondary); border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s; white-space: nowrap;">
                     Livros Didáticos
+                </button>
+                <button id="btnTypeServidor" data-type="servidor" class="type-btn" style="display: none; flex: 1; padding: 8px 10px; border: none; background: transparent; color: #00e5ff; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; white-space: nowrap;">
+                    ⚡ Coleta no Servidor
                 </button>
             </div>
 
-            <p style="text-align: center; color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 15px; opacity: 0.8;">
+            <p id="searchDisclaimerText" style="text-align: center; color: var(--color-text-secondary); font-size: 0.9rem; margin-top: 15px; opacity: 0.8;">
                 A pesquisa por IA pode conter imprecisões e erros. 
                 <a href="/docs/guia/limitacoes-ia.html#pesquisa-por-ia" target="_blank" style="color: var(--color-primary); text-decoration: underline; font-weight: 500;">Saiba mais</a>
             </p>
+
+            <!-- BANNER INFORMATIVO DA 4ª ABA (COLETA NO SERVIDOR) -->
+            <div id="serverCollectionInfoBanner" style="display: none; width: 100%; margin-top: 18px; background: #16181d; border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 14px; padding: 16px 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="background: rgba(0, 229, 255, 0.12); color: #00e5ff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(0, 229, 255, 0.3); text-transform: uppercase;">ADMIN CLUSTER</span>
+                        <span style="font-size: 0.88rem; color: #cbd5e1;">2 Workers simultâneos buscarão <strong>Livros</strong> e <strong>Listas de Questões</strong> em paralelo.</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="currentServerModelBadge" style="font-size: 0.8rem; color: #00e5ff; background: #202227; border: 1px solid #2f323a; padding: 4px 10px; border-radius: 6px; font-weight: 600;">⚡ Gemini 3.7 Flash (Vertex)</span>
+                        <button id="btnConfigServerModel" type="button" style="background: #282a31; color: #ffffff; border: 1px solid #363942; border-radius: 6px; padding: 5px 12px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;">
+                            ⚙️ Modelo
+                        </button>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #242730; padding-top: 8px;">
+                    📧 O relatório consolidado com botão de rollback será enviado automaticamente para: <strong id="serverUserEmailDisplay" style="color: #00e5ff;">seu-email@gmail.com</strong>
+                </div>
+            </div>
         </div>
 
         <div id="searchResults" style="width: 100%; max-width: 1000px; margin-top: 30px; display: flex; flex-direction: column; align-items: center;">

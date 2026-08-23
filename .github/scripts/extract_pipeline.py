@@ -27,10 +27,19 @@ from PIL import Image
 from google import genai
 from google.genai import types
 
+try:
+    from auto_question_auditor import audit_and_patch_question
+except ImportError:
+    try:
+        from .auto_question_auditor import audit_and_patch_question
+    except Exception:
+        audit_and_patch_question = None
+
 # ─── Configuration ────────────────────────────────────────────────
 WORKER_URL = os.environ.get("WORKER_URL", "https://maia-api-worker.willian-campos-ismart.workers.dev")
 GEMINI_KEY = os.environ["GOOGLE_GENAI_API_KEY"]
 SLUG = os.environ["SLUG"]
+BATCH_ID = os.environ.get("BATCH_ID", "")
 MANIFEST_PATH = os.environ.get("MANIFEST_PATH", "work/manifest.json")
 QUERY = os.environ.get("QUERY", "")
 INSTITUTION = os.environ.get("INSTITUTION", "")
@@ -41,6 +50,30 @@ EXTRACT_MODEL = os.environ.get("EXTRACT_MODEL", "models/gemini-3-flash-preview")
 # Rate limit config
 MAX_RETRIES = 3
 RETRY_DELAY = 30  # seconds
+
+class QuestionCircuitBreaker:
+    """Disjuntor de segurança para evitar desperdício de cota se houver falhas consecutivas"""
+    def __init__(self, max_consecutive_failures: int = 5):
+        self.max_consecutive_failures = max_consecutive_failures
+        self.consecutive_failures = 0
+
+    def record_success(self):
+        self.consecutive_failures = 0
+
+    def record_failure(self) -> bool:
+        self.consecutive_failures += 1
+        return self.consecutive_failures >= self.max_consecutive_failures
+
+circuit_breaker = QuestionCircuitBreaker(max_consecutive_failures=5)
+
+def write_github_output(key: str, value: str):
+    """Escreve variável para o step output do GitHub Actions sem poluir banco de dados"""
+    if "GITHUB_OUTPUT" in os.environ:
+        try:
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+                f.write(f"{key}={value}\n")
+        except Exception:
+            pass
 
 # Secure logging config (Blackout mode for terminal)
 DEBUG_LOG_PATH = "work/debug_extraction.log"
@@ -182,7 +215,7 @@ Mantenha as questões que já estavam certas (a menos que precisem de ajuste esp
 GERE O JSON COMPLETO CORRIGIDO.
 """.strip()
 
-QUESTION_EXTRACT_PROMPT = """
+QUESTION_EXTRACT_PROMPT = r"""
         Você é um extrator de questões. Seu único objetivo é identificar e organizar os dados fielmente ao layout original no JSON. NÃO DEIXE CAMPOS DO JSON VAZIOS.
 
         REGRAS DE ESTRUTURAÇÃO ("estrutura"):
@@ -806,6 +839,7 @@ def save_question(questao: dict, gabarito: dict, source_pdf: str, page_num: int)
             "source_slug": SLUG,
             "source_pdf": source_pdf,
             "page_num": page_num,
+            "batch_id": BATCH_ID,
         }, timeout=60)
 
         resp.raise_for_status()
@@ -1271,6 +1305,17 @@ def main():
                                 "explicacao": [],
                             }
 
+                        # Passo 4.5: Auditoria Automática 100% IA (auto_question_auditor)
+                        if audit_and_patch_question:
+                            try:
+                                questao, fixes_applied = audit_and_patch_question(
+                                    client, EXTRACT_MODEL, questao, crop_bytes
+                                )
+                                if fixes_applied > 0:
+                                    print(f"      🛡️ [AI Auditor] {fixes_applied} correções aplicadas automaticamente no JSON da questão.")
+                            except Exception as e_aud:
+                                print(f"      ⚠️ Falha no auditor automático: {e_aud}")
+
                         # Passo 5: Salvar no Pinecone e Firebase
                         save_result = save_question(questao, gabarito, pdf_name, page_num)
                         if save_result and save_result.get("saved"):
@@ -1279,6 +1324,7 @@ def main():
                             q_entry["firebase_path"] = save_result.get("firebase_path", "")
                             q_entry["tipo_resposta"] = save_result.get("tipo_resposta", "objetiva")
                             total_extracted += 1
+                            circuit_breaker.record_success()
                             if "error" in q_entry:
                                 del q_entry["error"]
                         else:
@@ -1286,9 +1332,13 @@ def main():
                             q_entry["status"] = "failed"
                             q_entry["error"] = "Save to database failed"
                             total_failed += 1
+                            if circuit_breaker.record_failure():
+                                print(f"🚨 [Circuit Breaker Ativado] 5 falhas consecutivas detectadas. Interrompendo pipeline de questões com segurança.")
+                                write_github_output("status", "circuit_breaker_tripped")
+                                break
 
                     except RateLimitError:
-                        print(f"  ⚠️ RATE LIMIT atingido durante processamento da questão {qid}! Salvando checkpoint...")
+                        print(f"  ⚠️ RATE LIMIT atingido durante processamento da questão {qid}! Acionando Auto-Resume...")
                         q_entry["status"] = "pending"
                         page_questions.append(q_entry)
                         
@@ -1302,6 +1352,8 @@ def main():
                         }
                         manifest["rate_limit_hit"] = True
                         save_manifest(manifest)
+                        write_github_output("needs_resume", "true")
+                        write_github_output("status", "quota_paused")
                         sys.exit(0)
 
                     except (AttributeError, NameError, TypeError):
@@ -1312,6 +1364,10 @@ def main():
                         q_entry["status"] = "failed"
                         q_entry["error"] = str(e)
                         total_failed += 1
+                        if circuit_breaker.record_failure():
+                            print(f"🚨 [Circuit Breaker Ativado] 5 falhas consecutivas detectadas. Interrompendo pipeline de questões.")
+                            write_github_output("status", "circuit_breaker_tripped")
+                            break
 
                     page_questions.append(q_entry)
 

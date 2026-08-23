@@ -274,6 +274,28 @@ const BOLT_SVG = (
 export const IA_MODELS: IAModel[] = [
   // Google Gemini
   {
+    id: 'models/gemini-3.7-flash',
+    title: 'Gemini 3.7 Flash',
+    desc: 'Modelo de última geração com raciocínio híbrido avançado e velocidade extrema',
+    category: 'Google Gemini',
+    logo: GEMINI_LOGO,
+    reasoning: 5,
+    speed: 5,
+    reasoningText: 'Máximo',
+    speedText: 'Muito Rápido',
+  },
+  {
+    id: 'models/gemini-3.6-flash',
+    title: 'Gemini 3.6 Flash',
+    desc: 'Alta performance multimodal e raciocínio refinado para tarefas complexas',
+    category: 'Google Gemini',
+    logo: GEMINI_LOGO,
+    reasoning: 4,
+    speed: 5,
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
+  },
+  {
     id: 'models/gemini-3.5-flash',
     title: 'Gemini 3.5 Flash',
     desc: 'Equilíbrio perfeito de velocidade e inteligência para tarefas diárias',
@@ -351,6 +373,30 @@ export const IA_MODELS: IAModel[] = [
     speedText: 'Rápido',
   },
   // Google Vertex AI
+  {
+    id: 'vertex/gemini-3.7-flash',
+    title: 'Gemini 3.7 Flash (Vertex)',
+    desc: 'Raciocínio de última geração via Vertex AI com máxima velocidade',
+    category: 'Google Vertex AI',
+    logo: GEMINI_LOGO,
+    reasoning: 5,
+    speed: 5,
+    reasoningText: 'Máximo',
+    speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gemini-3.7-flash',
+  },
+  {
+    id: 'vertex/gemini-3.6-flash',
+    title: 'Gemini 3.6 Flash (Vertex)',
+    desc: 'Alta performance e raciocínio refinado via Vertex AI',
+    category: 'Google Vertex AI',
+    logo: GEMINI_LOGO,
+    reasoning: 4,
+    speed: 5,
+    reasoningText: 'Muito Alto',
+    speedText: 'Muito Rápido',
+    vertexModelId: 'publishers/google/models/gemini-3.6-flash',
+  },
   {
     id: 'vertex/gemini-3.5-flash',
     title: 'Gemini 3.5 Flash (Vertex)',
@@ -580,7 +626,8 @@ type TabId =
   | 'extractor_search'
   | 'extractor_gabarito'
   | 'extractor_image_detect'
-  | 'image_descriptor';
+  | 'image_descriptor'
+  | 'server_on_demand';
 
 interface TabConfig {
   id: TabId;
@@ -589,6 +636,16 @@ interface TabConfig {
   title: string;
   desc: string;
 }
+
+const SERVER_ON_DEMAND_STAGES_CONFIG: TabConfig[] = [
+  {
+    id: 'server_on_demand',
+    label: 'Coleta no Servidor',
+    icon: '⚡',
+    title: '⚡ Modelo de IA para Coleta sob Demanda (Servidor)',
+    desc: 'Selecione o modelo multimodal que será executado nos workers paralelos do GitHub Actions para mapear livros e extrair questões.',
+  },
+];
 
 const STAGES_CONFIG: TabConfig[] = [
   {
@@ -759,6 +816,7 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   extractor_gabarito: 'models/gemini-3.5-flash',
   extractor_image_detect: 'models/gemini-3.5-flash',
   image_descriptor: 'models/gemma-4-31b-it',
+  server_on_demand: 'vertex/gemini-3.7-flash',
 };
 
 export function modelSupportsVision(modelId: string): boolean {
@@ -797,7 +855,7 @@ interface ModelSelectorProps {
   onClose: () => void;
   currentSelected: string;
   onSelect: (modelId: string) => void;
-  mode?: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective';
+  mode?: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective' | 'server_on_demand';
 }
 
 const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
@@ -807,15 +865,17 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
   mode = 'chat',
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>(
-    mode === 'extractor'
-      ? 'scanner_detect'
-      : mode === 'corrector'
-        ? 'corrector'
-        : mode === 'simulado'
-          ? 'simulado_planner'
-          : mode === 'detective'
-            ? 'detective_vision'
-            : 'chat',
+    mode === 'server_on_demand'
+      ? 'server_on_demand'
+      : mode === 'extractor'
+        ? 'scanner_detect'
+        : mode === 'corrector'
+          ? 'corrector'
+          : mode === 'simulado'
+            ? 'simulado_planner'
+            : mode === 'detective'
+              ? 'detective_vision'
+              : 'chat',
   );
   const isMaiaActive =
     typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
@@ -842,6 +902,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     extractor_gabarito: '',
     extractor_image_detect: '',
     image_descriptor: '',
+    server_on_demand: '',
   });
 
   useEffect(() => {
@@ -864,15 +925,22 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
   const [isPuterSignedIn, setIsPuterSignedIn] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('all');
 
-  const categoryFilters = [
-    { id: 'all', label: 'Todos' },
-    { id: 'google-gemini', label: 'Google Gemini' },
-    { id: 'google-vertex-ai', label: 'Google Vertex AI' },
-    { id: 'openai', label: 'OpenAI' },
-    { id: 'groq', label: 'Groq' },
-    { id: 'vertex-maas', label: 'Vertex AI (MaaS)' },
-    { id: 'puter', label: 'Puter' },
-  ];
+  const categoryFilters =
+    mode === 'server_on_demand'
+      ? [
+          { id: 'all', label: 'Todos Suportados' },
+          { id: 'google-vertex-ai', label: 'Google Vertex AI' },
+          { id: 'google-gemini', label: 'Google Gemini' },
+        ]
+      : [
+          { id: 'all', label: 'Todos' },
+          { id: 'google-gemini', label: 'Google Gemini' },
+          { id: 'google-vertex-ai', label: 'Google Vertex AI' },
+          { id: 'openai', label: 'OpenAI' },
+          { id: 'groq', label: 'Groq' },
+          { id: 'vertex-maas', label: 'Vertex AI (MaaS)' },
+          { id: 'puter', label: 'Puter' },
+        ];
 
   const selectedModelId = selections[activeTab];
   const isPuterSelected = selectedModelId?.startsWith('puter/');
@@ -916,6 +984,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         DEFAULT_MODELS.extractor_image_detect,
       ),
       image_descriptor: getVal('selectedModelImageDescriptor', DEFAULT_MODELS.image_descriptor),
+      server_on_demand: currentSelected || getVal('selectedServerOnDemandModel', DEFAULT_MODELS.server_on_demand),
     });
 
     const initPuter = async () => {
@@ -1015,6 +1084,11 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         detective_vision: DEFAULT_MODELS.detective_vision,
         detective_judge: DEFAULT_MODELS.detective_judge,
       }));
+    } else if (mode === 'server_on_demand') {
+      setSelections((prev) => ({
+        ...prev,
+        server_on_demand: DEFAULT_MODELS.server_on_demand,
+      }));
     } else {
       setSelections((prev) => ({
         ...prev,
@@ -1052,6 +1126,8 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       } else if (mode === 'detective') {
         (window as any).selectedModelDetectiveVision = selections.detective_vision;
         (window as any).selectedModelDetectiveJudge = selections.detective_judge;
+      } else if (mode === 'server_on_demand') {
+        (window as any).selectedServerOnDemandModel = selections.server_on_demand;
       } else {
         (window as any).selectedModelChat = selections.chat;
         (window as any).selectedModelRouter = selections.router;
@@ -1091,6 +1167,9 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       localStorage.setItem('selectedModelDetectiveVision', selections.detective_vision);
       localStorage.setItem('selectedModelDetectiveJudge', selections.detective_judge);
       onSelect(selections.detective_vision);
+    } else if (mode === 'server_on_demand') {
+      localStorage.setItem('selectedServerOnDemandModel', selections.server_on_demand);
+      onSelect(selections.server_on_demand);
     } else {
       localStorage.setItem('selectedModelChat', selections.chat);
       localStorage.setItem('selectedModelRouter', selections.router);
@@ -1117,6 +1196,18 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
   const allModels = [...IA_MODELS, ...puterModels];
 
   const filteredModels = allModels.filter((model) => {
+    // Se for modo Coleta no Servidor (GitHub Actions), permitir EXCLUSIVAMENTE modelos Vertex AI e Gemini suportados pelo runner Python
+    if (mode === 'server_on_demand') {
+      const idLower = model.id.toLowerCase();
+      const isAllowedServerModel =
+        idLower.startsWith('vertex/gemini') ||
+        idLower.startsWith('models/gemini') ||
+        idLower.startsWith('models/gemma');
+      if (!isAllowedServerModel) {
+        return false;
+      }
+    }
+
     // Excluir o próprio gpt-oss-120b do descritor de imagens
     if (
       activeTab === 'image_descriptor' &&
@@ -1230,6 +1321,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
   const isShowSidebar =
     mode !== 'corrector' &&
+    mode !== 'server_on_demand' &&
     (mode === 'extractor' ||
       mode === 'simulado' ||
       mode === 'detective' ||
@@ -1237,19 +1329,21 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       (isGptOssSelected && mode === 'chat'));
   const isLivroMode = typeof window !== 'undefined' && (window as any).__isLivroDidatico;
   const baseStages =
-    mode === 'simulado'
-      ? SIMULADO_STAGES_CONFIG
-      : mode === 'detective'
-        ? DETECTIVE_STAGES_CONFIG
-        : mode === 'extractor'
-          ? isLivroMode
-            ? TEXTBOOK_STAGES_CONFIG
-            : EXTRACTOR_STAGES_CONFIG
-          : mode === 'corrector'
-            ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
-            : isMaiaActive
-              ? STAGES_CONFIG
-              : STAGES_CONFIG.filter((s) => s.id === 'chat');
+    mode === 'server_on_demand'
+      ? SERVER_ON_DEMAND_STAGES_CONFIG
+      : mode === 'simulado'
+        ? SIMULADO_STAGES_CONFIG
+        : mode === 'detective'
+          ? DETECTIVE_STAGES_CONFIG
+          : mode === 'extractor'
+            ? isLivroMode
+              ? TEXTBOOK_STAGES_CONFIG
+              : EXTRACTOR_STAGES_CONFIG
+            : mode === 'corrector'
+              ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
+              : isMaiaActive
+                ? STAGES_CONFIG
+                : STAGES_CONFIG.filter((s) => s.id === 'chat');
 
   const filteredStages = [...baseStages];
   if (
@@ -1390,19 +1484,21 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
                 gap: '8px',
               }}
             >
-              {mode === 'simulado'
-                ? '🎯 Configuração de Modelos do Estúdio de Simulados'
-                : mode === 'detective'
-                  ? '🕵️ Configuração de Modelos da Busca Reversa (Detetive)'
-                  : mode === 'extractor'
-                    ? isLivroMode
-                      ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
-                      : '🤖 Configuração de Modelos do Extrator de Questões'
-                    : mode === 'corrector'
-                      ? '🤖 Modelo de Correção Dissertativa'
-                      : isMaiaActive
-                        ? '🤖 Configuração Granular de Modelos de IA'
-                        : '🤖 Seleção de Modelo de IA'}
+              {mode === 'server_on_demand'
+                ? '⚡ Configuração de Modelos para Coleta no Servidor'
+                : mode === 'simulado'
+                  ? '🎯 Configuração de Modelos do Estúdio de Simulados'
+                  : mode === 'detective'
+                    ? '🕵️ Configuração de Modelos da Busca Reversa (Detetive)'
+                    : mode === 'extractor'
+                      ? isLivroMode
+                        ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
+                        : '🤖 Configuração de Modelos do Extrator de Questões'
+                      : mode === 'corrector'
+                        ? '🤖 Modelo de Correção Dissertativa'
+                        : isMaiaActive
+                          ? '🤖 Configuração Granular de Modelos de IA'
+                          : '🤖 Seleção de Modelo de IA'}
             </h2>
             <p
               style={{
@@ -1411,75 +1507,79 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
                 fontSize: '0.85rem',
               }}
             >
-              {mode === 'simulado'
-                ? 'Configure os cérebros de IA para o Planejador Multimodal (Prompt 1) e o Curador Reranker com Variabilidade (Prompt 2).'
-                : mode === 'detective'
-                  ? 'Configure os modelos de IA para a Visão Multimodal da Foto da Prova (Prompt 1) e o Juiz de Comparação de Vestibulares (Prompt 2).'
-                  : mode === 'extractor'
-                    ? isLivroMode
-                      ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
-                      : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
-                    : mode === 'corrector'
-                      ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
-                      : isMaiaActive
-                        ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
-                        : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
+              {mode === 'server_on_demand'
+                ? 'Selecione o modelo do ecossistema Google (Vertex AI ou Gemini) compatível com o runner remoto do GitHub Actions.'
+                : mode === 'simulado'
+                  ? 'Configure os cérebros de IA para o Planejador Multimodal (Prompt 1) e o Curador Reranker com Variabilidade (Prompt 2).'
+                  : mode === 'detective'
+                    ? 'Configure os modelos de IA para a Visão Multimodal da Foto da Prova (Prompt 1) e o Juiz de Comparação de Vestibulares (Prompt 2).'
+                    : mode === 'extractor'
+                      ? isLivroMode
+                        ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
+                        : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
+                      : mode === 'corrector'
+                        ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
+                        : isMaiaActive
+                          ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
+                          : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* Puter connection status */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px' }}>
-              <span
-                style={{
-                  fontSize: '0.8rem',
-                  color: isPuterSignedIn ? '#10b981' : '#f59e0b',
-                  fontWeight: 500,
-                }}
-              >
-                {isPuterSignedIn ? '● Puter Conectado' : '● Puter Desconectado'}
-              </span>
-              {!isPuterSignedIn ? (
-                <button
-                  type="button"
-                  onClick={handlePuterSignIn}
+            {mode !== 'server_on_demand' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px' }}>
+                <span
                   style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    color: '#f59e0b',
-                    borderRadius: '6px',
-                    padding: '4px 10px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    color: isPuterSignedIn ? '#10b981' : '#f59e0b',
+                    fontWeight: 500,
                   }}
                 >
-                  Conectar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const puter = (window as any).puter;
-                    if (puter) {
-                      await puter.auth.signOut();
-                      setIsPuterSignedIn(false);
-                    }
-                  }}
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#f87171',
-                    borderRadius: '6px',
-                    padding: '4px 10px',
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  Sair
-                </button>
-              )}
-            </div>
+                  {isPuterSignedIn ? '● Puter Conectado' : '● Puter Desconectado'}
+                </span>
+                {!isPuterSignedIn ? (
+                  <button
+                    type="button"
+                    onClick={handlePuterSignIn}
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      color: '#f59e0b',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Conectar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const puter = (window as any).puter;
+                      if (puter) {
+                        await puter.auth.signOut();
+                        setIsPuterSignedIn(false);
+                      }
+                    }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Sair
+                  </button>
+                )}
+              </div>
+            )}
 
             {(mode === 'extractor' || (isMaiaActive && mode !== 'corrector')) && (
               <button
@@ -2032,7 +2132,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
 export function mountModelSelectorModal(
   currentSelected: string,
   onSelect: (modelId: string) => void,
-  mode: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective' = 'chat',
+  mode: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective' | 'server_on_demand' = 'chat',
 ) {
   const rootId = 'react-model-selector-modal-root';
   const existing = document.getElementById(rootId);

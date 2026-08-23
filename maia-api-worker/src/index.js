@@ -2,6 +2,8 @@ import { GoogleGenAI as GoogleGenAIWeb } from '@google/genai';
 import { GoogleGenAI as GoogleGenAINode } from '@google/genai/node';
 
 const DEFAULT_MODELS = [
+  'models/gemini-3.7-flash',
+  'models/gemini-3.6-flash',
   'models/gemini-3.5-flash',
   'models/gemini-3-flash-preview',
   'models/gemini-3.1-flash-lite',
@@ -64,7 +66,8 @@ export default {
       url.pathname !== '/search-image' &&
       url.pathname !== '/resolve-link' &&
       url.pathname !== '/catalogo-metadados' &&
-      url.pathname !== '/questoes-paginadas'
+      url.pathname !== '/questoes-paginadas' &&
+      url.pathname !== '/delete-batch'
     ) {
       return new Response('Method Not Allowed', { status: 405, headers: corsHeaders });
     }
@@ -102,6 +105,12 @@ export default {
 
         case '/trigger-deep-search':
           return handleTriggerDeepSearch(request, env);
+
+        case '/trigger-on-demand-theme':
+          return handleTriggerOnDemandTheme(request, env);
+
+        case '/delete-batch':
+          return handleDeleteBatch(request, env);
 
         case '/update-deep-search-cache':
           return handleDeepSearchUpdate(request, env);
@@ -3106,6 +3115,160 @@ async function handleTriggerExtraction(request, env) {
         action === 'extract-questions'
           ? 'Extraction triggered directly'
           : 'Deep search triggered (extraction will follow)',
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
+}
+
+/**
+ * SERVICE: TRIGGER ON-DEMAND THEME COLLECTION
+ * Spawns simultaneous OpenHands workers for books + questions with batch_id isolation
+ */
+async function handleTriggerOnDemandTheme(request, env) {
+  const body = await request.json();
+  const {
+    query,
+    admin_email,
+    model,
+    vertex_project_id,
+    vertex_location,
+    vertex_credentials,
+    gemini_api_key,
+  } = body;
+
+  if (!query || !query.trim()) {
+    return new Response(JSON.stringify({ error: 'Query / Theme is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const githubPat = env.GITHUB_PAT;
+  const githubOwner = env.GITHUB_OWNER || 'TouchRefletz';
+  const githubRepo = env.GITHUB_REPO || 'maia.api';
+
+  if (!githubPat) {
+    return new Response(JSON.stringify({ error: 'GITHUB_PAT not configured' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const timestampStr = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  const batchId = `batch_${timestampStr}_${randomSuffix}`;
+  const rollbackToken = `sec_${Math.random().toString(36).substring(2, 12)}`;
+
+  const dispatchUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/dispatches`;
+
+  const dispatchPayload = {
+    event_type: 'on-demand-theme',
+    client_payload: {
+      query: query.trim(),
+      batch_id: batchId,
+      admin_email: admin_email || '',
+      model: model || 'vertex/gemini-3.7-flash',
+      rollback_token: rollbackToken,
+      vertex_project_id: vertex_project_id || '',
+      vertex_location: vertex_location || 'us-central1',
+      vertex_credentials: vertex_credentials || '',
+      gemini_api_key: gemini_api_key || '',
+    },
+  };
+
+  const response = await fetch(dispatchUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${githubPat}`,
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'Cloudflare-Worker',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(dispatchPayload),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error('[OnDemandTheme] GitHub dispatch failed:', errText);
+    return new Response(
+      JSON.stringify({ error: `GitHub API Error: ${response.status}`, details: errText }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      batch_id: batchId,
+      message: 'On-demand search pipeline triggered successfully',
+    }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  );
+}
+
+/**
+ * SERVICE: DELETE / ROLLBACK ENTIRE BATCH
+ * Emergency rollback endpoint that purges all items tagged with batch_id
+ */
+async function handleDeleteBatch(request, env) {
+  let batchId = '';
+  let token = '';
+
+  if (request.method === 'GET') {
+    const url = new URL(request.url);
+    batchId = url.searchParams.get('batch_id') || '';
+    token = url.searchParams.get('token') || '';
+  } else {
+    try {
+      const body = await request.json();
+      batchId = body.batch_id || '';
+      token = body.token || '';
+    } catch (_) {}
+  }
+
+  if (!batchId) {
+    return new Response(JSON.stringify({ error: 'batch_id is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  console.log(`[DeleteBatch] Initiating rollback for batch: ${batchId}`);
+
+  // Delete matching vectors from Pinecone indices
+  const pineconeHosts = [env.PINECONE_HOST, env.PINECONE_HOST_DEEP_SEARCH].filter(Boolean);
+  const pineconeKey = env.PINECONE_API_KEY;
+
+  if (pineconeKey && pineconeHosts.length > 0) {
+    for (const host of pineconeHosts) {
+      try {
+        await fetch(`${host}/vectors/delete`, {
+          method: 'POST',
+          headers: {
+            'Api-Key': pineconeKey,
+            'Content-Type': 'application/json',
+            'X-Pinecone-API-Version': '2024-07',
+          },
+          body: JSON.stringify({
+            filter: {
+              batch_id: { $eq: batchId },
+            },
+          }),
+        });
+      } catch (err) {
+        console.warn(`[DeleteBatch] Pinecone delete error on ${host}:`, err);
+      }
+    }
+  }
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      batch_id: batchId,
+      message: `Lote ${batchId} purgado com sucesso do sistema.`,
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );

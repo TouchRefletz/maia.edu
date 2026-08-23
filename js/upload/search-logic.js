@@ -4,6 +4,11 @@ const PROD_WORKER_URL = import.meta.env.VITE_WORKER_URL || 'https://your-worker.
 // Importa o visualizador
 import { SearchPersistence } from './search-persistence.js';
 import { TerminalUI } from './terminal-ui.js';
+import { auth } from '../main.js';
+import { verificarSeAdmin } from '../ui/admin-panel.js';
+import { customAlert } from '../ui/GlobalAlertsLogic';
+import { mountApiKeyModal } from '../ui/ApiKeyModal';
+import { mountModelSelectorModal } from '../ui/ModelSelectorModal.tsx';
 
 // --- STATE ---
 let currentSlug = null;
@@ -260,26 +265,85 @@ export function setupSearchLogic() {
   const btnTypeProvas = document.getElementById('btnTypeProvas');
   const btnTypeQuestoes = document.getElementById('btnTypeQuestoes');
   const btnTypeLivros = document.getElementById('btnTypeLivros');
+  const btnTypeServidor = document.getElementById('btnTypeServidor');
+  const serverCollectionInfoBanner = document.getElementById('serverCollectionInfoBanner');
+  const searchDisclaimerText = document.getElementById('searchDisclaimerText');
+  const currentServerModelBadge = document.getElementById('currentServerModelBadge');
+  const btnConfigServerModel = document.getElementById('btnConfigServerModel');
+  const serverUserEmailDisplay = document.getElementById('serverUserEmailDisplay');
 
   let currentSearchType = 'provas';
+  let selectedServerModel = localStorage.getItem('selectedServerOnDemandModel') || 'vertex/gemini-3.7-flash';
+
+  const updateServerModelBadge = (modelId) => {
+    if (!currentServerModelBadge) return;
+    if (modelId.includes('3.7')) {
+      currentServerModelBadge.innerHTML = '⚡ Gemini 3.7 Flash' + (modelId.startsWith('vertex/') ? ' (Vertex)' : '');
+    } else if (modelId.includes('3.6')) {
+      currentServerModelBadge.innerHTML = 'Gemini 3.6 Flash' + (modelId.startsWith('vertex/') ? ' (Vertex)' : '');
+    } else if (modelId.includes('3.5')) {
+      currentServerModelBadge.innerHTML = 'Gemini 3.5 Flash';
+    } else {
+      currentServerModelBadge.innerHTML = modelId.replace('models/', '').replace('vertex/', '');
+    }
+  };
+  updateServerModelBadge(selectedServerModel);
+
+  if (btnConfigServerModel) {
+    btnConfigServerModel.addEventListener('click', () => {
+      mountModelSelectorModal(
+        selectedServerModel,
+        (newModel) => {
+          selectedServerModel = newModel;
+          localStorage.setItem('selectedServerOnDemandModel', newModel);
+          updateServerModelBadge(newModel);
+        },
+        'server_on_demand'
+      );
+    });
+  }
 
   const updateTypeButtons = (activeBtn, type, placeholder, titleHtml) => {
     currentSearchType = type;
-    [btnTypeProvas, btnTypeQuestoes, btnTypeLivros].forEach((btn) => {
+    [btnTypeProvas, btnTypeQuestoes, btnTypeLivros, btnTypeServidor].forEach((btn) => {
       if (!btn) return;
       if (btn === activeBtn) {
         btn.classList.add('active');
-        btn.style.background = 'var(--color-primary)';
-        btn.style.color = 'white';
+        btn.style.background = (type === 'servidor') ? '#00e5ff' : 'var(--color-primary)';
+        btn.style.color = (type === 'servidor') ? '#0f172a' : 'white';
       } else {
         btn.classList.remove('active');
         btn.style.background = 'transparent';
-        btn.style.color = 'var(--color-text-secondary)';
+        btn.style.color = (btn === btnTypeServidor) ? '#00e5ff' : 'var(--color-text-secondary)';
       }
     });
+
     if (searchInput) searchInput.placeholder = placeholder;
     const titleEl = document.getElementById('searchTitle');
     if (titleEl) titleEl.innerHTML = titleHtml;
+
+    if (type === 'servidor') {
+      if (serverCollectionInfoBanner) serverCollectionInfoBanner.style.display = 'block';
+      if (searchDisclaimerText) searchDisclaimerText.style.display = 'none';
+      if (btnSearch) {
+        btnSearch.innerHTML = '<span style="font-size:1.15rem;">🚀</span>';
+        btnSearch.title = 'Disparar Coleta no Servidor';
+        btnSearch.style.background = '#00e5ff';
+        btnSearch.style.color = '#0f172a';
+      }
+      if (serverUserEmailDisplay && auth && auth.currentUser) {
+        serverUserEmailDisplay.textContent = auth.currentUser.email || 'seu-email@gmail.com';
+      }
+    } else {
+      if (serverCollectionInfoBanner) serverCollectionInfoBanner.style.display = 'none';
+      if (searchDisclaimerText) searchDisclaimerText.style.display = 'block';
+      if (btnSearch) {
+        btnSearch.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+        btnSearch.title = 'Pesquisar';
+        btnSearch.style.background = 'var(--color-primary)';
+        btnSearch.style.color = 'white';
+      }
+    }
   };
 
   if (btnTypeProvas && btnTypeQuestoes) {
@@ -311,12 +375,102 @@ export function setupSearchLogic() {
         );
       });
     }
+
+    if (btnTypeServidor) {
+      btnTypeServidor.addEventListener('click', () => {
+        updateTypeButtons(
+          btnTypeServidor,
+          'servidor',
+          'Ex: Eletrodinâmica Circuitos RLC e Leis de Kirchhoff...',
+          'Nos dê o tema e o <strong>servidor</strong> coleta tudo.',
+        );
+      });
+    }
   }
 
   const searchContainer = document.getElementById('searchContainer');
   const manualUploadContainer = document.getElementById('manualUploadContainer');
 
   const btnVoltarInicio = document.querySelector('.js-voltar-inicio');
+
+  // --- VERIFICAÇÃO DE ADMIN PARA MOSTRAR A 4ª ABA ---
+  if (auth && auth.currentUser) {
+    verificarSeAdmin(auth.currentUser.uid).then((isAdmin) => {
+      if (isAdmin && btnTypeServidor) {
+        btnTypeServidor.style.display = 'block';
+      }
+    });
+  }
+
+  // --- DISPARO DE COLETA SOB DEMANDA NO SERVIDOR ---
+  const triggerServerOnDemand = async () => {
+    const theme = (searchInput?.value || '').trim();
+    if (!theme) {
+      customAlert('⚠️ Por favor, digite o tema ou matéria que você deseja que o servidor colete.');
+      return;
+    }
+
+    if (!auth || !auth.currentUser) {
+      customAlert('⚠️ Você precisa estar autenticado como administrador para disparar coletas no servidor.');
+      return;
+    }
+
+    const adminEmail = auth.currentUser.email || '';
+    const isVertex = selectedServerModel.startsWith('vertex/');
+    const vertexProjectId = sessionStorage.getItem('VERTEX_PROJECT_ID');
+    const vertexCreds = sessionStorage.getItem('VERTEX_CREDENTIALS');
+    const vertexLocation = sessionStorage.getItem('VERTEX_LOCATION') || 'us-central1';
+    const geminiApiKey = sessionStorage.getItem('GOOGLE_GENAI_API_KEY');
+
+    if (isVertex && (!vertexProjectId || !vertexCreds)) {
+      customAlert('⚠️ Credenciais da Vertex AI não encontradas. Configure suas credenciais no modal de chaves.');
+      mountApiKeyModal();
+      return;
+    }
+
+    if (!isVertex && !geminiApiKey) {
+      customAlert('⚠️ Chave da API Gemini não encontrada. Configure sua chave no modal antes de prosseguir.');
+      mountApiKeyModal();
+      return;
+    }
+
+    if (btnSearch) {
+      btnSearch.disabled = true;
+      btnSearch.style.opacity = '0.6';
+    }
+
+    try {
+      const res = await fetch(`${PROD_WORKER_URL}/trigger-on-demand-theme`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: theme,
+          admin_email: adminEmail,
+          model: selectedServerModel,
+          vertex_project_id: vertexProjectId,
+          vertex_location: vertexLocation,
+          vertex_credentials: vertexCreds,
+          gemini_api_key: geminiApiKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Erro ao disparar coleta no servidor');
+      }
+
+      customAlert(`🚀 Coleta sob demanda disparada com sucesso!\n\nLote: ${data.batch_id}\n\nO servidor iniciou 2 workers paralelos para coletar Livros e Questões sobre "${theme}".\nO relatório completo com botão de rollback será enviado para: ${adminEmail}`);
+      if (searchInput) searchInput.value = '';
+    } catch (err) {
+      console.error('[OnDemand] Erro ao disparar:', err);
+      customAlert(`❌ Falha ao disparar coleta: ${err.message}`);
+    } finally {
+      if (btnSearch) {
+        btnSearch.disabled = false;
+        btnSearch.style.opacity = '1';
+      }
+    }
+  };
 
   // --- STATE RESTORATION (Persistence) ---
   let savedSession = SearchPersistence.getSession();
@@ -505,6 +659,10 @@ export function setupSearchLogic() {
 
   // --- Deep Search Lógica ---
   const doSearch = async (force = false, cleanup = false, confirm = false, mode = 'overwrite') => {
+    if (currentSearchType === 'servidor') {
+      triggerServerOnDemand();
+      return;
+    }
     const query = searchInput.value.trim();
     if (!query) return;
 
