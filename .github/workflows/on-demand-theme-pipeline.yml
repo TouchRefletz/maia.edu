@@ -18,7 +18,6 @@ on:
       search_model:
         description: 'Modelo para busca OpenHands (LiteLLM)'
         required: false
-        default: 'gemini/gemma-4-31b-it'
       batch_id:
         description: 'ID único do lote'
         required: false
@@ -53,7 +52,7 @@ jobs:
           INPUT_THEME: ${{ github.event.client_payload.query || inputs.query }}
           INPUT_BATCH_ID: ${{ github.event.client_payload.batch_id || inputs.batch_id }}
           INPUT_MODEL: ${{ github.event.client_payload.model || inputs.model || 'vertex/gemini-3.7-flash' }}
-          INPUT_SEARCH_MODEL: ${{ github.event.client_payload.search_model || inputs.search_model || 'gemini/gemma-4-31b-it' }}
+          INPUT_SEARCH_MODEL: ${{ github.event.client_payload.search_model || github.event.client_payload.model || inputs.search_model || inputs.model || 'vertex/gemini-3.7-flash' }}
           INPUT_ADMIN_EMAIL: ${{ github.event.client_payload.admin_email || inputs.admin_email }}
           INPUT_ROLLBACK_TOKEN: ${{ github.event.client_payload.rollback_token || inputs.rollback_token || 'sec_default' }}
           INPUT_RESUME_PAGE: ${{ github.event.client_payload.resume_from_page || inputs.resume_from_page || '1' }}
