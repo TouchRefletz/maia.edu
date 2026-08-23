@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 """
-on_demand_dispatcher.py - Orquestrador de Busca Simultânea (2 Workers) e Geração de Matriz Paralela
-Dispara 2 buscas simultâneas (1 para Livros Didáticos e 1 para Questões/Provas) e monta a matriz de jobs 1-por-PDF.
+on_demand_dispatcher.py - Orquestrador de Busca OpenHands e Geração de Matriz Paralela
+Coleta resultados gerados pelos workers do OpenHands (Livros e Questões) e monta a matriz de jobs 1-por-PDF.
 """
 
 import argparse
-import concurrent.futures
+import glob
 import json
 import os
 import re
+import shutil
 import sys
-import time
 from pathlib import Path
-import requests
-
-PROD_WORKER_URL = os.environ.get("WORKER_URL", "https://maia-api-worker.willian-campos-ismart.workers.dev")
 
 
 def sanitize_slug(text: str) -> str:
@@ -25,67 +22,83 @@ def sanitize_slug(text: str) -> str:
     return text[:60] or "material-coletado"
 
 
-def search_and_download_worker(search_type: str, query: str, output_dir: str) -> list:
+def discover_openhands_materials(search_dirs: list, query: str) -> tuple[list, list]:
     """
-    Worker autônomo de busca.
-    search_type: 'livros' ou 'questoes'
+    Varre os diretórios de saída do OpenHands buscando PDFs e manifestos gerados.
+    Retorna (books_items, questions_items).
     """
-    print(f"🔍 [Worker: {search_type.upper()}] Iniciando busca profunda para tema: '{query}'...")
-    os.makedirs(output_dir, exist_ok=True)
-    results = []
+    books_results = []
+    questions_results = []
+    seen_files = set()
 
-    # Consultar endpoint de busca profunda / OpenHands no worker
-    headers = {"Content-Type": "application/json"}
-    payload = {
-        "query": f"{query} {('livro didatico completo teoria' if search_type == 'livros' else 'exercicios questoes resolvidas vestibular')}",
-        "search_type": search_type,
-    }
-
-    found_links = []
-    try:
-        resp = requests.post(f"{PROD_WORKER_URL}/search", json=payload, headers=headers, timeout=60)
-        if resp.status_code == 200:
-            data = resp.json()
-            found_links = data.get("links", []) or data.get("candidates", [])
-    except Exception as e:
-        print(f"⚠️ [Worker: {search_type}] Busca remota falhou: {e}")
-
-    # Fallback / URLs mock para teste local ou resiliência caso API não retorne links
-    if not found_links:
-        print(f"ℹ️ [Worker: {search_type}] Aplicando varredura heurística de repositórios educacionais...")
-
-    # Processar e baixar os arquivos encontrados
-    index = 1
-    for item in found_links[:5]:  # Limite de segurança por coleta
-        url = item.get("url") if isinstance(item, dict) else str(item)
-        if not url or not url.startswith("http"):
+    for s_dir in search_dirs:
+        if not os.path.exists(s_dir):
             continue
 
-        filename = f"{search_type}_{index}.pdf"
-        file_path = os.path.join(output_dir, filename)
-        slug = f"{search_type}-{sanitize_slug(query)}-{index}"
+        print(f"📂 [Dispatcher] Inspecionando diretório de artefatos: {s_dir}")
+        for root, dirs, files in os.walk(s_dir):
+            # Verificar se há manifest.json de busca
+            manifest_data = None
+            if "manifest.json" in files:
+                m_path = os.path.join(root, "manifest.json")
+                try:
+                    with open(m_path, "r", encoding="utf-8") as f:
+                        manifest_data = json.load(f)
+                except Exception as e:
+                    print(f"⚠️ Erro ao ler {m_path}: {e}")
 
-        try:
-            print(f"📥 [Worker: {search_type}] Baixando PDF {index}: {url} -> {file_path}")
-            pdf_resp = requests.get(url, timeout=45, stream=True)
-            if pdf_resp.status_code == 200:
-                with open(file_path, "wb") as f:
-                    for chunk in pdf_resp.iter_content(chunk_size=8192):
-                        f.write(chunk)
+            # Identificar tipo baseado no caminho
+            path_lower = root.lower().replace("\\", "/")
+            is_book = "livro" in path_lower or "book" in path_lower
 
-                results.append({
-                    "slug": slug,
-                    "pdf_path": file_path,
-                    "pdf_name": filename,
-                    "type": "book" if search_type == "livros" else "question",
-                    "url": url,
-                })
-                index += 1
-        except Exception as e:
-            print(f"⚠️ Erro ao baixar {url}: {e}")
+            # Mapear itens do manifesto se existir
+            manifest_items = []
+            if isinstance(manifest_data, dict):
+                manifest_items = manifest_data.get("results", manifest_data.get("files", []))
+            elif isinstance(manifest_data, list):
+                manifest_items = manifest_data
 
-    print(f"✅ [Worker: {search_type.upper()}] Concluído: {len(results)} materiais prontos para extração.")
-    return results
+            # Mapeamento por arquivo PDF físico
+            pdf_files = [f for f in files if f.lower().endswith(".pdf")]
+            for pdf_file in pdf_files:
+                full_pdf_path = os.path.abspath(os.path.join(root, pdf_file))
+                if full_pdf_path in seen_files:
+                    continue
+                seen_files.add(full_pdf_path)
+
+                # Verificar se o arquivo é válido (> 1KB)
+                if os.path.getsize(full_pdf_path) < 1024:
+                    print(f"⚠️ Ignorando PDF corrompido/pequeno: {full_pdf_path}")
+                    continue
+
+                # Tentar recuperar URL e dados do manifesto
+                origin_url = ""
+                item_tipo = "livro" if is_book else "questao"
+                for m_it in manifest_items:
+                    if isinstance(m_it, dict) and m_it.get("filename") == pdf_file:
+                        origin_url = m_it.get("link_origem", m_it.get("url", ""))
+                        if m_it.get("tipo") == "livro":
+                            item_tipo = "livro"
+                        break
+
+                item_slug = f"{'book' if item_tipo == 'livro' else 'question'}-{sanitize_slug(query)}-{len(books_results) + len(questions_results) + 1}"
+
+                item_entry = {
+                    "slug": item_slug,
+                    "pdf_path": full_pdf_path,
+                    "pdf_name": pdf_file,
+                    "type": "book" if item_tipo == "livro" else "question",
+                    "url": origin_url or f"file://{full_pdf_path}",
+                }
+
+                if item_tipo == "livro":
+                    books_results.append(item_entry)
+                    print(f"  📚 [Livro Encontrado] {pdf_file} -> {item_slug}")
+                else:
+                    questions_results.append(item_entry)
+                    print(f"  📝 [Lista de Questões Encontrada] {pdf_file} -> {item_slug}")
+
+    return books_results, questions_results
 
 
 def main():
@@ -97,26 +110,21 @@ def main():
 
     args = parser.parse_args()
 
-    print(f"🚀 [Dispatcher] Iniciando orquestração para o lote: {args.batch_id}")
+    print(f"🚀 [Dispatcher] Consolidando resultados de busca OpenHands para o lote: {args.batch_id}")
     print(f"🎯 Tema: '{args.query}' | Modelo: {args.model}")
 
-    books_dir = os.path.abspath("work/books")
-    questions_dir = os.path.abspath("work/questions")
+    search_dirs = [
+        os.path.abspath("work/search_output"),
+        os.path.abspath("output"),
+        os.path.abspath("work"),
+    ]
 
-    # Executar as 2 buscas DE FORMA ESTRITAMENTE SIMULTÂNEA
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        f_books = executor.submit(search_and_download_worker, "livros", args.query, books_dir)
-        f_questions = executor.submit(search_and_download_worker, "questoes", args.query, questions_dir)
-
-        books_results = f_books.result()
-        questions_results = f_questions.result()
-
+    books_results, questions_results = discover_openhands_materials(search_dirs, args.query)
     matrix_items = books_results + questions_results
     has_files = "true" if len(matrix_items) > 0 else "false"
 
-    # Se nenhum PDF foi baixado em ambiente de teste, criar item dummy para não quebrar a avaliação da matriz do GitHub Actions
     if not matrix_items:
-        print("⚠️ Nenhum PDF externo localizado na busca rápida. Gerando manifesto vazio.")
+        print("⚠️ Nenhum PDF retornado pela busca OpenHands. Gerando matriz neutra.")
         matrix_payload = {"include": [{"slug": "none", "pdf_path": "", "pdf_name": "", "type": "none", "url": ""}]}
     else:
         matrix_payload = {"include": matrix_items}
@@ -135,6 +143,7 @@ def main():
             f.write(f"questions_count={len(questions_results)}\n")
 
     print(f"✨ [Dispatcher] Matriz gerada com sucesso! Total de jobs paralelos: {len(matrix_items)} (has_files={has_files})")
+    print(f"   📚 Livros identificados: {len(books_results)} | 📝 Questões/Provas identificadas: {len(questions_results)}")
 
 
 if __name__ == "__main__":

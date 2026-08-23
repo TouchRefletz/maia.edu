@@ -15,6 +15,10 @@ on:
         description: 'Modelo de IA (Vertex AI ou Gemini)'
         required: false
         default: 'vertex/gemini-3.7-flash'
+      search_model:
+        description: 'Modelo para busca OpenHands (LiteLLM)'
+        required: false
+        default: 'gemini/gemma-4-31b-it'
       batch_id:
         description: 'ID único do lote'
         required: false
@@ -28,44 +32,28 @@ on:
 
 jobs:
   # =========================================================================
-  # FASE 1: BUSCA SIMULTÂNEA DE LIVROS E QUESTÕES (2 WORKERS) + DISPATCHER
+  # FASE 0: CONFIGURAÇÃO DE PARÂMETROS E MASCARAMENTO DE SEGREDOS
   # =========================================================================
-  dispatch-search:
-    name: "🔍 Simultaneous Search (OpenHands Workers)"
+  setup-params:
+    name: "⚙️ Setup Pipeline Parameters"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      has_files: ${{ steps.set-matrix.outputs.has_files }}
-      books_count: ${{ steps.set-matrix.outputs.books_count }}
-      questions_count: ${{ steps.set-matrix.outputs.questions_count }}
-      batch_id: ${{ steps.setup-params.outputs.batch_id }}
-      theme: ${{ steps.setup-params.outputs.theme }}
-      model: ${{ steps.setup-params.outputs.model }}
-      admin_email: ${{ steps.setup-params.outputs.admin_email }}
-      rollback_token: ${{ steps.setup-params.outputs.rollback_token }}
-      resume_page: ${{ steps.setup-params.outputs.resume_page }}
+      theme: ${{ steps.setup.outputs.theme }}
+      batch_id: ${{ steps.setup.outputs.batch_id }}
+      model: ${{ steps.setup.outputs.model }}
+      search_model: ${{ steps.setup.outputs.search_model }}
+      admin_email: ${{ steps.setup.outputs.admin_email }}
+      rollback_token: ${{ steps.setup.outputs.rollback_token }}
+      resume_page: ${{ steps.setup.outputs.resume_page }}
 
     steps:
-      - name: "Checkout Repository"
-        uses: actions/checkout@v4
-
-      - name: "Setup Python"
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: "Install Dependencies"
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: "Setup Parameters and Mask Sensitive Secrets"
-        id: setup-params
+      - name: "Setup Parameters and Mask Secrets"
+        id: setup
         env:
           INPUT_THEME: ${{ github.event.client_payload.query || inputs.query }}
           INPUT_BATCH_ID: ${{ github.event.client_payload.batch_id || inputs.batch_id }}
           INPUT_MODEL: ${{ github.event.client_payload.model || inputs.model || 'vertex/gemini-3.7-flash' }}
+          INPUT_SEARCH_MODEL: ${{ github.event.client_payload.search_model || inputs.search_model || 'gemini/gemma-4-31b-it' }}
           INPUT_ADMIN_EMAIL: ${{ github.event.client_payload.admin_email || inputs.admin_email }}
           INPUT_ROLLBACK_TOKEN: ${{ github.event.client_payload.rollback_token || inputs.rollback_token || 'sec_default' }}
           INPUT_RESUME_PAGE: ${{ github.event.client_payload.resume_from_page || inputs.resume_from_page || '1' }}
@@ -76,6 +64,7 @@ jobs:
           THEME="${INPUT_THEME}"
           BATCH_ID="${INPUT_BATCH_ID:-batch_${RUN_ID}}"
           MODEL="${INPUT_MODEL}"
+          SEARCH_MODEL="${INPUT_SEARCH_MODEL}"
           ADMIN_EMAIL="${INPUT_ADMIN_EMAIL}"
           ROLLBACK_TOKEN="${INPUT_ROLLBACK_TOKEN}"
           RESUME_PAGE="${INPUT_RESUME_PAGE}"
@@ -94,21 +83,227 @@ jobs:
           echo "theme=$THEME" >> "$GITHUB_OUTPUT"
           echo "batch_id=$BATCH_ID" >> "$GITHUB_OUTPUT"
           echo "model=$MODEL" >> "$GITHUB_OUTPUT"
+          echo "search_model=$SEARCH_MODEL" >> "$GITHUB_OUTPUT"
           echo "admin_email=$ADMIN_EMAIL" >> "$GITHUB_OUTPUT"
           echo "rollback_token=$ROLLBACK_TOKEN" >> "$GITHUB_OUTPUT"
           echo "resume_page=$RESUME_PAGE" >> "$GITHUB_OUTPUT"
 
-      - name: "Run Simultaneous Search (2 Workers)"
+  # =========================================================================
+  # FASE 1: BUSCA SIMULTÂNEA DE LIVROS E QUESTÕES (OPENHANDS DEEP SEARCH)
+  # =========================================================================
+  openhands-search:
+    name: "🔍 OpenHands Search (${{ matrix.search_type }})"
+    needs: setup-params
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        search_type: [livros, questoes]
+
+    env:
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      LLM_API_KEY: ${{ github.event.client_payload.gemini_api_key || secrets.LLM_API_KEY || secrets.GOOGLE_GENAI_API_KEY }}
+      QUERY: ${{ needs.setup-params.outputs.theme }}
+      SEARCH_TYPE: ${{ matrix.search_type }}
+      SEARCH_MODEL: ${{ needs.setup-params.outputs.search_model }}
+      RUN_ID: ${{ github.run_id }}
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Run OpenHands Container"
+        id: run_openhands
+        run: |
+          set -euo pipefail
+          
+          RAW_SLUG=$(echo "$QUERY" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\+/-/g' | cut -c 1-40)
+          SLUG="${SEARCH_TYPE}-${RAW_SLUG}"
+          echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+          
+          if [ "$SEARCH_TYPE" = "livros" ]; then
+            PROMPT_TEMPLATE=$(cat <<'EOF'
+          Você recebeu uma consulta curta (QUERY) do tipo "nome do livro + editora/autor" ou "disciplina + ano + livro didático". Exemplo: "Física clássica Caio Vestibular".
+
+          Objetivo: encontrar e organizar TODOS os links e arquivos (livros completos, volumes ou capítulos) associados a essa QUERY.
+
+          QUERY: "__QUERY__"
+
+          Regras para evitar pesquisa demais (muito importante):
+          1. Não use Google como primeira opção (CAPTCHA é comum). Prefira:
+          * Repositórios educacionais, acervos públicos, bibliotecas digitais abertas ou páginas de editoras.
+          * Páginas contendo termos como “Livros didáticos / material de apoio / manual do professor / acervo / PDFs”.
+          2. Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas.
+          3. Após achar o site ou repositório confiável, navegue dentro dele e extraia tudo com o mínimo de novas buscas.
+          4. Só inclua links que pareçam realmente do livro/autor correspondente; quando estiver ambíguo, checar rapidamente pelo título/URL/nome do PDF.
+
+          O que coletar:
+          * Livros didáticos completos (ou volumes/capítulos específicos caso o material esteja dividido) disponibilizados GRATUITAMENTE.
+          * Manuais do professor ou guias de exercícios complementares do próprio livro, se houver.
+          * INDISPENSÁVEL: Classifique cada item no manifesto:
+          * status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
+          * Estrutura do JSON: {nome, tipo: "livro", autor, disciplina, ano, editora, link_origem, status, filename (só se status=downloaded)}
+
+          Preferência de links:
+          * Priorize links diretos de PDF.
+          * Se for Google Drive, capture:
+          * link "view"
+          * e também um link “download direto” quando possível (uc?export=download&id=...).
+
+          Entrega (obrigatório):
+          1. Crie a pasta: /workspace/output/__SLUG__/
+          2. Baixe todos os PDFs que conseguir para: /workspace/output/__SLUG__/files/.
+          CRITICO:
+          * USE 'curl -I' PRIMEIRO para verificar o header.
+          * SE O HEADER 'Content-Type' NÃO FOR 'application/pdf' (ex: 'text/html'), PARE IMEDIATAMENTE. NÃO BAIXE. MARQUE COMO "reference".
+          * JAMAIS TENTE BAIXAR O MESMO LINK DUAS VEZES SE FALHAR NA PRIMEIRA.
+          * SE VOCÊ SE PEGAR FAZENDO A MESMA AÇÃO 2 VEZES SEGUIDAS (ex: checar o mesmo link), DESISTA DESSE LINK E VÁ PARA O PRÓXIMO.
+          * SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
+          * SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
+          * NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
+          3. Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
+
+          Ao final, responda apenas com caminhos e contagens.
+          EOF
+          )
+          else
+            PROMPT_TEMPLATE=$(cat <<'EOF'
+          Você recebeu um tema de questões (QUERY), por exemplo: "geometria analítica ita".
+
+          Objetivo: encontrar e organizar TODOS os links e arquivos (PDFs com listas de questões) associados a essa QUERY.
+
+          QUERY: "__QUERY__"
+
+          Regras para evitar pesquisa demais (muito importante):
+          1) Busque listas de questões de cursinhos, professores ou sites educativos. A pesquisa "questões __QUERY__ filetype:pdf" geralmente funciona muito bem.
+          2) Faça no máximo 3 buscas no total (usando o mecanismo de busca configurado no OpenHands). Use buscas bem específicas focadas em PDFs.
+          3) Navegue e extraia arquivos com o mínimo de novas buscas.
+          4) Só inclua links que pareçam realmente listas de questões relativas ao tema.
+
+          O que coletar:
+          - Listas de questões em PDF.
+          - INDISPENSÁVEL: Classifique cada item no manifesto:
+            - status: "downloaded" (se baixou com sucesso e validou) OU "reference" (se é apenas um link externo que não foi possível baixar ou não é PDF).
+          - Estrutura do JSON: {nome, tipo, ano (se houver), assunto/tema (se possivel identificar), link_origem, status, filename (só se status=downloaded)}
+
+          Preferência de links:
+          - Priorize links diretos de PDF.
+          - Se for Google Drive, capture downloader direto.
+
+          Entrega (obrigatório):
+          1) Crie a pasta: /workspace/output/__SLUG__/
+          2) Baixe todos os PDFs que conseguir para: /workspace/output/__SLUG__/files/.
+            CRITICO:
+            - USE 'curl -I' PRIMEIRO para verificar o header.
+            - SE O HEADER 'Content-Type' NÃO FOR 'application/pdf' (ex: 'text/html'), PARE IMEDIATAMENTE. NÃO BAIXE. MARQUE COMO "reference".
+            - JAMAIS TENTE BAIXAR O MESMO LINK DUAS VEZES SE FALHAR NA PRIMEIRA.
+            - SE VOCÊ SE PEGAR FAZENDO A MESMA AÇÃO 2 VEZES SEGUIDAS (ex: checar o mesmo link), DESISTA DESSE LINK E VÁ PARA O PRÓXIMO.
+            - SE O ARQUIVO BAIXADO TIVER MENOS DE 1KB, APAGUE-O IMEDIATAMENTE e mude o status para "reference".
+            - SE O ARQUIVO CONTIVER HTML (DOCTYPE, <html>), APAGUE-O e mude o status para "reference".
+            - NÃO CRIE ARQUIVOS FAKES OU COM CONTEÚDO GERADO. SÓ MANTENHA O QUE FOI BAIXADO DE VERDADE.
+          3) Gere /workspace/output/__SLUG__/manifest.json (ESTE ARQUIVO É CRITICO, DEVE SER JSON VÁLIDO. INCLUA ITENS "reference" E "downloaded")
+
+          Ao final, responda apenas com caminhos e contagens.
+          EOF
+          )
+          fi
+
+          PROMPT="${PROMPT_TEMPLATE/__QUERY__/$QUERY}"
+          PROMPT="${PROMPT//__SLUG__/$SLUG}"
+
+          VOL_NAME="openhands-vol-${RUN_ID}-${SEARCH_TYPE}"
+          STATE_VOL_NAME="openhands-state-${RUN_ID}-${SEARCH_TYPE}"
+          docker volume create "$VOL_NAME"
+          docker volume create "$STATE_VOL_NAME"
+
+          docker run --rm \
+            -v "$VOL_NAME:/workspace" \
+            -v "$STATE_VOL_NAME:/workspace/.openhands" \
+            -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+            alpine sh -c '
+              set -eux
+              mkdir -p /workspace/.openhands
+              printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > /workspace/config.toml
+              rm -f /workspace/.openhands/.jwt_secret || true
+              chmod -R 777 /workspace
+            '
+          docker rm -f "openhands-${SEARCH_TYPE}" 2>/dev/null || true
+
+          docker run --pull=always \
+            -w /workspace \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$VOL_NAME:/workspace:rw" \
+            -v "$STATE_VOL_NAME:/workspace/.openhands" \
+            --add-host host.docker.internal:host-gateway \
+            -e "SANDBOX_USER_ID=$(id -u)" \
+            -e "SANDBOX_VOLUMES=$VOL_NAME:/workspace:rw" \
+            -e "SANDBOX_RUNTIME_CONTAINER_IMAGE=docker.openhands.dev/openhands/runtime:1.0-nikolaik" \
+            -e "LOG_ALL_EVENTS=true" \
+            -e "LLM_API_KEY=$LLM_API_KEY" \
+            -e "LLM_MODEL=$SEARCH_MODEL" \
+            -e "TAVILY_API_KEY=$TAVILY_API_KEY" \
+            -e "PYTHONUNBUFFERED=1" \
+            -e "PROMPT=$PROMPT" \
+            -e "FILE_STORE=local" \
+            -e "FILE_STORE_PATH=/workspace/.openhands" \
+            --name "openhands-${SEARCH_TYPE}" \
+            docker.openhands.dev/openhands/openhands:1.0 \
+            python -m openhands.core.main -t "$PROMPT" || true
+
+          mkdir -p "output/${SLUG}"
+          docker cp "openhands-${SEARCH_TYPE}:/workspace/output/${SLUG}/." "output/${SLUG}/" || true
+          docker rm -f "openhands-${SEARCH_TYPE}" || true
+          docker volume rm "$VOL_NAME" || true
+          docker volume rm "$STATE_VOL_NAME" || true
+
+      - name: "Upload Search Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-results-${{ matrix.search_type }}
+          path: output/
+          retention-days: 1
+        continue-on-error: true
+
+  # =========================================================================
+  # FASE 1.5: CONSOLIDAÇÃO DE ARQUIVOS E GERAÇÃO DA MATRIZ
+  # =========================================================================
+  dispatch-matrix:
+    name: "🧩 Build Matrix from Search Results"
+    needs: [setup-params, openhands-search]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_files: ${{ steps.set-matrix.outputs.has_files }}
+      books_count: ${{ steps.set-matrix.outputs.books_count }}
+      questions_count: ${{ steps.set-matrix.outputs.questions_count }}
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: "Install Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: "Download All Search Results"
+        uses: actions/download-artifact@v4
+        with:
+          path: output/
+        continue-on-error: true
+
+      - name: "Consolidate Discovered Materials"
         id: set-matrix
         env:
-          WORKER_URL: ${{ secrets.WORKER_URL || 'https://maia-api-worker.willian-campos-ismart.workers.dev' }}
-          GOOGLE_GENAI_API_KEY: ${{ github.event.client_payload.gemini_api_key || secrets.GOOGLE_GENAI_API_KEY }}
-          VERTEX_CREDENTIALS: ${{ github.event.client_payload.vertex_credentials }}
-          VERTEX_PROJECT_ID: ${{ github.event.client_payload.vertex_project_id || secrets.GCP_PROJECT_ID }}
-          VERTEX_LOCATION: ${{ github.event.client_payload.vertex_location || 'us-central1' }}
-          SEARCH_THEME: ${{ steps.setup-params.outputs.theme }}
-          SEARCH_BATCH_ID: ${{ steps.setup-params.outputs.batch_id }}
-          SEARCH_MODEL: ${{ steps.setup-params.outputs.model }}
+          SEARCH_THEME: ${{ needs.setup-params.outputs.theme }}
+          SEARCH_BATCH_ID: ${{ needs.setup-params.outputs.batch_id }}
+          SEARCH_MODEL: ${{ needs.setup-params.outputs.model }}
         run: |
           python .github/scripts/on_demand_dispatcher.py \
             --query "$SEARCH_THEME" \
@@ -120,7 +315,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: discovered-files
-          path: work/
+          path: output/
           retention-days: 1
         continue-on-error: true
 
@@ -129,14 +324,14 @@ jobs:
   # =========================================================================
   process-files:
     name: "⚡ Process PDF (${{ matrix.type }}: ${{ matrix.slug }})"
-    needs: dispatch-search
-    if: ${{ needs.dispatch-search.outputs.has_files == 'true' }}
+    needs: [setup-params, dispatch-matrix]
+    if: ${{ needs.dispatch-matrix.outputs.has_files == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       max-parallel: 10
-      matrix: ${{ fromJson(needs.dispatch-search.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.dispatch-matrix.outputs.matrix) }}
 
     steps:
       - name: "Checkout Repository"
@@ -161,7 +356,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: discovered-files
-          path: work/
+          path: output/
         continue-on-error: true
 
       - name: "Extract Textbook (1:1 Core Vision & Circuit Breaker)"
@@ -177,9 +372,9 @@ jobs:
           WORKER_URL: ${{ secrets.WORKER_URL || 'https://maia-api-worker.willian-campos-ismart.workers.dev' }}
           PDF_PATH: ${{ matrix.pdf_path }}
           BOOK_SLUG: ${{ matrix.slug }}
-          BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
-          MODEL: ${{ needs.dispatch-search.outputs.model }}
-          RESUME_PAGE: ${{ needs.dispatch-search.outputs.resume_page || '1' }}
+          BATCH_ID: ${{ needs.setup-params.outputs.batch_id }}
+          MODEL: ${{ needs.setup-params.outputs.model }}
+          RESUME_PAGE: ${{ needs.setup-params.outputs.resume_page || '1' }}
         run: |
           python .github/workflows/scripts/textbook_extractor.py \
             --pdf-path "$PDF_PATH" \
@@ -200,10 +395,10 @@ jobs:
           SLUG: ${{ matrix.slug }}
           PDF_PATH: ${{ matrix.pdf_path }}
           PDF_URL: ${{ matrix.url }}
-          BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
+          BATCH_ID: ${{ needs.setup-params.outputs.batch_id }}
           WORKER_URL: ${{ secrets.WORKER_URL || 'https://maia-api-worker.willian-campos-ismart.workers.dev' }}
-          EXTRACT_MODEL: ${{ needs.dispatch-search.outputs.model }}
-          REGION_MODEL: ${{ needs.dispatch-search.outputs.model }}
+          EXTRACT_MODEL: ${{ needs.setup-params.outputs.model }}
+          REGION_MODEL: ${{ needs.setup-params.outputs.model }}
         run: |
           python .github/scripts/extract_pipeline.py
 
@@ -220,8 +415,8 @@ jobs:
   # =========================================================================
   notify-summary:
     name: "📧 Send Email Report & Handle Auto-Resume"
-    needs: [dispatch-search, process-files]
-    if: always() && needs.dispatch-search.outputs.admin_email != ''
+    needs: [setup-params, dispatch-matrix, process-files]
+    if: always() && needs.setup-params.outputs.admin_email != ''
     runs-on: ubuntu-latest
 
     steps:
@@ -248,14 +443,14 @@ jobs:
         env:
           GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          ADMIN_EMAIL: ${{ needs.dispatch-search.outputs.admin_email }}
-          THEME: ${{ needs.dispatch-search.outputs.theme }}
-          BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
-          MODEL: ${{ needs.dispatch-search.outputs.model }}
-          ROLLBACK_TOKEN: ${{ needs.dispatch-search.outputs.rollback_token }}
+          ADMIN_EMAIL: ${{ needs.setup-params.outputs.admin_email }}
+          THEME: ${{ needs.setup-params.outputs.theme }}
+          BATCH_ID: ${{ needs.setup-params.outputs.batch_id }}
+          MODEL: ${{ needs.setup-params.outputs.model }}
+          ROLLBACK_TOKEN: ${{ needs.setup-params.outputs.rollback_token }}
           STATUS: ${{ needs.process-files.result == 'success' && 'completed' || 'completed' }}
-          BOOKS_COUNT: ${{ needs.dispatch-search.outputs.books_count || 0 }}
-          QUESTIONS_COUNT: ${{ needs.dispatch-search.outputs.questions_count || 0 }}
+          BOOKS_COUNT: ${{ needs.dispatch-matrix.outputs.books_count || 0 }}
+          QUESTIONS_COUNT: ${{ needs.dispatch-matrix.outputs.questions_count || 0 }}
         run: |
           python .github/scripts/send_summary_email.py \
             --to "$ADMIN_EMAIL" \

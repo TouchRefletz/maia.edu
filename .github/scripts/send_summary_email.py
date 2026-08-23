@@ -14,21 +14,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 
-def get_logo_base64() -> str:
-    """Carrega dinamicamente a logo oficial em Base64 a partir de public/logo.png"""
-    candidates = [
-        os.path.join(os.path.dirname(__file__), "../../public/logo.png"),
-        os.path.join(os.path.dirname(__file__), "../public/logo.png"),
-        os.path.join(os.getcwd(), "public/logo.png"),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            try:
-                with open(path, "rb") as f:
-                    return "data:image/png;base64," + base64.b64encode(f.read()).decode("utf-8")
-            except Exception:
-                pass
-    return ""
+LOGO_PUBLIC_URL = "https://maia-api.vercel.app/logo.png"
 
 
 def build_html_report(
@@ -46,7 +32,7 @@ def build_html_report(
     rollback_token: str,
     status: str = "completed",
 ) -> str:
-    logo_b64 = get_logo_base64()
+    logo_url = LOGO_PUBLIC_URL
 
     # Determinar Badge de Status e Subtítulo
     if status == "quota_paused":
@@ -164,66 +150,60 @@ def build_html_report(
     .wrapper {{
       width: 100%;
       background-color: #121315;
-      background-image: 
-        radial-gradient(circle at 50% -10%, rgba(0, 229, 255, 0.15) 0%, transparent 55%),
-        radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.05) 0%, transparent 40%);
-      padding: 48px 14px;
+      padding: 32px 12px;
       box-sizing: border-box;
     }}
 
     .container {{
-      max-width: 620px;
+      max-width: 600px;
+      width: 100%;
       margin: 0 auto;
       background-color: #18191d;
-      border-radius: 24px;
+      border-radius: 20px;
       border: 1px solid #282a30;
       overflow: hidden;
-      box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.85), 0 0 50px -10px rgba(0, 229, 255, 0.08);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
     }}
 
     .header {{
-      padding: 44px 32px 24px 32px;
+      padding: 36px 24px 20px 24px;
       text-align: center;
       position: relative;
     }}
 
     .brand-logo-wrap {{
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      margin-bottom: 22px;
+      display: inline-block;
+      margin-bottom: 18px;
       text-decoration: none;
+      text-align: center;
     }}
 
     .brand-logo-img {{
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       object-fit: contain;
-      filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.5));
+      vertical-align: middle;
+      display: inline-block;
     }}
 
     .brand-name {{
-      font-size: 38px;
+      font-size: 32px;
       font-weight: 800;
-      letter-spacing: -0.6px;
+      letter-spacing: -0.5px;
       color: #ffffff;
       line-height: 1;
-      display: flex;
-      align-items: baseline;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 10px;
     }}
 
     .brand-name strong {{
       color: #00e5ff;
       font-weight: 800;
-      margin-left: 1px;
-      text-shadow: 0 0 22px rgba(0, 229, 255, 0.65);
     }}
 
     .status-badge-aura {{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      display: inline-block;
       background: rgba(0, 229, 255, 0.08);
       border: 1px solid rgba(0, 229, 255, 0.3);
       color: #22d3ee;
@@ -234,42 +214,43 @@ def build_html_report(
       text-transform: uppercase;
       letter-spacing: 0.8px;
       margin-bottom: 14px;
-      box-shadow: 0 0 20px rgba(0, 229, 255, 0.08);
     }}
 
     .status-pulse-dot {{
+      display: inline-block;
       width: 7px;
       height: 7px;
       border-radius: 50%;
       background: #00e5ff;
-      box-shadow: 0 0 8px #00e5ff;
+      margin-right: 6px;
+      vertical-align: middle;
     }}
 
     .header-title {{
-      font-size: 21px;
+      font-size: 20px;
       font-weight: 800;
       color: #ffffff;
       margin: 0 0 6px 0;
-      letter-spacing: -0.4px;
+      letter-spacing: -0.3px;
     }}
 
     .header-subtitle {{
       font-size: 13px;
       color: #8e94a0;
       margin: 0;
+      line-height: 1.4;
     }}
 
     .content {{
-      padding: 10px 32px 36px 32px;
+      padding: 10px 24px 32px 24px;
     }}
 
     .query-pill-card {{
       background: #202227;
       border: 1px solid #2d3038;
-      border-radius: 20px;
-      padding: 18px 22px;
-      margin-bottom: 26px;
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 22px;
     }}
 
     .query-label {{
@@ -282,33 +263,33 @@ def build_html_report(
     }}
 
     .query-text {{
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       color: #ffffff;
       line-height: 1.4;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
+      word-break: break-word;
     }}
 
     .query-meta-bar {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      padding-top: 12px;
+      display: block;
+      padding-top: 10px;
       border-top: 1px solid #2a2d35;
     }}
 
     .meta-chip {{
       background: #282a31;
       color: #9da3af;
-      padding: 4px 12px;
+      padding: 4px 10px;
       border-radius: 9999px;
       border: 1px solid #363942;
       font-size: 11px;
       font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
+      display: inline-block;
+      margin: 2px 4px 2px 0;
+      word-break: break-all;
+      max-width: 100%;
+      box-sizing: border-box;
     }}
 
     .meta-chip.active-model {{
@@ -324,38 +305,41 @@ def build_html_report(
 
     .metrics-table {{
       width: 100%;
-      margin-bottom: 26px;
-      border-spacing: 10px 0;
+      margin-bottom: 22px;
+      border-spacing: 6px 0;
       border-collapse: separate;
+      table-layout: fixed;
     }}
 
     .metric-card {{
       background: #202227;
       border: 1px solid #2d3038;
-      border-radius: 16px;
-      padding: 16px 8px;
+      border-radius: 12px;
+      padding: 12px 4px;
       text-align: center;
       width: 25%;
+      box-sizing: border-box;
     }}
 
     .metric-value {{
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 800;
       line-height: 1.1;
       margin-bottom: 4px;
     }}
 
-    .metric-value.cyan {{ color: #00e5ff; text-shadow: 0 0 16px rgba(0, 229, 255, 0.3); }}
+    .metric-value.cyan {{ color: #00e5ff; }}
     .metric-value.emerald {{ color: #34d399; }}
     .metric-value.purple {{ color: #c084fc; }}
     .metric-value.gray {{ color: #717682; }}
 
     .metric-title {{
-      font-size: 10.5px;
+      font-size: 9.5px;
       font-weight: 600;
       color: #8e94a0;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
+      line-height: 1.2;
     }}
 
     .section-tagline {{
@@ -364,42 +348,42 @@ def build_html_report(
       color: #8e94a0;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      margin: 28px 0 12px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      margin: 24px 0 10px 0;
     }}
 
     .card-item {{
       background: #202227;
       border: 1px solid #2b2e36;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 12px;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
     }}
 
     .card-item-header {{
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      gap: 8px;
     }}
 
     .card-item-title {{
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       color: #ffffff;
+      word-break: break-word;
     }}
 
     .card-badge {{
       background: rgba(0, 229, 255, 0.1);
       color: #00e5ff;
       border: 1px solid rgba(0, 229, 255, 0.25);
-      padding: 2px 10px;
+      padding: 2px 8px;
       border-radius: 9999px;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       white-space: nowrap;
+      flex-shrink: 0;
     }}
 
     .card-badge.green {{
@@ -409,121 +393,124 @@ def build_html_report(
     }}
 
     .card-item-desc {{
-      font-size: 13px;
+      font-size: 12.5px;
       color: #9da3af;
-      line-height: 1.6;
+      line-height: 1.5;
       margin: 0;
-    }}
-
-    .card-item-desc strong {{
-      color: #f1f5f9;
-    }}
-
-    .card-item-desc em {{
-      color: #22d3ee;
-      font-style: normal;
+      word-break: break-word;
     }}
 
     .audit-aura-box {{
-      background: linear-gradient(180deg, rgba(168, 85, 247, 0.08) 0%, rgba(168, 85, 247, 0.02) 100%);
-      border: 1px solid rgba(168, 85, 247, 0.3);
-      border-radius: 16px;
-      padding: 18px 20px;
-      margin-top: 22px;
+      background: rgba(168, 85, 247, 0.05);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      border-radius: 14px;
+      padding: 16px 16px;
+      margin-top: 20px;
     }}
 
     .audit-aura-title {{
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       color: #c084fc;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       text-transform: uppercase;
       letter-spacing: 0.6px;
     }}
 
     .audit-log-row {{
-      font-size: 12.5px;
+      font-size: 12px;
       color: #d1d5db;
-      line-height: 1.6;
+      line-height: 1.5;
       margin-bottom: 6px;
-    }}
-
-    .audit-log-row code {{
-      background: rgba(0, 0, 0, 0.4);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: ui-monospace, SFMono-Regular, monospace;
-      color: #f472b6;
-      font-size: 11.5px;
+      word-break: break-word;
     }}
 
     .rollback-zone {{
-      margin-top: 36px;
+      margin-top: 28px;
       background: #1c181b;
       border: 1px solid rgba(239, 68, 68, 0.25);
-      border-radius: 20px;
-      padding: 24px 20px;
+      border-radius: 16px;
+      padding: 20px 16px;
       text-align: center;
     }}
 
     .rollback-title {{
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 700;
       color: #f87171;
       margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
     }}
 
     .rollback-desc {{
-      font-size: 12px;
+      font-size: 11.5px;
       color: #9da3af;
-      line-height: 1.5;
-      margin-bottom: 18px;
+      line-height: 1.4;
+      margin-bottom: 16px;
       max-width: 440px;
       margin-left: auto;
       margin-right: auto;
     }}
 
     .btn-rollback-aura {{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+      display: inline-block;
       background: #ef4444;
       color: #ffffff !important;
       text-decoration: none;
       font-weight: 700;
-      font-size: 13px;
-      padding: 12px 28px;
+      font-size: 12.5px;
+      padding: 10px 22px;
       border-radius: 9999px;
-      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
-      transition: all 0.2s ease;
-    }}
-
-    .btn-rollback-aura:hover {{
-      background: #dc2626;
-      box-shadow: 0 6px 24px rgba(239, 68, 68, 0.6);
+      box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
     }}
 
     .footer {{
-      padding: 26px 32px;
+      padding: 22px 24px;
       background: #141518;
       border-top: 1px solid #23252a;
       text-align: center;
-      font-size: 11.5px;
+      font-size: 11px;
       color: #52525b;
-      line-height: 1.6;
+      line-height: 1.5;
     }}
 
     .footer a {{
       color: #00e5ff;
       text-decoration: none;
       font-weight: 600;
+    }}
+
+    @media only screen and (max-width: 520px) {{
+      .wrapper {{
+        padding: 10px 4px !important;
+      }}
+      .header {{
+        padding: 24px 14px 16px 14px !important;
+      }}
+      .content {{
+        padding: 8px 12px 24px 12px !important;
+      }}
+      .brand-name {{
+        font-size: 26px !important;
+      }}
+      .brand-logo-img {{
+        width: 38px !important;
+        height: 38px !important;
+      }}
+      .header-title {{
+        font-size: 17px !important;
+      }}
+      .metric-value {{
+        font-size: 18px !important;
+      }}
+      .metric-title {{
+        font-size: 8px !important;
+      }}
+      .query-pill-card {{
+        padding: 12px 12px !important;
+      }}
+      .query-text {{
+        font-size: 13.5px !important;
+      }}
     }}
   </style>
 </head>
@@ -533,7 +520,7 @@ def build_html_report(
       
       <div class="header">
         <div class="brand-logo-wrap">
-          <img src="{logo_b64}" alt="Logo Maia.api" class="brand-logo-img">
+          <img src="{logo_url}" alt="Maia.api" class="brand-logo-img" width="48" height="48" />
           <div class="brand-name">Maia<strong>.api</strong></div>
         </div>
 
