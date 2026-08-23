@@ -80,6 +80,16 @@ jobs:
             done <<< "$VERTEX_CREDS"
           fi
 
+          echo "================================================================="
+          echo "🚀 [Pipeline] Lote: $BATCH_ID | Tema: '$THEME'"
+          if [ -n "$VERTEX_CREDS" ] || [[ "$MODEL" == vertex/* ]]; then
+            echo "⚡ [Pipeline] Modo de Autenticação: Vertex AI (Service Account / GCP)"
+          else
+            echo "🔑 [Pipeline] Modo de Autenticação: Gemini Direct API Key"
+          fi
+          echo "🤖 [Pipeline] Modelo Principal: $MODEL | Modelo Busca: $SEARCH_MODEL"
+          echo "================================================================="
+
           echo "theme=$THEME" >> "$GITHUB_OUTPUT"
           echo "batch_id=$BATCH_ID" >> "$GITHUB_OUTPUT"
           echo "model=$MODEL" >> "$GITHUB_OUTPUT"
@@ -104,9 +114,12 @@ jobs:
     env:
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       LLM_API_KEY: ${{ github.event.client_payload.gemini_api_key || secrets.LLM_API_KEY || secrets.GOOGLE_GENAI_API_KEY }}
+      VERTEX_CREDENTIALS: ${{ github.event.client_payload.vertex_credentials }}
+      VERTEX_PROJECT_ID: ${{ github.event.client_payload.vertex_project_id || secrets.GCP_PROJECT_ID }}
+      VERTEX_LOCATION: ${{ github.event.client_payload.vertex_location || 'us-central1' }}
       QUERY: ${{ needs.setup-params.outputs.theme }}
       SEARCH_TYPE: ${{ matrix.search_type }}
-      SEARCH_MODEL: ${{ needs.setup-params.outputs.search_model }}
+      RAW_SEARCH_MODEL: ${{ needs.setup-params.outputs.search_model }}
       RUN_ID: ${{ github.run_id }}
 
     steps:
@@ -121,6 +134,31 @@ jobs:
           RAW_SLUG=$(echo "$QUERY" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9]/-/g' -e 's/-\+/-/g' | cut -c 1-40)
           SLUG="${SEARCH_TYPE}-${RAW_SLUG}"
           echo "slug=$SLUG" >> "$GITHUB_OUTPUT"
+
+          # Formatar nome do modelo para LiteLLM (OpenHands)
+          SEARCH_MODEL="$RAW_SEARCH_MODEL"
+          if [[ "$SEARCH_MODEL" == vertex/* ]]; then
+            SEARCH_MODEL=$(echo "$SEARCH_MODEL" | sed 's|^vertex/|vertex_ai/|')
+          elif [[ "$SEARCH_MODEL" != */* ]]; then
+            if [ -n "$VERTEX_CREDENTIALS" ] || [ -n "$VERTEX_PROJECT_ID" ]; then
+              SEARCH_MODEL="vertex_ai/$SEARCH_MODEL"
+            else
+              SEARCH_MODEL="gemini/$SEARCH_MODEL"
+            fi
+          fi
+
+          echo "================================================================="
+          echo "🔍 [OpenHands] Iniciando Worker: ${SEARCH_TYPE^^}"
+          echo "🎯 [OpenHands] Slug do Lote: $SLUG"
+          if [ -n "$VERTEX_CREDENTIALS" ] || [[ "$SEARCH_MODEL" == vertex_ai/* ]]; then
+            echo "⚡ [OpenHands] Autenticação: Google Cloud Vertex AI"
+            echo "   📍 Projeto: ${VERTEX_PROJECT_ID:-'Padrão'} | Região: $VERTEX_LOCATION"
+            echo "   🤖 Modelo LiteLLM: $SEARCH_MODEL"
+          else
+            echo "🔑 [OpenHands] Autenticação: Gemini Direct API Key"
+            echo "   🤖 Modelo LiteLLM: $SEARCH_MODEL"
+          fi
+          echo "================================================================="
           
           if [ "$SEARCH_TYPE" = "livros" ]; then
             PROMPT_TEMPLATE=$(cat <<'EOF'
@@ -217,14 +255,19 @@ jobs:
           docker volume create "$VOL_NAME"
           docker volume create "$STATE_VOL_NAME"
 
+          # Salvar credenciais Vertex AI e config de busca no volume
           docker run --rm \
             -v "$VOL_NAME:/workspace" \
             -v "$STATE_VOL_NAME:/workspace/.openhands" \
             -e TAVILY_API_KEY="$TAVILY_API_KEY" \
+            -e VERTEX_CREDENTIALS="$VERTEX_CREDENTIALS" \
             alpine sh -c '
               set -eux
               mkdir -p /workspace/.openhands
               printf "[core]\nsearch_api_key = \"%s\"\n" "$TAVILY_API_KEY" > /workspace/config.toml
+              if [ -n "$VERTEX_CREDENTIALS" ]; then
+                printf "%s" "$VERTEX_CREDENTIALS" > /workspace/vertex_credentials.json
+              fi
               rm -f /workspace/.openhands/.jwt_secret || true
               chmod -R 777 /workspace
             '
@@ -242,6 +285,9 @@ jobs:
             -e "LOG_ALL_EVENTS=true" \
             -e "LLM_API_KEY=$LLM_API_KEY" \
             -e "LLM_MODEL=$SEARCH_MODEL" \
+            -e "VERTEXAI_PROJECT=$VERTEX_PROJECT_ID" \
+            -e "VERTEXAI_LOCATION=$VERTEX_LOCATION" \
+            -e "GOOGLE_APPLICATION_CREDENTIALS=/workspace/vertex_credentials.json" \
             -e "TAVILY_API_KEY=$TAVILY_API_KEY" \
             -e "PYTHONUNBUFFERED=1" \
             -e "PROMPT=$PROMPT" \
