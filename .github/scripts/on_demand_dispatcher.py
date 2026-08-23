@@ -112,11 +112,12 @@ def main():
         questions_results = f_questions.result()
 
     matrix_items = books_results + questions_results
+    has_files = "true" if len(matrix_items) > 0 else "false"
 
-    # Se nenhum PDF foi baixado em ambiente de teste, criar item dummy para não quebrar o workflow
+    # Se nenhum PDF foi baixado em ambiente de teste, criar item dummy para não quebrar a avaliação da matriz do GitHub Actions
     if not matrix_items:
         print("⚠️ Nenhum PDF externo localizado na busca rápida. Gerando manifesto vazio.")
-        matrix_payload = {"include": []}
+        matrix_payload = {"include": [{"slug": "none", "pdf_path": "", "pdf_name": "", "type": "none", "url": ""}]}
     else:
         matrix_payload = {"include": matrix_items}
 
@@ -129,10 +130,11 @@ def main():
     if "GITHUB_OUTPUT" in os.environ:
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"matrix={matrix_str}\n")
+            f.write(f"has_files={has_files}\n")
             f.write(f"books_count={len(books_results)}\n")
             f.write(f"questions_count={len(questions_results)}\n")
 
-    print(f"✨ [Dispatcher] Matriz gerada com sucesso! Total de jobs paralelos: {len(matrix_items)}")
+    print(f"✨ [Dispatcher] Matriz gerada com sucesso! Total de jobs paralelos: {len(matrix_items)} (has_files={has_files})")
 
 
 if __name__ == "__main__":

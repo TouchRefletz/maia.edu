@@ -36,6 +36,9 @@ jobs:
     timeout-minutes: 20
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_files: ${{ steps.set-matrix.outputs.has_files }}
+      books_count: ${{ steps.set-matrix.outputs.books_count }}
+      questions_count: ${{ steps.set-matrix.outputs.questions_count }}
       batch_id: ${{ steps.setup-params.outputs.batch_id }}
       theme: ${{ steps.setup-params.outputs.theme }}
       model: ${{ steps.setup-params.outputs.model }}
@@ -59,31 +62,41 @@ jobs:
 
       - name: "Setup Parameters and Mask Sensitive Secrets"
         id: setup-params
+        env:
+          INPUT_THEME: ${{ github.event.client_payload.query || inputs.query }}
+          INPUT_BATCH_ID: ${{ github.event.client_payload.batch_id || inputs.batch_id }}
+          INPUT_MODEL: ${{ github.event.client_payload.model || inputs.model || 'vertex/gemini-3.7-flash' }}
+          INPUT_ADMIN_EMAIL: ${{ github.event.client_payload.admin_email || inputs.admin_email }}
+          INPUT_ROLLBACK_TOKEN: ${{ github.event.client_payload.rollback_token || inputs.rollback_token || 'sec_default' }}
+          INPUT_RESUME_PAGE: ${{ github.event.client_payload.resume_from_page || inputs.resume_from_page || '1' }}
+          VERTEX_CREDS: ${{ github.event.client_payload.vertex_credentials }}
+          GEMINI_KEY: ${{ github.event.client_payload.gemini_api_key }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          THEME="${{ github.event.client_payload.query || inputs.query }}"
-          BATCH_ID="${{ github.event.client_payload.batch_id || inputs.batch_id || format('batch_{0}', github.run_id) }}"
-          MODEL="${{ github.event.client_payload.model || inputs.model || 'vertex/gemini-3.7-flash' }}"
-          ADMIN_EMAIL="${{ github.event.client_payload.admin_email || inputs.admin_email }}"
-          ROLLBACK_TOKEN="${{ github.event.client_payload.rollback_token || inputs.rollback_token || 'sec_default' }}"
-          RESUME_PAGE="${{ github.event.client_payload.resume_from_page || inputs.resume_from_page || '1' }}"
-          
-          # Masking credentials from client payload
-          VERTEX_CREDS="${{ github.event.client_payload.vertex_credentials }}"
-          GEMINI_KEY="${{ github.event.client_payload.gemini_api_key }}"
-          
-          if [ -n "$VERTEX_CREDS" ]; then
-            echo "::add-mask::$VERTEX_CREDS"
-          fi
+          THEME="${INPUT_THEME}"
+          BATCH_ID="${INPUT_BATCH_ID:-batch_${RUN_ID}}"
+          MODEL="${INPUT_MODEL}"
+          ADMIN_EMAIL="${INPUT_ADMIN_EMAIL}"
+          ROLLBACK_TOKEN="${INPUT_ROLLBACK_TOKEN}"
+          RESUME_PAGE="${INPUT_RESUME_PAGE}"
+
           if [ -n "$GEMINI_KEY" ]; then
             echo "::add-mask::$GEMINI_KEY"
           fi
+          if [ -n "$VERTEX_CREDS" ]; then
+            while IFS= read -r line; do
+              if [ -n "$line" ]; then
+                echo "::add-mask::$line"
+              fi
+            done <<< "$VERTEX_CREDS"
+          fi
 
-          echo "theme=$THEME" >> $GITHUB_OUTPUT
-          echo "batch_id=$BATCH_ID" >> $GITHUB_OUTPUT
-          echo "model=$MODEL" >> $GITHUB_OUTPUT
-          echo "admin_email=$ADMIN_EMAIL" >> $GITHUB_OUTPUT
-          echo "rollback_token=$ROLLBACK_TOKEN" >> $GITHUB_OUTPUT
-          echo "resume_page=$RESUME_PAGE" >> $GITHUB_OUTPUT
+          echo "theme=$THEME" >> "$GITHUB_OUTPUT"
+          echo "batch_id=$BATCH_ID" >> "$GITHUB_OUTPUT"
+          echo "model=$MODEL" >> "$GITHUB_OUTPUT"
+          echo "admin_email=$ADMIN_EMAIL" >> "$GITHUB_OUTPUT"
+          echo "rollback_token=$ROLLBACK_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "resume_page=$RESUME_PAGE" >> "$GITHUB_OUTPUT"
 
       - name: "Run Simultaneous Search (2 Workers)"
         id: set-matrix
@@ -93,11 +106,14 @@ jobs:
           VERTEX_CREDENTIALS: ${{ github.event.client_payload.vertex_credentials }}
           VERTEX_PROJECT_ID: ${{ github.event.client_payload.vertex_project_id || secrets.GCP_PROJECT_ID }}
           VERTEX_LOCATION: ${{ github.event.client_payload.vertex_location || 'us-central1' }}
+          SEARCH_THEME: ${{ steps.setup-params.outputs.theme }}
+          SEARCH_BATCH_ID: ${{ steps.setup-params.outputs.batch_id }}
+          SEARCH_MODEL: ${{ steps.setup-params.outputs.model }}
         run: |
           python .github/scripts/on_demand_dispatcher.py \
-            --query "${{ steps.setup-params.outputs.theme }}" \
-            --batch-id "${{ steps.setup-params.outputs.batch_id }}" \
-            --model "${{ steps.setup-params.outputs.model }}" \
+            --query "$SEARCH_THEME" \
+            --batch-id "$SEARCH_BATCH_ID" \
+            --model "$SEARCH_MODEL" \
             --output-json matrix.json
 
       - name: "Upload Discovered Files Artifacts"
@@ -114,7 +130,7 @@ jobs:
   process-files:
     name: "⚡ Process PDF (${{ matrix.type }}: ${{ matrix.slug }})"
     needs: dispatch-search
-    if: ${{ needs.dispatch-search.outputs.matrix != '' && needs.dispatch-search.outputs.matrix != '{"include":[]}' }}
+    if: ${{ needs.dispatch-search.outputs.has_files == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -159,13 +175,18 @@ jobs:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           PINECONE_HOST: ${{ secrets.PINECONE_HOST_LIVROS || secrets.PINECONE_HOST }}
           WORKER_URL: ${{ secrets.WORKER_URL || 'https://maia-api-worker.willian-campos-ismart.workers.dev' }}
+          PDF_PATH: ${{ matrix.pdf_path }}
+          BOOK_SLUG: ${{ matrix.slug }}
+          BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
+          MODEL: ${{ needs.dispatch-search.outputs.model }}
+          RESUME_PAGE: ${{ needs.dispatch-search.outputs.resume_page || '1' }}
         run: |
           python .github/workflows/scripts/textbook_extractor.py \
-            --pdf-path "${{ matrix.pdf_path }}" \
-            --book-slug "${{ matrix.slug }}" \
-            --batch-id "${{ needs.dispatch-search.outputs.batch_id }}" \
-            --model "${{ needs.dispatch-search.outputs.model }}" \
-            --resume-page "${{ needs.dispatch-search.outputs.resume_page || 1 }}" \
+            --pdf-path "$PDF_PATH" \
+            --book-slug "$BOOK_SLUG" \
+            --batch-id "$BATCH_ID" \
+            --model "$MODEL" \
+            --resume-page "$RESUME_PAGE" \
             --output-dir output
 
       - name: "Extract Questions (AI Auditor & Heuristics)"
@@ -177,11 +198,14 @@ jobs:
           VERTEX_PROJECT_ID: ${{ github.event.client_payload.vertex_project_id || secrets.GCP_PROJECT_ID }}
           VERTEX_LOCATION: ${{ github.event.client_payload.vertex_location || 'us-central1' }}
           SLUG: ${{ matrix.slug }}
+          PDF_PATH: ${{ matrix.pdf_path }}
+          PDF_URL: ${{ matrix.url }}
           BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
           WORKER_URL: ${{ secrets.WORKER_URL || 'https://maia-api-worker.willian-campos-ismart.workers.dev' }}
           EXTRACT_MODEL: ${{ needs.dispatch-search.outputs.model }}
+          REGION_MODEL: ${{ needs.dispatch-search.outputs.model }}
         run: |
-          python .github/scripts/extract_pipeline.py || echo "Finished processing question list."
+          python .github/scripts/extract_pipeline.py
 
       - name: "Upload Result Artifact"
         uses: actions/upload-artifact@v4
@@ -224,15 +248,21 @@ jobs:
         env:
           GMAIL_SENDER: ${{ secrets.GMAIL_SENDER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ADMIN_EMAIL: ${{ needs.dispatch-search.outputs.admin_email }}
+          THEME: ${{ needs.dispatch-search.outputs.theme }}
+          BATCH_ID: ${{ needs.dispatch-search.outputs.batch_id }}
+          MODEL: ${{ needs.dispatch-search.outputs.model }}
+          ROLLBACK_TOKEN: ${{ needs.dispatch-search.outputs.rollback_token }}
+          STATUS: ${{ needs.process-files.result == 'success' && 'completed' || 'completed' }}
+          BOOKS_COUNT: ${{ needs.dispatch-search.outputs.books_count || 0 }}
+          QUESTIONS_COUNT: ${{ needs.dispatch-search.outputs.questions_count || 0 }}
         run: |
           python .github/scripts/send_summary_email.py \
-            --to "${{ needs.dispatch-search.outputs.admin_email }}" \
-            --theme "${{ needs.dispatch-search.outputs.theme }}" \
-            --batch-id "${{ needs.dispatch-search.outputs.batch_id }}" \
-            --model "${{ needs.dispatch-search.outputs.model }}" \
-            --rollback-token "${{ needs.dispatch-search.outputs.rollback_token }}" \
-            --status "${{ needs.process-files.result == 'success' && 'completed' || 'completed' }}" \
-            --books-count 1 \
-            --questions-count 20 \
-            --fixes-count 5 \
-            --dedup-count 0
+            --to "$ADMIN_EMAIL" \
+            --theme "$THEME" \
+            --batch-id "$BATCH_ID" \
+            --model "$MODEL" \
+            --rollback-token "$ROLLBACK_TOKEN" \
+            --status "$STATUS" \
+            --books-count "$BOOKS_COUNT" \
+            --questions-count "$QUESTIONS_COUNT"

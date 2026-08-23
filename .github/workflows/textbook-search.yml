@@ -36,9 +36,9 @@ jobs:
           GOOGLE_GENAI_API_KEY: ${{ secrets.GOOGLE_GENAI_API_KEY }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           PINECONE_HOST_LIVROS: ${{ secrets.PINECONE_HOST_LIVROS }}
+          QUERY: ${{ inputs.query || github.event.client_payload.query || 'Física clássica Caio Vestibular' }}
+          SLUG: ${{ inputs.book_slug || github.event.client_payload.slug || 'livro-autonomo' }}
         run: |
-          QUERY="${{ github.event.inputs.query || github.event.client_payload.query }}"
-          SLUG="${{ github.event.inputs.book_slug || github.event.client_payload.slug || 'livro-autonomo' }}"
           echo "📖 Executando extração autônoma para: $QUERY (Slug: $SLUG)"
           
           # Se o PDF já foi baixado ou referenciado, roda o extrator Python

@@ -37,8 +37,7 @@ except ImportError:
 
 # ─── Configuration ────────────────────────────────────────────────
 WORKER_URL = os.environ.get("WORKER_URL", "https://maia-api-worker.willian-campos-ismart.workers.dev")
-GEMINI_KEY = os.environ["GOOGLE_GENAI_API_KEY"]
-SLUG = os.environ["SLUG"]
+SLUG = os.environ.get("SLUG", "coleta-questoes")
 BATCH_ID = os.environ.get("BATCH_ID", "")
 MANIFEST_PATH = os.environ.get("MANIFEST_PATH", "work/manifest.json")
 QUERY = os.environ.get("QUERY", "")
@@ -90,8 +89,37 @@ def secure_log(msg: str, echo_stdout: bool = False):
     if echo_stdout:
         print(f"[{timestamp}] {msg}", flush=True)
 
+def init_genai_client(model_name: str = ""):
+    """Inicializa o cliente Google GenAI SDK (Vertex AI ou API Key padrão)"""
+    is_vertex = "vertex" in (model_name or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
+    project_id = os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
+    location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "us-central1")
+
+    creds_json = os.getenv("VERTEX_CREDENTIALS")
+    if creds_json and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+        import tempfile
+        creds_path = os.path.join(tempfile.gettempdir(), "vertex_credentials.json")
+        try:
+            with open(creds_path, "w", encoding="utf-8") as f:
+                f.write(creds_json)
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+        except Exception:
+            pass
+
+    if is_vertex and project_id:
+        print(f"⚡ Inicializando GenAI Client com Google Cloud Vertex AI (Project: {project_id}, Location: {location})")
+        return genai.Client(vertex=True, project=project_id, location=location)
+    else:
+        api_key = os.getenv("GOOGLE_GENAI_API_KEY") or os.getenv("LLM_API_KEY")
+        print(f"🔑 Inicializando GenAI Client com Gemini API Key")
+        return genai.Client(api_key=api_key)
+
+def get_clean_model_id(model_name: str) -> str:
+    m = (model_name or "").replace("vertex/", "").replace("models/", "")
+    return m or "gemini-3.7-flash"
+
 # Initialize Gemini client
-client = genai.Client(api_key=GEMINI_KEY)
+client = init_genai_client(EXTRACT_MODEL)
 
 # ─── Prompts (ported from ai-scanner.js + config.js) ─────────────
 
@@ -328,8 +356,30 @@ QUESTION_EXTRACT_SCHEMA = {
 def load_manifest():
     """Load or create manifest."""
     if os.path.exists(MANIFEST_PATH):
-        with open(MANIFEST_PATH) as f:
-            return json.load(f)
+        try:
+            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return {"status": "in_progress", "slug": SLUG, "results": data}
+                return data
+        except Exception as e:
+            print(f"⚠️ Erro ao ler MANIFEST_PATH ({MANIFEST_PATH}): {e}")
+
+    # Fallback/On-demand mode: se PDF_PATH ou PDF_URL estiver definido
+    pdf_path_env = os.environ.get("PDF_PATH")
+    pdf_url_env = os.environ.get("PDF_URL")
+    initial_items = []
+    if pdf_path_env or pdf_url_env:
+        item_name = os.path.basename(pdf_path_env) if pdf_path_env else f"{SLUG}.pdf"
+        initial_items.append({
+            "name": item_name,
+            "url": pdf_url_env or ("file://" + os.path.abspath(pdf_path_env) if pdf_path_env else ""),
+            "pdf_local_path": pdf_path_env,
+            "slug": SLUG,
+            "status": "downloaded" if (pdf_path_env and os.path.exists(pdf_path_env)) else "reference",
+            "extraction_results": {"pages": {}, "status": "pending"}
+        })
+
     return {
         "status": "in_progress",
         "slug": SLUG,
@@ -338,15 +388,21 @@ def load_manifest():
         "subject": SUBJECT,
         "rate_limit_hit": False,
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "results": initial_items,
     }
 
 
 def save_manifest(manifest):
     """Save manifest to disk."""
     manifest["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    os.makedirs(os.path.dirname(MANIFEST_PATH), exist_ok=True)
-    with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+    manifest_paths = [MANIFEST_PATH, f"output/{SLUG}/manifest.json"]
+    for m_path in manifest_paths:
+        try:
+            os.makedirs(os.path.dirname(m_path), exist_ok=True)
+            with open(m_path, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
 
 
 def image_to_base64(img: Image.Image, fmt="PNG") -> str:
@@ -1024,8 +1080,10 @@ def main():
 
         for item_idx, item in enumerate(items):
             url = item.get("url") or item.get("link") or item.get("link_origem") or item.get("external_url")
-            if not url or not url.startswith("http"):
-                print(f"⚠️ Item {item_idx} pulado: URL ausente ou inválida ('{url}')")
+            local_path = item.get("pdf_local_path") or os.environ.get("PDF_PATH")
+
+            if not url and not (local_path and os.path.exists(local_path)):
+                print(f"⚠️ Item {item_idx} pulado: URL ou arquivo local ausente ('{url}')")
                 continue
 
             if "extraction_results" not in item:
@@ -1041,16 +1099,27 @@ def main():
             if not safe_name.lower().endswith(".pdf"):
                 safe_name += ".pdf"
             
-            pdf_path = os.path.join(pdf_dir, f"doc_{item_idx}_{safe_name}")
-            pdf_name = f"doc_{item_idx}_{safe_name}"
+            if local_path and os.path.exists(local_path):
+                pdf_path = local_path
+                pdf_name = os.path.basename(local_path)
+            else:
+                pdf_path = os.path.join(pdf_dir, f"doc_{item_idx}_{safe_name}")
+                pdf_name = f"doc_{item_idx}_{safe_name}"
 
             print(f"\n{'='*60}")
             print(f"📄 Processando Item [{item_idx + 1}/{len(items)}]: {safe_name}")
-            print(f"   URL: {url}")
+            print(f"   Origem: {pdf_path if local_path and os.path.exists(local_path) else url}")
             print(f"{'='*60}")
 
             # Baixar o PDF caso não exista localmente
             if not os.path.exists(pdf_path):
+                if not url or not url.startswith("http"):
+                    print(f"  ❌ Falha: Arquivo local {pdf_path} não existe e URL '{url}' é inválida.")
+                    item["extraction_results"]["status"] = "error"
+                    item["extraction_results"]["error"] = f"File missing and URL invalid: {url}"
+                    save_manifest(manifest)
+                    continue
+
                 print(f"  📥 Baixando arquivo para {pdf_path}...")
                 download_start = time.time()
                 try:

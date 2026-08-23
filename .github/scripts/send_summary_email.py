@@ -668,13 +668,58 @@ def main():
     except Exception:
         audit_details = []
 
+    books_count = args.books_count
+    questions_count = args.questions_count
+
+    # Descoberta automática de manifestos gerados nas pastas all_results e output
+    if not books_details and not questions_details:
+        search_dirs = ["all_results", "output"]
+        for s_dir in search_dirs:
+            if os.path.exists(s_dir):
+                for root, dirs, files in os.walk(s_dir):
+                    for file in files:
+                        if file == "manifest.json":
+                            mpath = os.path.join(root, file)
+                            try:
+                                with open(mpath, "r", encoding="utf-8") as f:
+                                    m_data = json.load(f)
+                                    if isinstance(m_data, dict):
+                                        if "tree" in m_data or "total_pages" in m_data:
+                                            b_slug = m_data.get("slug", os.path.basename(root))
+                                            b_pages = m_data.get("total_pages", len(m_data.get("pages", {})))
+                                            books_details.append({
+                                                "title": b_slug,
+                                                "badge": f"{b_pages} Páginas Processadas",
+                                                "desc": "Mapeamento sequencial de tópicos e vetores gerados no Pinecone (namespace theory).",
+                                            })
+                                        elif "results" in m_data or "extraction_results" in m_data or "slug" in m_data:
+                                            q_slug = m_data.get("slug", os.path.basename(root))
+                                            res_items = m_data.get("results", [])
+                                            q_c = 0
+                                            for it in res_items:
+                                                ex = it.get("extraction_results", {})
+                                                for p, pdata in ex.get("pages", {}).items():
+                                                    q_c += len(pdata.get("questions", []))
+                                            questions_details.append({
+                                                "title": q_slug,
+                                                "badge": f"{q_c} Questões Inseridas",
+                                                "desc": "Segmentação em caixas gulosas e formulas em LaTeX processadas.",
+                                            })
+                            except Exception:
+                                pass
+
+        if books_details and books_count == 0:
+            books_count = len(books_details)
+        if questions_details and questions_count == 0:
+            questions_count = sum(int(q.get("badge", "0").split()[0]) for q in questions_details if q.get("badge", "0").split()[0].isdigit())
+
     html_content = build_html_report(
         theme=args.theme,
         batch_id=args.batch_id,
         model=args.model,
         duration=args.duration,
-        books_count=args.books_count,
-        questions_count=args.questions_count,
+        books_count=books_count,
+        questions_count=questions_count,
         fixes_count=args.fixes_count,
         dedup_count=args.dedup_count,
         books_details=books_details,

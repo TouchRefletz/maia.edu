@@ -285,13 +285,14 @@ Para evitar alucinações, você deve seguir este mapa de permissões rígido:
 
 def init_genai_client(model_name: str):
     """Inicializa o cliente Google GenAI SDK (Vertex AI ou API Key padrão)"""
-    is_vertex = "vertex" in model_name.lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
+    is_vertex = "vertex" in (model_name or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
     project_id = os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
     location = os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "us-central1")
 
     creds_json = os.getenv("VERTEX_CREDENTIALS")
     if creds_json and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        creds_path = "/tmp/vertex_credentials.json"
+        import tempfile
+        creds_path = os.path.join(tempfile.gettempdir(), "vertex_credentials.json")
         try:
             with open(creds_path, "w", encoding="utf-8") as f:
                 f.write(creds_json)

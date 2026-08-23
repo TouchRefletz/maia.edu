@@ -130,9 +130,11 @@ def apply_ai_audit(
         contents.append(types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"))
     contents.append(prompt)
 
+    clean_model_id = (model_id or "").replace("vertex/", "").replace("models/", "") or "gemini-3.7-flash"
+
     try:
         response = client.models.generate_content(
-            model=model_id,
+            model=clean_model_id,
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -170,6 +172,18 @@ def apply_ai_audit(
                 if orig in val:
                     target["alternativas"][campo] = val.replace(orig, sugg)
                     fixes_count += 1
+            elif isinstance(target.get("alternativas"), list):
+                for alt in target["alternativas"]:
+                    if isinstance(alt, dict):
+                        for b in alt.get("estrutura", []):
+                            if isinstance(b, dict) and b.get("conteudo") and orig in b["conteudo"]:
+                                b["conteudo"] = b["conteudo"].replace(orig, sugg)
+                                fixes_count += 1
+            if isinstance(target.get("estrutura"), list):
+                for b in target["estrutura"]:
+                    if isinstance(b, dict) and b.get("conteudo") and orig in b["conteudo"]:
+                        b["conteudo"] = b["conteudo"].replace(orig, sugg)
+                        fixes_count += 1
 
         return updated_q, fixes_count
     except Exception as e:
