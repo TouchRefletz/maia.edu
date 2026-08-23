@@ -609,6 +609,23 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
     last_exception = None
     is_vertex_client = "vertex" in (EXTRACT_MODEL or "").lower() or bool(os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"))
     
+    # Garantir role="user" em todos os objetos Content (obrigatório na Vertex AI)
+    if isinstance(contents, list):
+        sanitized_contents = []
+        for item in contents:
+            if isinstance(item, types.Content):
+                if not item.role:
+                    item.role = "user"
+                sanitized_contents.append(item)
+            elif isinstance(item, types.Part):
+                sanitized_contents.append(types.Content(role="user", parts=[item]))
+            else:
+                sanitized_contents.append(item)
+        contents = sanitized_contents
+    elif isinstance(contents, types.Content):
+        if not contents.role:
+            contents.role = "user"
+
     for current_model in models_to_try:
         model_to_call = current_model.replace("vertex/", "").replace("vertex_ai/", "")
         if is_vertex_client:
@@ -638,7 +655,7 @@ def call_gemini_with_retry(model, contents, config, max_retries=MAX_RETRIES):
                 else:
                     if isinstance(e, (AttributeError, NameError, TypeError)):
                         raise
-                    secure_log(f"Model {current_model} failed with non-transient error. Trying next fallback...")
+                    secure_log(f"Model {current_model} failed with non-transient error: {e}. Trying next fallback...")
                     break
         else:
             secure_log(f"Model {current_model} exhausted all retries. Trying next fallback...")
@@ -667,6 +684,7 @@ def detect_regions(page_img: Image.Image):
         model=REGION_MODEL,
         contents=[
             types.Content(
+                role="user",
                 parts=[
                     types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                     types.Part.from_text(text=REGION_DETECT_PROMPT),
@@ -696,6 +714,7 @@ def extract_question(cropped_img: Image.Image):
         model=EXTRACT_MODEL,
         contents=[
             types.Content(
+                role="user",
                 parts=[
                     types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                     types.Part.from_text(text=QUESTION_EXTRACT_PROMPT),
@@ -1195,6 +1214,7 @@ def main():
                             model=REGION_MODEL,
                             contents=[
                                 types.Content(
+                                    role="user",
                                     parts=[
                                         types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                                         types.Part.from_text(text=build_review_prompt(current_json)),
@@ -1222,6 +1242,7 @@ def main():
                                 model=REGION_MODEL,
                                 contents=[
                                     types.Content(
+                                        role="user",
                                         parts=[
                                             types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/png"),
                                             types.Part.from_text(text=build_correction_prompt(current_json, feedback)),
