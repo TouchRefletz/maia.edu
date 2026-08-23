@@ -1,5 +1,7 @@
 import { formatFriendlyError, resolveLinkOnDemand } from '../api/worker.js';
 import { criarCardTecnico } from '../banco/card-template.js';
+import { renderDetectiveSearchUI } from '../banco/detective-search.js';
+import { popularFiltrosDinamicos } from '../banco/filtros-dinamicos.js';
 import { gerarHtmlPainelFiltros } from '../banco/filtros-ui.js';
 import { carregarBancoDados, configurarObserverScroll } from '../banco/paginacao-e-carregamento.js';
 import {
@@ -4327,6 +4329,8 @@ export async function iniciarModoEstudante() {
     <div class="bank-layout">
         ${htmlFiltros}
 
+        <div id="detectiveContainer" style="display: none;"></div>
+
         <div id="bankStream" class="bank-stream"></div>
 
         <div id="sentinelaScroll" style="padding: 40px; text-align:center;">
@@ -4340,7 +4344,44 @@ export async function iniciarModoEstudante() {
   // 3. Injeta no DOM
   document.body.innerHTML = htmlLayout;
 
-  // 4. Carregamento Inicial de Dados (Página 1 de 10)
+  // Handler de alternância de visualização: Explorar Banco vs Achar Vestibular (Modo Detetive)
+  const viewTabs = document.querySelectorAll('.js-banco-view-tab');
+  viewTabs.forEach((tab) => {
+    tab.addEventListener('click', (e) => {
+      const view = tab.dataset.view;
+      viewTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      const filtersGrid = document.querySelector('.filters-grid');
+      const modoResp = document.querySelector('.js-modo-resposta-wrapper');
+      const bankStream = document.getElementById('bankStream');
+      const sentinela = document.getElementById('sentinelaScroll');
+      const detContainer = document.getElementById('detectiveContainer');
+      const paginationBar = document.getElementById('bancoPaginationBar');
+
+      if (view === 'detetive') {
+        if (filtersGrid) filtersGrid.style.display = 'none';
+        if (modoResp) modoResp.style.display = 'none';
+        if (bankStream) bankStream.style.display = 'none';
+        if (sentinela) sentinela.style.display = 'none';
+        if (paginationBar) paginationBar.style.display = 'none';
+        if (detContainer) {
+          detContainer.style.display = 'block';
+          renderDetectiveSearchUI(detContainer);
+        }
+      } else {
+        if (filtersGrid) filtersGrid.style.display = '';
+        if (modoResp) modoResp.style.display = '';
+        if (bankStream) bankStream.style.display = '';
+        if (sentinela) sentinela.style.display = '';
+        if (paginationBar) paginationBar.style.display = '';
+        if (detContainer) detContainer.style.display = 'none';
+      }
+    });
+  });
+
+  // 4. Carregamento Inicial de Dados e Filtros Dinâmicos
+  popularFiltrosDinamicos().catch(console.warn);
   await carregarBancoDados();
 
   // 5. Inicializa o Scroll Horizontal Superior (Premium Mobile)

@@ -285,6 +285,10 @@ export function extrairDadosItemParaFiltros(item, maps) {
   addCount(maps.status, JSON.stringify({ key: statusVal, label: statusLabel }));
 }
 
+const WORKER_BASE_URL =
+  import.meta.env.VITE_WORKER_URL ||
+  'https://maia-api-worker.willian-campos-ismart.workers.dev';
+
 export function atualizarSelectsFiltros(maps) {
   preencher('filtroMateria', maps.materias);
   preencher('filtroInstituicao', maps.instituicoes);
@@ -305,8 +309,111 @@ export function atualizarSelectsFiltros(maps) {
 
 export async function popularFiltrosDinamicos() {
   const maps = inicializarSetsFiltros();
-  bancoState.todasQuestoesCache.forEach((item) => {
-    extrairDadosItemParaFiltros(item, maps);
-  });
+
+  // 1. Extrai do cache local se houver questões carregadas
+  if (Array.isArray(bancoState.todasQuestoesCache) && bancoState.todasQuestoesCache.length > 0) {
+    bancoState.todasQuestoesCache.forEach((item) => {
+      extrairDadosItemParaFiltros(item, maps);
+    });
+  }
+
+  // 2. Busca catálogo de metadados consolidado e real no Worker
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
+    if (res.ok) {
+      const data = await res.json();
+      const counts = data.counts || {};
+
+      // 1. Matérias reais
+      if (counts.materias) {
+        Object.entries(counts.materias).forEach(([k, count]) => {
+          maps.materias.set(k, count);
+        });
+      }
+
+      // 2. Instituições reais
+      if (counts.instituicoes) {
+        Object.entries(counts.instituicoes).forEach(([k, count]) => {
+          maps.instituicoes.set(k, count);
+        });
+      }
+
+      // 3. Anos reais
+      if (counts.anos) {
+        Object.entries(counts.anos).forEach(([k, count]) => {
+          maps.anos.set(k, count);
+        });
+      }
+
+      // 4. Materiais / Provas reais
+      if (counts.materiais) {
+        Object.entries(counts.materiais).forEach(([k, count]) => {
+          maps.materiais.set(k, count);
+        });
+      }
+
+      // 5. Assuntos / Palavras-chave reais
+      if (counts.assuntos) {
+        Object.entries(counts.assuntos).forEach(([k, count]) => {
+          maps.assuntos.set(k, count);
+        });
+      }
+
+      // 6. Fatores de complexidade reais
+      if (counts.fatores) {
+        Object.entries(counts.fatores).forEach(([k, count]) => {
+          const label = MAPA_LABELS_FATORES[k] || formatLabel(k);
+          maps.fatores.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+
+      // 7. Status real
+      if (counts.status) {
+        const MAPA_LABELS_STATUS = {
+          'não revisada': 'Não Revisada',
+          revisada: 'Revisada',
+          verificada: 'Verificada',
+          sinalizada: 'Sinalizada',
+          invalidada: 'Invalidada',
+        };
+        Object.entries(counts.status).forEach(([k, count]) => {
+          const label = MAPA_LABELS_STATUS[k.toLowerCase()] || formatLabel(k);
+          maps.status.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+
+      // 8. Origem real
+      if (counts.origem) {
+        Object.entries(counts.origem).forEach(([k, count]) => {
+          const label = k === 'gerado_pela_ia' ? 'Gerado por IA' : 'Oficial / Extraído';
+          maps.origem.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+
+      // 9. Estrutura Enunciado/Alternativas/Gabarito reais
+      if (counts.estQuestao) {
+        Object.entries(counts.estQuestao).forEach(([k, count]) => {
+          const label = MAPA_TIPO_ESTRUTURA[k] || formatLabel(k);
+          maps.estQuestao.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+      if (counts.estAlternativas) {
+        Object.entries(counts.estAlternativas).forEach(([k, count]) => {
+          const label = MAPA_TIPO_ESTRUTURA[k] || formatLabel(k);
+          maps.estAlternativas.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+      if (counts.estGabarito) {
+        Object.entries(counts.estGabarito).forEach(([k, count]) => {
+          const label = MAPA_TIPO_ESTRUTURA[k] || formatLabel(k);
+          maps.estGabarito.set(JSON.stringify({ key: k, label }), count);
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Filtros Dinamicos] Aviso ao carregar catálogo de metadados:', e);
+  }
+
+  // Renderiza selects estritamente com os dados reais
   await atualizarSelectsFiltros(maps);
 }

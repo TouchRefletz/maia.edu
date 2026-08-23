@@ -15,9 +15,18 @@ export function gerarHtmlPainelFiltros() {
   return `
     <div class="filters-panel">
         <div class="filters-header">
-            <span style="font-size:1.2em;">🌪️</span> Filtros Avançados
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="modo-resposta-segmented" style="box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                    <button type="button" class="modo-segmented-btn active js-banco-view-tab" data-view="explorar">
+                        📚 Explorar Banco
+                    </button>
+                    <button type="button" class="modo-segmented-btn js-banco-view-tab" data-view="detetive">
+                        🕵️ Achar Vestibular
+                    </button>
+                </div>
+            </div>
             <div style="margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <div class="modo-resposta-segmented" title="Selecione a forma de responder as questões">
+                <div class="modo-resposta-segmented js-modo-resposta-wrapper" title="Selecione a forma de responder as questões">
                     <button type="button" class="modo-segmented-btn ${modoAtual === 'graus_confianca' ? 'active' : ''} js-set-modo-confianca" data-modo="graus_confianca">
                         🎯 Graus de Certeza
                     </button>
@@ -478,13 +487,14 @@ export function itemAtendeFiltros(item, f) {
 export function aplicarFiltrosBanco() {
   bancoState.carregandoMais = false;
   bancoState.renderedCount = 0;
+  bancoState.paginaAtual = 1;
   const container = document.getElementById('bankStream');
   if (container) {
     container.innerHTML = '';
   }
 
   // Import dinâmico para evitar dependência circular estática com paginacao-e-carregamento.js
-  import('./paginacao-e-carregamento.js').then(({ carregarBancoDados }) => {
-    carregarBancoDados();
+  import('./paginacao-e-carregamento.js').then(({ navegarParaPagina }) => {
+    navegarParaPagina(1);
   });
 }

@@ -9,7 +9,7 @@ const WORKER_BASE_URL =
   import.meta.env.VITE_WORKER_URL ||
   'https://maia-api-worker.willian-campos-ismart.workers.dev';
 
-export async function buscarQuestoesPaginadasWorker(page = 1, limit = 20, prova = '', termo = '') {
+export async function buscarQuestoesPaginadasWorker(page = 1, limit = 20, prova = '', termo = '', filtrosExtras = {}) {
   try {
     const signedHeaders = await generateSignedHeaders('/questoes-paginadas');
     const res = await fetch(`${WORKER_BASE_URL}/questoes-paginadas`, {
@@ -18,7 +18,7 @@ export async function buscarQuestoesPaginadasWorker(page = 1, limit = 20, prova 
         'Content-Type': 'application/json',
         ...signedHeaders,
       },
-      body: JSON.stringify({ page, limit, prova, termo }),
+      body: JSON.stringify({ page, limit, prova, termo, ...filtrosExtras }),
     });
 
     if (res.ok) {
@@ -335,12 +335,12 @@ export async function navegarParaPagina(numeroPagina) {
 
   try {
     const filtros = typeof capturarValoresFiltros === 'function' ? capturarValoresFiltros() : {};
-    const provaFiltro = Array.isArray(filtros.material)
-      ? (filtros.material[0] || '')
-      : (Array.isArray(filtros.origem) ? (filtros.origem[0] || '') : (filtros.origem || ''));
+    const provaFiltro = Array.isArray(filtros.material) && filtros.material.length > 0
+      ? filtros.material[0]
+      : '';
     const termoFiltro = String(filtros.texto || filtros.termo || '');
 
-    const res = await buscarQuestoesPaginadasWorker(bancoState.paginaAtual, 10, provaFiltro, termoFiltro);
+    const res = await buscarQuestoesPaginadasWorker(bancoState.paginaAtual, 10, provaFiltro, termoFiltro, filtros);
     bancoState.totalQuestoes = res.total || 0;
     bancoState.totalPaginas = res.totalPages || 1;
 

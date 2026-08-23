@@ -113,16 +113,44 @@ export function findAspectElo(userEloState, aspectInfo) {
   return null;
 }
 
+const WORKER_BASE_URL =
+  import.meta.env.VITE_WORKER_URL ||
+  'https://maia-api-worker.willian-campos-ismart.workers.dev';
+
+let CACHED_SIMULADOS_CATALOG = null;
+
+const MAPA_LABELS_FATORES = {
+  'interpretacao': 'Interpretação de Texto',
+  'calculo': 'Cálculo Matemático',
+  'memoria': 'Memorização e Fatos',
+  'analise': 'Análise de Dados/Gráficos',
+  'aplicacao': 'Aplicação Prática'
+};
+
+export async function fetchSimuladosCatalogData() {
+  if (CACHED_SIMULADOS_CATALOG) return CACHED_SIMULADOS_CATALOG;
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
+    if (res.ok) {
+      CACHED_SIMULADOS_CATALOG = await res.json();
+      return CACHED_SIMULADOS_CATALOG;
+    }
+  } catch (e) {
+    console.warn('Aviso ao carregar catálogo para simulados:', e);
+  }
+  return null;
+}
+
 /**
- * Extrai e categoriza profundamente os aspectos, tags, matérias e sub-tópicos do banco de questões
+ * Agrupa o banco de questões por aspectos (Matéria, Visual, Habilidades/Fatores, Tags)
  */
-export function extractAspectsFromBank(questionsPool) {
+export function extractAspectsFromBank(questionsPool = [], catalogMeta = null) {
   const aspects = {
     geral: {
       id: 'geral',
       label: 'Simulado Geral Adaptativo',
       icon: '🎯',
-      count: questionsPool.length,
+      count: catalogMeta?.totalQuestoes || questionsPool.length,
       description: 'Mistura todas as matérias e níveis do banco de questões',
       filter: () => true,
     },
@@ -130,7 +158,7 @@ export function extractAspectsFromBank(questionsPool) {
       id: 'com_imagem',
       label: 'Questões com Imagem',
       icon: '🖼️',
-      count: 0,
+      count: catalogMeta?.counts?.estQuestao?.imagem || 0,
       description: 'Exercícios com gráficos, mapas, tabelas ou ilustrações',
       filter: (q) => {
         const fullData = q.fullData || {};
@@ -139,7 +167,7 @@ export function extractAspectsFromBank(questionsPool) {
         const fotos = quest.fotos_originais || [];
         const estr = quest.estrutura || [];
         const temImgBloco = estr.some(
-          (b) => b.tipo === 'imagem' || (b.conteudo && String(b.conteudo).includes('<img'))
+          (b) => b.tipo === 'imagem' || (b.conteudo && String(b.conteudo).includes('<img')),
         );
         return meta.tem_imagem || fotos.length > 0 || temImgBloco;
       },
@@ -149,18 +177,63 @@ export function extractAspectsFromBank(questionsPool) {
     tags: {},
   };
 
+  // 1. Preenche Matérias a partir do catálogo real do banco
+  if (catalogMeta?.counts?.materias) {
+    Object.entries(catalogMeta.counts.materias).forEach(([cleanMat, count]) => {
+      if (!cleanMat || cleanMat.length < 2) return;
+      aspects.materias[cleanMat] = {
+        id: `mat_${cleanMat}`,
+        label: cleanMat,
+        icon: getSubjectIcon(cleanMat),
+        count: count,
+        description: `Treino focado em ${cleanMat}`,
+        filter: (item) => {
+          const itemFull = item.fullData || {};
+          const itemQuest = itemFull.dados_questao || {};
+          const itemMeta = itemFull.meta || {};
+          const itemMats = [
+            ...(item.subjects || []),
+            ...(itemQuest.materias_possiveis || []),
+            itemQuest.materia,
+            itemMeta.materia,
+          ].filter(Boolean).map((m) => String(m).trim().toLowerCase());
+          return itemMats.includes(cleanMat.toLowerCase());
+        },
+      };
+    });
+  }
+
+  // 2. Preenche Fatores de complexidade a partir do catálogo real do banco
+  if (catalogMeta?.counts?.fatores) {
+    Object.entries(catalogMeta.counts.fatores).forEach(([fatorKey, count]) => {
+      const labelFator = MAPA_LABELS_FATORES[fatorKey] || fatorKey.replace(/_/g, ' ');
+      aspects.complexidade[fatorKey] = {
+        id: `comp_${fatorKey}`,
+        label: labelFator,
+        icon: '⚙️',
+        count: count,
+        description: `Aprimorar habilidade: ${labelFator}`,
+        filter: (item) => {
+          const itemGab = item.fullData?.dados_gabarito || {};
+          const itemQuest = item.fullData?.dados_questao || {};
+          const cObj = itemGab.analise_complexidade || itemQuest.analise_complexidade || item.fullData?.analise_complexidade;
+          return cObj?.fatores?.[fatorKey] !== undefined;
+        },
+      };
+    });
+  }
+
+  // 3. Suplementa e extrai das questões do pool local se existirem
   questionsPool.forEach((q) => {
     const fullData = q.fullData || {};
     const quest = fullData.dados_questao || {};
     const gab = fullData.dados_gabarito || {};
     const meta = fullData.meta || {};
 
-    // 1. Contagem de questões com imagem
-    if (aspects.comImagem.filter(q)) {
+    if (!catalogMeta && aspects.comImagem.filter(q)) {
       aspects.comImagem.count++;
     }
 
-    // 2. Extração Completa de Matérias
     const setMaterias = new Set();
     if (Array.isArray(q.subjects)) q.subjects.forEach((s) => setMaterias.add(String(s).trim()));
     if (Array.isArray(quest.materias_possiveis)) quest.materias_possiveis.forEach((s) => setMaterias.add(String(s).trim()));
@@ -174,7 +247,7 @@ export function extractAspectsFromBank(questionsPool) {
           id: `mat_${cleanMat}`,
           label: cleanMat,
           icon: getSubjectIcon(cleanMat),
-          count: 0,
+          count: 1,
           description: `Treino focado em ${cleanMat}`,
           filter: (item) => {
             const itemFull = item.fullData || {};
@@ -189,11 +262,12 @@ export function extractAspectsFromBank(questionsPool) {
             return itemMats.includes(cleanMat.toLowerCase());
           },
         };
+      } else if (!catalogMeta) {
+        aspects.materias[cleanMat].count++;
       }
-      aspects.materias[cleanMat].count++;
     });
 
-    // 3. Extração Completa de Tags, Palavras-chave, Assuntos e Submátérias
+    // Tags e Assuntos
     const rawTags = [
       ...(Array.isArray(quest.tags) ? quest.tags : []),
       ...(Array.isArray(quest.palavras_chave) ? quest.palavras_chave : []),
@@ -244,33 +318,6 @@ export function extractAspectsFromBank(questionsPool) {
       }
       aspects.tags[cleanTag].count++;
     });
-
-    // 4. Extração Completa de Aspectos de Complexidade / Habilidades
-    const compObj = gab.analise_complexidade || quest.analise_complexidade || fullData.analise_complexidade;
-    if (compObj && compObj.fatores && typeof compObj.fatores === 'object') {
-      Object.keys(compObj.fatores).forEach((fatorKey) => {
-        const fatorVal = compObj.fatores[fatorKey];
-        if (fatorVal && (fatorVal.score > 30 || fatorVal.peso > 0 || fatorVal.ativo !== false)) {
-          const labelFator = fatorVal.nome || fatorVal.label || fatorKey;
-          if (!aspects.complexidade[fatorKey]) {
-            aspects.complexidade[fatorKey] = {
-              id: `comp_${fatorKey}`,
-              label: labelFator,
-              icon: '⚙️',
-              count: 0,
-              description: `Aprimorar habilidade: ${labelFator}`,
-              filter: (item) => {
-                const itemGab = item.fullData?.dados_gabarito || {};
-                const itemQuest = item.fullData?.dados_questao || {};
-                const cObj = itemGab.analise_complexidade || itemQuest.analise_complexidade || item.fullData?.analise_complexidade;
-                return cObj?.fatores?.[fatorKey] !== undefined;
-              },
-            };
-          }
-          aspects.complexidade[fatorKey].count++;
-        }
-      });
-    }
   });
 
   return aspects;
@@ -291,23 +338,13 @@ function getSubjectIcon(subjectName) {
 }
 
 /**
- * Renderiza o catálogo de aspectos na aba "Simulados Dinâmicos"
+ * Renderiza o catálogo de aspectos na aba "Simulados Dinâmicos" com contagens reais
  */
-export function renderDynamicAspectsCatalog(questionsPool, containerEl) {
+export async function renderDynamicAspectsCatalog(questionsPool, containerEl) {
   if (!containerEl) return;
 
-  if (!questionsPool || questionsPool.length === 0) {
-    containerEl.innerHTML = `
-      <div style="text-align:center; padding: 60px 20px; color:var(--color-text-secondary);">
-        <div class="spinner" style="margin: 0 auto 16px auto;"></div>
-        <p style="font-size:1.1rem; font-weight:600; margin-bottom:6px;">Carregando banco de questões e extraindo tópicos...</p>
-        <p style="font-size:13px;">O catálogo será atualizado automaticamente em instantes.</p>
-      </div>
-    `;
-    return;
-  }
-
-  const aspects = extractAspectsFromBank(questionsPool);
+  const catalogMeta = await fetchSimuladosCatalogData();
+  const aspects = extractAspectsFromBank(questionsPool, catalogMeta);
   const userEloState = getEloState();
 
   const materiasArr = Object.values(aspects.materias).sort((a, b) => b.count - a.count);
@@ -462,7 +499,7 @@ export function showDynamicSetupModal(aspectInfo, questionsPool) {
 
   // Filtra as questões elegíveis para saber quantas existem no contexto
   const filteredPool = questionsPool.filter(aspectInfo.filter || (() => true));
-  const maxAvailable = filteredPool.length;
+  const maxAvailable = Math.max(aspectInfo.count || 0, filteredPool.length || 0);
 
   if (maxAvailable === 0) {
     customAlert(`⚠️ Nenhuma questão encontrada para o aspecto "${aspectInfo.label}".`, 3000);
@@ -617,7 +654,7 @@ export function showDynamicSetupModal(aspectInfo, questionsPool) {
   modalOverlay.querySelector('#btnCancelSetup').addEventListener('click', closeModal);
 
   // Start exam handler
-  modalOverlay.querySelector('#btnStartDynamicExam').addEventListener('click', () => {
+  modalOverlay.querySelector('#btnStartDynamicExam').addEventListener('click', async () => {
     let finalCount = selectedCount;
     const customBtnActive = modalOverlay.querySelector('.setup-opt-btn[data-value="custom"]');
     if (customBtnActive && customBtnActive.classList.contains('active')) {
@@ -633,11 +670,49 @@ export function showDynamicSetupModal(aspectInfo, questionsPool) {
 
     const respMode = modalOverlay.querySelector('input[name="responseMode"]:checked').value;
 
+    const startBtn = modalOverlay.querySelector('#btnStartDynamicExam');
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.textContent = 'Carregando questões...';
+    }
+
+    let poolFinal = filteredPool;
+    if (poolFinal.length < finalCount) {
+      try {
+        const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+        let extraFilters = {};
+        if (aspectInfo.id === 'geral') {
+          extraFilters = {};
+        } else if (aspectInfo.id === 'com_imagem') {
+          extraFilters = { estQuestao: ['imagem'] };
+        } else if (aspectInfo.id.startsWith('mat_')) {
+          extraFilters = { materia: [aspectInfo.label] };
+        } else if (aspectInfo.id.startsWith('comp_')) {
+          extraFilters = { fator: [aspectInfo.id.replace('comp_', '')] };
+        } else if (aspectInfo.id.startsWith('tag_')) {
+          extraFilters = { termo: aspectInfo.label };
+        }
+
+        const res = await buscarQuestoesPaginadasWorker(1, 20, '', '', extraFilters);
+        if (res && res.questoes && res.questoes.length > 0) {
+          poolFinal = res.questoes.map((item) => ({
+            id: item.key || item.id,
+            prova: item.prova || '',
+            fullData: item,
+            subjects: item.dados_questao?.materias_possiveis || [],
+            text: (item.dados_questao?.estrutura || []).map((b) => b.conteudo || '').join(' ') || item.dados_questao?.enunciado || '',
+          }));
+        }
+      } catch (e) {
+        console.warn('Erro ao carregar questões do aspecto sob demanda:', e);
+      }
+    }
+
     closeModal();
     startDynamicExamSession({
       aspectInfo,
-      questionsPool: filteredPool,
-      totalQuestions: finalCount,
+      questionsPool: poolFinal,
+      totalQuestions: Math.min(finalCount, poolFinal.length || finalCount),
       initialElo,
       responseMode: respMode,
     });

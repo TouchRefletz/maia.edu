@@ -569,6 +569,10 @@ type TabId =
   | 'scaffolding'
   | 'title'
   | 'simulado'
+  | 'simulado_planner'
+  | 'simulado_reranker'
+  | 'detective_vision'
+  | 'detective_judge'
   | 'scanner_detect'
   | 'scanner_audit'
   | 'scanner_correct'
@@ -640,11 +644,35 @@ const STAGES_CONFIG: TabConfig[] = [
 
 const SIMULADO_STAGES_CONFIG: TabConfig[] = [
   {
-    id: 'simulado',
-    label: 'Curador de Simulados (IA)',
+    id: 'simulado_planner',
+    label: '1. Arquiteto (Planner)',
     icon: '🎯',
-    title: '🎯 Curador de Simulados por IA',
-    desc: 'Modelo encarregado de interpretar pedidos de simulados em linguagem natural, filtrar o banco de exercícios e montar a prova.',
+    title: '🎯 Arquiteto & Decompositor de Simulados',
+    desc: 'Modelo responsável por analisar pedidos em linguagem natural, imagens de provas e questões anexadas para planejar especificações de busca no banco.',
+  },
+  {
+    id: 'simulado_reranker',
+    label: '2. Curador & Reranker',
+    icon: '⚖️',
+    title: '⚖️ Curador Pedagógico & Reranker com Variabilidade',
+    desc: 'Modelo encarregado de avaliar os candidatos recuperados no banco, calibrar a aderência isomórfica e selecionar com variabilidade inteligente.',
+  },
+];
+
+const DETECTIVE_STAGES_CONFIG: TabConfig[] = [
+  {
+    id: 'detective_vision',
+    label: '1. Visão & Transcrição',
+    icon: '👁️',
+    title: '👁️ Visão Computacional & Transcrição da Prova',
+    desc: 'Modelo multimodal de alta precisão encarregado de transcrever enunciados, fórmulas LaTeX, tabelas e descrever gráficos e figuras da prova.',
+  },
+  {
+    id: 'detective_judge',
+    label: '2. Juiz de Origem (Matcher)',
+    icon: '🕵️',
+    title: '🕵️ Juiz de Vestibulares & Engenharia Reversa',
+    desc: 'Modelo que compara a questão recortada com os candidatos do vestibular no banco, avalia adaptações e entrega o gabarito oficial com veredito.',
   },
 ];
 
@@ -714,6 +742,10 @@ const DEFAULT_MODELS: Record<TabId, string> = {
   chat: 'models/gemini-3.5-flash',
   router: 'models/gemma-4-31b-it',
   simulado: 'models/gemma-4-31b-it',
+  simulado_planner: 'models/gemma-4-31b-it',
+  simulado_reranker: 'models/gemma-4-31b-it',
+  detective_vision: 'models/gemini-3.5-flash',
+  detective_judge: 'models/gemini-3.5-flash',
   memory: 'models/gemma-4-31b-it',
   search: 'models/gemini-3.5-flash',
   corrector: 'models/gemini-3.5-flash',
@@ -765,7 +797,7 @@ interface ModelSelectorProps {
   onClose: () => void;
   currentSelected: string;
   onSelect: (modelId: string) => void;
-  mode?: 'chat' | 'extractor' | 'corrector' | 'simulado';
+  mode?: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective';
 }
 
 const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
@@ -780,8 +812,10 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       : mode === 'corrector'
         ? 'corrector'
         : mode === 'simulado'
-          ? 'simulado'
-          : 'chat',
+          ? 'simulado_planner'
+          : mode === 'detective'
+            ? 'detective_vision'
+            : 'chat',
   );
   const isMaiaActive =
     typeof window !== 'undefined' && (window as any).useMaiaArchitecture !== false;
@@ -795,6 +829,11 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     corrector: '',
     scaffolding: '',
     title: '',
+    simulado: '',
+    simulado_planner: '',
+    simulado_reranker: '',
+    detective_vision: '',
+    detective_judge: '',
     scanner_detect: '',
     scanner_audit: '',
     scanner_correct: '',
@@ -854,6 +893,10 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       chat: getVal('selectedModelChat', DEFAULT_MODELS.chat),
       router: getVal('selectedModelRouter', DEFAULT_MODELS.router),
       simulado: getVal('selectedModelSimulado', DEFAULT_MODELS.simulado),
+      simulado_planner: getVal('selectedModelSimuladoPlanner', DEFAULT_MODELS.simulado_planner),
+      simulado_reranker: getVal('selectedModelSimuladoReranker', DEFAULT_MODELS.simulado_reranker),
+      detective_vision: getVal('selectedModelDetectiveVision', DEFAULT_MODELS.detective_vision),
+      detective_judge: getVal('selectedModelDetectiveJudge', DEFAULT_MODELS.detective_judge),
       memory: getVal('selectedModelMemory', DEFAULT_MODELS.memory),
       search: getVal('selectedModelSearch', DEFAULT_MODELS.search),
       corrector: getVal('selectedModelCorrector', DEFAULT_MODELS.corrector),
@@ -963,6 +1006,14 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       setSelections((prev) => ({
         ...prev,
         simulado: DEFAULT_MODELS.simulado,
+        simulado_planner: DEFAULT_MODELS.simulado_planner,
+        simulado_reranker: DEFAULT_MODELS.simulado_reranker,
+      }));
+    } else if (mode === 'detective') {
+      setSelections((prev) => ({
+        ...prev,
+        detective_vision: DEFAULT_MODELS.detective_vision,
+        detective_judge: DEFAULT_MODELS.detective_judge,
       }));
     } else {
       setSelections((prev) => ({
@@ -970,6 +1021,10 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         chat: DEFAULT_MODELS.chat,
         router: DEFAULT_MODELS.router,
         simulado: DEFAULT_MODELS.simulado,
+        simulado_planner: DEFAULT_MODELS.simulado_planner,
+        simulado_reranker: DEFAULT_MODELS.simulado_reranker,
+        detective_vision: DEFAULT_MODELS.detective_vision,
+        detective_judge: DEFAULT_MODELS.detective_judge,
         memory: DEFAULT_MODELS.memory,
         search: DEFAULT_MODELS.search,
         corrector: DEFAULT_MODELS.corrector,
@@ -990,10 +1045,21 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
         (window as any).selectedModelExtractorSearch = selections.extractor_search;
         (window as any).selectedModelExtractorGabarito = selections.extractor_gabarito;
         (window as any).selectedModelExtractorImageDetect = selections.extractor_image_detect;
+      } else if (mode === 'simulado') {
+        (window as any).selectedModelSimulado = selections.simulado_planner || selections.simulado;
+        (window as any).selectedModelSimuladoPlanner = selections.simulado_planner;
+        (window as any).selectedModelSimuladoReranker = selections.simulado_reranker;
+      } else if (mode === 'detective') {
+        (window as any).selectedModelDetectiveVision = selections.detective_vision;
+        (window as any).selectedModelDetectiveJudge = selections.detective_judge;
       } else {
         (window as any).selectedModelChat = selections.chat;
         (window as any).selectedModelRouter = selections.router;
-        (window as any).selectedModelSimulado = selections.simulado;
+        (window as any).selectedModelSimulado = selections.simulado_planner || selections.simulado;
+        (window as any).selectedModelSimuladoPlanner = selections.simulado_planner;
+        (window as any).selectedModelSimuladoReranker = selections.simulado_reranker;
+        (window as any).selectedModelDetectiveVision = selections.detective_vision;
+        (window as any).selectedModelDetectiveJudge = selections.detective_judge;
         (window as any).selectedModelMemory = selections.memory;
         (window as any).selectedModelSearch = selections.search;
         (window as any).selectedModelCorrector = selections.corrector;
@@ -1014,12 +1080,28 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
       localStorage.setItem('selectedModelExtractorImageDetect', selections.extractor_image_detect);
       onSelect(selections.scanner_detect);
     } else if (mode === 'simulado') {
-      localStorage.setItem('selectedModelSimulado', selections.simulado);
-      onSelect(selections.simulado);
+      localStorage.setItem(
+        'selectedModelSimulado',
+        selections.simulado_planner || selections.simulado,
+      );
+      localStorage.setItem('selectedModelSimuladoPlanner', selections.simulado_planner);
+      localStorage.setItem('selectedModelSimuladoReranker', selections.simulado_reranker);
+      onSelect(selections.simulado_planner || selections.simulado);
+    } else if (mode === 'detective') {
+      localStorage.setItem('selectedModelDetectiveVision', selections.detective_vision);
+      localStorage.setItem('selectedModelDetectiveJudge', selections.detective_judge);
+      onSelect(selections.detective_vision);
     } else {
       localStorage.setItem('selectedModelChat', selections.chat);
       localStorage.setItem('selectedModelRouter', selections.router);
-      localStorage.setItem('selectedModelSimulado', selections.simulado);
+      localStorage.setItem(
+        'selectedModelSimulado',
+        selections.simulado_planner || selections.simulado,
+      );
+      localStorage.setItem('selectedModelSimuladoPlanner', selections.simulado_planner);
+      localStorage.setItem('selectedModelSimuladoReranker', selections.simulado_reranker);
+      localStorage.setItem('selectedModelDetectiveVision', selections.detective_vision);
+      localStorage.setItem('selectedModelDetectiveJudge', selections.detective_judge);
       localStorage.setItem('selectedModelMemory', selections.memory);
       localStorage.setItem('selectedModelSearch', selections.search);
       localStorage.setItem('selectedModelCorrector', selections.corrector);
@@ -1148,21 +1230,26 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
     selections.chat === 'groq/gpt-oss-120b' || selections.chat === 'vertex-maas/gpt-oss-120b';
   const isShowSidebar =
     mode !== 'corrector' &&
-    mode !== 'simulado' &&
-    (mode === 'extractor' || isMaiaActive || (isGptOssSelected && mode === 'chat'));
+    (mode === 'extractor' ||
+      mode === 'simulado' ||
+      mode === 'detective' ||
+      isMaiaActive ||
+      (isGptOssSelected && mode === 'chat'));
   const isLivroMode = typeof window !== 'undefined' && (window as any).__isLivroDidatico;
   const baseStages =
     mode === 'simulado'
       ? SIMULADO_STAGES_CONFIG
-      : mode === 'extractor'
-        ? isLivroMode
-          ? TEXTBOOK_STAGES_CONFIG
-          : EXTRACTOR_STAGES_CONFIG
-        : mode === 'corrector'
-          ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
-          : isMaiaActive
-            ? STAGES_CONFIG
-            : STAGES_CONFIG.filter((s) => s.id === 'chat');
+      : mode === 'detective'
+        ? DETECTIVE_STAGES_CONFIG
+        : mode === 'extractor'
+          ? isLivroMode
+            ? TEXTBOOK_STAGES_CONFIG
+            : EXTRACTOR_STAGES_CONFIG
+          : mode === 'corrector'
+            ? STAGES_CONFIG.filter((s) => s.id === 'corrector')
+            : isMaiaActive
+              ? STAGES_CONFIG
+              : STAGES_CONFIG.filter((s) => s.id === 'chat');
 
   const filteredStages = [...baseStages];
   if (
@@ -1304,16 +1391,18 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
               }}
             >
               {mode === 'simulado'
-                ? '🎯 Modelo do Gerador de Simulados'
-                : mode === 'extractor'
-                  ? isLivroMode
-                    ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
-                    : '🤖 Configuração de Modelos do Extrator de Questões'
-                  : mode === 'corrector'
-                    ? '🤖 Modelo de Correção Dissertativa'
-                    : isMaiaActive
-                      ? '🤖 Configuração Granular de Modelos de IA'
-                      : '🤖 Seleção de Modelo de IA'}
+                ? '🎯 Configuração de Modelos do Estúdio de Simulados'
+                : mode === 'detective'
+                  ? '🕵️ Configuração de Modelos da Busca Reversa (Detetive)'
+                  : mode === 'extractor'
+                    ? isLivroMode
+                      ? '📖 Configuração do Modelo Core Vision (Livros Didáticos)'
+                      : '🤖 Configuração de Modelos do Extrator de Questões'
+                    : mode === 'corrector'
+                      ? '🤖 Modelo de Correção Dissertativa'
+                      : isMaiaActive
+                        ? '🤖 Configuração Granular de Modelos de IA'
+                        : '🤖 Seleção de Modelo de IA'}
             </h2>
             <p
               style={{
@@ -1323,16 +1412,18 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
               }}
             >
               {mode === 'simulado'
-                ? 'Escolha o modelo de IA encarregado de interpretar pedidos de simulado e selecionar as questões no banco de dados.'
-                : mode === 'extractor'
-                  ? isLivroMode
-                    ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
-                    : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
-                  : mode === 'corrector'
-                    ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
-                    : isMaiaActive
-                      ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
-                      : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
+                ? 'Configure os cérebros de IA para o Planejador Multimodal (Prompt 1) e o Curador Reranker com Variabilidade (Prompt 2).'
+                : mode === 'detective'
+                  ? 'Configure os modelos de IA para a Visão Multimodal da Foto da Prova (Prompt 1) e o Juiz de Comparação de Vestibulares (Prompt 2).'
+                  : mode === 'extractor'
+                    ? isLivroMode
+                      ? 'Selecione o modelo de IA de visão neural para analisar e estruturar o conteúdo do livro didático.'
+                      : 'Escolha os modelos de IA ideais para cada etapa do processo de escaneamento e extração.'
+                    : mode === 'corrector'
+                      ? 'Configure o modelo utilizado para analisar detalhadamente as respostas dissertativas enviadas.'
+                      : isMaiaActive
+                        ? 'Configure individualmente os modelos para cada etapa vital da inteligência.'
+                        : 'Selecione o modelo de IA padrão para responder suas perguntas.'}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1941,7 +2032,7 @@ const ModelSelectorComponent: React.FC<ModelSelectorProps> = ({
 export function mountModelSelectorModal(
   currentSelected: string,
   onSelect: (modelId: string) => void,
-  mode: 'chat' | 'extractor' | 'corrector' | 'simulado' = 'chat',
+  mode: 'chat' | 'extractor' | 'corrector' | 'simulado' | 'detective' = 'chat',
 ) {
   const rootId = 'react-model-selector-modal-root';
   const existing = document.getElementById(rootId);

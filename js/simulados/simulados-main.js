@@ -147,41 +147,67 @@ export async function iniciarModoSimulados() {
           
           <!-- Painel Esquerdo: Busca de questões -->
           <div class="simulados-bank-pane">
-            <!-- Card Gerador de Simulado por IA -->
+            <!-- Card Gerador de Simulado por IA (Estúdio Multimodal & Isomórfico) -->
             <div class="simulados-ai-card">
               <div class="simulados-ai-header">
                 <div class="simulados-ai-title-group">
                   <span class="simulados-ai-icon">✨</span>
-                  <span class="simulados-ai-title">Montar Simulado com IA</span>
+                  <span class="simulados-ai-title">Estúdio de Simulados IA & Provas Isomórficas</span>
                 </div>
                 <div class="simulados-ai-model-group">
-                  <span class="simulados-ai-model-badge" id="simAiModelBadge" title="Modelo atualmente ativo">
+                  <span class="simulados-ai-model-badge" id="simAiModelBadge" title="Modelos ativos (Planejador & Reranker)">
                     🤖 ${formatModelBadgeName(currentSimulatedModel)}
                   </span>
-                  <button class="simulados-ai-config-btn js-config-model-simulado" title="Alterar Modelo de IA">
-                    ⚙️ Alterar
+                  <button class="simulados-ai-config-btn js-config-model-simulado" title="Configurar Modelos de IA do Simulado">
+                    ⚙️ Configurar
                   </button>
                 </div>
               </div>
 
               <div class="simulados-ai-body">
-                <div class="simulados-ai-input-wrapper">
-                  <input 
-                    type="text" 
-                    class="simulados-ai-input" 
+                <!-- Composer Multimodal Estilo Chat -->
+                <div class="simulados-chat-composer" id="simChatComposer">
+                  <textarea 
+                    class="simulados-chat-textarea" 
                     id="simAiPromptInput" 
-                    placeholder="Ex: 'um simulado de 10 questões sobre embriologia'" />
-                  <button class="simulados-ai-submit-btn" id="btnGerarSimuladoIa" title="Gerar Simulado com IA">
-                    ✨ Gerar
-                  </button>
+                    rows="2"
+                    placeholder="Descreva o simulado, anexe fotos da prova da escola ou selecione um preset abaixo... (Enter para criar)"></textarea>
+                  
+                  <!-- Tray de Anexos (Imagens e Questões) -->
+                  <div class="simulados-attachments-tray" id="simAttachmentsTray" style="display: none;"></div>
+
+                  <div class="simulados-chat-toolbar">
+                    <div class="simulados-chat-tools-left">
+                      <!-- Botão Upload de Foto -->
+                      <input type="file" id="simPhotoFileInput" multiple accept="image/*" style="display:none;" />
+                      <button type="button" class="simulados-tool-btn" id="btnUploadSimPhoto" title="Adicionar fotos de provas para treino isomórfico">
+                        <span>📸</span> Fotos da Prova
+                      </button>
+
+                      <!-- Presets de Estilo -->
+                      <button type="button" class="simulados-preset-btn active js-sim-preset" data-preset="isomorphic" title="Gera questões no mesmo estilo e modelo de raciocínio da foto">
+                        🎯 Clone Isomórfico
+                      </button>
+                      <button type="button" class="simulados-preset-btn js-sim-preset" data-preset="advanced" title="Aumenta o rigor e a profundidade conceitual">
+                        🚀 Nível Acima
+                      </button>
+                      <button type="button" class="simulados-preset-btn js-sim-preset" data-preset="traps" title="Foco em distratores e pegadinhas clássicas">
+                        🧩 Pegadinhas
+                      </button>
+                    </div>
+
+                    <button class="simulados-ai-submit-btn" id="btnGerarSimuladoIa" title="Gerar Simulado com IA">
+                      ✨ Criar Simulado
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Sugestões Rápidas / Chips -->
                 <div class="simulados-ai-chips">
-                  <button class="simulados-ai-chip" data-prompt="um simulado de 10 questões sobre embriologia">🧬 10 de Embriologia</button>
-                  <button class="simulados-ai-chip" data-prompt="15 questões de geometria plana e espacial">📐 15 de Geometria</button>
-                  <button class="simulados-ai-chip" data-prompt="5 questões difíceis de física elétrica do enem">⚡ 5 de Física (ENEM)</button>
-                  <button class="simulados-ai-chip" data-prompt="10 questões sobre história do brasil republicano">📜 10 de História</button>
+                  <button class="simulados-ai-chip" data-prompt="10 questões no estilo ENEM sobre embriologia e genética">🧬 10 de Genética & Embriologia</button>
+                  <button class="simulados-ai-chip" data-prompt="15 questões de geometria plana e trigonometria da FUVEST">📐 15 de Geometria (FUVEST)</button>
+                  <button class="simulados-ai-chip" data-prompt="8 questões difíceis de física elétrica com circuitos">⚡ 8 de Eletrodinâmica</button>
+                  <button class="simulados-ai-chip" data-prompt="10 questões de interpretação de texto e funções da linguagem">📜 10 de Linguagens</button>
                 </div>
 
                 <!-- Feedback / Status Box -->
@@ -393,25 +419,90 @@ export function getQuestionElo(qObj) {
   return EloService.calcularEloPriorIA(pct);
 }
 
-// Preenche o seletor de matérias
-function populateSubjectDropdown() {
+// Preenche o seletor de matérias com dados reais do banco
+async function populateSubjectDropdown() {
   const select = document.getElementById('simSubjectSelect');
   if (!select) return;
 
-  const subjects = new Set();
-  questionsPool.forEach((q) => {
-    (q.subjects || []).forEach((s) => {
-      subjects.add(s);
-    });
-  });
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">Todas as Matérias</option>';
 
-  const sortedSubjects = Array.from(subjects).sort();
+  let subjectsMap = {};
+  try {
+    const { fetchSimuladosCatalogData } = await import('./simulados-dinamicos.js');
+    const cat = await fetchSimuladosCatalogData();
+    if (cat && cat.counts && cat.counts.materias) {
+      subjectsMap = cat.counts.materias;
+    }
+  } catch (_) {}
+
+  if (Object.keys(subjectsMap).length === 0) {
+    questionsPool.forEach((q) => {
+      (q.subjects || []).forEach((s) => {
+        subjectsMap[s] = (subjectsMap[s] || 0) + 1;
+      });
+    });
+  }
+
+  const sortedSubjects = Object.keys(subjectsMap).sort();
   sortedSubjects.forEach((s) => {
+    const count = subjectsMap[s];
     const opt = document.createElement('option');
     opt.value = s;
-    opt.textContent = s;
+    opt.textContent = `${s} (${count})`;
     select.appendChild(opt);
   });
+
+  if (currentVal) select.value = currentVal;
+}
+
+let bankSearchDebounceTimer = null;
+
+export async function carregarQuestoesBancoSimulados() {
+  const queryText = (document.getElementById('simSearchInput')?.value || '').trim();
+  const subjectFilter = document.getElementById('simSubjectSelect')?.value || '';
+  const container = document.getElementById('simBankList');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="text-align:center; padding:30px; color:var(--color-text-secondary);">
+      <div class="spinner" style="margin:0 auto 10px auto;"></div>
+      <p style="font-size: 13px;">Buscando questões no banco...</p>
+    </div>
+  `;
+
+  try {
+    const { buscarQuestoesPaginadasWorker } = await import('../banco/paginacao-e-carregamento.js');
+    const extraFilters = {};
+    if (subjectFilter) extraFilters.materia = [subjectFilter];
+    if (queryText) extraFilters.termo = queryText;
+
+    const res = await buscarQuestoesPaginadasWorker(1, 20, '', queryText, extraFilters);
+    if (res && res.questoes && res.questoes.length > 0) {
+      questionsPool = res.questoes.map((fullData) => {
+        const idQuestao = fullData.key || fullData.id;
+        const nomeProva = fullData.prova || 'Geral';
+        const materias = fullData.dados_questao?.materias_possiveis || [];
+        const textPreview =
+          (fullData.dados_questao?.estrutura || []).map((b) => b.conteudo || '').join(' ') ||
+          fullData.dados_questao?.enunciado ||
+          '';
+        return {
+          id: idQuestao,
+          prova: nomeProva,
+          fullData,
+          subjects: materias,
+          text: textPreview,
+        };
+      });
+      renderQuestionsBankList();
+    } else {
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--color-text-secondary);">Nenhuma questão encontrada com esses filtros.</div>`;
+    }
+  } catch (e) {
+    console.error('Erro ao buscar questões:', e);
+    renderQuestionsBankList();
+  }
 }
 
 // Renderiza a listagem de questões do banco (com filtros aplicados)
@@ -762,20 +853,124 @@ function setupDashboardListeners() {
     });
   }
 
+  // Estado local do Composer Multimodal
+  let uploadedSimImages = []; // Array de { id, dataUrl, base64 }
+  let currentSimPreset = 'isomorphic'; // 'isomorphic' | 'advanced' | 'traps'
+
   // Listener para os botões de Configuração do Modelo de IA de Simulados
   document.querySelectorAll('.js-config-model-simulado').forEach((btn) => {
     btn.addEventListener('click', showSimuladoModelModal);
   });
 
+  // Handler de Presets de Estilo
+  document.querySelectorAll('.js-sim-preset').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.js-sim-preset').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentSimPreset = btn.dataset.preset || 'isomorphic';
+    });
+  });
+
+  // Upload e Drag & Drop de Fotos de Provas
+  const fileInputPhoto = document.getElementById('simPhotoFileInput');
+  const btnUploadPhoto = document.getElementById('btnUploadSimPhoto');
+  const composerBox = document.getElementById('simChatComposer');
+  const attachmentsTray = document.getElementById('simAttachmentsTray');
+
+  const renderAttachmentsTray = () => {
+    if (!attachmentsTray) return;
+    if (uploadedSimImages.length === 0) {
+      attachmentsTray.style.display = 'none';
+      attachmentsTray.innerHTML = '';
+      return;
+    }
+
+    attachmentsTray.style.display = 'flex';
+    attachmentsTray.innerHTML = uploadedSimImages
+      .map(
+        (img, idx) => `
+        <div class="simulados-image-preview-thumb" data-idx="${idx}">
+          <img src="${img.dataUrl}" alt="Foto da Prova ${idx + 1}" />
+          <button type="button" class="simulados-image-thumb-remove js-remove-sim-image" data-idx="${idx}" title="Remover">&times;</button>
+        </div>
+      `,
+      )
+      .join('');
+
+    attachmentsTray.querySelectorAll('.js-remove-sim-image').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.idx, 10);
+        uploadedSimImages.splice(idx, 1);
+        renderAttachmentsTray();
+      };
+    });
+  };
+
+  const processarImagensSimulado = (files) => {
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        const base64 = dataUrl.split(',')[1];
+        uploadedSimImages.push({
+          id: `img_${Date.now()}_${Math.random()}`,
+          dataUrl,
+          base64,
+        });
+        renderAttachmentsTray();
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  if (btnUploadPhoto && fileInputPhoto) {
+    btnUploadPhoto.onclick = () => fileInputPhoto.click();
+    fileInputPhoto.onchange = (e) => {
+      if (e.target.files) processarImagensSimulado(e.target.files);
+    };
+  }
+
+  if (composerBox) {
+    composerBox.ondragover = (e) => {
+      e.preventDefault();
+      composerBox.style.borderColor = '#8b5cf6';
+    };
+    composerBox.ondragleave = () => {
+      composerBox.style.borderColor = 'var(--color-border)';
+    };
+    composerBox.ondrop = (e) => {
+      e.preventDefault();
+      composerBox.style.borderColor = 'var(--color-border)';
+      if (e.dataTransfer.files) processarImagensSimulado(e.dataTransfer.files);
+    };
+  }
 
   // Handler de Geração por IA
   const btnGerarIa = document.getElementById('btnGerarSimuladoIa');
   const promptInput = document.getElementById('simAiPromptInput');
   const statusBox = document.getElementById('simAiStatusBox');
 
+  // Auto-expand textarea & Enter to submit
+  if (promptInput) {
+    promptInput.addEventListener('input', () => {
+      promptInput.style.height = 'auto';
+      promptInput.style.height = Math.min(180, Math.max(52, promptInput.scrollHeight)) + 'px';
+    });
+
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        executarGeracaoIa(promptInput.value);
+      }
+    });
+  }
+
   const executarGeracaoIa = async (promptTexto) => {
-    if (!promptTexto || !promptTexto.trim()) {
-      customAlert('Por favor, digite o tema ou descrição do simulado.', 3000);
+    const textVal = (promptTexto || '').trim();
+    if (!textVal && uploadedSimImages.length === 0) {
+      customAlert('Por favor, digite uma descrição ou adicione fotos da prova para criar o simulado.', 3000);
       return;
     }
 
@@ -794,13 +989,13 @@ function setupDashboardListeners() {
         <div class="sim-status-wrapper fade-in">
           <div class="sim-status-header">
             <span class="sim-status-pulse">🤖</span>
-            <span class="sim-status-title">Processando Simulado por IA</span>
+            <span class="sim-status-title">Processando Simulado Isomórfico</span>
           </div>
           <div class="sim-status-progress-track">
             <div class="sim-status-progress-fill" id="simAiProgressBar" style="width: 5%;"></div>
           </div>
           <div class="sim-status-text" id="simAiStatusText">
-            <div class="spinner-sm" style="display:inline-block; margin-right:6px;"></div> Conectando ao cérebro de IA...
+            <div class="spinner-sm" style="display:inline-block; margin-right:6px;"></div> Conectando ao Planejador de IA...
           </div>
         </div>
       `;
@@ -808,13 +1003,16 @@ function setupDashboardListeners() {
 
     try {
       const currentModel =
+        window.selectedModelSimuladoPlanner ||
         window.selectedModelSimulado ||
         (typeof localStorage !== 'undefined'
-          ? localStorage.getItem('selectedModelSimulado')
+          ? localStorage.getItem('selectedModelSimuladoPlanner') || localStorage.getItem('selectedModelSimulado')
           : null) ||
         'models/gemma-4-31b-it';
 
-      const result = await gerarSimuladoComIA(promptTexto, questionsPool, {
+      const result = await gerarSimuladoComIA(textVal, questionsPool, {
+        images: uploadedSimImages.map((img) => img.base64),
+        stylePreset: currentSimPreset,
         model: currentModel,
         onStatus: (data) => {
           if (!statusBox) return;
@@ -850,10 +1048,10 @@ function setupDashboardListeners() {
           statusBox.innerHTML = `
             <div class="sim-status-wrapper sim-status-success fade-in">
               <div class="sim-status-header">
-                <span class="sim-status-title">✅ Simulado Gerado com Sucesso!</span>
+                <span class="sim-status-title">✅ Simulado Isomórfico Criado!</span>
               </div>
               <div class="sim-status-text">
-                <strong>"${simuladoTitle}"</strong> — ${selectedQuestions.length} questões selecionadas no banco.
+                <strong>"${simuladoTitle}"</strong> — ${selectedQuestions.length} questões calibradas e montadas no painel.
               </div>
             </div>
           `;
@@ -877,7 +1075,7 @@ function setupDashboardListeners() {
     } finally {
       if (btnGerarIa) {
         btnGerarIa.disabled = false;
-        btnGerarIa.innerHTML = `✨ Gerar`;
+        btnGerarIa.innerHTML = `✨ Criar Simulado`;
       }
       if (promptInput) promptInput.disabled = false;
       if (card) card.classList.remove('is-generating');
@@ -909,10 +1107,17 @@ function setupDashboardListeners() {
   });
 
   if (searchInput) {
-    searchInput.addEventListener('input', renderQuestionsBankList);
+    searchInput.addEventListener('input', () => {
+      clearTimeout(bankSearchDebounceTimer);
+      bankSearchDebounceTimer = setTimeout(() => {
+        carregarQuestoesBancoSimulados();
+      }, 350);
+    });
   }
   if (subjectSelect) {
-    subjectSelect.addEventListener('change', renderQuestionsBankList);
+    subjectSelect.addEventListener('change', () => {
+      carregarQuestoesBancoSimulados();
+    });
   }
 
   if (titleInput) {
