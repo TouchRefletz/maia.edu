@@ -45,9 +45,19 @@ def build_html_report(
         status_sub = "Múltiplas falhas consecutivas de API detectadas. O cluster foi desarmado para evitar consumo indevido de tokens."
         badge_style = "background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #f87171;"
         dot_style = "background: #ef4444; box-shadow: 0 0 8px #ef4444;"
+    elif status == "error":
+        status_badge_text = "Falha no Processamento dos Arquivos"
+        status_sub = "Ocorreu um erro durante a execução dos workers. Nenhum dado corrompido foi inserido no banco."
+        badge_style = "background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #f87171;"
+        dot_style = "background: #ef4444; box-shadow: 0 0 8px #ef4444;"
+    elif not books_details and not questions_details:
+        status_badge_text = "Nenhum Conteúdo Inserido no Banco"
+        status_sub = "Os arquivos foram localizados, mas nenhuma questão ou livro foi inserido devido a falha ou ausência de extração."
+        badge_style = "background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); color: #f87171;"
+        dot_style = "background: #ef4444; box-shadow: 0 0 8px #ef4444;"
     else:
         status_badge_text = "Ingestão Autônoma Concluída"
-        status_sub = "Varredura profunda, OCR multimodal e indexação semântica finalizados."
+        status_sub = "Varredura profunda, OCR multimodal e indexação semântica finalizados com sucesso."
         badge_style = "background: rgba(0, 229, 255, 0.08); border-color: rgba(0, 229, 255, 0.3); color: #22d3ee;"
         dot_style = "background: #00e5ff; box-shadow: 0 0 8px #00e5ff;"
 
@@ -71,10 +81,10 @@ def build_html_report(
         books_html = """
         <div class="card-item">
           <div class="card-item-header">
-            <span class="card-item-title">Nenhum livro novo indexado neste lote</span>
+            <span class="card-item-title">Nenhum livro indexado</span>
             <span class="card-badge">0 Páginas</span>
           </div>
-          <p class="card-item-desc">Apenas listas de exercícios foram catalogadas durante a varredura.</p>
+          <p class="card-item-desc">Nenhum livro didático foi salvo no banco semântico Pinecone neste lote.</p>
         </div>
         """
 
@@ -98,10 +108,10 @@ def build_html_report(
         questions_html = """
         <div class="card-item">
           <div class="card-item-header">
-            <span class="card-item-title">Nenhuma lista avulsa indexada</span>
+            <span class="card-item-title">Nenhuma questão inserida</span>
             <span class="card-badge green">0 Questões</span>
           </div>
-          <p class="card-item-desc">Todas as questões foram incorporadas a partir da estrutura dos livros.</p>
+          <p class="card-item-desc">Nenhuma questão foi processada ou inserida no banco Firebase neste lote.</p>
         </div>
         """
 
@@ -362,9 +372,9 @@ def build_html_report(
     .card-item-header {{
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       margin-bottom: 6px;
-      gap: 8px;
+      gap: 10px;
     }}
 
     .card-item-title {{
@@ -372,18 +382,22 @@ def build_html_report(
       font-weight: 700;
       color: #ffffff;
       word-break: break-word;
+      line-height: 1.3;
     }}
 
     .card-badge {{
       background: rgba(0, 229, 255, 0.1);
       color: #00e5ff;
       border: 1px solid rgba(0, 229, 255, 0.25);
-      padding: 2px 8px;
+      padding: 3px 10px;
       border-radius: 9999px;
       font-size: 10.5px;
       font-weight: 600;
       white-space: nowrap;
       flex-shrink: 0;
+      display: inline-block;
+      text-align: center;
+      line-height: 1.2;
     }}
 
     .card-badge.green {{
@@ -687,18 +701,27 @@ def main():
                                                 ex = it.get("extraction_results", {})
                                                 for p, pdata in ex.get("pages", {}).items():
                                                     q_c += len(pdata.get("questions", []))
-                                            questions_details.append({
-                                                "title": q_slug,
-                                                "badge": f"{q_c} Questões Inseridas",
-                                                "desc": "Segmentação em caixas gulosas e formulas em LaTeX processadas.",
-                                            })
+                                            if q_c > 0:
+                                                questions_details.append({
+                                                    "title": q_slug,
+                                                    "badge": f"{q_c} Questões Inseridas",
+                                                    "desc": "Segmentação em caixas gulosas e formulas em LaTeX processadas.",
+                                                })
                             except Exception:
                                 pass
 
-        if books_details and books_count == 0:
-            books_count = len(books_details)
-        if questions_details and questions_count == 0:
-            questions_count = sum(int(q.get("badge", "0").split()[0]) for q in questions_details if q.get("badge", "0").split()[0].isdigit())
+    # Se nenhum livro/questão foi realmente salvo/extraído, a contagem de inserção no banco deve ser 0
+    if not books_details:
+        books_count = 0
+    else:
+        books_count = len(books_details)
+
+    if not questions_details:
+        questions_count = 0
+    else:
+        questions_count = sum(int(q.get("badge", "0").split()[0]) for q in questions_details if q.get("badge", "0").split()[0].isdigit())
+        if questions_count == 0:
+            questions_count = len(questions_details)
 
     html_content = build_html_report(
         theme=args.theme,

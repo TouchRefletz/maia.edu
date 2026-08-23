@@ -390,7 +390,7 @@ jobs:
       - name: "Install System Packages"
         run: |
           sudo apt-get update
-          sudo apt-get install -y poppler-utils libgl1-mesa-glx
+          sudo apt-get install -y poppler-utils libgl1
 
       - name: "Install Dependencies"
         run: |
@@ -493,7 +493,7 @@ jobs:
           BATCH_ID: ${{ needs.setup-params.outputs.batch_id }}
           MODEL: ${{ needs.setup-params.outputs.model }}
           ROLLBACK_TOKEN: ${{ needs.setup-params.outputs.rollback_token }}
-          STATUS: ${{ needs.process-files.result == 'success' && 'completed' || 'completed' }}
+          STATUS: ${{ needs.process-files.result == 'failure' && 'error' || (needs.dispatch-matrix.outputs.has_files == 'false' && 'error' || 'completed') }}
           BOOKS_COUNT: ${{ needs.dispatch-matrix.outputs.books_count || 0 }}
           QUESTIONS_COUNT: ${{ needs.dispatch-matrix.outputs.questions_count || 0 }}
         run: |
