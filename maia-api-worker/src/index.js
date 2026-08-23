@@ -3349,7 +3349,17 @@ async function handleCheckDuplicate(request, env) {
  */
 async function handleExtractAndSave(request, env) {
   const body = await request.json();
-  const { questao, gabarito, source_slug, source_pdf, page_num } = body;
+  const {
+    questao,
+    gabarito,
+    source_slug,
+    source_pdf,
+    page_num,
+    vertexProjectId,
+    vertexLocation,
+    vertexCredentials,
+    apiKey,
+  } = body;
 
   if (!questao || !gabarito || !source_slug) {
     return new Response(
@@ -3366,7 +3376,11 @@ async function handleExtractAndSave(request, env) {
     const textoQuestao = buildSemanticText(questao, gabarito);
 
     // 2. Generate embedding
-    const embedding = await generateEmbedding(textoQuestao, env.GOOGLE_GENAI_API_KEY);
+    const authOptions =
+      vertexProjectId && vertexCredentials
+        ? { vertexProjectId, vertexLocation, vertexCredentials }
+        : apiKey || env.GOOGLE_GENAI_API_KEY;
+    const embedding = await generateEmbedding(textoQuestao, authOptions);
 
     if (!embedding) {
       throw new Error('Failed to generate embedding');

@@ -802,15 +802,24 @@ def search_gabarito(question_json: dict):
         - Na justificativa, explique qual o maior gargalo para o aluno (ex: "A dificuldade vem da união de vocabulário arcaico com a necessidade de cálculo estequiométrico").
     """.strip()
 
-    # Use Gemini Search (grounding) via Worker
+    auth_payload = {
+        "vertexProjectId": os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"),
+        "vertexLocation": os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "global"),
+        "vertexCredentials": os.getenv("VERTEX_CREDENTIALS"),
+        "apiKey": os.getenv("GOOGLE_GENAI_API_KEY") or os.getenv("LLM_API_KEY"),
+    }
+
+    # 1. Use Gemini Search (grounding) via Worker
     try:
-        resp = requests.post(f"{WORKER_URL}/search", json={
+        search_req_body = {
             "texto": gabarito_prompt,
             "query": query_text,
             "model": search_model,
             "schema": _get_gabarito_schema(),
             "jsonMode": True,
-        }, timeout=120)
+        }
+        search_req_body.update(auth_payload)
+        resp = requests.post(f"{WORKER_URL}/search", json=search_req_body, timeout=120)
         resp.raise_for_status()
         elapsed = time.time() - start_time
         print(f"      [Gabarito Search] Requisição retornou status {resp.status_code} em {elapsed:.2f}s.")
@@ -844,16 +853,18 @@ def search_gabarito(question_json: dict):
         elapsed = time.time() - start_time
         secure_log(f"[Gabarito Search] Falha ao buscar gabarito com grounding em {elapsed:.2f}s: {e}")
 
-    # Fallback: tentar gerar direto (sem busca grounding) usando o EXTRACT_MODEL
+    # 2. Fallback: tentar gerar via Worker /generate usando o EXTRACT_MODEL
     print(f"      [Gabarito Fallback] 🔄 Geração direta sem grounding usando modelo '{EXTRACT_MODEL}'...")
     start_time_fallback = time.time()
     try:
-        resp = requests.post(f"{WORKER_URL}/generate", json={
+        gen_req_body = {
             "texto": gabarito_prompt,
             "model": EXTRACT_MODEL,
             "schema": _get_gabarito_schema(),
             "jsonMode": True,
-        }, timeout=120)
+        }
+        gen_req_body.update(auth_payload)
+        resp = requests.post(f"{WORKER_URL}/generate", json=gen_req_body, timeout=120)
         resp.raise_for_status()
         elapsed_fallback = time.time() - start_time_fallback
         print(f"      [Gabarito Fallback] Geração direta retornou status {resp.status_code} em {elapsed_fallback:.2f}s.")
@@ -887,6 +898,31 @@ def search_gabarito(question_json: dict):
         elapsed_fallback = time.time() - start_time_fallback
         secure_log(f"[Gabarito Fallback] Erro ao gerar gabarito direto em {elapsed_fallback:.2f}s: {e}")
 
+    # 3. Fallback 2: Geração local direta via SDK GenAI Client (Vertex AI / Direct API Key)
+    try:
+        print(f"      [Gabarito Local SDK] 🔄 Gerando gabarito diretamente via SDK com '{EXTRACT_MODEL}'...")
+        local_resp = call_gemini_with_retry(
+            model=EXTRACT_MODEL,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=gabarito_prompt)],
+                )
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=_get_gabarito_schema(),
+                temperature=0.2,
+            ),
+        )
+        if local_resp and local_resp.text:
+            parsed_local = parse_json_response(local_resp.text)
+            if parsed_local:
+                secure_log("[Gabarito Local SDK] Sucesso na geração local direta!")
+                return parsed_local
+    except Exception as e_local:
+        secure_log(f"[Gabarito Local SDK] Erro na geração local direta: {e_local}")
+
     return None
 
 
@@ -898,14 +934,7 @@ def check_duplicate(text: str) -> dict:
         resp = requests.post(f"{WORKER_URL}/check-duplicate", json={"text": text}, timeout=30)
         elapsed = time.time() - start_time
         if resp.ok:
-            res = resp.json()
-            exists = res.get("exists", False)
-            matches = res.get("matches", [])
-            if exists and matches:
-                print(f"      [Dedup Check] Duplicata ENCONTRADA! Score: {matches[0].get('score', 0):.3f} (ID: {matches[0].get('id', '')}) em {elapsed:.2f}s.")
-            else:
-                print(f"      [Dedup Check] Nenhuma duplicata encontrada em {elapsed:.2f}s.")
-            return res
+            return resp.json()
         else:
             print(f"      [Dedup Check] ⚠️ Falha na requisição de dedup (status {resp.status_code}): {resp.text[:200]}")
     except Exception as e:
@@ -918,14 +947,19 @@ def save_question(questao: dict, gabarito: dict, source_pdf: str, page_num: int)
     print(f"      [Save DB] Salvando questão '{questao.get('identificacao')}' no banco via Worker...")
     start_time = time.time()
     try:
-        resp = requests.post(f"{WORKER_URL}/extract-and-save", json={
+        save_payload = {
             "questao": questao,
             "gabarito": gabarito,
             "source_slug": SLUG,
             "source_pdf": source_pdf,
             "page_num": page_num,
             "batch_id": BATCH_ID,
-        }, timeout=60)
+            "vertexProjectId": os.getenv("VERTEX_PROJECT_ID") or os.getenv("GCP_PROJECT_ID"),
+            "vertexLocation": os.getenv("VERTEX_LOCATION") or os.getenv("GCP_LOCATION", "global"),
+            "vertexCredentials": os.getenv("VERTEX_CREDENTIALS"),
+            "apiKey": os.getenv("GOOGLE_GENAI_API_KEY") or os.getenv("LLM_API_KEY"),
+        }
+        resp = requests.post(f"{WORKER_URL}/extract-and-save", json=save_payload, timeout=60)
 
         resp.raise_for_status()
 
