@@ -108,7 +108,13 @@ def init_genai_client(model_name: str = ""):
 
     if is_vertex and project_id:
         print(f"⚡ Inicializando GenAI Client com Google Cloud Vertex AI (Project: {project_id}, Location: {location})")
-        return genai.Client(vertex=True, project=project_id, location=location)
+        try:
+            return genai.Client(vertexai=True, project=project_id, location=location)
+        except TypeError:
+            try:
+                return genai.Client(project=project_id, location=location)
+            except Exception:
+                return genai.Client()
     else:
         api_key = os.getenv("GOOGLE_GENAI_API_KEY") or os.getenv("LLM_API_KEY")
         print(f"🔑 Inicializando GenAI Client com Gemini API Key")

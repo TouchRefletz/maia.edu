@@ -643,7 +643,7 @@ def main():
     parser.add_argument("--questions-json", default="[]", help="JSON com detalhes das questões")
     parser.add_argument("--audit-json", default="[]", help="JSON com logs de auditoria")
     parser.add_argument("--rollback-token", default="sec_default", help="Token de segurança para o link de rollback")
-    parser.add_argument("--status", default="completed", choices=["completed", "quota_paused", "circuit_breaker_tripped"], help="Status da execução")
+    parser.add_argument("--status", default="completed", choices=["completed", "quota_paused", "circuit_breaker_tripped", "error", "failed"], help="Status da execução")
 
     args = parser.parse_args()
 
