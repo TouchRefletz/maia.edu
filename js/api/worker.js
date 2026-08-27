@@ -47,6 +47,12 @@ function isStructureEmpty(obj) {
     if (obj.sections.length === 0) return true;
     let totalItems = 0;
     for (const sec of obj.sections) {
+      if (Array.isArray(sec.conteudo) && sec.conteudo.length > 0) {
+        totalItems += sec.conteudo.length;
+      }
+      if (Array.isArray(sec.content) && sec.content.length > 0) {
+        totalItems += sec.content.length;
+      }
       if (Array.isArray(sec.blocks) && sec.blocks.length > 0) {
         totalItems += sec.blocks.length;
       }

@@ -120,9 +120,12 @@ export async function renderLatexIn(rootEl: HTMLElement | null): Promise<void> {
   if (window.renderMathInElement) {
     window.renderMathInElement(rootEl, {
       delimiters: [
+        { left: '\\\\[', right: '\\\\]', display: true }, // Bloco duplo-escapado
         { left: '\\[', right: '\\]', display: true }, // Bloco isolado
         { left: '$$', right: '$$', display: true }, // Bloco isolado (alternativo)
+        { left: '\\\\(', right: '\\\\)', display: false }, // Inline duplo-escapado
         { left: '\\(', right: '\\)', display: false }, // Inline padrão \(...\)
+        { left: '$', right: '$', display: false }, // Inline padrão $...$
       ],
       throwOnError: false,
     });

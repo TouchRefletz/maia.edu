@@ -65,26 +65,39 @@ export const decodeEntities = (s) =>
  * Renderiza texto como markdown seguro, decodificando entities primeiro
  * Usa marked para converter markdown para HTML
  */
-// Helper para processar LaTeX inline ($...$ -> \(...\))
+// Helper para processar LaTeX inline e em bloco ($...$, \(...\), \[...\])
 export const processLatex = (s) => {
   if (!s) return '';
 
-  // 1. Escapa moedas R$ não escapadas para R\$ antes de varrer cifrões
-  const cleaned = String(s).replace(/(^|[^\\])R\$/g, '$1R\\$');
+  let str = String(s);
 
-  // 2. Substitui $...$ por \(...\) garantindo que não pegue \$ escapado nem quebras de linha
-  return cleaned.replace(/([^\\]|^)\$([^$\n]+)\$/g, (match, prefix, content) => {
-    // Se for apenas números, pontos, vírgulas ou espaços (ex: datas, valores), remove o LaTeX
-    // para evitar fontes de matemática estranhas e o problema dos parênteses.
+  // 1. Escapa moedas R$ não escapadas para R\$ antes de varrer cifrões
+  str = str.replace(/(^|[^\\])R\$/g, '$1R\\$');
+
+  // 2. Trata blocos LaTeX existentes: \[ ... \], \\[ ... \\], $$ ... $$
+  // Protege backslashes internos e prepara para o parser do marked
+  str = str.replace(/(?:\\\\\[|\\\[)([\s\S]*?)(?:\\\\\]|\\\])/g, (_, content) => {
+    return `\\\\[${content.replace(/\\/g, '\\\\')}\\\\]`;
+  });
+
+  str = str.replace(/\$\$([\s\S]*?)\$\$/g, (_, content) => {
+    return `\\\\[${content.replace(/\\/g, '\\\\')}\\\\]`;
+  });
+
+  // 3. Trata LaTeX inline existente: \( ... \), \\( ... \\)
+  str = str.replace(/(?:\\\\\(|\\\()([\s\S]*?)(?:\\\\\)|\\\))/g, (_, content) => {
+    return `\\\\(${content.replace(/\\/g, '\\\\')}\\\\)`;
+  });
+
+  // 4. Trata cifrões inline: $...$ garantindo que não pegue \$ escapado nem quebras de linha
+  str = str.replace(/([^\\]|^)\$([^$\n]+)\$/g, (match, prefix, content) => {
     if (/^[0-9.,\s]+$/.test(content)) {
       return prefix + content;
     }
-    // Caso contrário, converte para sintaxe MathJax/KaTeX \(...\)
-    // Precisamos de 4 barras invertidas na string literal para resultar em 2 no output (\),
-    // que o markdown consome para virar 1 na renderização final.
-    // ESCAPA backslashes no conteúdo para sobreviverem ao markdown (ex: \text -> \\text)
     return `${prefix}\\\\(${content.replace(/\\/g, '\\\\')}\\\\)`;
   });
+
+  return str;
 };
 
 /**

@@ -566,7 +566,28 @@ async function recuperarCandidatosVestibular(analise, pool = []) {
     // Tenta achar no pool local
     let questionData = pool.find((item) => item.key === cleanId || item.id === cleanId || item.key?.endsWith(`___${cleanId}`));
 
-    // Se não achou no pool local, busca direto no Firebase
+    // Se tiver full_json no metadata do Pinecone, carrega instantaneamente
+    if (!questionData && match.metadata?.full_json) {
+      try {
+        const full = typeof match.metadata.full_json === 'string'
+          ? JSON.parse(match.metadata.full_json)
+          : match.metadata.full_json;
+        if (full) {
+          questionData = {
+            key: `${match.metadata.prova || provaKey || 'prova'}___${cleanId}`,
+            id: cleanId,
+            prova: match.metadata.prova || provaKey || 'prova',
+            domId: `${match.metadata.prova || provaKey || 'prova'}___${cleanId}`,
+            ...full,
+            meta: { material_origem: (match.metadata.prova || provaKey || '').replace(/_/g, ' '), ...(full.meta || {}) },
+          };
+        }
+      } catch (errJson) {
+        console.warn('[Detective Search] Erro ao parsear metadata.full_json:', errJson);
+      }
+    }
+
+    // Se não achou no pool local nem no Pinecone metadata, busca direto no Firebase
     if (!questionData && dbGet && dbRef && firebaseDb && provaKey && questaoKey) {
       try {
         const snap = await dbGet(dbRef(firebaseDb, `questoes/${provaKey}/${questaoKey}`));

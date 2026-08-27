@@ -56,31 +56,82 @@ export async function findBestQuestion(filtros) {
       if (!bestMatch) bestMatch = await trySearch(vetor, {});
 
       if (bestMatch) {
-        // ID Pinecone format: SANITIZED_KEY_PROVA--SANITIZED_KEY_QUESTAO
-        const parts = bestMatch.id.split('--');
+        // 1.1 PRIORIDADE MÁXIMA: Carregar full_json direto do metadata do Pinecone (Zero Latency / Sem chamada ao Firebase)
+        if (bestMatch.metadata && (bestMatch.metadata.full_json || bestMatch.metadata.has_full_json)) {
+          if (bestMatch.metadata.full_json) {
+            try {
+              const fullData = typeof bestMatch.metadata.full_json === 'string'
+                ? JSON.parse(bestMatch.metadata.full_json)
+                : bestMatch.metadata.full_json;
 
-        if (parts.length === 2) {
-          const provaKey = desanitizarID(parts[0]);
-          const questaoKey = desanitizarID(parts[1]);
+              if (fullData && (fullData.dados_questao || fullData.dados_gabarito || fullData.enunciado)) {
+                console.log(`[QuestionService] ⚡ Questão recuperada DIRETO do Pinecone metadata (sem Firebase): ${bestMatch.id}`);
+                const questaoId =
+                  bestMatch.metadata.questao ||
+                  fullData.dados_questao?.identificacao ||
+                  fullData.identificacao ||
+                  bestMatch.id;
 
-          console.log(`[QuestionService] Pinecone Match: ${bestMatch.id}`);
-          console.log(`[QuestionService] Path: questoes/${provaKey}/${questaoKey}`);
-
-          // Busca Direta no Firebase
-          const qRef = ref(db, `questoes/${provaKey}/${questaoKey}`);
-          const snapshot = await get(qRef);
-
-          if (snapshot.exists()) {
-            result = {
-              id: questaoKey, // ID para renderização (pode ser o ID limpo)
-              fullData: snapshot.val(),
-              score: bestMatch.score,
-            };
-          } else {
-            console.warn(`⚠️ Questão não encontrada no caminho: questoes/${provaKey}/${questaoKey}`);
+                result = {
+                  id: questaoId,
+                  fullData: fullData,
+                  score: bestMatch.score || 0.95,
+                };
+              }
+            } catch (errParse) {
+              console.warn('[QuestionService] Falha ao parsear metadata.full_json do Pinecone:', errParse);
+            }
           }
-        } else {
-          console.warn("⚠️ Formato de ID Pinecone inválido (sem '--'):", bestMatch.id);
+        }
+
+        // 1.2 FALLBACK: Se o full_json não estava no Pinecone (ex: >38KB), busca no Firebase pelo path correto
+        if (!result && bestMatch.id) {
+          let provaKey = bestMatch.metadata?.prova || bestMatch.metadata?.exam || '';
+          let questaoKey = bestMatch.metadata?.questao || '';
+
+          if (!provaKey || !questaoKey) {
+            if (bestMatch.id.includes('--')) {
+              const parts = bestMatch.id.split('--');
+              provaKey = desanitizarID(parts[0]);
+              questaoKey = desanitizarID(parts[1]);
+            } else {
+              const decoded = desanitizarID(bestMatch.id);
+              if (decoded.includes(' - ')) {
+                const lastDashIndex = decoded.lastIndexOf(' - ');
+                provaKey = decoded.substring(0, lastDashIndex).trim();
+                questaoKey = decoded.substring(lastDashIndex + 3).trim();
+              } else if (decoded.includes('--')) {
+                const parts = decoded.split('--');
+                provaKey = parts[0].trim();
+                questaoKey = parts[1].trim();
+              } else {
+                provaKey = provaKey || decoded;
+                questaoKey = questaoKey || decoded;
+              }
+            }
+          }
+
+          if (provaKey && questaoKey) {
+            console.log(`[QuestionService] Pinecone Match (Firebase fetch): ${bestMatch.id}`);
+            console.log(`[QuestionService] Path: questoes/${provaKey}/${questaoKey}`);
+
+            try {
+              const qRef = ref(db, `questoes/${provaKey}/${questaoKey}`);
+              const snapshot = await get(qRef);
+
+              if (snapshot.exists()) {
+                result = {
+                  id: questaoKey,
+                  fullData: snapshot.val(),
+                  score: bestMatch.score,
+                };
+              } else {
+                console.warn(`⚠️ Questão não encontrada no caminho: questoes/${provaKey}/${questaoKey}`);
+              }
+            } catch (dbErr) {
+              console.warn(`⚠️ Erro ao consultar Firebase em questoes/${provaKey}/${questaoKey}:`, dbErr.message);
+            }
+          }
         }
       }
     }
@@ -89,35 +140,36 @@ export async function findBestQuestion(filtros) {
     if (!result) {
       console.warn('⚠️ [QuestionService] Recorrendo ao Fallback Genérico.');
 
-      // Estrutura: questoes -> { "PROVA_X": { "Q1": {}, "Q2": {} }, "PROVA_Y": ... }
-      // Pegamos a primeira PROVA
-      const provasQuery = query(ref(db, 'questoes'), limitToFirst(3)); // Pega 3 provas pra variar um pouco se der
-      const provasSnap = await get(provasQuery);
+      try {
+        // Estrutura: questoes -> { "PROVA_X": { "Q1": {}, "Q2": {} }, "PROVA_Y": ... }
+        const provasQuery = query(ref(db, 'questoes'), limitToFirst(3));
+        const provasSnap = await get(provasQuery);
 
-      if (provasSnap.exists()) {
-        const provas = provasSnap.val();
-        const keysProvas = Object.keys(provas);
+        if (provasSnap.exists()) {
+          const provas = provasSnap.val();
+          const keysProvas = Object.keys(provas);
 
-        // Pega uma prova aleatória das encontradas (ou a primeira)
-        const provaKey = keysProvas[Math.floor(Math.random() * keysProvas.length)];
-        const questoesDaProva = provas[provaKey];
+          const provaKey = keysProvas[Math.floor(Math.random() * keysProvas.length)];
+          const questoesDaProva = provas[provaKey];
 
-        if (questoesDaProva) {
-          const keysQuestoes = Object.keys(questoesDaProva);
-          if (keysQuestoes.length > 0) {
-            // Pega uma questão aleatória dessa prova
-            const questaoKey = keysQuestoes[Math.floor(Math.random() * keysQuestoes.length)];
-            const data = questoesDaProva[questaoKey];
+          if (questoesDaProva) {
+            const keysQuestoes = Object.keys(questoesDaProva);
+            if (keysQuestoes.length > 0) {
+              const questaoKey = keysQuestoes[Math.floor(Math.random() * keysQuestoes.length)];
+              const data = questoesDaProva[questaoKey];
 
-            console.log(`[QuestionService] Fallback usado: questoes/${provaKey}/${questaoKey}`);
+              console.log(`[QuestionService] Fallback usado: questoes/${provaKey}/${questaoKey}`);
 
-            result = {
-              id: questaoKey,
-              fullData: data,
-              score: 0,
-            };
+              result = {
+                id: questaoKey,
+                fullData: data,
+                score: 0,
+              };
+            }
           }
         }
+      } catch (fbErr) {
+        console.warn('⚠️ Fallback do Firebase inacessível (permissão ou offline):', fbErr.message);
       }
     }
 
@@ -125,9 +177,10 @@ export async function findBestQuestion(filtros) {
       return result;
     }
 
-    throw new Error('Banco de questões vazio ou inacessível.');
+    console.warn('[QuestionService] Nenhuma questão encontrada no Firebase.');
+    return null;
   } catch (error) {
-    console.error('❌ [QuestionService] Erro fatal na busca:', error);
+    console.error('❌ [QuestionService] Erro na busca de questão:', error);
     return null;
   }
 }
