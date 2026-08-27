@@ -11,6 +11,8 @@ ChatStorageService.cleanupExpired().catch(console.error);
 
 import { initTheme } from './services/theme-service.js';
 
+initTheme();
+
 import { EloService } from './services/elo-service.js';
 import { exibirEloPopupModal } from './ui/EloPopupModal.js';
 

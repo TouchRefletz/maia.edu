@@ -72,3 +72,8 @@ export function updateThemeIcon(theme) {
     btn.title = isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro';
   });
 }
+
+// Auto-inicializa o tema imediatamente ao carregar o módulo
+if (typeof document !== 'undefined') {
+  initTheme();
+}
