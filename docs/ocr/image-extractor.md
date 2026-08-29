@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/services/ai-image-extractor.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/services/ai-image-extractor.js) |
+| **Arquivo** | `js/services/ai-image-extractor.js` |
 | **Escopo** | Processamento visual client-side, recorte em Canvas HTML5, compressão e upload para ImgBB via Worker |
 | **Exports** | `extractAndUploadCrop()`, `cropCanvasBoundingBox()`, `canvasToBase64()` |
 

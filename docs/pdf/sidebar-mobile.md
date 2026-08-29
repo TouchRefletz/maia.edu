@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/sidebar-mobile.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/sidebar-mobile.js) |
+| **Arquivo** | `js/viewer/sidebar-mobile.js` |
 | **Escopo** | Interface responsiva mobile, gaveta deslizante (Bottom Sheet) e suporte a gestos touch |
 | **Exports** | `initSidebarMobile()`, `openMobileDrawer()`, `closeMobileDrawer()` |
 

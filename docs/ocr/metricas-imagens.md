@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/services/metricas-imagens.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/services/metricas-imagens.js) |
+| **Arquivo** | `js/services/metricas-imagens.js` |
 | **Escopo** | Análise estática de imagens de exames, cálculo de desvio de contraste, nitidez (Laplaciano) e DPI |
 | **Exports** | `avaliarQualidadeImagem()`, `calcularVarianciaLaplaciana()`, `estimarDPI()` |
 

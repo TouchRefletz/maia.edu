@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |------------|-------|
-| **Arquivo** | [`js/chat/config.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/chat/config.js) |
+| **Arquivo** | `js/chat/config.js` |
 | **Linhas** | 112 |
 | **Exports** | `CHAT_CONFIG`, `getModeConfig()`, `getGenerationParams()`, `complexityToMode()` |
 | **Dependências** | Nenhuma (módulo puro) |

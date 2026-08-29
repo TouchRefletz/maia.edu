@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |------------|-------|
-| **Arquivo** | [`js/services/ai-scanner.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/services/ai-scanner.js) |
+| **Arquivo** | `js/services/ai-scanner.js` |
 | **Tamanho** | ~30 KB |
 | **Classe** | `AiScanner` |
 | **Dependências** | `worker.js`, `cropper-state.js`, `selection-overlay.js`, `scanner-ui.js` |

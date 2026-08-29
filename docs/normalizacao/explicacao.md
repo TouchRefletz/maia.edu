@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/explicacao.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/explicacao.js) |
+| **Arquivo** | `js/normalize/explicacao.js` |
 | **Escopo** | Estruturação e sanitização da resolução comentada e etapas pedagógicas |
 | **Funções Principais** | `normalizarExplicacao()`, `normalizarAnaliseAlternativas()`, `validarCoerenciaGabarito()` |
 

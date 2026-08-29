@@ -4,14 +4,14 @@
 
 | Arquivo | Linhas | Tamanho | Propósito |
 |---------|--------|---------|----------|
-| [`bank-hydration.tsx`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/bank-hydration.tsx) | ~80 | 2 KB | Carregamento inicial |
-| [`card-template.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/card-template.js) | ~500 | 15.1 KB | Template HTML do card |
-| [`card-partes.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/card-partes.js) | ~300 | 7.6 KB | Componentes internos |
-| [`filtros-dinamicos.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/filtros-dinamicos.js) | ~350 | 10.4 KB | Motor de filtros |
-| [`filtros-ui.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/filtros-ui.js) | ~600 | 17.9 KB | UI dos filtros |
-| [`imagens.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/imagens.js) | ~60 | 1.5 KB | Helpers de imagem |
-| [`interacoes.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/interacoes.js) | ~400 | 12.3 KB | Event handlers |
-| [`paginacao-e-carregamento.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/paginacao-e-carregamento.js) | ~200 | 5.9 KB | Paginação |
+| `bank-hydration.tsx` | ~80 | 2 KB | Carregamento inicial |
+| `card-template.js` | ~500 | 15.1 KB | Template HTML do card |
+| `card-partes.js` | ~300 | 7.6 KB | Componentes internos |
+| `filtros-dinamicos.js` | ~350 | 10.4 KB | Motor de filtros |
+| `filtros-ui.js` | ~600 | 17.9 KB | UI dos filtros |
+| `imagens.js` | ~60 | 1.5 KB | Helpers de imagem |
+| `interacoes.js` | ~400 | 12.3 KB | Event handlers |
+| `paginacao-e-carregamento.js` | ~200 | 5.9 KB | Paginação |
 | **Total** | **~2490** | **~72.7 KB** | |
 
 ---

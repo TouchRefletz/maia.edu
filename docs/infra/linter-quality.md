@@ -37,5 +37,5 @@ npm run sonar
 ---
 
 ## 🔗 Referências Cruzadas
-- [Regras do Agente - Qualidade](file:///c:/Users/jcamp/Downloads/maia.api/.agents/rules/quality.md)
+- `Regras do Agente - Qualidade`
 - [Visão Geral de Infraestrutura](/infra/visao-geral)

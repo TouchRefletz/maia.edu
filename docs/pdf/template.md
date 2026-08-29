@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/template.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/template.js) |
+| **Arquivo** | `js/viewer/template.js` |
 | **Escopo** | Injeção e criação da árvore DOM do PDF Viewer, toolbar e viewport |
 | **Exports** | `createViewerHTML()`, `injectViewerTemplate()` |
 

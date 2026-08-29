@@ -8,7 +8,7 @@ O **Maia API Worker** é um Cloudflare Worker que serve como gateway único entr
 
 | Arquivo | Linhas | Tamanho |
 |---------|--------|---------|
-| [`maia-api-worker/src/index.js`](file:///c:/Users/jcamp/Downloads/maia.api/maia-api-worker/src/index.js) | ~2537 | 84 KB |
+| `maia-api-worker/src/index.js` | ~2537 | 84 KB |
 
 ---
 

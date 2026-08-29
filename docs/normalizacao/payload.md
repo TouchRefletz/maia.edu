@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/payload.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/payload.js) |
+| **Arquivo** | `js/normalize/payload.js` |
 | **Escopo** | Compilação e construção do esquema JSON canônico final gravado no Firebase Firestore |
 | **Função Principal** | `montarPayloadFinal()` |
 

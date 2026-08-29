@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/primitives.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/primitives.js) |
+| **Arquivo** | `js/normalize/primitives.js` |
 | **Escopo** | Utilitários de sanitização de strings, unescape de HTML, normalização de caracteres e TeX/LaTeX |
 | **Exports** | `cleanText()`, `unescapeHTML()`, `sanitizeLaTeX()`, `slugify()` |
 

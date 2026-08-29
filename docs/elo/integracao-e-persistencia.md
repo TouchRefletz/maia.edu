@@ -80,7 +80,7 @@ Toda a informação do sistema de ELO é unificada sob a chave `maia_elo_state` 
 
 ## 🛠️ 2. API do `EloService` (Funções Exportadas)
 
-O módulo [elo-service.js](file:///c:/Users/jcamp/Downloads/maia.api/js/services/elo-service.js) expõe funções puras e utilitários de estado:
+O módulo `elo-service.js` expõe funções puras e utilitários de estado:
 
 ```javascript
 import { EloService } from './services/elo-service.js';

@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/creditos.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/creditos.js) |
+| **Arquivo** | `js/normalize/creditos.js` |
 | **Escopo** | Canonização de metadados de atribuição, instituições, bancas de exames, anos e origem de resolução |
 | **Funções Principais** | `normalizarCreditos()`, `canonicalizarInstituicao()`, `extrairAno()`, `validarOrigemResolucao()` |
 

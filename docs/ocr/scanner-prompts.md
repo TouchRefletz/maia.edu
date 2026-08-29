@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/services/scanner-prompts.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/services/scanner-prompts.js) |
+| **Arquivo** | `js/services/scanner-prompts.js` |
 | **Escopo** | Engenharia de prompts do sistema, esquemas JSON estritos e heurísticas visuais para o Gemini 3.5 Flash |
 | **Exports** | `PROMPT_GREEDY_BOX_DETECTION`, `PROMPT_EXTRACTION_JSON_SCHEMA`, `getScannerPrompt()` |
 

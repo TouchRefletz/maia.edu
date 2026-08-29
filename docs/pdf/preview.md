@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/preview.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/preview.js) |
+| **Arquivo** | `js/viewer/preview.js` |
 | **Escopo** | Renderização assíncrona de thumbnails na sidebar lateral com lazy loading e cache |
 | **Exports** | `ThumbnailRenderer`, `renderPageThumbnail()`, `clearThumbnailCache()` |
 

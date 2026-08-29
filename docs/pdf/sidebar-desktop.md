@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/sidebar-desktop.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/sidebar-desktop.js) |
+| **Arquivo** | `js/viewer/sidebar-desktop.js` |
 | **Escopo** | Painel lateral de navegação por miniaturas, busca textual e índice de páginas para telas desktop |
 | **Exports** | `initSidebarDesktop()`, `toggleDesktopSidebar()` |
 

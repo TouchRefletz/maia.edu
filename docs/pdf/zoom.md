@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/resizer.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/resizer.js) |
+| **Arquivo** | `js/viewer/resizer.js` |
 | **Escopo** | Resizer de escala de páginas, cálculo de Device Pixel Ratio (Hi-DPI) e pinch-to-zoom |
 | **Exports** | `calculateFitScale()`, `getHiDPIViewport()`, `applyScaleLimits()` |
 

@@ -6,6 +6,7 @@
  */
 import DefaultTheme from 'vitepress/theme';
 import DocReportBanner from './DocReportBanner.vue';
+import MermaidZoomModal from './MermaidZoomModal.vue';
 import './custom.css';
 import { h } from 'vue';
 
@@ -14,6 +15,7 @@ export default {
   Layout() {
     return h(DefaultTheme.Layout, null, {
       'doc-before': () => h(DocReportBanner),
+      'layout-bottom': () => h(MermaidZoomModal),
     });
   },
   enhanceApp({ app }) {

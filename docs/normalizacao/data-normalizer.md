@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/data-normalizer.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/data-normalizer.js) |
+| **Arquivo** | `js/normalize/data-normalizer.js` |
 | **Escopo** | Pipeline central de sanitização, enriquecimento e compilação de dados brutos do OCR/LLM |
 | **Exports** | `DataNormalizer`, `processAndNormalizeQuestion()`, `validateSchemaIntegrity()` |
 | **Dependências** | `./alternativas.js`, `./creditos.js`, `./explicacao.js`, `./payload.js`, `./primitives.js` |

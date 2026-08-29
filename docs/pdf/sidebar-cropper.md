@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/sidebar-cropper.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/sidebar-cropper.js) |
+| **Arquivo** | `js/viewer/sidebar-cropper.js` |
 | **Escopo** | Gerenciamento da lista de recortes efetuados na página atual e envio em lote para extração por IA |
 | **Exports** | `SidebarCropperManager`, `initSidebarCropper()` |
 

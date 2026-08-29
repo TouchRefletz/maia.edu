@@ -4,13 +4,13 @@
 
 | Arquivo | Linhas | Tamanho | Propósito |
 |---------|--------|---------|----------|
-| [`cropper-core.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/cropper-core.js) | ~150 | 4.1 KB | Init, destroy, API pública |
-| [`cropper-state.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/cropper-state.js) | ~400 | 11.8 KB | Store reativo, undo/redo |
-| [`mode.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/mode.js) | ~700 | 22.9 KB | Máquina de estados completa |
-| [`selection-overlay.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/selection-overlay.js) | ~1500 | 44.6 KB | SVG overlay, pointer events |
-| [`gallery.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/gallery.js) | ~50 | 1.3 KB | Galeria de crops |
-| [`json-loader.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/json-loader.js) | ~250 | 7 KB | Import/export JSON |
-| [`save-handlers.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/cropper/save-handlers.js) | ~400 | 12.8 KB | Extração de crops em alta resolução |
+| `cropper-core.js` | ~150 | 4.1 KB | Init, destroy, API pública |
+| `cropper-state.js` | ~400 | 11.8 KB | Store reativo, undo/redo |
+| `mode.js` | ~700 | 22.9 KB | Máquina de estados completa |
+| `selection-overlay.js` | ~1500 | 44.6 KB | SVG overlay, pointer events |
+| `gallery.js` | ~50 | 1.3 KB | Galeria de crops |
+| `json-loader.js` | ~250 | 7 KB | Import/export JSON |
+| `save-handlers.js` | ~400 | 12.8 KB | Extração de crops em alta resolução |
 | **Total** | **~3450** | **~104 KB** | |
 
 ---

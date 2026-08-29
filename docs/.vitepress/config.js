@@ -150,6 +150,7 @@ export default withMermaid(
             { text: 'Metodologias Pedagógicas', link: '/chat/metodologias' },
             { text: 'Chat Render (TSX/JS)', link: '/chat/render' },
             { text: 'Hydration e Pós-processamento', link: '/chat/hydration' },
+            { text: 'Anexos e Armazenamento', link: '/chat/anexos-e-armazenamento' },
           ],
         },
 

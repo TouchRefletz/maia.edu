@@ -61,7 +61,7 @@ Apesar dos benefícios, o uso indevido ou a percepção equivocada da pontuaçã
 
 ## 🛡️ 3. Mecanismos de Mitigação Implementados no Codebase
 
-Para neutralizar os malefícios e proteger a jornada pedagógica do estudante, o maia.edu implementa salvaguardas técnicas no arquivo [elo-service.js](file:///c:/Users/jcamp/Downloads/maia.api/js/services/elo-service.js):
+Para neutralizar os malefícios e proteger a jornada pedagógica do estudante, o maia.edu implementa salvaguardas técnicas no arquivo `elo-service.js`:
 
 | Desafio / Risco | Salvaguarda Técnica Implementada | Como Funciona no Código |
 | :--- | :--- | :--- |

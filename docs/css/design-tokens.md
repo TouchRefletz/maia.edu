@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |------------|-------|
-| **Arquivo** | [`css/base/variables.css`](file:///c:/Users/jcamp/Downloads/maia.api/css/base/variables.css) |
+| **Arquivo** | `css/base/variables.css` |
 | **Linhas** | ~500 |
 | **Tamanho** | 15.3 KB |
 | **Tipo** | CSS Custom Properties (`:root`) |

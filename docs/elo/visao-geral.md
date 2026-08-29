@@ -45,12 +45,12 @@ O motor de ELO é totalmente desacoplado e integrado a toda a aplicação fronte
 
 | Arquivo / Componente | Função & Responsabilidade |
 | :--- | :--- |
-| [elo-service.js](file:///c:/Users/jcamp/Downloads/maia.api/js/services/elo-service.js) | Core matemático: equações Rasch 1PL, Brier score, shrinkage $w(N)$, decaimento temporal, $K$-dinâmico e catálogo de perfis. |
-| [perfil-screen.js](file:///c:/Users/jcamp/Downloads/maia.api/js/ui/perfil-screen.js) | Interface visual do Perfil de Elo do Usuário, exibindo gráficos de aspectos, arquétipos dominantes, estatísticas e estatutos de maestria. |
-| [ranking-modal.js](file:///c:/Users/jcamp/Downloads/maia.api/js/ui/ranking-modal.js) | Modal pop-up com a tabela de classificação de Tiers, explicações de faixas e progresso do estudante. |
-| [card-partes.js](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/card-partes.js) | Renderiza os sliders de certeza e o card de feedback metacognitivo no Banco de Questões. |
-| [interacoes.js](file:///c:/Users/jcamp/Downloads/maia.api/js/banco/interacoes.js) | Captura as respostas e certezas dos sliders e dispara a atualização no `EloService`. |
-| [telas.js](file:///c:/Users/jcamp/Downloads/maia.api/js/app/telas.js) | Renderiza o Widget de ELO na barra lateral (`.nav-elo-widget`). |
+| `elo-service.js` | Core matemático: equações Rasch 1PL, Brier score, shrinkage $w(N)$, decaimento temporal, $K$-dinâmico e catálogo de perfis. |
+| `perfil-screen.js` | Interface visual do Perfil de Elo do Usuário, exibindo gráficos de aspectos, arquétipos dominantes, estatísticas e estatutos de maestria. |
+| `ranking-modal.js` | Modal pop-up com a tabela de classificação de Tiers, explicações de faixas e progresso do estudante. |
+| `card-partes.js` | Renderiza os sliders de certeza e o card de feedback metacognitivo no Banco de Questões. |
+| `interacoes.js` | Captura as respostas e certezas dos sliders e dispara a atualização no `EloService`. |
+| `telas.js` | Renderiza o Widget de ELO na barra lateral (`.nav-elo-widget`). |
 
 ---
 

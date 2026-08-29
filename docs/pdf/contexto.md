@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/context.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/context.js) |
+| **Arquivo** | `js/viewer/context.js` |
 | **Escopo** | Gerenciador de estado reativo e singleton do PDF Viewer (`PDFViewerContext`) |
 | **Exports** | `PDFViewerContext`, `usePDFContext()` |
 

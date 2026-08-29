@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/viewer/events.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/events.js) |
+| **Arquivo** | `js/viewer/events.js` |
 | **Escopo** | Barramento de eventos assíncrono pub/sub do visualizador de PDF |
 | **Exports** | `viewerEvents`, `EventEmitter` |
 

@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/services/queue-service.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/services/queue-service.js) |
+| **Arquivo** | `js/services/queue-service.js` |
 | **Escopo** | Gerenciamento de fila assíncrona, enfileiramento de tarefas pesadas, controle de concorrência e retries |
 | **Exports** | `TaskQueue`, `createOCRQueue()` |
 

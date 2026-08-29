@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |------------|-------|
-| **Arquivo** | [`js/viewer/pdf-core.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/viewer/pdf-core.js) |
+| **Arquivo** | `js/viewer/pdf-core.js` |
 | **Linhas** | ~800 |
 | **Tamanho** | 20.7 KB |
 | **Exports** | `carregarDocumentoPDF()`, `renderAllPages()`, `renderPageHighRes()`, `goToPage()`, `setScale()` |

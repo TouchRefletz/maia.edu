@@ -2207,6 +2207,41 @@ async function showPuterLimitsModal() {
       }
     }
 
+    // Consulta uso de armazenamento em nuvem no Puter Cloud
+    let storageHtml = '';
+    try {
+      const { ChatAttachmentService } = await import('../services/chat-attachment-service.js');
+      const storageStats = await ChatAttachmentService.getStorageUsage();
+      storageHtml = `
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--color-border); padding: 18px; border-radius: 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 0 12px rgba(255,255,255,0.01);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 6px;">
+              <span>📁</span> Armazenamento em Nuvem (Anexos)
+            </h4>
+            <span style="font-size: 0.72rem; background: rgba(59, 130, 246, 0.1); color: var(--color-primary, #4e82ee); padding: 2px 8px; border-radius: 6px; font-weight: 500;">Puter Cloud FS</span>
+          </div>
+
+          <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; margin-top: 4px; display: flex;">
+            <div style="width: ${storageStats.pctUsed}%; height: 100%; background: linear-gradient(90deg, #10b981, #3b82f6); border-radius: 5px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--color-text-secondary);">
+            <span>Espaço Usado: <strong style="color: var(--color-text);">${storageStats.formattedSize}</strong> (${storageStats.pctUsed}%)</span>
+            <span>Arquivos no Maia: <strong style="color: var(--color-text);">${storageStats.totalFiles}</strong></span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 0.75rem; color: var(--color-text-secondary);">Cota Gratuita Estimada: <strong>${storageStats.formattedQuota}</strong></span>
+            <a href="https://puter.com" target="_blank" class="btn btn--outline" style="padding: 5px 12px; font-size: 0.78rem; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; color: var(--color-primary, #4e82ee); border: 1px solid rgba(var(--color-primary-rgb, 78, 130, 238), 0.3);">
+              <span>📂</span> Abrir Gerenciador no Puter
+            </a>
+          </div>
+        </div>
+      `;
+    } catch (storageErr) {
+      console.warn('[showPuterLimitsModal] Erro ao carregar uso de storage:', storageErr);
+    }
+
     contentEl.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div style="display: flex; align-items: center; gap: 14px; background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.15); padding: 14px 18px; border-radius: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.03);">
@@ -2235,10 +2270,12 @@ async function showPuterLimitsModal() {
           </div>
         </div>
 
+        ${storageHtml}
+
         ${allowanceInfoHtml}
 
         <p style="margin: 4px 0 0 0; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; text-align: center;">
-          Os limites são redefinidos automaticamente a cada mês. Se você precisar de mais franquia, pode adicionar saldo ou fazer upgrade em seu painel no <a href="https://puter.com" target="_blank" style="color: var(--color-primary, #4e82ee); text-decoration: underline;">puter.com</a>.
+          Os limites são redefinidos automaticamente a cada mês. Se você precisar de mais franquia ou armazenamento, pode adicionar saldo ou fazer upgrade em seu painel no <a href="https://puter.com" target="_blank" style="color: var(--color-primary, #4e82ee); text-decoration: underline;">puter.com</a>.
         </p>
       </div>
     `;
@@ -2702,7 +2739,14 @@ window.loadChat = async (chatId) => {
   // 7. Hydrate Scaffolding (agora passa o ID do chat para o contexto)
   hydrateScaffoldingBlocks(messagesContainer);
 
-  // 8. Initialize custom scrollbars for mobile and horizontal sync
+  // 8. Hidrata thumbnails de imagens armazenadas no Puter
+  import('../services/chat-attachment-service.js')
+    .then(({ ChatAttachmentService }) => {
+      ChatAttachmentService.hydrateAttachmentPreviews(messagesContainer);
+    })
+    .catch(() => {});
+
+  // 9. Initialize custom scrollbars for mobile and horizontal sync
   setTimeout(() => {
     initCustomChatScrollbar();
     initTopScrollSync();
@@ -6991,11 +7035,24 @@ function formatFileSize(bytes) {
 }
 
 /**
- * HELPER: Abre anexo em nova aba
+ * HELPER: Abre anexo em nova aba ou faz download via Puter Cloud
  */
-window.openAttachment = (url, name) => {
-  if (!url || url === '#') {
-    customAlert(`Visualização não disponível para este arquivo simulado (${name}).`);
+window.openAttachment = async (url, name, puterPath = '') => {
+  if (puterPath) {
+    try {
+      const { ChatAttachmentService } = await import('../services/chat-attachment-service.js');
+      await ChatAttachmentService.openAttachment({ url, name, puterPath });
+      return;
+    } catch (e) {
+      console.warn('[openAttachment] Falha ao abrir via ChatAttachmentService:', e);
+    }
+  }
+
+  if (!url || url === '#' || url === '') {
+    const { customAlert } = await import('../ui/GlobalAlertsLogic.tsx').catch(() => ({
+      customAlert: alert,
+    }));
+    customAlert(`Visualização não disponível para este arquivo (${name || 'Sem nome'}).`);
     return;
   }
   window.open(url, '_blank');
@@ -7005,7 +7062,10 @@ window.openAttachment = (url, name) => {
  * RENDERER: Gera HTML para cartão de anexo premium
  */
 function renderFileAttachment(file) {
-  const ext = (file.name || '').split('.').pop().toLowerCase();
+  if (!file) return '';
+
+  const fileName = file.name || 'Arquivo';
+  const ext = fileName.split('.').pop().toLowerCase();
   const isImage = file.type?.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp'].includes(ext);
 
   const categories = {
@@ -7014,6 +7074,7 @@ function renderFileAttachment(file) {
     docx: 'Documento Office',
     json: 'Dados Estruturados',
     js: 'Script JavaScript',
+    ts: 'Script TypeScript',
     py: 'Script Python',
     txt: 'Arquivo de Texto',
     png: 'Imagem PNG',
@@ -7028,6 +7089,7 @@ function renderFileAttachment(file) {
     docx: '📘',
     json: '📦',
     js: '💛',
+    ts: '💙',
     py: '💙',
     txt: '📄',
     png: '🖼️',
@@ -7038,8 +7100,8 @@ function renderFileAttachment(file) {
 
   const category = categories[ext] || 'Arquivo';
   const sizeStr = file.size ? ` • ${formatFileSize(file.size)}` : '';
+  const puterPath = file.puterPath || '';
 
-  let iconContent = `<span class="message-file-icon">${icons[ext] || '📎'}</span>`;
   let onClickUrl = file.url || '#';
 
   // Se for um objeto File real (blob local)
@@ -7047,21 +7109,28 @@ function renderFileAttachment(file) {
     onClickUrl = URL.createObjectURL(file);
   }
 
+  const safeFileName = fileName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const safeOnClickUrl = onClickUrl.replace(/'/g, "\\'");
+  const safePuterPath = puterPath.replace(/'/g, "\\'");
+
+  let iconContent = `<span class="message-file-icon">${icons[ext] || '📎'}</span>`;
+
   if (isImage) {
-    const thumbUrl = onClickUrl !== '#' ? onClickUrl : 'logo.png';
-    iconContent = `<img src="${thumbUrl}" alt="${file.name}" class="message-file-preview">`;
+    const thumbUrl = onClickUrl !== '#' && !onClickUrl.includes('/drivers/fs/read') ? onClickUrl : 'logo.png';
+    const puterAttr = safePuterPath ? `data-puter-path="${safePuterPath}"` : '';
+    iconContent = `<img src="${thumbUrl}" alt="${fileName}" class="message-file-preview" ${puterAttr}>`;
   }
 
   return `
-        <div class="message-file-card" onclick="window.openAttachment('${onClickUrl}', '${(file.name || 'Sem nome').replace(/'/g, "\\'")}')">
+        <div class="message-file-card" onclick="window.openAttachment('${safeOnClickUrl}', '${safeFileName}', '${safePuterPath}')">
             <div class="message-file-icon-wrapper">
                 ${iconContent}
             </div>
             <div class="message-file-info">
-                <div class="message-file-name" title="${file.name}">${file.name}</div>
+                <div class="message-file-name" title="${safeFileName}">${fileName}</div>
                 <div class="message-file-meta">${category}${sizeStr}</div>
             </div>
-            <div class="message-file-action" title="Abrir">
+            <div class="message-file-action" title="Abrir / Baixar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             </div>
         </div>

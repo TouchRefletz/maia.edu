@@ -11,6 +11,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js';
 import { auth, firestore } from '../firebase/init.js';
 import { customAlert } from '../ui/GlobalAlertsLogic';
+import { ChatAttachmentService } from './chat-attachment-service.js';
 
 const DB_NAME = 'MaiaChatsDB';
 const DB_VERSION = 2; // Incrementado para suportar expiresAt
@@ -242,7 +243,14 @@ export const ChatStorageService = {
           promises.push(
             (async () => {
               try {
-                const msgsCollRef = collection(firestore, 'users', uid, 'chats', docSnap.id, 'messages');
+                const msgsCollRef = collection(
+                  firestore,
+                  'users',
+                  uid,
+                  'chats',
+                  docSnap.id,
+                  'messages',
+                );
                 const msgsQuery = query(msgsCollRef, orderBy('index', 'asc'));
                 const msgsSnap = await getDocs(msgsQuery);
                 const fetchedMessages = [];
@@ -352,11 +360,16 @@ export const ChatStorageService = {
   },
 
   /**
-   * Deleta chat (Local e Nuvem se dono)
+   * Deleta chat (Local e Nuvem se dono) e limpa anexos no Puter Cloud
    */
   async deleteChat(chatId) {
     try {
       await this.deleteLocal(chatId);
+
+      // Limpa anexos da conversa no Puter Cloud
+      ChatAttachmentService.deleteChatAttachments(chatId).catch((err) =>
+        console.warn(`[ChatStorage] Falha ao limpar anexos do chat ${chatId} no Puter:`, err),
+      );
 
       const user = auth.currentUser;
       if (user && !user.isAnonymous) {
@@ -390,17 +403,32 @@ export const ChatStorageService = {
   },
 
   /**
-   * Cria novo chat
+   * Cria novo chat com suporte a upload/serialização de anexos
    */
   async createNewChat(firstMessage, attachments = []) {
+    const chatId = crypto.randomUUID();
+
+    // Processa upload de anexos se houver arquivos nativos
+    let processedAttachments = attachments;
+    if (attachments && attachments.length > 0) {
+      try {
+        processedAttachments = await ChatAttachmentService.uploadChatAttachments(
+          chatId,
+          attachments,
+        );
+      } catch (attErr) {
+        console.warn('[ChatStorage] Erro no upload de anexos para novo chat:', attErr);
+      }
+    }
+
     const chat = {
-      id: crypto.randomUUID(),
+      id: chatId,
       title: firstMessage.slice(0, 30) + (firstMessage.length > 30 ? '...' : ''),
       messages: [
         {
           role: 'user',
           content: firstMessage,
-          attachments: attachments,
+          attachments: processedAttachments,
           timestamp: Date.now(),
         },
       ],
@@ -415,10 +443,23 @@ export const ChatStorageService = {
   async addMessage(chatId, role, content, attachments = []) {
     const chat = await this.getChat(chatId);
     if (chat) {
+      // Processa upload de anexos se houver arquivos nativos
+      let processedAttachments = attachments;
+      if (attachments && attachments.length > 0) {
+        try {
+          processedAttachments = await ChatAttachmentService.uploadChatAttachments(
+            chatId,
+            attachments,
+          );
+        } catch (attErr) {
+          console.warn('[ChatStorage] Erro no upload de anexos ao adicionar mensagem:', attErr);
+        }
+      }
+
       chat.messages.push({
         role,
         content,
-        attachments,
+        attachments: processedAttachments,
         timestamp: Date.now(),
       });
       chat.updatedAt = Date.now();

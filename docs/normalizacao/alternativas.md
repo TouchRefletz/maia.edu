@@ -4,7 +4,7 @@
 
 | Propriedade | Valor |
 |---|---|
-| **Arquivo** | [`js/normalize/alternativas.js`](file:///c:/Users/jcamp/Downloads/maia.api/js/normalize/alternativas.js) |
+| **Arquivo** | `js/normalize/alternativas.js` |
 | **Escopo** | Higienização, estruturação e sanitização de opções de resposta de múltipla escolha (A, B, C, D, E) |
 | **Funções Principais** | `normalizarAlternativas()`, `extrairLetra()`, `limparTextoAlternativa()`, `sanitizarEquacoes()` |
 

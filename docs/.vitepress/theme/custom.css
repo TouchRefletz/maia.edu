@@ -78,3 +78,80 @@
 .dark .VPFeature .box:hover {
   box-shadow: 0 12px 32px rgba(15, 98, 254, 0.15);
 }
+
+/* =========================================================================
+ * Mermaid Interactive Pan & Zoom Styling (100% CSS puro sem injeção no DOM)
+ * ========================================================================= */
+.vp-doc .mermaid,
+.mermaid {
+  position: relative;
+  cursor: zoom-in !important;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-soft);
+  padding: 24px 16px 16px 16px;
+  margin: 24px 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.vp-doc .mermaid:hover,
+.mermaid:hover {
+  border-color: var(--vp-c-brand-1, #21808d);
+  box-shadow: 0 8px 24px rgba(33, 128, 141, 0.12);
+}
+
+.vp-doc .mermaid svg,
+.mermaid svg {
+  cursor: zoom-in !important;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Badge indicativo de clique para expandir via pseudo-elemento CSS */
+.vp-doc .mermaid::after,
+.mermaid::after {
+  content: '🔍 Expandir e Navegar';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(22, 27, 34, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #c9d1d9;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.vp-doc .mermaid:hover::after,
+.mermaid:hover::after {
+  opacity: 1;
+  background: var(--vp-c-brand-1, #21808d);
+  color: #ffffff;
+  border-color: transparent;
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(33, 128, 141, 0.4);
+}
+
+:root:not(.dark) .vp-doc .mermaid::after,
+:root:not(.dark) .mermaid::after {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #4b5563;
+}
+
+:root:not(.dark) .vp-doc .mermaid:hover::after,
+:root:not(.dark) .mermaid:hover::after {
+  background: var(--vp-c-brand-1, #21808d);
+  color: #ffffff;
+}
