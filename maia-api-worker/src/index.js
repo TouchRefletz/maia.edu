@@ -5184,6 +5184,7 @@ async function handleCatalogoMetadados(request, env) {
       success: true,
       totalQuestoes: todasQuestoes.length,
       counts,
+      provas: Object.keys(counts.materiais || {}).sort(),
     };
 
     METADATA_CATALOG_CACHE = catalogResponse;
@@ -5221,7 +5222,7 @@ async function handleQuestoesPaginadas(request, env) {
     }
 
     const page = Math.max(1, parseInt(params.page || 1, 10));
-    const limit = Math.min(20, Math.max(1, parseInt(params.limit || 10, 10))); // Padrão 10 por página
+    const limit = Math.min(100, Math.max(1, parseInt(params.limit || 10, 10))); // Permite até 100 por requisição
 
     const todasQuestoesBase = await obterTodasQuestoesBase(env);
 
@@ -5297,7 +5298,7 @@ async function handleQuestoesPaginadas(request, env) {
 
       // 4. Material / Prova
       if (materiaisFiltro.length > 0) {
-        const matItem = `${meta.material_origem || ''} ${item.prova || ''}`
+        const matItem = `${meta.material_origem || ''} ${item.prova || ''} ${(item.prova || '').replace(/_/g, ' ')}`
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
           .toLowerCase();

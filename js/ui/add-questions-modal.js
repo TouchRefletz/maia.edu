@@ -16,11 +16,16 @@ import { criarCardTecnico } from '../banco/card-template.js';
 import { renderLatexIn } from '../libs/loader.tsx';
 import { auth, db } from '../main.js';
 
+const WORKER_BASE_URL =
+  import.meta.env.VITE_WORKER_URL ||
+  'https://maia-api-worker.willian-campos-ismart.workers.dev';
+
 // Estado do modal
 const selectedQuestions = new Map();
 let expandedExam = null;
 let modalOverlay = null;
 let previewOverlay = null;
+let cachedExamsCatalog = null;
 
 /**
  * Abre o modal de adicionar questões
@@ -156,9 +161,42 @@ function handleEscKey(e) {
 }
 
 /**
+ * Busca e normaliza catálogo de provas do servidor
+ */
+async function fetchExamsCatalog() {
+  if (cachedExamsCatalog && cachedExamsCatalog.length > 0) {
+    return cachedExamsCatalog;
+  }
+
+  const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
+  if (!res.ok) {
+    throw new Error(`Falha na resposta do servidor (${res.status})`);
+  }
+
+  const data = await res.json();
+  const materiaisMap = data.counts?.materiais || {};
+  let list = [];
+
+  if (Array.isArray(data.provas) && data.provas.length > 0) {
+    list = data.provas.map((p) => {
+      if (typeof p === 'string') {
+        return { nome: p, qtd: materiaisMap[p] || 0 };
+      }
+      return { nome: p.nome || p.id || String(p), qtd: p.qtd || 0 };
+    });
+  } else if (Object.keys(materiaisMap).length > 0) {
+    list = Object.entries(materiaisMap).map(([nome, qtd]) => ({ nome, qtd }));
+  }
+
+  list.sort((a, b) => a.nome.localeCompare(b.nome));
+  cachedExamsCatalog = list;
+  return list;
+}
+
+/**
  * Carrega lista de provas do servidor
  */
-async function loadExamsList() {
+async function loadInitialExams() {
   const listContainer = document.getElementById('addQuestionsList');
   const loading = document.getElementById('addQuestionsLoading');
 
@@ -168,22 +206,15 @@ async function loadExamsList() {
   listContainer.innerHTML = '';
 
   try {
-    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
+    const exams = await fetchExamsCatalog();
     loading.style.display = 'none';
 
-    if (res.ok) {
-      const data = await res.json();
-      const provas = (data.provas || []).sort();
-
-      if (provas.length > 0) {
-        provas.forEach((nomeProva) => {
-          listContainer.appendChild(createExamCard(nomeProva, 0));
-        });
-      } else {
-        listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada.</p>`;
-      }
+    if (exams.length > 0) {
+      exams.forEach(({ nome, qtd }) => {
+        listContainer.appendChild(createExamCard(nome, qtd));
+      });
     } else {
-      listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada.</p>`;
+      listContainer.innerHTML = '<p class="add-questions-empty">Nenhuma prova encontrada.</p>';
     }
   } catch (e) {
     console.error('Erro ao carregar provas:', e);
@@ -191,6 +222,9 @@ async function loadExamsList() {
     listContainer.innerHTML = `<p class="add-questions-error">Erro ao carregar: ${e.message}</p>`;
   }
 }
+
+// Alias para compatibilidade retroativa
+export const loadExamsList = loadInitialExams;
 
 /**
  * Smart Search - busca de provas
@@ -205,21 +239,29 @@ async function searchExams(termo) {
   listContainer.innerHTML = '';
 
   try {
-    const res = await fetch(`${WORKER_BASE_URL}/catalogo-metadados`);
+    const exams = await fetchExamsCatalog();
     loading.style.display = 'none';
 
-    if (res.ok) {
-      const data = await res.json();
-      const termoNorm = (termo || '').toLowerCase();
-      const filtradas = (data.provas || []).filter((p) => p.toLowerCase().includes(termoNorm)).sort();
+    const termoNorm = (termo || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
 
-      if (filtradas.length > 0) {
-        filtradas.forEach((nomeProva) => {
-          listContainer.appendChild(createExamCard(nomeProva, 0));
-        });
-      } else {
-        listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada para "${termo}".</p>`;
-      }
+    const filtradas = exams.filter((item) => {
+      const nomeNorm = item.nome
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      return nomeNorm.includes(termoNorm);
+    });
+
+    if (filtradas.length > 0) {
+      filtradas.forEach(({ nome, qtd }) => {
+        listContainer.appendChild(createExamCard(nome, qtd));
+      });
+    } else {
+      listContainer.innerHTML = `<p class="add-questions-empty">Nenhuma prova encontrada para "${termo}".</p>`;
     }
   } catch (e) {
     console.error('Erro ao buscar provas:', e);
